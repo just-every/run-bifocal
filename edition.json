@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "id": "just-every/bifocal",
+  "identityKind": "project",
+  "toolchain": {
+    "id": "runeditrun/edition-authoring",
+    "version": "1.1.0"
+  },
+  "components": [
+    {
+      "id": "just-every/bifocal",
+      "role": "edition",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/routes",
+          "src/auth.server.ts",
+          "src/server.ts",
+          "src/server.dev.ts",
+          "src/identity.ts",
+          "src/branding.json",
+          "src/site",
+          "scripts/installer"
+        ]
+      }
+    },
+    {
+      "id": "runeditrun/foundation",
+      "role": "foundation",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/base"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "foundation/runtime"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/ai",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/ai"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/ai"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/demo",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/demo"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/demo"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/dependencies",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/dependencies"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/dependencies"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/mail",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/mail"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/mail"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/operator-auth",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/operator-auth"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/operator-auth"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/owner-claim",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "src/modules/owner-claim"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "modules/owner-claim"
+          ]
+        }
+      }
+    },
+    {
+      "id": "runeditrun/edition-authoring",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "scripts/edition-authoring"
+        ],
+        "origin": {
+          "repository": "https://github.com/runeditrun/base.git",
+          "revision": "d1249b3d696c4011e9c72de2097f3757436074a6",
+          "paths": [
+            "edition-authoring"
+          ]
+        }
+      }
+    }
+  ]
+}
