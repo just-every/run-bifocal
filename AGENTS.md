@@ -4,6 +4,8 @@ This checkout currently provides the Base foundation, not the BI product.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
 setup at `/setup`, then open `/app`. The app home describes the foundation capability state and links to existing
 account tools, Lobby, Run and contract pages, with native sign-out.
+`/app/settings` saves the signed-in account’s display name through the native
+`/auth/display-name` handler.
 People and invitations are available at `/app/people` through native account
 authorization. Only foundation owner/admin/member roles exist; analytics
 workflows and roles are not built.

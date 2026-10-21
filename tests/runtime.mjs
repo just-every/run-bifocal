@@ -100,6 +100,39 @@ try {
     const afterRefusal = await (await context.request.get(`${origin}/auth/operators`)).json()
     assert.ok(!afterRefusal.some(person => person.email === 'synthetic-bifocal-3@example.test'))
     console.log('People/Invite: native persistence, form errors, CSRF refusal and human HTML at 1440/390 passed')
+    // Display-name settings: follow the link, save through the native form,
+    // and read the durable value back through the session, settings and home.
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto(`${origin}/app`)
+      await page.getByRole('link', { name: 'Your settings', exact: true }).click()
+      await page.getByLabel('Your name', { exact: true }).fill(`Synthetic owner ${width}`)
+      await Promise.all([page.waitForURL(/saved=1/), page.getByRole('button', { name: 'Save name', exact: true }).click()])
+      await page.getByRole('status').waitFor()
+      await page.reload()
+      assert.equal(await page.getByLabel('Your name', { exact: true }).inputValue(), `Synthetic owner ${width}`)
+      const current = await (await context.request.get(`${origin}/auth/session`)).json()
+      assert.equal(current.operator.displayName, `Synthetic owner ${width}`)
+      assert.equal(current.operator.email, 'synthetic-bifocal-1@example.test')
+      assert.equal(current.operator.role, 'owner')
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `settings overflow at ${width}`)
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/settings-${width}.png`, fullPage: true })
+      await page.getByRole('link', { name: 'App home', exact: true }).click()
+      assert.match(await page.locator('main').innerText(), new RegExp(`Signed in as Synthetic owner ${width}`))
+    }
+    const invalidName = await context.request.post(`${origin}/auth/display-name`, { headers: { Origin: origin }, form: { displayName: '   ' } })
+    assert.equal(invalidName.status(), 400)
+    assert.match(await invalidName.text(), /Enter a name of 1 to 120 characters/)
+    const forgedName = await context.request.post(`${origin}/auth/display-name`, { headers: { Origin: 'https://foreign.example.test' }, data: { displayName: 'Synthetic refused' } })
+    assert.equal(forgedName.status(), 403)
+    assert.equal((await (await context.request.get(`${origin}/auth/session`)).json()).operator.displayName, 'Synthetic owner 390')
+    const escapedName = '<synthetic-bifocal-5> & "Owner"'
+    assert.equal((await context.request.post(`${origin}/auth/display-name`, { headers: { Origin: origin }, data: { displayName: escapedName } })).status(), 200)
+    await page.goto(`${origin}/app/settings`)
+    assert.equal(await page.getByLabel('Your name', { exact: true }).inputValue(), escapedName)
+    assert.equal(await page.locator('synthetic-bifocal-5').count(), 0)
+    await page.goto(`${origin}/app`)
+    console.log('Display-name settings: native save, durable readback, escaping and mutation refusals at 1440/390 passed')
     // A forged cross-origin form cannot revoke the still-valid session.
     const forged = await context.request.post(`${origin}/auth/signout`, { headers: { Origin: 'https://foreign.example.test' }, form: {}, maxRedirects: 0 })
     assert.equal(forged.status(), 403)
@@ -111,6 +144,8 @@ try {
     assert.equal((await fetch(`${origin}/auth/session`, { headers: { cookie: staleCookie } })).status, 401)
     assert.equal((await context.request.get(`${origin}/app`, { maxRedirects: 0 })).status(), 303)
     assert.equal((await context.request.get(`${origin}/app/people`, { maxRedirects: 0 })).status(), 303)
+    assert.equal((await context.request.get(`${origin}/app/settings`, { maxRedirects: 0 })).status(), 303)
+    assert.equal((await context.request.post(`${origin}/auth/display-name`, { headers: { Origin: origin }, data: { displayName: 'Synthetic refused' } })).status(), 401)
     console.log('Foundation home: honest capability state, working links and revoked sign-out at 1440/390 passed')
     await context.close()
   } finally { await browser.close() }

@@ -222,7 +222,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "2642cf8bb14d026fb2713607b09ea9f9a2c305c1b7633ee2eab70ac541c47bd0",
+      "sha256": "d0388cff7bfc7df1c456ae0df4d5a11082bf7ce6285a21d58bdc92871df4b883",
       "executable": false
     },
     "composition.lock.json": {
@@ -458,15 +458,19 @@
       "executable": false
     },
     "src/app/navigation.ts": {
-      "sha256": "42139525eff149df1ffbcdec6d0039842cf741591027fd16d5f54e4c56d6d3fb",
+      "sha256": "454ccb80da678a40533c05fc78de36e49e8fc54d4939a407943c8f371e3ce039",
       "executable": false
     },
     "src/app/people.ts": {
       "sha256": "5a01955f52e7f8397414e56cdc714a8ae76ccaa7e9e09b984057d4a97a1a65a4",
       "executable": false
     },
+    "src/app/settings.ts": {
+      "sha256": "2a4eb6958544aa45943070ac8a7dc2a4015261a5da0fd3724bda17aada0bf7f2",
+      "executable": false
+    },
     "src/auth.server.ts": {
-      "sha256": "29f3279536c0f85cd23234f37f4d45d3988a343a5991b67cf89ff7bcb64410be",
+      "sha256": "6e9f42f3baceb8e7d65457d489c6b881e217abfec15c0d1b5a4a259c15b76b9d",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -1486,7 +1490,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "b9f17a935c80a6b9a813e8fb1fa04e8769ec87621e7ea5e5be13657f147b818d",
+      "sha256": "0a4d533b111b31fe046303a645daf578bedc8b7727b5a485fd40982c6dbb50ee",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

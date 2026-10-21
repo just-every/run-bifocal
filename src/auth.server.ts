@@ -10,6 +10,7 @@ import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 import { homePage } from './app/home'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
+import { settingsPage, nameNotice } from './app/settings'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -69,6 +70,11 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   })(request)
   if (page) return fontDocumentResponse(page)
  }
+ const settingsResponse = async (notice = '', status = 200) => {
+  const session = await operatorAuth(env).getSession(request)
+  if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=%2Fapp%2Fsettings' } })
+  return html(settingsPage(session.operator, notice), `Your settings · ${branding.name}`, status)
+ }
  const peopleResponse = async (notice = '', status = 200) => {
   const auth = operatorAuth(env)
   const session = await auth.getSession(request)
@@ -92,11 +98,19 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
    const error = await response?.json() as { error?: string } | undefined
    return peopleResponse(inviteNotice(error?.error ?? ''), response?.status ?? 503)
   }
+  if (url.pathname === '/auth/display-name' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
+   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/settings?saved=1' } })
+   const error = await response?.json() as { error?: string } | undefined
+   return settingsResponse(nameNotice(error?.error ?? ''), response?.status ?? 503)
+  }
   return fontDocumentResponse(response)
  }
  if (url.pathname === '/setup' || url.pathname === '/app' || url.pathname.startsWith('/app/')) {
   const setup = await firstRunResponse(request, env, operatorAuth(env), { theme })
   if (setup) return setup
+ }
+ if (url.pathname === '/app/settings' && ['GET', 'HEAD'].includes(request.method)) {
+  return settingsResponse(url.searchParams.get('saved') === '1' ? '<p role="status">Your display name is saved.</p>' : '')
  }
  if (url.pathname === '/app/people' && ['GET', 'HEAD'].includes(request.method)) {
   return peopleResponse(url.searchParams.get('invited') === '1' ? '<p role="status">Invitation requested. The person’s current status is shown below.</p>' : '')
