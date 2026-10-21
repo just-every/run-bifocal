@@ -1,0 +1,20 @@
+/* 05 "Why is finance stuck on Friday?": the page's only black screen. The stale stamp in yellow, struck through, over
+   the giant time the data was current again, bottom right on the proof baseline. */
+.s-friday { background: var(--ink); color: var(--white); }
+.s-friday :focus-visible { outline-color: var(--yellow); }
+.stamp-stale { color: var(--yellow); font-weight: 800; letter-spacing: -.012em; line-height: 1.1; white-space: nowrap; }
+.stamp-stale s { --strike-at: 56%; --strike: .075em; --strike-out: -.03em; }
+@media (min-width: 1024px) {
+  .s-friday { --copy-w: 840; }
+  .stamp { right: calc(120 * var(--u)); top: 0; width: calc(760 * var(--u)); height: 100%; }
+  .stamp > * { position: absolute; right: 0; white-space: nowrap; }
+  .stamp-stale { top: calc(573.3 * var(--u)); font-size: calc(36 * var(--u)); }
+  .stamp-time { top: calc(625.1 * var(--u)); right: calc(-3 * var(--u)); font-size: calc(150 * var(--u)); }
+  .stamp .label { top: calc(755.1 * var(--u)); }
+}
+@media (max-width: 1023.98px) {
+  .stamp { align-self: flex-end; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+  .stamp-stale { font-size: clamp(17px, 4.6cqi, 24px); }
+  .stamp-time { margin-top: 14px; font-size: min(150px, 24cqi); }
+  .stamp .label { margin-top: 14px; }
+}

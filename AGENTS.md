@@ -9,7 +9,7 @@ account tools, Lobby, Run and contract pages, with native sign-out.
 People and invitations are available at `/app/people` through native account
 authorization. Only foundation owner/admin/member roles exist; analytics
 workflows and roles are not built.
-The separate public Run site provides `/run` and `/contract`.
+The separate public Run site provides the homepage, `/run`, `/docs` and `/contract`.
 
 Bifocal has no product import screen yet: `/app/import` is not usable.
 BIF-003 (files and spreadsheets) and BIF-025 (incumbent migration) remain
@@ -179,6 +179,6 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/d1249b3
 
 ## Bifocal seed scope
 
-Read root CONTRACT.md and ACCEPTANCE.md before product work. They are ct's target drafts; every product clause is missing. This start contains only Base's foundation. Do not add speculative BI screens, demo data, mock providers or feature claims. A later design round chooses the look; keep Base's default theme and verbatim src/base copies. Research and evidence belong in private-bifocal or the lane evidence folder, never this public tree.
+Read root CONTRACT.md and ACCEPTANCE.md before product work. They are ct's target drafts; every product clause is missing. This start contains only Base's foundation. Do not add speculative BI screens, demo data, mock providers or feature claims. The run site (src/site, docs/, public/brand, public/fonts) wears the design desk's approved look and shows the target product, every claim backed by a contract clause; the installed app keeps Base's default theme until its own design round. Keep verbatim src/base copies. Research and evidence belong in private-bifocal or the lane evidence folder, never this public tree.
 
 Use the exact published @runeditrun/rer 0.2.74 package. Run source:lock after intentional selected-source changes and source:check before pushing. Keep tests small, through public user flows, and never weaken a foundation test. Stop only processes you started, by recorded PID; do not use rer dev/demo --stop, pkill, killall or pattern-based kills. Never read or print private settings, credentials or token-bearing URLs.

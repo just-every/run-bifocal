@@ -1,0 +1,19 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Bifocal on your own computer with one line, open it signed in as its owner and finish setup." },
+        { "slug": "what-runs-today", "title": "What runs today", "file": "what-runs-today.md", "summary": "The foundation Bifocal runs on now, and how the contract tracks the reporting product it is being built into." }
+      ]
+    },
+    {
+      "title": "Use it",
+      "pages": [
+        { "slug": "sign-in", "title": "Sign in and sign out", "file": "sign-in.md", "summary": "How the owner signs in on this computer and by email link, and how to sign out." },
+        { "slug": "people", "title": "People and your settings", "file": "people.md", "summary": "Invite people as members or admins, sign in as them while you try Bifocal out, and change the name your account shows." },
+        { "slug": "backup", "title": "Back up and restore", "file": "backup.md", "summary": "Save the whole installation to one archive file and restore it into an empty one." }
+      ]
+    }
+  ]
+}

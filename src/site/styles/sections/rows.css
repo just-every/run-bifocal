@@ -1,0 +1,15 @@
+/* 04 "Can I see the rows?": the words on the yellow top, a full-bleed cobalt band across the lower 46% with "212 of
+   212" flush left over the invoices' label. */
+.rows-figure { color: var(--white); }
+@media (min-width: 1024px) {
+  .s-rows { --copy-w: 960; }
+  .s-rows::before { content: ''; position: absolute; left: 0; right: 0; top: calc(516 * var(--u)); bottom: 0; background: var(--cobalt); }
+  .rows-figure { left: calc(120 * var(--u)); top: 0; width: calc(1200 * var(--u)); height: 100%; }
+  .rows-figure .numeral { position: absolute; left: calc(-6 * var(--u)); top: calc(574.8 * var(--u)); font-size: calc(200 * var(--u)); }
+  .rows-figure .label { position: absolute; left: calc(-1 * var(--u)); top: calc(755.1 * var(--u)); white-space: nowrap; }
+}
+@media (max-width: 1023.98px) {
+  .rows-figure .numeral { font-size: min(200px, 31.8cqi); line-height: .86; white-space: normal; }
+  .rows-figure .numeral .nw { display: block; }
+  .rows-figure .label { margin-top: 22px; }
+}

@@ -1,0 +1,16 @@
+/* 06 "What moved last week?": one flat white letter-size page on a full yellow field: the masthead, a hairline and
+   the first three lines of Monday's review, each cited in cobalt, then blank white to its bottom edge. */
+.review-page { background: var(--white); color: var(--ink); }
+.review-head { font-weight: 800; letter-spacing: -.012em; border-bottom: 1px solid var(--ink); white-space: nowrap; }
+.review-lines li { font-weight: 400; letter-spacing: -.004em; white-space: nowrap; }
+.review-lines sup { font-size: max(11px, .6em); font-weight: 700; color: var(--cobalt); line-height: 0; vertical-align: .62em; }
+@media (min-width: 1024px) {
+  .review-page { left: calc(825 * var(--u)); top: calc(160 * var(--u)); width: calc(495 * var(--u)); height: calc(640 * var(--u)); padding: calc(37.5 * var(--u)) calc(45 * var(--u)) 0; }
+  .review-head { padding-bottom: calc(18 * var(--u)); font-size: calc(27.5 * var(--u)); line-height: calc(40 * var(--u)); }
+  .review-lines { margin-top: calc(15 * var(--u)); font-size: calc(23 * var(--u)); line-height: calc(42 * var(--u)); }
+}
+@media (max-width: 1023.98px) {
+  .review-page { width: 100%; max-width: 440px; padding: 22px 20px 72px; }
+  .review-head { padding-bottom: 12px; font-size: clamp(17px, 4.6cqi, 22px); line-height: 1.45; }
+  .review-lines { margin-top: 12px; font-size: clamp(14.5px, 3.85cqi, 18px); line-height: 1.75; }
+}

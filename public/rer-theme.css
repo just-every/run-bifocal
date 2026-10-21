@@ -23,3 +23,8 @@
   --rer-radius: 12px;
   --rer-logo: url('/brand/mark.svg');
 }
+/* Mark 4 is a wide lockup (two lenses on a bridge, 2.1:1). Where Base draws a square mark, draw it at its own
+   width and the same height: the sign-in and setup frames, the Lobby and the local key page. */
+html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 67px; height: 32px; }
+img.mark { width: 2.2em; height: 1.05em; }
+body .brand > img { width: 84px; height: 40px; }

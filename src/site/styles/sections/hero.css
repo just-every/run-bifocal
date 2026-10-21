@@ -1,0 +1,63 @@
+/* 01, hero H built as drawn: a hard 50/50 split. Wide, every string sits where the 1536 x 1024 plate puts it, in
+   plate units (--h), around the window's centre. Narrow, the yellow half comes first (header, headline, line,
+   alternative line, Run Bifocal and the links, above the fold), then the cobalt block. */
+.home-hero { position: relative; background: var(--yellow); }
+.hero-proof { color: var(--white); }
+.hero-line { font-weight: 400; letter-spacing: -.004em; }
+.hero-alt { font-weight: 400; letter-spacing: -.003em; text-wrap: pretty; }
+.hero-alt b { font-weight: 800; }
+.hero-struck s { --strike-at: 48.2%; --strike: .062em; --strike-out: -.012em; }
+.hero-label { font-weight: 800; letter-spacing: 0; line-height: 1; }
+/* The plate's "1," sits tighter than the face's own: the pair is drawn closer so the figure keeps the plate's width. */
+.hero-proof .tight { letter-spacing: -.075em; }
+.hero-list { position: relative; font-weight: 600; letter-spacing: -.004em; }
+.hero-list::before { content: ''; position: absolute; top: 0; bottom: 0; left: var(--list-rule-x); width: var(--rule-w); background: currentColor; }
+.hero-list li { border-bottom: var(--rule-w) solid currentColor; padding-left: var(--list-text-x); }
+.hero-list li:first-child { border-top: var(--rule-w) solid currentColor; }
+.hero-list .arrow { display: inline-block; vertical-align: -.02em; width: .95em; height: .7em; margin: 0 .12em 0 .02em; }
+
+@media (min-width: 1024px) {
+  .home-hero { height: calc(1024 * var(--h)); }
+  .home-hero::before { content: ''; position: absolute; inset: 0 50% 0 0; background: var(--cobalt); }
+  .hero-offer, .hero-proof { position: absolute; top: 0; height: 100%; }
+  /* Plate x positions are measured from the 1536 plate's left edge, which sits at 50% - 768 plate units. */
+  .hero-proof { left: calc(50% - 768 * var(--h) + 40 * var(--h)); width: calc(683 * var(--h)); }
+  .hero-offer { left: calc(50% - 768 * var(--h) + 814 * var(--h)); width: calc(700 * var(--h)); }
+  /* The plate sets "its work." 7 px in from "Bifocal shows". */
+  .home-hero h1 .line-2 { padding-left: calc(7 * var(--h)); }
+  .home-hero h1 { position: absolute; left: calc(-9 * var(--h)); top: calc(188.6 * var(--h)); font-size: calc(129 * var(--h)); line-height: calc(166 * var(--h)); white-space: nowrap; }
+  .hero-line { position: absolute; top: calc(543.9 * var(--h)); left: 0; width: calc(700 * var(--h)); font-size: calc(33 * var(--h)); line-height: calc(47 * var(--h)); }
+  .hero-alt { position: absolute; top: calc(731.1 * var(--h)); left: calc(2.3 * var(--h)); white-space: nowrap; font-size: calc(21.8 * var(--h)); line-height: calc(32 * var(--h)); }
+  .hero-actions { position: absolute; top: calc(818 * var(--h)); left: 0; flex-wrap: nowrap; gap: calc(48 * var(--h)); }
+  .hero-actions .run-button { height: calc(75 * var(--h)); width: calc(259 * var(--h)); font-size: calc(28 * var(--h)); }
+  .hero-actions .text-link { font-size: calc(21.5 * var(--h)); }
+  .hero-actions .text-link + .text-link { margin-left: calc(10 * var(--h)); }
+  .hero-struck { position: absolute; left: calc(1.5 * var(--h)); top: calc(207.3 * var(--h)); font-size: calc(190 * var(--h)); }
+  .hero-figure { position: absolute; left: calc(-4 * var(--h)); top: calc(388.2 * var(--h)); font-size: calc(300 * var(--h)); }
+  .hero-label { position: absolute; left: calc(1.4 * var(--h)); top: calc(685.2 * var(--h)); font-size: calc(62.8 * var(--h)); }
+  .hero-list { position: absolute; left: calc(2 * var(--h)); top: calc(778.5 * var(--h)); width: calc(681 * var(--h)); font-size: calc(25.5 * var(--h)); --rule-w: max(1px, calc(1.6 * var(--h))); --list-rule-x: calc(22 * var(--h)); --list-text-x: calc(46.5 * var(--h)); }
+  .hero-list li { height: calc(52 * var(--h)); line-height: calc(50 * var(--h)); white-space: nowrap; }
+}
+
+@media (max-width: 1023.98px) {
+  .home-hero { display: flex; flex-direction: column; }
+  .hero-offer { padding: 36px var(--gutter) 64px; }
+  .hero-offer > * { max-width: 640px; }
+  .home-hero h1 { font-size: clamp(60px, 15.9cqi, 104px); line-height: 1.04; }
+  .hero-line { margin-top: 22px; font-size: clamp(19px, 4.87cqi, 23px); line-height: 1.474; }
+  .hero-alt { margin-top: 16px; font-size: clamp(16px, 4.1cqi, 19px); line-height: 1.5; }
+  .hero-actions { margin-top: 26px; gap: 16px 28px; }
+  .hero-actions .run-button { min-height: 56px; padding: 0 28px; font-size: 20px; }
+  .hero-actions .text-link { font-size: 18px; padding: 6px 0; }
+  .hero-proof { background: var(--cobalt); padding: 72px var(--gutter) 80px; }
+  .hero-proof > * { max-width: 640px; }
+  /* The gaps grow with the figures, so a comma's tail never meets the figure or label below it. */
+  .hero-struck { font-size: min(170px, 24.6cqi); }
+  .hero-figure { margin-top: .12em; font-size: min(260px, 37.4cqi); }
+  .hero-label { margin-top: calc(min(260px, 37.4cqi) * .2); font-size: clamp(30px, 8.2cqi, 44px); }
+  .hero-list { margin-top: 28px; font-size: clamp(17px, 4.6cqi, 21px); --rule-w: 1.5px; --list-rule-x: 14px; --list-text-x: 30px; }
+  .hero-list li { padding-top: 10px; padding-bottom: 10px; line-height: 1.35; }
+}
+@media (max-width: 600px) {
+  .hero-actions .run-button { flex: 1 1 100%; }
+}

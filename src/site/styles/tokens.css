@@ -1,0 +1,47 @@
+/* Bifocal's run-site tokens, defined once. The look is the owner's hero H (design desk, 20-21 Oct 2026): hard flat
+   fields of cobalt, golden yellow, ink and white with straight seams; three voices only (a rough brush script for
+   questions, a regular neo-grotesk for sentences, a heavy grotesk for numerals and the wordmark); nothing rounded, no
+   gradients, shadows or cards. Base's /run, /contract and not-found pages read the --rer-* names below. */
+:root {
+  --cobalt: #2e7dfd;
+  --yellow: #fec502;
+  --ink: #000000;
+  --white: #fefdfd;
+  /* Cobalt as text on white (the hero's cobalt is 3.8:1 there; this is 5.2:1) and the ink's quiet tints. */
+  --cobalt-text: #1d5ed8;
+  --ink-soft: #3b3b3b;
+  --line: color-mix(in srgb, var(--ink) 16%, var(--white));
+  --font-brush: 'Kaushan Script', 'Segoe Script', 'Brush Script MT', cursive;
+  --font-sans: 'Mona Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --rer-page: var(--white);
+  --rer-surface: var(--white);
+  --rer-text: var(--ink);
+  --rer-muted: var(--ink-soft);
+  --rer-border: var(--ink);
+  --rer-focus: var(--cobalt);
+  --rer-link: var(--ink);
+  --rer-accent: var(--ink);
+  --rer-accent-text: var(--white);
+  --rer-font-body: var(--font-sans);
+  --rer-font-heading: var(--font-sans);
+  --rer-font-mono: var(--font-mono);
+  --rer-code-background: var(--ink);
+  --rer-code-text: var(--white);
+  --rer-radius: 0px;
+  --rer-button-radius: 0px;
+  --rer-wordmark-weight: 800;
+  --rer-wordmark-tracking: -.01em;
+  /* /contract: done in cobalt, partial in yellow, missing in a quiet tint of ink (not built yet, not an alarm). */
+  --rer-done: var(--cobalt);
+  --rer-done-ink: var(--cobalt-text);
+  --rer-on-done: var(--white);
+  --rer-partial: var(--yellow);
+  --rer-partial-ink: #7a5c00;
+  --rer-on-partial: var(--ink);
+  --rer-missing: color-mix(in srgb, var(--ink) 14%, var(--white));
+  --rer-missing-ink: var(--ink-soft);
+  --rer-on-missing: var(--ink);
+  color-scheme: light;
+}

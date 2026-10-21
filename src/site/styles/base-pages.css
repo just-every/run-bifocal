@@ -1,0 +1,67 @@
+/* Base's /run, /contract and not-found pages (src/base, unchanged) wearing the site: Run continues the hero's yellow
+   half, the brush headline over square white step panels with black code; the contract and not-found pages sit on
+   the white ground. Ink hairlines replace Base's soft cards and shadows, and nothing is rounded. */
+body.base-page { background: var(--white); color: var(--ink); font-family: var(--font-sans); }
+body.base-page::before { content: none; }
+.base-page main { padding-top: 40px; padding-bottom: 72px; }
+.base-page .intro h1, .not-found-page .hero h1, .contract-page main > h1 { font-family: var(--font-brush); font-weight: 400; -webkit-text-stroke: .028em currentColor; letter-spacing: -.005em; word-spacing: .06em; color: var(--ink); }
+.base-page .sub, .base-page .lead { color: var(--ink-soft); }
+
+/* /run: the yellow field, the brush headline, white step panels outlined in ink, square black numerals and code. */
+body.run-page { background: var(--yellow); }
+.run-page .intro h1 { font-size: 84px; line-height: 1.04; }
+.run-page .intro .sub { color: var(--ink); font-size: 22px; }
+.run-page .step { border: 2px solid var(--ink); border-radius: 0; background: var(--white); box-shadow: none; backdrop-filter: none; }
+.run-page .num { border-radius: 0; background: var(--ink); color: var(--white); font: 850 30px/1 var(--font-sans); }
+.run-page .step h2 { font-family: var(--font-sans); font-weight: 800; letter-spacing: -.015em; }
+.run-page .body > p { color: var(--ink-soft); }
+.run-page .go a { text-decoration-color: var(--cobalt); text-decoration-thickness: 2px; }
+.run-page .code { border-radius: 0; background: var(--ink); color: var(--white); }
+.run-page .copy { border-radius: 0; border-color: var(--white); }
+.run-page .copy:hover { background: var(--white); color: var(--ink); }
+.run-page .copy:focus-visible, .run-page .code :focus-visible { outline-color: var(--yellow); }
+/* A command that must wrap breaks evenly (after "curl -fsSL"), so no line starts with the pipe. */
+.run-page .code pre { text-wrap-style: balance; }
+@container (max-width: 330px) { .run-page .code pre { padding-inline: 12px; font-size: 11.4px; } }
+.run-page .facts { color: var(--ink); }
+.run-page .facts a { text-decoration-color: var(--cobalt); text-decoration-thickness: 2px; }
+.run-page .site-footer { border-top: 0; }
+
+/* /contract: white ground, ink hairlines, square meter and chips, cobalt done, yellow partial, a tint of ink missing. */
+.contract-page main > h1 { font-size: 64px; line-height: 1.04; text-indent: -.205em; }
+/* "What Bifocal is being built to do": the brush W's bearing is drawn back to the margin, and the lead clears its descenders. */
+.contract-page .lead { margin-top: 22px; }
+/* The giant done count and the counts in sentences read with the face's plain zero; the area table keeps its tabular figures. */
+.contract-page .big, .contract-page .seg, .contract-page .legend, .contract-page .chips b, .contract-page .line { font-variant-numeric: proportional-nums; }
+.contract-page .eyebrow { display: none; }
+.contract-page .card { border: 2px solid var(--ink); border-radius: 0; box-shadow: none; background: var(--white); }
+.contract-page .card h2 { font-weight: 800; letter-spacing: -.01em; }
+.contract-page .meter, .contract-page .mini { border-radius: 0; }
+.contract-page .meter { background: var(--line); }
+.contract-page .big { font-weight: 850; letter-spacing: -.035em; }
+.contract-page .of { font-weight: 800; }
+.contract-page .chips button, .contract-page .clear, .contract-page .search input { border-radius: 0; border: 2px solid var(--ink); }
+.contract-page .chips button[aria-pressed=true] { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.contract-page .area-row { border-radius: 0; }
+.contract-page a.area-row:hover { background: var(--yellow); }
+.contract-page .group th { background: var(--yellow); }
+.contract-page thead th { border-bottom: 2px solid var(--ink); }
+.contract-page td { border-top-color: var(--line); }
+.contract-page .sha, .contract-page .id a, .contract-page .path { font-family: var(--font-mono); }
+.contract-page main a { color: var(--ink); text-decoration-color: var(--cobalt); }
+.contract-page .areas { --cover: var(--white); }
+@media (max-width: 760px) {
+  .contract-page main > h1 { font-size: 44px; }
+  .contract-page tr.clause { border: 2px solid var(--ink); border-radius: 0; }
+}
+
+/* Not found: the brush headline on the white ground. */
+.not-found-page .hero h1 { font-size: 84px; line-height: 1.04; }
+.not-found-page .hero .link { text-decoration-color: var(--cobalt); text-decoration-thickness: 2px; font-weight: 700; }
+
+.base-page .site-footer { margin-top: 24px; }
+@media (max-width: 760px) {
+  .run-page .intro h1, .not-found-page .hero h1 { font-size: 52px; }
+  .run-page .num { font-size: 18px; }
+}
+@media (forced-colors: active) { .base-page .intro h1, .contract-page main > h1, .not-found-page .hero h1 { -webkit-text-stroke: 0; } }

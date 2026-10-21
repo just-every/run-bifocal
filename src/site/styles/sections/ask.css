@@ -1,0 +1,26 @@
+/* 08 "Ask yours.": the closing, the one white screen. The question, the licence line and the actions top left; mark
+   4 alone bottom right; the type-set footer follows. */
+.s-ask { background: var(--white); color: var(--ink); }
+.closing-line { font-weight: 400; }
+.closing-mark { height: auto; }
+@media (min-width: 1024px) {
+  .s-ask { --q: 164; }
+  .s-ask .screen-copy { width: calc(1000 * var(--u)); }
+  .closing-line { margin-top: calc(42 * var(--u)); max-width: none; font-size: calc(36 * var(--u)); line-height: calc(48 * var(--u)); white-space: nowrap; }
+  .closing-actions { margin-top: calc(20 * var(--u)); gap: calc(42 * var(--u)); flex-wrap: nowrap; }
+  .closing-actions .run-button { height: calc(79 * var(--u)); padding: 0 calc(37 * var(--u)); font-size: calc(30 * var(--u)); }
+  .closing-actions .text-link { font-size: calc(32 * var(--u)); }
+  .closing-actions .text-link + .text-link { margin-left: calc(20 * var(--u)); }
+  .closing-mark { position: absolute; right: calc(120 * var(--u)); bottom: calc(160 * var(--u)); width: calc(480 * var(--u)); }
+}
+@media (max-width: 1023.98px) {
+  .s-ask .question { font-size: clamp(72px, 19cqi, 120px); }
+  .closing-line { margin-top: 22px; font-size: clamp(19px, 4.87cqi, 24px); line-height: 1.474; }
+  .closing-actions { margin-top: 28px; gap: 16px 28px; }
+  .closing-actions .run-button { min-height: 56px; padding: 0 28px; font-size: 20px; }
+  .closing-actions .text-link { font-size: 18px; padding: 6px 0; }
+  .closing-mark { margin-top: auto; padding-top: 64px; align-self: flex-end; width: min(78%, 380px); box-sizing: content-box; }
+}
+@media (max-width: 600px) {
+  .closing-actions .run-button { flex: 1 1 100%; }
+}

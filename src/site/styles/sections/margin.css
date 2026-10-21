@@ -1,0 +1,25 @@
+/* 03 "Why did September margin drop?": cobalt left and yellow right at the hero's 50/50 seam; one white-outline
+   four-bar waterfall to scale over a broken 37% axis on the cobalt half, sitting on the proof baseline. */
+.waterfall { position: relative; }
+.waterfall svg { display: block; width: 100%; height: auto; overflow: visible; }
+.wf-lines { fill: none; stroke: var(--white); stroke-width: 2.4; }
+.wf-axis { stroke-width: 2; }
+.wf-break { stroke-width: 2; }
+.wf-link { stroke-width: 1.6; stroke-dasharray: 6 5; }
+.wf-labels { color: var(--white); font-weight: 700; letter-spacing: -.01em; }
+.wf-labels li { position: absolute; white-space: nowrap; }
+.waterfall-v .wf-labels { position: relative; height: calc(54 * var(--u)); margin-top: calc(15.6 * var(--u)); font-size: calc(23 * var(--u)); line-height: calc(27 * var(--u)); }
+.waterfall-v .wf-labels li { top: 0; transform: translateX(-50%); text-align: center; }
+.waterfall-v .wf-labels span { display: block; }
+.waterfall-h .wf-labels { position: absolute; inset: 0; font-size: clamp(14px, 3.7cqi, 17px); line-height: 1.2; }
+@media (min-width: 1024px) {
+  .s-margin { --q: 100; --copy-w: 556; }
+  .s-margin .screen-copy { left: calc(764 * var(--u)); }
+  .s-margin .sentence { max-width: calc(556 * var(--u)); }
+  .s-margin .proof { left: calc(120 * var(--u)); top: calc(461 * var(--u)); width: calc(560 * var(--u)); }
+  .waterfall-h { display: none; }
+}
+@media (max-width: 1023.98px) {
+  .waterfall-v { display: none; }
+  .waterfall-h { width: 100%; max-width: 440px; }
+}

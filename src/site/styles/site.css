@@ -1,0 +1,95 @@
+/* The run site's chrome on every page: the white ground, the header as the hero draws it (lockup on the cobalt half,
+   links on the yellow half; one yellow bar on phones), the type-set footer, the square black Run Bifocal and the
+   text links. Wide screens size the header in units of the hero's 1536 plate, so it lines up with the hero. */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--white);
+  color: var(--ink);
+  font: 400 18px/1.55 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  --vu: calc(min(100vw, 1600px) / 1440);
+}
+h1, h2, h3, p, figure, ol, ul { margin: 0; padding: 0; }
+ol, ul { list-style: none; }
+a { color: inherit; }
+img, svg { display: block; }
+:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 3px; }
+.nw { white-space: nowrap; }
+/* Headings in the grotesk keep a clear space between words (at least a quarter em) under their tight tracking. */
+h1, h2, h3, .docs-row-title, .docs-pager-title { word-spacing: .1em; }
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.skip-link { position: absolute; left: 12px; top: -200px; z-index: 10; padding: 10px 16px; background: var(--ink); color: var(--white); font-weight: 600; }
+.skip-link:focus { top: 12px; }
+
+/* The brush voice: the hero's rough black script, thickened in its own colour with a stroke, never rounded off. */
+.brush { font-family: var(--font-brush); font-weight: 400; font-synthesis: none; -webkit-text-stroke: .028em currentColor; letter-spacing: -.005em; word-spacing: .06em; }
+.brush .line { display: block; }
+
+/* The lockup: mark 4 and the wordmark in the heading face. */
+.lockup { display: inline-flex; align-items: center; color: inherit; text-decoration: none; white-space: nowrap; }
+.lockup picture { flex: none; display: block; }
+.lockup img { height: auto; }
+.lockup span { font-weight: 800; letter-spacing: -.01em; line-height: 1; }
+
+.site-header { position: relative; z-index: 2; color: var(--ink); background: var(--yellow); }
+.site-header-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.site-header nav { display: flex; align-items: center; line-height: 1; font-weight: 600; }
+.site-header nav a { text-decoration: none; text-underline-offset: .22em; text-decoration-thickness: .09em; }
+.site-header nav a:hover, .site-header nav a[aria-current=page] { text-decoration: underline; }
+.site-header :focus-visible, .on-yellow :focus-visible { outline-color: var(--ink); }
+
+@media (min-width: 1024px) {
+  .site-header { --hu: calc(min(100vw, 1600px) / 1536); background: var(--yellow); }
+  .site-header::before { content: ''; position: absolute; inset: 0 50% 0 0; background: var(--cobalt); }
+  .site-header.on-hero { position: absolute; top: 0; left: 0; right: 0; --hu: var(--h); background: none; }
+  .site-header.on-hero::before { content: none; }
+  .site-header-row { width: min(100%, calc(1536 * var(--hu))); height: calc(116 * var(--hu)); margin: 0 auto; padding: 0 calc(42 * var(--hu)); align-items: flex-start; }
+  .lockup-header { margin-top: calc(35 * var(--hu)); gap: calc(26.5 * var(--hu)); color: var(--white); }
+  .lockup-header img { width: calc(96 * var(--hu)); }
+  .lockup-header span { font-size: calc(42.5 * var(--hu)); }
+  .site-header nav { margin-top: calc(40.6 * var(--hu)); margin-right: calc(-2 * var(--hu)); gap: calc(39 * var(--hu)); font-size: calc(22 * var(--hu)); }
+}
+@media (max-width: 1023.98px) {
+  .site-header-row { min-height: 68px; padding: 10px var(--gutter-x, clamp(20px, 6.25vw, 64px)); }
+  .lockup-header { gap: 8px; }
+  .lockup-header img { width: clamp(46px, 11.8vw, 64px); }
+  .lockup-header span { font-size: clamp(21px, 5.4vw, 28px); }
+  .site-header nav { gap: clamp(13px, 3.6vw, 32px); font-size: clamp(14px, 3.6vw, 18px); }
+  .site-header nav a { padding: 8px 0; }
+}
+
+/* The footer: a hairline, the lockup and the three links, set as type. */
+.site-footer { background: var(--white); color: var(--ink); }
+.site-footer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; border-top: 2px solid var(--ink); }
+.site-footer nav { display: flex; line-height: 1; font-weight: 500; }
+.site-footer nav a { text-decoration: none; text-underline-offset: .22em; }
+.site-footer nav a:hover { text-decoration: underline; }
+.lockup-footer img { width: calc(58 * var(--fu)); }
+.lockup-footer span { font-size: calc(27 * var(--fu)); }
+@media (min-width: 1024px) {
+  .site-footer { --fu: var(--vu); }
+  .site-footer-row { width: calc(1200 * var(--fu)); margin: 0 auto; min-height: calc(96 * var(--fu)); padding: calc(4 * var(--fu)) 0 0; }
+  .lockup-footer { gap: calc(18 * var(--fu)); }
+  .site-footer nav { gap: calc(40 * var(--fu)); font-size: calc(19 * var(--fu)); }
+}
+@media (max-width: 1023.98px) {
+  .site-footer { --fu: 1px; padding: 0 var(--gutter-x, clamp(20px, 6.25vw, 64px)); }
+  .site-footer-row { padding: 24px 0 32px; }
+  .lockup-footer { gap: 10px; }
+  .site-footer nav { gap: 24px; font-size: 16px; }
+  .site-footer nav a { padding: 6px 0; }
+}
+
+/* Actions: the square black Run Bifocal, then the underlined text links. */
+.cta-row { display: flex; flex-wrap: wrap; align-items: center; }
+.run-button { display: inline-flex; align-items: center; justify-content: center; gap: .3em; background: var(--ink); color: var(--white); font-weight: 700; text-decoration: none; white-space: nowrap; letter-spacing: -.005em; }
+.run-button:hover { background: #1f1f1f; }
+.run-button:focus-visible { outline-color: var(--ink); outline-offset: 4px; }
+.arrow { flex: none; width: .9em; height: .72em; overflow: visible; }
+.text-link { font-weight: 700; text-decoration: none; white-space: nowrap; text-underline-offset: .2em; text-decoration-thickness: .08em; }
+.text-link:hover { text-decoration: underline; }

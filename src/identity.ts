@@ -1,6 +1,6 @@
 // This edition's identity: what its installed Lobby and its run site say.
-// The name and colour are the ones setup saves in src/branding.json; replace
-// the purpose and tagline with the product's own when it has one.
+// The name and color are the ones setup saves in src/branding.json; the tagline
+// is the approved hero's line (design desk, 20 Oct 2026).
 import type { EditionIdentity } from './base/identity'
 import branding from './branding.json'
 import site from '../deploy-site.json'
@@ -9,7 +9,7 @@ export const identity: EditionIdentity = {
   product: branding.name,
   deployment: branding.name,
   purpose: '{deployment}’s business intelligence and reporting.',
-  tagline: 'Business intelligence and reporting. 100% free, open source alternative to Microsoft Power BI, Tableau (Salesforce), Looker (Google Cloud).',
+  tagline: 'Ask in plain English. Get the chart, the query, the certified definition and the rows, from every database and app you run.',
   signInPath: '/signin',
   // The run site `rer deploy --site` publishes (deploy-site.json).
   runSite: `https://${site.domain}`,

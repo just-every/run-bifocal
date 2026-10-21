@@ -1,0 +1,53 @@
+/* The homepage's screens. At 1024 px and wider each screen is the desk's 1440 x 960 composition scaled as one piece:
+   --u is one pixel of the 1440 design (up to a 1600 px stage, centred) and --h one pixel of the 1536 hero plate (the
+   hero also shrinks on short windows so Run Bifocal stays above the fold). The rhythm is the build notes': 120 px side
+   margins, every question's ink 160 px from the top, every proof on one baseline 160 px from the bottom, sentences at
+   28/40. Narrower, each screen stacks its words first and its proof second on the phone rules: 24 px gutters, 72 px
+   top and bottom, each screen at least one window tall, questions at 52 px, sentences at 19/28. */
+.landing {
+  position: relative;
+  container-type: inline-size;
+  --u: calc(min(100cqi, 1600px) / 1440);
+  --h: calc(min(100cqi, 1600px, 161.68svh) / 1536);
+  --gutter: clamp(24px, 6.25cqi, 64px);
+  --gutter-x: var(--gutter);
+}
+@media (min-width: 1024px) { .landing .site-footer { --fu: var(--u); } }
+.screen { position: relative; background: var(--yellow); }
+.question { line-height: 1; }
+.sentence { font-weight: 400; letter-spacing: -.003em; text-wrap: pretty; }
+.numeral { font-family: var(--font-sans); font-weight: 850; letter-spacing: -.035em; word-spacing: .08em; line-height: .78; font-variant-numeric: proportional-nums; white-space: nowrap; }
+.label { font-family: var(--font-sans); font-weight: 800; letter-spacing: -.012em; line-height: 1.1; }
+.proof { margin: 0; }
+s { text-decoration: none; position: relative; }
+/* The struck number or stamp: one flat bar through the figure, drawn, so it sits where the hero puts it. */
+s::after { content: ''; position: absolute; left: var(--strike-out, -.02em); right: var(--strike-out, -.02em); top: var(--strike-at, 50%); height: var(--strike, .06em); background: currentColor; }
+
+@media (min-width: 1024px) {
+  .screen { height: calc(960 * var(--u)); }
+  .stage { position: relative; width: calc(1440 * var(--u)); height: 100%; margin: 0 auto; }
+  .screen-copy { position: absolute; left: calc(120 * var(--u)); top: calc(158 * var(--u)); width: calc(var(--copy-w, 760) * var(--u)); }
+  .question { font-size: calc(var(--q, 120) * var(--u)); }
+  .question .line { white-space: nowrap; }
+  .sentence { margin-top: calc(var(--sentence-gap, 34) * var(--u)); max-width: calc(560 * var(--u)); font-size: calc(28 * var(--u)); line-height: calc(40 * var(--u)); }
+  .proof { position: absolute; }
+  .label { font-size: calc(48 * var(--u)); }
+  /* 03 and 07 split at the hero's seam: cobalt on one half, yellow on the other. */
+  .split-screen::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 50%; background: var(--cobalt); }
+  .split-screen.mirrored::before { left: 50%; }
+}
+
+@media (max-width: 1023.98px) {
+  .screen { min-height: 100svh; }
+  .stage { min-height: inherit; display: flex; flex-direction: column; padding: 72px var(--gutter); }
+  .screen-copy { max-width: 640px; }
+  .question { font-size: clamp(52px, 13.33cqi, 84px); }
+  .sentence { margin-top: 18px; max-width: 34em; font-size: clamp(19px, 4.87cqi, 23px); line-height: 1.474; }
+  .proof { margin-top: auto; padding-top: 56px; }
+  .label { font-size: clamp(22px, 6.15cqi, 34px); }
+  /* 03, 04 and 07 stack as two fields: the words on yellow, then the proof on cobalt, each most of a window tall. */
+  .fields .stage { padding: 0; }
+  .fields .screen-copy { max-width: none; min-height: 62svh; padding: 72px var(--gutter) 56px; background: var(--yellow); }
+  .fields .screen-copy > * { max-width: 640px; }
+  .fields .proof { margin: 0; flex: 1 0 auto; min-height: 62svh; padding: 72px var(--gutter); background: var(--cobalt); display: flex; flex-direction: column; justify-content: center; }
+}

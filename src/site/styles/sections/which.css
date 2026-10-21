@@ -1,0 +1,15 @@
+/* 02 "Which number is right?": a full yellow field, the words top left, one cobalt square low right with the 65. */
+/* The square is drawn behind the figure; the 65 and its label sit inside it with room to spare (the font's own box
+   above the 65's figures reaches past the square's top edge, but holds no ink). */
+.which-square { color: var(--white); }
+.which-square::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--cobalt); }
+.s-which .stage { isolation: isolate; }
+@media (min-width: 1024px) {
+  .which-square { left: calc(838 * var(--u)); top: calc(318 * var(--u)); width: calc(482 * var(--u)); height: calc(482 * var(--u)); }
+  .which-square .numeral { position: absolute; left: calc(22.5 * var(--u)); top: calc(53.6 * var(--u)); font-size: calc(303 * var(--u)); }
+  .which-square .label { position: absolute; left: calc(34.4 * var(--u)); top: calc(319.3 * var(--u)); }
+}
+@media (max-width: 1023.98px) {
+  .which-square { position: relative; width: min(100%, 420px); aspect-ratio: 1; padding: clamp(22px, 6.4cqi, 30px); display: flex; flex-direction: column; justify-content: space-between; }
+  .which-square .numeral { font-size: min(220px, 54cqi); margin-top: .02em; }
+}
