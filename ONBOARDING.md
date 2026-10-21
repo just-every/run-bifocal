@@ -1,26 +1,26 @@
 # Foundation setup adapter
 
-For a product that offers data move-in, sign in as the owner and use its import
-screen. First step: open this path on the destination app:
+This checkout currently provides the Base foundation, not the BI product.
+Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
+setup at `/setup`, then open `/app`. The current app home only confirms the
+signed-in person's display name; People and analytics workflows are not built.
+The separate public Run site provides `/run` and `/contract`.
 
-```text
-/app/import
-```
+Bifocal has no product import screen yet: `/app/import` is not usable.
+BIF-003 (files and spreadsheets) and BIF-025 (incumbent migration) remain
+missing. Installation archives use the separate `rer export` and `rer import`
+commands; they do not import business records or replace the product import door.
 
-Upload a supported source export, review the plan and its differences, then
-approve that exact plan to apply it. Reconcile the result against native data;
-use Undo from the same history when needed. Base's reference accepts people JSON
-here, not installation `.rer` archives. Editions adopt this same door
-with their own supported readers and native adapters.
-
-This technical foundation has no product import screen or product data yet.
-When adding data move-in, mount the shared door and build `/app/import` before
-publishing that workflow; do not add a separate importer. Follow Base's
-[door adoption guide](https://github.com/runeditrun/base/blob/main/modules/import-kit/src/door/ADOPTING.md).
+When implementing data move-in, mount Base's shared door at `/app/import` for
+supported source exports, with review, exact-plan approval, reconciliation and
+Undo. Do not add a separate importer. Base's reference people-JSON reader is
+not a Bifocal business-data importer, and `.rer` archives are not door uploads.
+Follow Base's [door adoption guide](https://github.com/runeditrun/base/blob/main/modules/import-kit/src/door/ADOPTING.md).
 
 First-party setup runs through `rer setup`. To set up a fresh clone in one line,
-run `npx -y @runeditrun/rer setup just-every/run-bifocal` (`dev` in place of
-`setup` also starts the app; without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- setup just-every/run-bifocal`).
+run `npx -y @runeditrun/rer setup just-every/run-bifocal` with Node 22 or later.
+Use `dev` in place of `setup` to also start the app. Without Node, use
+`curl -fsSL https://runeditrun.com/install.sh | sh -s -- setup just-every/run-bifocal`.
 Inside the checkout, the bare `rer setup` does the same. The public
 command's flags, effects, state handling and exits are defined in
 `SEED-COMMAND-CONTRACT.md`; use `RUN-LOCALLY.md` for the owner workflow. The

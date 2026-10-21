@@ -4,17 +4,20 @@ Business intelligence and reporting. 100% free, open source alternative to Micro
 
 Bifocal is a new seed built on the Base foundation. This checkout provides the shared Lobby, owner sign-in, local D1, the Run site and the target contract. The business intelligence product is not built yet: all target clauses are missing in [CONTRACT.md](CONTRACT.md). [ACCEPTANCE.md](ACCEPTANCE.md) describes the destination, not completed features.
 
-Run it on your computer:
-
-```sh
-npx -y @runeditrun/rer dev just-every/run-bifocal
-```
-
-Without Node, install the shared command first:
+Install the shared command and run Bifocal:
 
 ```sh
 curl -fsSL https://runeditrun.com/install.sh | sh
 rer dev just-every/run-bifocal
+```
+
+The installer supplies its own Node runtime. If `rer` is not on PATH, follow
+the shell command printed by the installer.
+
+With Node 22 or later already installed, you can instead run:
+
+```sh
+npx -y @runeditrun/rer dev just-every/run-bifocal
 ```
 
 The installed `/` is Base's Lobby. The public [Run site](https://run-bifocal.com) has `/run` and `/contract`, rendered from the root `CONTRACT.md`. `rer build --site` builds those static pages. The default Base theme stays until the design round.

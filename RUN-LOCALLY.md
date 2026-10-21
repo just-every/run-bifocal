@@ -1,22 +1,26 @@
 # Run it locally
 
-To bring existing data into a seed, sign in as the owner and use its import
-screen. First step: open this path on the destination app:
+This checkout currently provides the Base foundation, not the BI product.
+Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
+setup at `/setup`, then open `/app`. The current app home only confirms the
+signed-in person's display name; People and analytics workflows are not built.
+The separate public Run site provides `/run` and `/contract`.
 
-```text
-/app/import
-```
+Bifocal has no product import screen yet: `/app/import` is not usable.
+BIF-003 (files and spreadsheets) and BIF-025 (incumbent migration) remain
+missing. Installation archives use the separate `rer export` and `rer import`
+commands; they do not import business records or replace the product import door.
 
-Upload a supported source export, review the plan and its differences, then
-approve that exact plan to apply it. Reconcile the result against native data;
-use Undo from the same history when needed. Base's reference accepts people JSON
-here, not installation `.rer` archives. Editions adopt this same door
-with their own supported readers and native adapters.
+When implementing data move-in, mount Base's shared door at `/app/import` for
+supported source exports, with review, exact-plan approval, reconciliation and
+Undo. Do not add a separate importer. Base's reference people-JSON reader is
+not a Bifocal business-data importer, and `.rer` archives are not door uploads.
+Follow Base's [door adoption guide](https://github.com/runeditrun/base/blob/main/modules/import-kit/src/door/ADOPTING.md).
 
 Start a published seed with one line:
-`npx -y @runeditrun/rer dev just-every/<repo>`, for example
-`npx -y @runeditrun/rer dev just-every/run-inkwell`. It clones the seed into
-`./<repo>`, installs its dependencies, sets up a local owner and starts the app.
+`npx -y @runeditrun/rer dev just-every/run-bifocal` (requires Node 22 or later).
+It clones into `./run-bifocal`, installs dependencies, sets up a local owner
+and starts the app.
 The clone has every commit and release tag (file contents arrive as a checkout
 needs them), so `git checkout <tag>` adopts an older release.
 To set up without starting, use `npx -y @runeditrun/rer setup just-every/<repo>`.
@@ -231,9 +235,10 @@ start anyway. Reusing a checkout's running server is never refused for memory.
 
 ## Back up and restore this installation
 
-Use `/app/import` above for owner move-in. The low-level `rer export` and
-`rer import` commands below back up and restore this installation. They do not
-use the shared door's reviewed plan, reconciliation or Undo, and their `.rer` archive cannot be uploaded to that screen.
+Business-record move-in is not available yet; `/app/import` remains unbuilt.
+The `rer export` and `rer import` commands below back up and restore this
+installation. They do not provide the future shared door's reviewed plan,
+reconciliation or Undo, and `.rer` archives are not product-import uploads.
 
 Reset is destructive local cleanup; preserve a backup of any data you need to
 keep before resetting. Archive export saves under

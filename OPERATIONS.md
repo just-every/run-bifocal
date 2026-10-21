@@ -1,24 +1,23 @@
 # Foundation operations
 
-For a product that offers data move-in, sign in as the owner and use its import
-screen. First step: open this path on the destination app:
+This checkout currently provides the Base foundation, not the BI product.
+Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
+setup at `/setup`, then open `/app`. The current app home only confirms the
+signed-in person's display name; People and analytics workflows are not built.
+The separate public Run site provides `/run` and `/contract`.
 
-```text
-/app/import
-```
+Bifocal has no product import screen yet: `/app/import` is not usable.
+BIF-003 (files and spreadsheets) and BIF-025 (incumbent migration) remain
+missing. Installation archives use the separate `rer export` and `rer import`
+commands; they do not import business records or replace the product import door.
 
-Upload a supported source export, review the plan and its differences, then
-approve that exact plan to apply it. Reconcile the result against native data;
-use Undo from the same history when needed. Base's reference accepts people JSON
-here, not installation `.rer` archives. Editions adopt this same door
-with their own supported readers and native adapters.
+When implementing data move-in, mount Base's shared door at `/app/import` for
+supported source exports, with review, exact-plan approval, reconciliation and
+Undo. Do not add a separate importer. Base's reference people-JSON reader is
+not a Bifocal business-data importer, and `.rer` archives are not door uploads.
+Follow Base's [door adoption guide](https://github.com/runeditrun/base/blob/main/modules/import-kit/src/door/ADOPTING.md).
 
-This technical foundation has no product import screen or product data yet.
-When adding data move-in, mount the shared door and build `/app/import` before
-publishing that workflow; do not add a separate importer. Follow Base's
-[door adoption guide](https://github.com/runeditrun/base/blob/main/modules/import-kit/src/door/ADOPTING.md).
-
-Start a fresh copy with one line: `npx -y @runeditrun/rer dev just-every/run-bifocal`
+With Node 22 or later, start a fresh copy with one line: `npx -y @runeditrun/rer dev just-every/run-bifocal`
 (set up only: `npx -y @runeditrun/rer setup just-every/run-bifocal`; without
 Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-bifocal`).
 It clones, installs, sets up a local owner and starts the app; to start it again
@@ -61,8 +60,8 @@ rer import --input exports/installation.rer --yes
 
 These commands save and restore a supported installation archive. They do not
 use the reviewed import door or provide its plan, reconciliation and Undo.
-Archive restore requires an empty destination and explicit confirmation. Use
-the signed-in import door when bringing records in.
+Archive restore requires an empty destination and explicit confirmation.
+Business-record move-in remains unavailable until the product import door is built.
 
 Use `rer describe` to inspect the checkout's actual
 capabilities. `rer check --profile first-party` validates the
