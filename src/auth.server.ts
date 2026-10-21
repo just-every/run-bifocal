@@ -9,6 +9,7 @@ import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthCo
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 import { homePage } from './app/home'
+import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -49,9 +50,9 @@ export function operatorAuth(env: Bindings) {
 
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
-async function html(body: string, title = branding.name) {
+async function html(body: string, title = branding.name, status = 200) {
  const frame = await themeFrame(theme)
- return new Response(`<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title>${fontHead}${frame.head}</head><body><main>${frame.brand}${body}</main></body></html>`, { headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${frame.policy}` } })
+ return new Response(`<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title>${fontHead}${frame.head}</head><body><main>${frame.brand}${body}</main></body></html>`, { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${frame.policy}` } })
 }
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -68,6 +69,15 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   })(request)
   if (page) return fontDocumentResponse(page)
  }
+ const peopleResponse = async (notice = '', status = 200) => {
+  const auth = operatorAuth(env)
+  const session = await auth.getSession(request)
+  if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=%2Fapp%2Fpeople' } })
+  // Use the same native read adapter as /auth/operators; no UI-only access grant.
+  const response = await createAuthHandler(auth)(new Request(new URL('/auth/operators', url), { headers: request.headers }))
+  if (!response?.ok) return html(peopleUnavailable(session.operator.role), `People unavailable · ${branding.name}`, response?.status ?? 503)
+  return html(peoplePage(await response.json(), session.operator.role, notice), `People · ${branding.name}`, status)
+ }
  if (url.pathname.startsWith('/auth/')) {
   const response = await createAuthHandler(operatorAuth(env))(request)
   // Keep native authorization, origin checks and cookie revocation. A browser
@@ -77,11 +87,19 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
    headers.set('location', '/signin')
    return new Response(null, { status: 303, headers })
   }
+  if (url.pathname === '/auth/invite' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
+   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people?invited=1' } })
+   const error = await response?.json() as { error?: string } | undefined
+   return peopleResponse(inviteNotice(error?.error ?? ''), response?.status ?? 503)
+  }
   return fontDocumentResponse(response)
  }
  if (url.pathname === '/setup' || url.pathname === '/app' || url.pathname.startsWith('/app/')) {
   const setup = await firstRunResponse(request, env, operatorAuth(env), { theme })
   if (setup) return setup
+ }
+ if (url.pathname === '/app/people' && ['GET', 'HEAD'].includes(request.method)) {
+  return peopleResponse(url.searchParams.get('invited') === '1' ? '<p role="status">Invitation requested. The person’s current status is shown below.</p>' : '')
  }
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)

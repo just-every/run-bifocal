@@ -18,7 +18,7 @@ const persist = await mkdtemp(join(tmpdir(), 'foundation-runtime-'))
 execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
 const origin = `http://127.0.0.1:${port}`
 const syntheticSetup = 'synthetic-bifocal-1'.repeat(3)
-const worker = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port), '--var', `AUTH_ORIGIN:${origin}`, '--var', 'AUTH_LOCAL:true', '--var', 'OWNER_EMAIL:synthetic-bifocal-1@example.test', '--var', `SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`, '--var', `SETUP_TOKEN:${syntheticSetup}`], { stdio: ['ignore', 'pipe', 'pipe'] })
+const worker = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port), '--var', `AUTH_ORIGIN:${origin}`, '--var', 'AUTH_LOCAL:true', '--var', 'OWNER_EMAIL:synthetic-bifocal-1@example.test', '--var', 'MAIL_FROM:synthetic-bifocal-2@example.test', '--var', `SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`, '--var', `SETUP_TOKEN:${syntheticSetup}`], { stdio: ['ignore', 'pipe', 'pipe'] })
 let output = ''
 worker.stdout.on('data', chunk => { output += chunk })
 worker.stderr.on('data', chunk => { output += chunk })
@@ -70,6 +70,36 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `home overflow at ${width}`)
       if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/home-${width}.png`, fullPage: true })
     }
+    // People/Invite: a person-facing form delegates to the native invitation door.
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto(`${origin}/app`)
+      await page.getByRole('link', { name: 'People', exact: true }).click()
+      await page.getByRole('heading', { name: 'Invite a person', exact: true }).waitFor()
+      assert.equal(await page.getByRole('link', { name: /^Sign in as/ }).count(), 0, 'ordinary Worker must not offer local one-click entry')
+      await page.getByLabel('Name', { exact: true }).fill(`Synthetic person ${width}`)
+      await page.getByLabel('Email', { exact: true }).fill(`synthetic-bifocal-${width}@example.test`)
+      const [invited] = await Promise.all([page.waitForResponse(response => response.url().endsWith('/auth/invite') && response.request().method() === 'POST'), page.getByRole('button', { name: 'Send invitation' }).click()])
+      assert.equal(invited.status(), 303)
+      await page.waitForURL(/invited=1/)
+      await page.getByRole('status').waitFor()
+      const people = page.getByRole('list', { name: 'People', exact: true })
+      assert.match(await people.innerText(), new RegExp(`synthetic-bifocal-${width}@example.test`))
+      assert.match(await people.innerText(), /invited/)
+      assert.doesNotMatch(await people.innerText(), /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}/i)
+      const native = await (await context.request.get(`${origin}/auth/operators`)).json()
+      assert.ok(native.some(person => person.email === `synthetic-bifocal-${width}@example.test` && person.role === 'member' && person.status === 'invited'))
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `people overflow at ${width}`)
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/people-${width}.png`, fullPage: true })
+    }
+    const invalidInvite = await context.request.post(`${origin}/auth/invite`, { headers: { Origin: origin }, form: { email: 'invalid', displayName: 'Synthetic person', role: 'member' } })
+    assert.equal(invalidInvite.status(), 400)
+    assert.match(await invalidInvite.text(), /Enter a valid email address/)
+    const forgedInvite = await context.request.post(`${origin}/auth/invite`, { headers: { Origin: 'https://foreign.example.test' }, form: { email: 'synthetic-bifocal-3@example.test', displayName: 'Synthetic person', role: 'member' } })
+    assert.equal(forgedInvite.status(), 403)
+    const afterRefusal = await (await context.request.get(`${origin}/auth/operators`)).json()
+    assert.ok(!afterRefusal.some(person => person.email === 'synthetic-bifocal-3@example.test'))
+    console.log('People/Invite: native persistence, form errors, CSRF refusal and human HTML at 1440/390 passed')
     // A forged cross-origin form cannot revoke the still-valid session.
     const forged = await context.request.post(`${origin}/auth/signout`, { headers: { Origin: 'https://foreign.example.test' }, form: {}, maxRedirects: 0 })
     assert.equal(forged.status(), 403)
@@ -80,6 +110,7 @@ try {
     assert.equal((await context.request.get(`${origin}/auth/session`)).status(), 401)
     assert.equal((await fetch(`${origin}/auth/session`, { headers: { cookie: staleCookie } })).status, 401)
     assert.equal((await context.request.get(`${origin}/app`, { maxRedirects: 0 })).status(), 303)
+    assert.equal((await context.request.get(`${origin}/app/people`, { maxRedirects: 0 })).status(), 303)
     console.log('Foundation home: honest capability state, working links and revoked sign-out at 1440/390 passed')
     await context.close()
   } finally { await browser.close() }
@@ -88,4 +119,46 @@ try {
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
   await rm(persist, { recursive: true, force: true })
+}
+
+// Optional local-only proof against this checkout's actual Vite dev entry.
+// The harness starts it with this synthetic gate, never a real browser session.
+if (process.env.BIFOCAL_DEV_ORIGIN) {
+  const devOrigin = process.env.BIFOCAL_DEV_ORIGIN
+  const browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  try {
+    for (const width of [1440, 390]) {
+      const context = await browser.newContext({ viewport: { width, height: 1000 } })
+      const exchange = await context.request.post(`${devOrigin}/__dev/key`, { headers: { Origin: devOrigin }, data: { key: 'synthetic-bifocal-4'.repeat(3) } })
+      assert.equal(exchange.status(), 204)
+      const page = await context.newPage()
+      await page.goto(`${devOrigin}/auth/dev/enter?as=owner`)
+      if (new URL(page.url()).pathname === '/setup') {
+        await page.getByRole('checkbox').check()
+        await Promise.all([page.waitForURL(`${devOrigin}/app`), page.getByRole('button', { name: 'Finish setup' }).click()])
+      }
+      await page.goto(`${devOrigin}/app/people`)
+      await page.getByLabel('Name', { exact: true }).fill(`Synthetic local ${width}`)
+      await page.getByLabel('Email', { exact: true }).fill(`synthetic-bifocal-local-${width}@example.test`)
+      const [invited] = await Promise.all([page.waitForResponse(response => response.url().endsWith('/auth/invite') && response.request().method() === 'POST'), page.getByRole('button', { name: 'Send invitation' }).click()])
+      assert.equal(invited.status(), 303)
+      await page.waitForURL(/invited=1/)
+      const enter = page.getByRole('link', { name: `Sign in as Synthetic local ${width}`, exact: true })
+      await enter.waitFor()
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/people-dev-${width}.png`, fullPage: true })
+      await enter.click()
+      await page.waitForURL(`${devOrigin}/app`)
+      assert.match(await page.locator('main').innerText(), new RegExp(`Synthetic local ${width}`))
+      assert.equal(await page.getByRole('link', { name: 'People', exact: true }).count(), 0)
+      const denied = await page.goto(`${devOrigin}/app/people`)
+      assert.equal(denied.status(), 403)
+      await page.getByRole('heading', { name: 'People unavailable' }).waitFor()
+      assert.equal(await page.getByRole('list', { name: 'People', exact: true }).count(), 0)
+      const mutation = await context.request.post(`${devOrigin}/auth/invite`, { headers: { Origin: devOrigin }, form: { email: `synthetic-bifocal-refused-${width}@example.test`, displayName: 'Synthetic refused', role: 'member' } })
+      assert.equal(mutation.status(), 403)
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/people-denied-${width}.png`, fullPage: true })
+      await context.close()
+    }
+    console.log('Local People/Invite: native one-click invitation acceptance and member refusal at 1440/390 passed')
+  } finally { await browser.close() }
 }
