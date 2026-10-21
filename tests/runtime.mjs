@@ -282,6 +282,10 @@ async function proveFileImports(origin, context, page) {
   const response = await post('undo', { planId: preview.planId }, id)
   assert.equal(response.status(), 200, await response.text()); assert.equal((await response.json()).job.state, 'undone')
  }
+ async function cancel(preview) {
+  const response = await post('undo', { planId: preview.planId })
+  assert.equal(response.status(), 200, await response.text()); assert.equal((await response.json()).state, 'cancelled')
+ }
  const anonymous = await fetch(`${origin}/api/operator/import/uploads`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Import-Dataset': dataset }, body: '{}' })
  assert.equal(anonymous.status, 401)
  assert.equal((await fetch(`${origin}/api/operator/datasets/${dataset}`)).status, 401)
@@ -327,17 +331,25 @@ async function proveFileImports(origin, context, page) {
  assert.match(changedType.rejected[0].reason, /TYPE_MISMATCH: row 2, column 4: expected money/)
  assert.equal(changedType.preview, null)
  assert.deepEqual(await read(), beforeRefusal)
+ const refusedApply = await post('apply', { planId: changedType.planId, reviewedFingerprint: changedType.fingerprint })
+ assert.equal(refusedApply.status(), 422); assert.equal((await refusedApply.json()).error, 'mapping_rejected')
+ await cancel(changedType)
  const duplicates = await plan({ ...base, mode: 'append' }, true)
  assert.equal(duplicates.counts.rejected, 1)
  assert.match(duplicates.rejected[0].reason, /DUPLICATE_KEY/)
+ await cancel(duplicates)
  const macro = await plan({ ...base, filename: 'synthetic-bifocal-3.xlsm' }, true)
  assert.equal(macro.counts.rejected, 1); assert.match(macro.rejected[0].reason, /FILE_TYPE/)
+ await cancel(macro)
  const malformed = await plan({ ...base, data: 'id,date,region,amount,note\n5,"unclosed' }, true)
  assert.equal(malformed.counts.rejected, 1); assert.match(malformed.rejected[0].reason, /CSV_QUOTE/)
+ await cancel(malformed)
  const invalidDate = await plan({ ...base, data: 'id,date,region,amount,note\n5,02/30/2026,West,$1.00,Invalid date\n' }, true)
  assert.equal(invalidDate.counts.rejected, 1); assert.match(invalidDate.rejected[0].reason, /column 2: expected date/)
+ await cancel(invalidDate)
  const bounds = await plan({ ...base, data: 'id,date,region,amount,note\n' + Array.from({ length: 2001 }, (_, i) => `${i + 10},01/01/2026,West,$1.00,Row\n`).join('') }, true)
  assert.equal(bounds.counts.rejected, 1); assert.match(bounds.rejected[0].reason, /ROW_LIMIT/)
+ await cancel(bounds)
  // Resume a multi-chunk upload without changing the visible native dataset.
  const larger = { ...base, data: 'id,date,region,amount,note\n' + Array.from({ length: 700 }, (_, i) => `${i + 10},01/01/2026,West,$1.00,${'x'.repeat(100)}\n`).join('') }
  const resumed = await plan(larger, true, dataset, true)
@@ -385,8 +397,6 @@ async function proveFileImports(origin, context, page) {
  console.log('File safety: anonymous/origin/fingerprint denial, inert hostile text and formulas at 1440/390, protected originals, consented erasure and replay fence passed')
  // A stale signed-out session cannot finish work planned while it was active.
  const pending = await plan({ ...base, mode: 'replace', data: 'id,date,region,amount,note\n8,03/01/2026,West,$8.00,Pending\n' }, true)
- const disposable = await context.request.post(`${origin}/auth/bootstrap`, { headers: { Origin: origin }, data: { token: 'synthetic-bifocal-invalid', displayName: 'Denied' } })
- assert.ok(disposable.status() >= 400)
  // Leave the pending plan id for the outer native-signout assertion below.
  context.fileImportPending = { dataset, planId: pending.planId, fingerprint: pending.fingerprint }
  await page.goto(`${origin}/app`)

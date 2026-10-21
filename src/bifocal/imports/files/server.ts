@@ -72,6 +72,16 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const originals = await readD1ImportOriginals(row.job_id, context(job.namespace, job.mapping_version))
    return new Response(JSON.stringify({ originals }), { headers: { ...headers, 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="import-originals.json"' } })
   }
+  if (path === '/api/operator/import/apply' && request.method === 'POST') {
+   const body = await boundedBody(request.clone())
+   if (typeof body?.planId === 'string') {
+    const row = await rowForPlan(body.planId)
+    if (row && !row.job_id && body.reviewedFingerprint === row.fingerprint) {
+     const snapshot = await loadSnapshot(admitted, row)
+     if (snapshot.plan.counts.rejected) return json({ error: 'mapping_rejected', reason: 'This dataset has validation errors. Cancel the plan with Undo, correct the file or mapping and review again; no rows were published.' }, 422)
+    }
+   }
+  }
   const response = await createImportOperatorHandler(options)(request)
   if (path === '/api/operator/import/plan' && response?.ok) {
    const preview = await response.json() as { planId: string }
