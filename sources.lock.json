@@ -461,6 +461,10 @@
       "sha256": "454ccb80da678a40533c05fc78de36e49e8fc54d4939a407943c8f371e3ce039",
       "executable": false
     },
+    "src/app/not-found.tsx": {
+      "sha256": "2674239f4029c1ef7bf08faf0acf069eeeb7fa1a671b9328a2b1ca72babb658d",
+      "executable": false
+    },
     "src/app/people.ts": {
       "sha256": "5a01955f52e7f8397414e56cdc714a8ae76ccaa7e9e09b984057d4a97a1a65a4",
       "executable": false
@@ -1462,7 +1466,7 @@
       "executable": false
     },
     "src/routes/__root.tsx": {
-      "sha256": "5d50c6bbc1ed4f56f788e7b98b66183b27f07de82c9392c4d1e3f1b4621ac079",
+      "sha256": "a6e7eabfc16292f6f12a268a005b6cd0c26e818c4baa4351ab3028111a591881",
       "executable": false
     },
     "src/routeTree.gen.ts": {
@@ -1490,7 +1494,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "0a4d533b111b31fe046303a645daf578bedc8b7727b5a485fd40982c6dbb50ee",
+      "sha256": "8adcef6398f532abb442b03f50c2003a5508af3864af29753b677902d438acde",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

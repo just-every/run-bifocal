@@ -47,6 +47,29 @@ try {
   try {
     const context = await browser.newContext()
     const page = await context.newPage()
+    async function proveNotFound(signedIn) {
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 })
+        const missing = await page.goto(`${origin}/app/import`)
+        assert.equal(missing.status(), 404)
+        await page.getByRole('heading', { name: 'Page not found', exact: true }).waitFor()
+        assert.equal(await page.title(), 'Page not found · Bifocal')
+        assert.match(await missing.text(), /<title>Page not found · Bifocal<\/title>/)
+        assert.match(await page.locator('main').innerText(), /not built yet/)
+        assert.equal(await page.getByRole('link', { name: 'Go to Lobby', exact: true }).getAttribute('href'), '/')
+        assert.equal(await page.locator('a[href="/app/import"]').count(), 0)
+        await page.keyboard.press('Tab')
+        assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Open app home')
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `404 overflow at ${width}`)
+        if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/not-found-${signedIn ? 'signed-in' : 'signed-out'}-${width}.png`, fullPage: true })
+        await page.getByRole('link', { name: 'Open app home', exact: true }).click()
+        await page.waitForURL(`${origin}${signedIn ? '/app' : '/signin'}`)
+        await page.goto(`${origin}/missing`)
+        await page.getByRole('link', { name: 'Go to Lobby', exact: true }).click()
+        await page.waitForURL(`${origin}/`)
+      }
+    }
+    await proveNotFound(false)
     const refused = await context.request.get(`${origin}/app`, { maxRedirects: 0 })
     assert.equal(refused.status(), 303)
     assert.equal(refused.headers().location, '/signin')
@@ -70,6 +93,8 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `home overflow at ${width}`)
       if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/home-${width}.png`, fullPage: true })
     }
+    await proveNotFound(true)
+    console.log('Unknown routes: framed 404, SSR title, keyboard recovery and honest scope signed in/out at 1440/390 passed')
     // People/Invite: a person-facing form delegates to the native invitation door.
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
