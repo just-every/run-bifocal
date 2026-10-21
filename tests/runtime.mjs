@@ -430,7 +430,7 @@ async function proveFileImports(origin, context, page) {
  assert.deepEqual((await (await context.request.get(`${origin}/auth/session`)).json()).operator.role, 'owner')
  const history = await context.request.get(`${origin}/api/operator/import/history`, { headers: { 'X-Import-Dataset': dataset } })
  assert.equal(history.status(), 200)
- assert.ok((await history.json()).history.some(entry => entry.planId === initial.planId && entry.reviewer === 'operator'))
+ assert.ok((await history.json()).history.some(entry => entry.planId === initial.planId && entry.reviewer === 'operator' && entry.owner === 'synthetic-bifocal-1@example.test'))
  // Explicit current-revision consent withdraws originals, staged uploads and
  // plans. It must leave an unrelated native dataset intact and fence replay.
  const erasureUrl = `${origin}/api/operator/datasets/${hostileId}/erase`

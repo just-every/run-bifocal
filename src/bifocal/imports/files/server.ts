@@ -30,10 +30,10 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  const current = await fileTargets.read(env.DB, destination, 'file-table', dataset)
  const source = fileSource(dataset, current, new Date().toISOString())
  const options = { ...source, database: env.DB, targets: fileTargets, destination, ownerPrincipalId: PRINCIPAL,
-  installationId: DOOR_KEY, appOrigin: env.AUTH_ORIGIN, ownerEmail: env.OWNER_EMAIL, namespace, format: 'json' as const,
+  installationId: DOOR_KEY, appOrigin: env.AUTH_ORIGIN, ownerEmail: owner.email, namespace, format: 'json' as const,
   limits: { maxBytes: 1048576, maxRecords: 1, maxRecordBytes: 1048576 }, authorize: (incoming: Request) => fileOwner(incoming, env) }
  const rowForPlan = (id: string) => env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(id, DOOR_KEY, namespace).first<DoorPlanRow>()
- const admitted: DoorRequest = { options, authority: owner, via: 'operator', epoch: 0, access: { action: 'plan', installationId: DOOR_KEY, email: env.OWNER_EMAIL, namespace, maxBytes: 1048576, maxRecords: 1, maxChunks: 16 } }
+ const admitted: DoorRequest = { options, authority: owner, via: 'operator', epoch: 0, access: { action: 'plan', installationId: DOOR_KEY, email: owner.email, namespace, maxBytes: 1048576, maxRecords: 1, maxChunks: 16 } }
  try {
   if (path === `/api/operator/datasets/${dataset}`) {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)

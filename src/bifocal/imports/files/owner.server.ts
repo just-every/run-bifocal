@@ -2,13 +2,13 @@ import { operatorAuth, type Bindings } from '../../../auth.server'
 import type { D1Sql } from '../../../modules/import-kit/src/d1/types.ts'
 /** Current native owner authority is rechecked in the same D1 transaction as
  * every mutation, including membership version, expiry and linked IdP policy. */
-export async function fileOwner(request: Request, env: Bindings): Promise<D1Sql | null> {
+export async function fileOwner(request: Request, env: Bindings): Promise<(D1Sql & { email: string }) | null> {
  const url = new URL(request.url)
  if (url.origin !== env.AUTH_ORIGIN || (request.headers.has('Host') && request.headers.get('Host')?.toLowerCase() !== url.host.toLowerCase())
   || request.headers.get('sec-fetch-site') === 'cross-site' || (!['GET','HEAD'].includes(request.method) && request.headers.get('Origin') !== env.AUTH_ORIGIN)) return null
  const session = await operatorAuth(env).getSession(request)
  if (!session || session.operator.role !== 'owner') return null
- return { sql: `EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id
+ return { email: session.operator.email, sql: `EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id
   WHERE s.id=? AND s.operator_id=? AND s.revoked_at IS NULL
   AND s.expires_at>CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)
   AND s.operator_version=o.version AND o.version=? AND o.status='active' AND o.role='owner' AND o.email=?
