@@ -1,7 +1,7 @@
 # Fonts
 
 Every face is self-hosted under the SIL Open Font License 1.1; each folder
-holds its licence (`LICENSE.txt`). `fonts.css` declares them all once, and no
+holds its license (`LICENSE.txt`). `fonts.css` declares them all once, and no
 page makes a third-party font request.
 
 | Folder | Face | Used for | Upstream |
@@ -15,7 +15,7 @@ subsets (`@fontsource/kaushan-script` 5.3.0, `kaushan-script-latin-400-normal.wo
 `@fontsource-variable/mona-sans` 5.3.0, `mona-sans-latin-wght-normal.woff2`,
 the weight axis at the default width). Neither subset carries the arrow, so
 the run site draws its arrows as inline SVG. The brush headings are thickened
-with a text stroke in their own colour; the font files are unchanged. The
+with a text stroke in their own color; the font files are unchanged. The
 Outfit files are Fontsource's Latin and Latin Extended subsets.
 
 The root document links `/fonts/fonts.css` once, outside the temporary dev SSR

@@ -1,4 +1,4 @@
-/* 08 "Ask yours.": the closing, the one white screen. The question, the licence line and the actions top left; mark
+/* 08 "Ask yours.": the closing, the one white screen. The question, the license line and the actions top left; mark
    4 alone bottom right; the type-set footer follows. */
 .s-ask { background: var(--white); color: var(--ink); }
 .closing-line { font-weight: 400; }

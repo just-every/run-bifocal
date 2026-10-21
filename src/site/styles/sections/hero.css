@@ -1,5 +1,5 @@
 /* 01, hero H built as drawn: a hard 50/50 split. Wide, every string sits where the 1536 x 1024 plate puts it, in
-   plate units (--h), around the window's centre. Narrow, the yellow half comes first (header, headline, line,
+   plate units (--h), around the window's center. Narrow, the yellow half comes first (header, headline, line,
    alternative line, Run Bifocal and the links, above the fold), then the cobalt block. */
 .home-hero { position: relative; background: var(--yellow); }
 .hero-proof { color: var(--white); }

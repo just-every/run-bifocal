@@ -1,7 +1,7 @@
 import { Actions } from '../../shell/Actions'
 import { Question, Screen } from '../parts'
 
-/** 08: the closing, the one white screen: the question handed to the reader, the licence line and the actions top left,
+/** 08: the closing, the one white screen: the question handed to the reader, the license line and the actions top left,
  * mark 4 alone bottom right. */
 export function AskYours() {
   return <Screen id="ask" className="s-ask">

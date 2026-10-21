@@ -1,5 +1,5 @@
 /* The homepage's screens. At 1024 px and wider each screen is the desk's 1440 x 960 composition scaled as one piece:
-   --u is one pixel of the 1440 design (up to a 1600 px stage, centred) and --h one pixel of the 1536 hero plate (the
+   --u is one pixel of the 1440 design (up to a 1600 px stage, centered) and --h one pixel of the 1536 hero plate (the
    hero also shrinks on short windows so Run Bifocal stays above the fold). The rhythm is the build notes': 120 px side
    margins, every question's ink 160 px from the top, every proof on one baseline 160 px from the bottom, sentences at
    28/40. Narrower, each screen stacks its words first and its proof second on the phone rules: 24 px gutters, 72 px

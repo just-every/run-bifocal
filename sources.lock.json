@@ -502,7 +502,7 @@
       "executable": false
     },
     "public/fonts/README.md": {
-      "sha256": "eacf6a7ca984ec10b37e9d0e83a61be484c965400c28f257fe1d8c5faf90199b",
+      "sha256": "317f27fc6ca595041eb96ef488f6e56d5012b09937a0937ac00b1fde45d1778c",
       "executable": false
     },
     "public/rer-theme.css": {
@@ -2498,11 +2498,11 @@
       "executable": false
     },
     "src/site/landing/sections/AskYours.tsx": {
-      "sha256": "91b8ecaf8dcd2f9e59035cf5beaaa13e29632dae8875c6bf8f4559e014e03480",
+      "sha256": "283a6f358b1037901b962a87252f6adc711d23dbdbc8e882eca4998744219aa8",
       "executable": false
     },
     "src/site/landing/sections/MarginDrop.tsx": {
-      "sha256": "8e8e9a78deda7d08f88136effc8e356d0a930b3466f1daa83574725bee5d3175",
+      "sha256": "536216d5404752c25a67cfcfe0ad611b8dff2e36a445c3e4239c8f978caa580d",
       "executable": false
     },
     "src/site/landing/sections/MatchPowerBI.tsx": {
@@ -2538,7 +2538,7 @@
       "executable": false
     },
     "src/site/shell/Arrow.tsx": {
-      "sha256": "efa93d93269357d2a36d2e8da2cbdf6b855f6023a5e31d3052d5008da6c8e3d2",
+      "sha256": "c0729fceb6388d77260e56356ff4306cba227ce9a4436fd3c155fe257368a5ad",
       "executable": false
     },
     "src/site/shell/brush.ts": {
@@ -2550,7 +2550,7 @@
       "executable": false
     },
     "src/site/shell/Lockup.tsx": {
-      "sha256": "679b877e1dd8b4826e9ecf425fd09a0d3af176a6e27c233f1bb1b1960d4c9c23",
+      "sha256": "db52ae0acbfdb577177f4e5e9b890707ed0c6f6348cf33037d453cc6f596dd08",
       "executable": false
     },
     "src/site/shell/SiteFooter.tsx": {
@@ -2570,11 +2570,11 @@
       "executable": false
     },
     "src/site/styles/landing.css": {
-      "sha256": "00896b949c36ec356650549da65dcd4e894494390b49da5b6624136986cbfd1c",
+      "sha256": "e4b64ff378eff79f09e62440d0003ab63682dfdd13560d84e67eaace3fdabd29",
       "executable": false
     },
     "src/site/styles/sections/ask.css": {
-      "sha256": "b2b431161dbd4471b677470e873dacb6484896a34b4ad4c054947b78b7e28d3e",
+      "sha256": "9cec73902787dfb8633e84dbdf407481f943645bb3712830252beacd7bd1e662",
       "executable": false
     },
     "src/site/styles/sections/friday.css": {
@@ -2582,7 +2582,7 @@
       "executable": false
     },
     "src/site/styles/sections/hero.css": {
-      "sha256": "8b24def2ef4de219e05bf1277faf0838cd2f2a0462b6c8d80e0c4502825618b4",
+      "sha256": "ea860507d5131e41ecd99cde3784a91b58f11e51a3c52a62e50220f3aecd42b9",
       "executable": false
     },
     "src/site/styles/sections/margin.css": {
@@ -2606,7 +2606,7 @@
       "executable": false
     },
     "src/site/styles/site.css": {
-      "sha256": "eccaee5510e7cd1294558f6fcca20ceae6175ba2b713354c80c17a6cc7a6b465",
+      "sha256": "1023f6ceefe1e74035f994a7caf92c4c1e9dbe3642da5d517253efa9e2f3f2e1",
       "executable": false
     },
     "src/site/styles/tokens.css": {

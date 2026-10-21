@@ -32,20 +32,20 @@ function Waterfall({ orientation }: { orientation: 'vertical' | 'horizontal' }) 
   ]
   const pct = (value: number, of: number) => `${(value / of * 100).toFixed(3)}%`
   if (orientation === 'vertical') {
-    // 1440 design units: the axis runs 550 wide; bars 66 wide on 134 centres; 64.29 a point (the desk's 68.57 at 1536).
+    // 1440 design units: the axis runs 550 wide; bars 66 wide on 134 centers; 64.29 a point (the desk's 68.57 at 1536).
     const unit = 64.29, base = 300, top = base - (aug - axisFrom) * unit - 2, width = 560
     const y = (value: number) => base - (value - axisFrom) * unit
-    const centres = [74, 208, 342, 476]
+    const centers = [74, 208, 342, 476]
     return <div className="waterfall waterfall-v">
       <svg viewBox={`0 ${top} ${width} ${base + 2 - top}`} aria-hidden="true" focusable="false">
         <g className="wf-lines">
           <path className="wf-axis" d={`M0 ${base}H${width - 10}`} />
           <path className="wf-break" d={`M2 ${base + 9}l9-18M10 ${base + 9}l9-18`} />
-          {steps.map((step, i) => <rect key={step.name} x={centres[i] - 33} y={y(step.to)} width={66} height={y(step.from) - y(step.to)} />)}
-          {steps.slice(0, 3).map((step, i) => { const level = i === 0 ? step.to : step.from; return <path key={i} className="wf-link" d={`M${centres[i] + 33} ${y(level)}H${centres[i + 1] - 33}`} /> })}
+          {steps.map((step, i) => <rect key={step.name} x={centers[i] - 33} y={y(step.to)} width={66} height={y(step.from) - y(step.to)} />)}
+          {steps.slice(0, 3).map((step, i) => { const level = i === 0 ? step.to : step.from; return <path key={i} className="wf-link" d={`M${centers[i] + 33} ${y(level)}H${centers[i + 1] - 33}`} /> })}
         </g>
       </svg>
-      <ul className="wf-labels">{steps.map((step, i) => <li key={step.name} style={{ left: pct(centres[i], width) }}><span>{step.name}</span> <span className="nw">{step.value}</span></li>)}</ul>
+      <ul className="wf-labels">{steps.map((step, i) => <li key={step.name} style={{ left: pct(centers[i], width) }}><span>{step.name}</span> <span className="nw">{step.value}</span></li>)}</ul>
     </div>
   }
   // Phone: the axis is the left edge, bars run right; 77.9 a point, as the desk's phone plan draws it (204.5 at 2.626x).

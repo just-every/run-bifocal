@@ -26,7 +26,7 @@ h1, h2, h3, .docs-row-title, .docs-pager-title { word-spacing: .1em; }
 .skip-link { position: absolute; left: 12px; top: -200px; z-index: 10; padding: 10px 16px; background: var(--ink); color: var(--white); font-weight: 600; }
 .skip-link:focus { top: 12px; }
 
-/* The brush voice: the hero's rough black script, thickened in its own colour with a stroke, never rounded off. */
+/* The brush voice: the hero's rough black script, thickened in its own color with a stroke, never rounded off. */
 .brush { font-family: var(--font-brush); font-weight: 400; font-synthesis: none; -webkit-text-stroke: .028em currentColor; letter-spacing: -.005em; word-spacing: .06em; }
 .brush .line { display: block; }
 
