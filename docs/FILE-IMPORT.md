@@ -1,4 +1,4 @@
-# CSV import HTTP backend
+# CSV and XLSX import HTTP backend
 
 The browser import screen at `/app/import` is unfinished. This document describes
 the implemented HTTP backend for installation owners; it is not a claim that
@@ -6,7 +6,7 @@ BIF-003 or BIF-057 is complete. No live spreadsheet grant or analytical executio
 is provided. Business grants remain closed, including on installations provisioned
 with `RER_IMPORT_DOOR=on`; `/api/rer/import/*` returns 404.
 
-CSV intake uses the pinned Base shared door, not a second importer:
+File intake uses the pinned Base shared door, not a second importer:
 
 1. POST `/api/operator/import/uploads` to upload a version-1 JSON envelope in
    SHA-256 checked 64 KiB chunks. Use the shared protocol in
@@ -62,10 +62,12 @@ and nonempty. Key columns must be unique and non-null in the entire result.
 
 `append` keeps existing rows, `replace` publishes the complete replacement, and
 `keyed-update` replaces matching keys and appends new keys without duplicates.
-A stale plan cannot overwrite a changed dataset. CSV formulas are literal text;
+A stale plan cannot overwrite a changed dataset. Cancel a rejected or unwanted
+plan through Undo before planning its corrected replacement. CSV formulas are literal text;
 there is no formula evaluation, network fetch, SQL execution or agent authority.
-XLSX, XLSM, templates, archives and all other file types are currently refused,
-not converted or executed. Data never becomes a URL to fetch or an app-origin
+XLSM, templates, archives and other file types are refused. XLSX accepts an
+explicit selected sheet, cached formula values and retained original formulas,
+without execution. Import each wanted sheet through its own reviewed plan. Data never becomes a URL to fetch or an app-origin
 HTML/script document. BIF-043/057/073/081 and future query/notebook/embed/export
 implementations inherit the same untrusted-data boundary.
 
@@ -94,8 +96,42 @@ archives require the current erasure journal. There is no automatic retention or
 outbound action. Source bytes and shared import custody are included in the
 installer's archive inventory; sessions and dependency secrets remain excluded.
 
-Full browser intake, accessible review states, multi-sheet XLSX and formula
-calculated-value treatment, Google Sheets/Excel Online range authorization and
-revocation, large-file qualification, isolated SQL/Python/extensions and all
+Full browser intake, accessible review states, Google Sheets/Excel Online range
+authorization and revocation, production large-file qualification, isolated
+SQL/Python/extensions and all
 other BI workflows remain unfinished. No provider sandbox or cross-platform
 qualification is claimed by the CSV journey.
+
+## XLSX sheets and formulas
+
+Use the same version-1 envelope with a `.xlsx` filename, canonical base64 binary
+`data`, the exact `sheet` name and
+`"formulaTreatment": "cached-values-preserve-formulas"`. Retain `encoding: utf-8`
+and a supported delimiter in the envelope; workbook XML is UTF-8 and a delimiter
+does not apply to its cells. The server preview lists available sheets, the
+selected sheet and formula locations, expressions and cached values. The original
+workbook binary round-trips through protected original-envelope download. Changing
+the sheet and choosing append requires another exact reviewed plan. Formula
+expressions remain data, including expressions containing URLs. No library
+calculates or executes formulas. Missing caches and shared/array formulas require
+source recalculation or an explicit values-only copy; they are named refusals.
+
+Supported ordinary OOXML cells include inline/shared/rich text, booleans, simple
+exact decimals, common USD formats and integer Excel dates in 1900/1904 calendars.
+The fictitious 02/29/1900, fractional dates, errors, scientific notation and
+unsupported custom/time formats are refused. Original cell types drive initial
+column detection; mixed types or a type change against an existing dataset require
+an explicit mapping. No implicit string-to-number conversion is performed.
+The two-sheet test fixture follows ECMA-376 / ISO/IEC 29500 package and worksheet
+structure, documented by [Microsoft Open XML](https://learn.microsoft.com/en-us/office/open-xml/spreadsheet/structure-of-a-spreadsheetml-document).
+It establishes synthetic file-format proof, not qualification in a live Excel host.
+
+Workbook admission is bounded to 512 KiB compressed, 128 ZIP entries, 1 MiB per
+expanded part, 4 MiB expanded total, 50,000 XML markup boundaries, 64 XML nesting
+levels and 32 named sheets. The ordinary row/column/cell/final-table bounds also
+apply. Central/local offsets, paths, names, sizes, CRC32 and nonoverlap are checked;
+ZIP64/encryption and unsafe/duplicate paths are refused before use. DTDs and
+entity declarations, external relationships, VBA/macros, active controls and
+embedded binaries are rejected. ZIP bytes never become extracted app files or
+public content. Large or unsupported workbooks need a bounded values-only export;
+that is an explicit limitation and does not close large-file acceptance.

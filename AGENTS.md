@@ -1,6 +1,6 @@
 # Agent instructions
 
-This checkout provides the Base foundation and a bounded owner-only CSV import HTTP backend. The full BI product and browser import screen are unfinished.
+This checkout provides the Base foundation and a bounded owner-only CSV/XLSX import HTTP backend. The full BI product and browser import screen are unfinished.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
 setup at `/setup`, then open `/app`. The app home describes the foundation capability state and links to existing
 account tools, Lobby, Run and contract pages, with native sign-out.
@@ -12,7 +12,7 @@ workflows and roles are not built.
 The separate public Run site provides `/run` and `/contract`.
 
 Bifocal has no product import screen yet: `/app/import` is not usable.
-The CSV HTTP backend uses Base’s shared review/apply/reconcile/Undo door; see
+The file HTTP backend uses Base’s shared review/apply/reconcile/Undo door; see
 `docs/FILE-IMPORT.md` for its bounds and explicit unfinished scope.
 BIF-003 and BIF-057 are partial; BIF-025 (incumbent migration) remains missing. Installation archives use the separate `rer export` and `rer import`
 commands; they do not import business records or replace the product import door.
@@ -140,7 +140,7 @@ flags, private state, deployment inputs and remote limitations.
 
 Choose and verify the edition UX before adding product functionality. This
 source includes minimal real owner/operator auth, D1 and silent development
-mail suppression. Its only current product domain is bounded CSV datasets; it has no background jobs.
+mail suppression. Its only current product domain is bounded CSV/XLSX datasets; it has no background jobs.
 
 A change that ships or alters a contract clause updates that clause's row in
 `CONTRACT.md`'s Status table in the same PR; `rer check` refuses a table that
@@ -180,6 +180,6 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/d1249b3
 
 ## Bifocal seed scope
 
-Read root CONTRACT.md and ACCEPTANCE.md before product work. They are ct's target drafts; no complete product clause is proven. The CSV backend does not establish the complete BI product. Do not add speculative BI screens, demo data, mock providers or feature claims. A later design round chooses the look; keep Base's default theme and verbatim src/base copies. Research and evidence belong in private-bifocal or the lane evidence folder, never this public tree.
+Read root CONTRACT.md and ACCEPTANCE.md before product work. They are ct's target drafts; no complete product clause is proven. The file backend does not establish the complete BI product. Do not add speculative BI screens, demo data, mock providers or feature claims. A later design round chooses the look; keep Base's default theme and verbatim src/base copies. Research and evidence belong in private-bifocal or the lane evidence folder, never this public tree.
 
 Use the exact published @runeditrun/rer 0.2.74 package. Run source:lock after intentional selected-source changes and source:check before pushing. Keep tests small, through public user flows, and never weaken a foundation test. Stop only processes you started, by recorded PID; do not use rer dev/demo --stop, pkill, killall or pattern-based kills. Never read or print private settings, credentials or token-bearing URLs.
