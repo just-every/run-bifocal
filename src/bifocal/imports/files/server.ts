@@ -26,7 +26,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  const dataset = path.startsWith('/api/operator/datasets/') ? path.split('/')[4] : request.headers.get('X-Import-Dataset') ?? ''
  if (!idPattern.test(dataset)) return json({ error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
  const namespace = `files:${dataset}`, destination = fileDestination(dataset)
- const context = (name: string, mappingVersion = 'csv-v1'): D1ImportContext => ({ destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
+ const context = (name: string, mappingVersion = 'files-v1'): D1ImportContext => ({ destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
  const current = await fileTargets.read(env.DB, destination, 'file-table', dataset)
  const source = fileSource(dataset, current, new Date().toISOString())
  const options = { ...source, database: env.DB, targets: fileTargets, destination, ownerPrincipalId: PRINCIPAL,

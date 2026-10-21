@@ -1,10 +1,11 @@
 import { Buffer } from 'node:buffer'
+import { readWorkbook, WorkbookError } from './xlsx'
 import { sha256, canonicalJson } from '../../../modules/import-kit/src/provenance/identity.ts'
 import type { Json, ParsedRecord, ImportMapping, TargetRow } from '../../../modules/import-kit/src/types.ts'
 
 export const FILE_LIMITS = { bytes: 524288, rows: 2000, columns: 64, cell: 4096, tableBytes: 786432 } as const
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
-export type Table = { columns: Column[]; rows: Json[][]; key: string | null; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string }; updatedAt: string }
+export type Table = { columns: Column[]; rows: Json[][]; key: string | null; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
 function refuse(message: string): never { throw new InvalidFile(message) }
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -61,16 +62,20 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
  function parse(input: Json): ParsedRecord {
   const invalid = (reason: string): ParsedRecord => ({ kind: 'invalid-file', sourceId: datasetId, payload: { reason } })
   try {
-   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment'].includes(key))
-     || input.version !== 1 || input.datasetId !== datasetId) refuse('FILE_SCHEMA: Supply the documented version-1 CSV envelope for this dataset.')
-   if (typeof input.filename !== 'string' || !/^[^/\\\x00-\x1f]{1,120}\.csv$/i.test(input.filename)) refuse('FILE_TYPE: Only CSV is supported here; workbooks, macros, templates and archives are refused.')
+   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet'].includes(key))
+     || input.version !== 1 || input.datasetId !== datasetId) refuse('FILE_SCHEMA: Supply the documented version-1 file envelope for this dataset.')
+   if (typeof input.filename !== 'string' || !/^[^/\\\x00-\x1f]{1,120}\.(csv|xlsx)$/i.test(input.filename)) refuse('FILE_TYPE: Choose CSV or XLSX; macro-enabled workbooks, templates and archives are refused.')
    if (input.encoding !== 'utf-8' || ![',',';','\t','|'].includes(String(input.delimiter)) || typeof input.nullValue !== 'string' || input.nullValue.length > 32) refuse('INTERPRETATION: Choose UTF-8, a supported delimiter and an explicit null marker.')
-   if (input.formulaTreatment !== 'literal-text') refuse('FORMULA_TREATMENT: CSV formulas are inert literal text; execution is never supported.')
+   const isWorkbook = String(input.filename).toLowerCase().endsWith('.xlsx')
+   if (input.formulaTreatment !== (isWorkbook ? 'cached-values-preserve-formulas' : 'literal-text')) refuse('FORMULA_TREATMENT: Explicitly choose literal-text for CSV or cached-values-preserve-formulas for XLSX; nothing is evaluated.')
    if (!['append','replace','keyed-update'].includes(String(input.mode))) refuse('IMPORT_MODE: Choose append, replace or keyed-update.')
-   if (typeof input.data !== 'string' || Buffer.byteLength(input.data, 'utf8') > FILE_LIMITS.bytes) refuse('FILE_LIMIT: The CSV byte limit is 524288; split larger data before uploading.')
+   if (typeof input.data !== 'string' || (!isWorkbook && Buffer.byteLength(input.data, 'utf8') > FILE_LIMITS.bytes)) refuse('FILE_LIMIT: The CSV byte limit is 524288; split larger data before uploading.')
    // Invalid Unicode cannot round-trip to original UTF-8 bytes.
    if (Buffer.from(input.data, 'utf8').toString('utf8') !== input.data) refuse('ENCODING: Supply valid UTF-8 text.')
-   const records = csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter)), headers = records.shift()!
+   const workbook = isWorkbook ? readWorkbook(input.data, input.sheet) : null
+   if (!isWorkbook && input.sheet !== undefined) refuse('CSV_SHEET: Sheet selection applies only to XLSX workbooks.')
+   const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter)), headers = records.shift()!
+   if (headers.length > FILE_LIMITS.columns || records.length > FILE_LIMITS.rows) refuse('TABLE_LIMIT: At most 64 columns and 2000 data rows are supported.')
    if (headers.some(name => !name || name !== name.trim() || name.length > 128) || new Set(headers).size !== headers.length) refuse('HEADERS: Use unique, nonempty headers, at most 128 characters, without outer whitespace.')
    const widthError = records.findIndex(row => row.length !== headers.length)
    if (widthError !== -1) refuse(`ROW_WIDTH: Row ${widthError + 2} does not match the header column count.`)
@@ -78,8 +83,13 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    if (input.columns !== undefined) {
     if (!object(input.columns) || Object.keys(input.columns).length !== headers.length || headers.some(name => !Object.hasOwn(input.columns as object, name) || !columnTypes.has(String((input.columns as Record<string, Json>)[name])))) refuse('COLUMN_MAPPING: Map every header to text, number, money, date or boolean.')
     columns = headers.map(name => ({ name, type: (input.columns as Record<string, Json>)[name] as Column['type'] }))
-   } else if (previous) columns = previous.columns
-   else columns = headers.map((name, i) => ({ name, type: infer(records.map(row => row[i]).filter(value => value !== input.nullValue)) }))
+   } else if (previous) {
+    if (workbook && workbook.types.some((type, i) => type && type !== previous.columns[i]?.type)) refuse('SCHEMA_TYPE_CHANGED: Workbook cell types changed. Explicitly review and map a replacement schema; no automatic text/number coercion is allowed.')
+    columns = previous.columns
+   } else if (workbook) {
+    if (workbook.types.includes('mixed')) refuse('COLUMN_MAPPING: Mixed workbook cell types require an explicit column mapping.')
+    columns = headers.map((name, i) => ({ name, type: workbook.types[i] === 'mixed' ? 'text' : workbook.types[i] ?? 'text' }))
+   } else columns = headers.map((name, i) => ({ name, type: infer(records.map(row => row[i]).filter(value => value !== input.nullValue)) }))
    if (columns.length !== headers.length || columns.some((column, i) => column.name !== headers[i])) refuse('SCHEMA_CHANGED: Review and explicitly map the changed headers before replacing the dataset.')
    if (previous && input.mode !== 'replace' && canonicalJson(columns as unknown as Json) !== canonicalJson(previous.columns as unknown as Json)) refuse('SCHEMA_CHANGED: Append and keyed-update require the current schema. Use an explicitly mapped replace to change types.')
    const errors: string[] = []
@@ -92,11 +102,11 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    if (key !== null && (typeof key !== 'string' || !headers.includes(key))) refuse('KEY: Choose one existing column, or null.')
    if (previous && input.mode !== 'replace' && key !== previous.key) refuse('KEY_CHANGED: Changing the key requires an explicitly reviewed replace.')
    if (input.mode === 'keyed-update' && !key) refuse('KEY_REQUIRED: Keyed update needs an explicit unique key.')
-   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: sha256(input.data as string), delimiter: String(input.delimiter), encoding: 'utf-8', nullValue: input.nullValue as string, formulaTreatment: 'literal-text' }, updatedAt: '' }
+   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? sha256(input.data as string), delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : 'utf-8', nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
    return { kind: 'file-table', sourceId: datasetId, payload: { table: table as unknown as Json, mode: input.mode, contentHash: sha256(canonicalJson(input)) } }
-  } catch (error) { if (error instanceof InvalidFile) return invalid(error.message); throw error }
+  } catch (error) { if (error instanceof InvalidFile || error instanceof WorkbookError) return invalid(error.message); throw error }
  }
- return { parse, mapping: { version: 'csv-v1', map(record) {
+ return { parse, mapping: { version: 'files-v1', map(record) {
   const payload = record.payload as { table?: unknown; mode?: string; reason?: string }
   if (record.kind !== 'file-table' || !payload.table) return { effects: [], rejection: payload.reason ?? 'FILE_SCHEMA: Unsupported file record.' }
   const table = structuredClone(payload.table) as Table

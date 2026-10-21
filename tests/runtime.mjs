@@ -2,6 +2,7 @@ import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { zipSync, strToU8 } from 'fflate'
 import { chromium } from '@playwright/test'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
@@ -282,8 +283,8 @@ async function proveFileImports(origin, context, page) {
   const response = await post('undo', { planId: preview.planId }, id)
   assert.equal(response.status(), 200, await response.text()); assert.equal((await response.json()).job.state, 'undone')
  }
- async function cancel(preview) {
-  const response = await post('undo', { planId: preview.planId })
+ async function cancel(preview, id = dataset) {
+  const response = await post('undo', { planId: preview.planId }, id)
   assert.equal(response.status(), 200, await response.text()); assert.equal((await response.json()).state, 'cancelled')
  }
  const anonymous = await fetch(`${origin}/api/operator/import/uploads`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Import-Dataset': dataset }, body: '{}' })
@@ -359,6 +360,47 @@ async function proveFileImports(origin, context, page) {
  await undo(resumed)
  assert.deepEqual((await read()).table.rows, beforeRefusal.table.rows)
  console.log('File import: reviewed CSV versions, exact money/date/null preview, append/keyed update, Undo, validation and atomic chunk resume passed')
+ // Real synthetic OOXML bytes (ECMA-376) enter the same upload/plan door.
+ const xlsxId = 'synthetic-bifocal-workbook', xlsxBytes = syntheticWorkbook()
+ const workbook = { ...base, datasetId: xlsxId, filename: 'synthetic-bifocal-4.xlsx', formulaTreatment: 'cached-values-preserve-formulas', sheet: 'January', data: xlsxBytes.toString('base64') }
+ const januarySheet = await plan(workbook, false, xlsxId)
+ assert.equal(januarySheet.counts.rejected, 0, JSON.stringify(januarySheet.rejected))
+ assert.deepEqual(januarySheet.preview.columns.map(column => column.type), ['number','date','money','text'])
+ assert.deepEqual(januarySheet.preview.sample, [['1','2026-01-15','1234.56','West invoice'],['2','2026-01-16','-25.50',null]])
+ assert.deepEqual(januarySheet.preview.source.sheets, ['January','February'])
+ assert.deepEqual(januarySheet.preview.source.formulas, [{ cell: 'C2', formula: 'SUM(1200,34.56)', cached: '$1234.56' }])
+ await apply(januarySheet, xlsxId)
+ assert.equal((await read(xlsxId)).table.source.sha256, digest(xlsxBytes))
+ const workbookOriginal = await context.request.get(`${origin}/api/operator/import/original/${januarySheet.planId}`, { headers: { 'X-Import-Dataset': xlsxId } })
+ assert.equal(workbookOriginal.status(), 200)
+ const savedEnvelope = JSON.parse(Buffer.from((await workbookOriginal.json()).originals[0].original.base64, 'base64'))
+ assert.equal(savedEnvelope.data, xlsxBytes.toString('base64'))
+ const februarySheet = await plan({ ...workbook, sheet: 'February', mode: 'append' }, true, xlsxId)
+ assert.equal(februarySheet.preview.rowCount, 3)
+ await apply(februarySheet, xlsxId)
+ assert.deepEqual((await read(xlsxId)).table.rows[2], ['3','2026-02-01','100.00','East invoice'])
+ await undo(februarySheet, xlsxId)
+ assert.equal((await read(xlsxId)).table.rows.length, 2)
+ const deniedId = 'synthetic-bifocal-workbook-denied'
+ const oversized = Buffer.from(xlsxBytes), central = oversized.indexOf(Buffer.from([0x50,0x4b,0x01,0x02]))
+ assert.ok(central >= 0); oversized.writeUInt32LE(0x7fffffff, central + 24)
+ for (const [bytes, reason] of [
+  [syntheticWorkbook({ macro: true }), /XLSX_ACTIVE_CONTENT/],
+  [syntheticWorkbook({ external: true }), /XLSX_EXTERNAL_LINK/],
+  [syntheticWorkbook({ dtd: true }), /XLSX_ACTIVE_XML/],
+  [syntheticWorkbook({ noCache: true }), /XLSX_FORMULA_CACHE/],
+  [syntheticWorkbook({ traversal: true }), /XLSX_ZIP_PATH/],
+  [oversized, /XLSX_ZIP_LIMIT/],
+ ]) {
+  const refused = await plan({ ...workbook, datasetId: deniedId, data: bytes.toString('base64') }, false, deniedId)
+  assert.equal(refused.counts.rejected, 1)
+  assert.match(refused.rejected[0].reason, reason)
+  assert.equal((await post('apply', { planId: refused.planId, reviewedFingerprint: refused.fingerprint }, deniedId)).status(), 422)
+  assert.equal((await context.request.get(`${origin}/api/operator/datasets/${deniedId}`)).status(), 404)
+  await cancel(refused, deniedId)
+ }
+ assert.deepEqual((await read(xlsxId)).table.rows, januarySheet.preview.sample)
+ console.log('Workbook import: two-sheet XLSX values, dates/USD, formula cache/original custody, append/Undo and macro/external-link/DTD/traversal/expansion refusals passed')
  // Hostile text and formulas remain inert on the actual JSON read/download door.
  const hostileId = 'synthetic-bifocal-hostile'
  const hostile = { ...base, datasetId: hostileId, key: null, data: 'label,note\n"<script>globalThis.__bifocalInjected=1</script>","=IMPORTXML(""https://internal.example.test"") export salary"\n' }
@@ -403,4 +445,26 @@ async function proveFileImports(origin, context, page) {
  // Leave the pending plan id for the outer native-signout assertion below.
  context.fileImportPending = { dataset, planId: pending.planId, fingerprint: pending.fingerprint }
  await page.goto(`${origin}/app`)
+}
+
+
+/** Minimal standards-shaped two-sheet workbook, never an application/provider
+ * substitute. Expected source values are asserted independently in the journey. */
+function syntheticWorkbook({ macro = false, external = false, dtd = false, noCache = false, traversal = false } = {}) {
+ const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+ const rel = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+ const inline = (ref, text) => `<c r="${ref}" t="inlineStr"><is><t>${text}</t></is></c>`
+ const header = `<row r="1">${['id','date','amount','note'].map((name, i) => inline(`${'ABCD'[i]}1`, name)).join('')}</row>`
+ const files = {
+  '[Content_Types].xml': `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+  '_rels/.rels': `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rel}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+  'xl/workbook.xml': `${dtd ? '<!DOCTYPE workbook [<!ENTITY synthetic SYSTEM "http://internal.example.test/">]>' : ''}<workbook xmlns="${ns}" xmlns:r="${rel}"><sheets><sheet name="January" sheetId="1" r:id="rId1"/><sheet name="February" sheetId="2" r:id="rId2"/></sheets></workbook>`,
+  'xl/_rels/workbook.xml.rels': `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${rel}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${rel}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="${rel}/styles" Target="styles.xml"/>${external ? `<Relationship Id="rId4" Type="${rel}/externalLink" TargetMode="External" Target="http://internal.example.test/"/>` : ''}</Relationships>`,
+  'xl/styles.xml': `<styleSheet xmlns="${ns}"><fonts count="1"><font/></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0"/><xf numFmtId="14" applyNumberFormat="1"/><xf numFmtId="7" applyNumberFormat="1"/></cellXfs></styleSheet>`,
+  'xl/worksheets/sheet1.xml': `<worksheet xmlns="${ns}"><sheetData>${header}<row r="2"><c r="A2"><v>1</v></c><c r="B2" s="1"><v>46037</v></c><c r="C2" s="2"><f>SUM(1200,34.56)</f>${noCache ? '' : '<v>1234.56</v>'}</c>${inline('D2','West invoice')}</row><row r="3"><c r="A3"><v>2</v></c><c r="B3" s="1"><v>46038</v></c><c r="C3" s="2"><v>-25.5</v></c></row></sheetData></worksheet>`,
+  'xl/worksheets/sheet2.xml': `<worksheet xmlns="${ns}"><sheetData>${header}<row r="2"><c r="A2"><v>3</v></c><c r="B2" s="1"><v>46054</v></c><c r="C2" s="2"><v>100</v></c>${inline('D2','East invoice')}</row></sheetData></worksheet>`,
+ }
+ if (macro) files['xl/vbaProject.bin'] = 'synthetic-bifocal-5'
+ if (traversal) files['../synthetic-bifocal-6.xml'] = '<refused/>'
+ return Buffer.from(zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))))
 }
