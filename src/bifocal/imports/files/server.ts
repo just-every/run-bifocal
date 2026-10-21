@@ -26,10 +26,10 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  const dataset = path.startsWith('/api/operator/datasets/') ? path.split('/')[4] : request.headers.get('X-Import-Dataset') ?? ''
  if (!idPattern.test(dataset)) return json({ error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
  const namespace = `files:${dataset}`, destination = fileDestination(dataset)
- const context = (name: string, mappingVersion = 'csv-v1'): D1ImportContext => ({ destination: destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
+ const context = (name: string, mappingVersion = 'csv-v1'): D1ImportContext => ({ destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
  const current = await fileTargets.read(env.DB, destination, 'file-table', dataset)
  const source = fileSource(dataset, current, new Date().toISOString())
- const options = { ...source, database: env.DB, targets: fileTargets, destination: destination, ownerPrincipalId: PRINCIPAL,
+ const options = { ...source, database: env.DB, targets: fileTargets, destination, ownerPrincipalId: PRINCIPAL,
   installationId: DOOR_KEY, appOrigin: env.AUTH_ORIGIN, ownerEmail: env.OWNER_EMAIL, namespace, format: 'json' as const,
   limits: { maxBytes: 1048576, maxRecords: 1, maxRecordBytes: 1048576 }, authorize: (incoming: Request) => fileOwner(incoming, env) }
  const rowForPlan = (id: string) => env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(id, DOOR_KEY, namespace).first<DoorPlanRow>()
@@ -100,7 +100,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
   return json({ error: 'file_import_conflict', reason: 'The current session, dataset or retained import changed, or custody could not be verified. Sign in again and review a fresh plan; the last committed dataset remains available.' }, 409)
  }
 }
-async function boundedBody(request: Request): Promise<Record<string, unknown> | null> {
+async function boundedBody(request: Pick<Request, 'headers' | 'body'>): Promise<Record<string, unknown> | null> {
  if (!request.headers.get('content-type')?.startsWith('application/json') || !request.body) return null
  const reader = request.body.getReader(); let text = '', size = 0
  const decoder = new TextDecoder('utf-8', { fatal: true })

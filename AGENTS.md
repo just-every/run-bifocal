@@ -14,7 +14,7 @@ The separate public Run site provides `/run` and `/contract`.
 Bifocal has no product import screen yet: `/app/import` is not usable.
 The CSV HTTP backend uses Base’s shared review/apply/reconcile/Undo door; see
 `docs/FILE-IMPORT.md` for its bounds and explicit unfinished scope.
-BIF-003 is not complete; BIF-025 (incumbent migration) remains missing. Installation archives use the separate `rer export` and `rer import`
+BIF-003 and BIF-057 are partial; BIF-025 (incumbent migration) remains missing. Installation archives use the separate `rer export` and `rer import`
 commands; they do not import business records or replace the product import door.
 
 When implementing data move-in, mount Base's shared door at `/app/import` for

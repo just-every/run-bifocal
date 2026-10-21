@@ -527,8 +527,8 @@ Judged from the code and tests at commit `6f471450e883a128ba50a76173c589857ab46c
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 0 | 0 | 0 | 0 |
-| Target and push further | 0 | 0 | 85 | 85 |
-| All | 0 | 0 | 85 | 85 |
+| Target and push further | 0 | 2 | 83 | 85 |
+| All | 0 | 2 | 83 | 85 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -541,7 +541,7 @@ Judged from the code and tests at commit `6f471450e883a128ba50a76173c589857ab46c
 | `BIF-037` | Predictable reporting cost and owner budgets | target | missing |  | USD costing, tenant usage, capacity reservation, warnings and non-prompt-metered pricing are absent. |
 | `BIF-001` | Database and warehouse connections | target | missing |  | All named database, warehouse, object-table and private-network adapters and pushdown evidence are absent. |
 | `BIF-002` | Business-app connectors with managed sync | target | missing |  | App authorization, managed replication, stable identities, deletes and history and source reconciliation are absent. |
-| `BIF-003` | Files and spreadsheets | target | missing |  | CSV and XLSX and live-range intake, mapping previews, versioned imports and undo are absent. |
+| `BIF-003` | Files and spreadsheets | target | partial | `tests/runtime.mjs` — proveFileImports: reviewed CSV types, exact USD/date/null values, append/keyed update, original readback, Undo, rejected type/schema inputs and interrupted chunk resume through migrated Worker HTTP. | Browser /app/import, multi-sheet XLSX/calculated-value formula handling, live Google Sheets/Excel Online ranges and grant revocation, and production large-file qualification remain unproved. Current bounded CSV limits are 512 KiB/2000 rows, not large-file acceptance. Provisional owner-only HTTP import/read/Undo/erase, closed Business grants and exact-revision erasure consent default adopted; ct approval pending. BIF-032/019/035 inherit import authority, BIF-043/057 inherit source custody and untrusted data controls. |
 | `BIF-004` | Managed analytical store and refresh | target | missing |  | Columnar store, backfill and incremental scheduling, atomic promotion, private agent and measured 50-million-row refresh are absent. |
 | `BIF-038` | Resumable and reconcilable connector execution | target | missing |  | Durable sync checkpoints, replay and deletion semantics, partial-permission detection, schema quarantine and reconciled recovery are absent. |
 | `BIF-039` | Finance and billing adapters | target | missing |  | Named finance and billing connectors and basis-aware, multi-entity reconciled financial reporting are absent. |
@@ -582,7 +582,7 @@ Judged from the code and tests at commit `6f471450e883a128ba50a76173c589857ab46c
 | `BIF-026` | Admin, audit and security | target | missing |  | Enterprise identity, audit, IP controls, encryption, US residency and Evidence access-review feed are absent. |
 | `BIF-055` | Sensitive reporting and HIPAA operating mode | target | missing |  | Privacy request workflows, PHI classification, BAAs and eligible providers and enforced HIPAA-mode controls are absent. |
 | `BIF-056` | Tenant lifecycle and safe portal releases | target | missing |  | Tenant provisioning and suspension and erasure, quotas and staged portal and SDK release controls are absent. |
-| `BIF-057` | Safe analytical execution and extensions | target | missing |  | Input safety, SSRF and private-source boundaries, code and extension isolation and prompt-injection authority controls are absent. |
+| `BIF-057` | Safe analytical execution and extensions | target | partial | `tests/runtime.mjs` — proveFileImports: current CSV door bounds and validation, origin/fingerprint/stale-session refusal, inert hostile JSON/formula text at 1440/390, attachment custody, consented scoped erasure and replay refusal. | Only the current CSV HTTP boundary is proven. Real workbook/model/SQL/notebook/embed/extension attacks, isolated versioned compute/libraries/quotas, source-job SSRF/private-network/redirect/credential isolation, agent authority and encrypted/expiring exports remain unproved. Current owner-only access, no evaluation/network from CSV cells and explicit exact-revision erasure default adopted; ct approval pending. BIF-010/035/043/073/081 and future render/export doors inherit these boundaries. |
 | `BIF-071` | Data-driven entitlements and imported security parity | target | missing |  | Data-table and hierarchy entitlements, additive roles, imported security translation and per-viewer parity checks are absent. |
 | `BIF-075` | Employee embedding in SharePoint, Teams and intranets | target | missing |  | Own-session employee embeds, SharePoint web part, Teams tab and app and activity notifications are absent. |
 | `BIF-076` | Invited external guest viewing without a portal | target | missing |  | External guest membership, native or federated sign-in, scoped standing publication grants and revocation are absent. |
