@@ -382,15 +382,15 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "0db7d10605ca8e06434f91c6a54897bdf4abfa33bce693f43228078114b51809",
+      "sha256": "fcfdd891e76ed1a150babd9fde611b68072b49619b38f13fc24e4ac857309c72",
       "executable": false
     },
     "package.json": {
-      "sha256": "f678d32a5449b0ea1e347c32f613b25425aa347b50859c8af89440e43a2fe2e9",
+      "sha256": "d07d017c2216eac201712aa3266b64d350426eef956270bfa235de3b17f79b60",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "5bc5e61945d8c3fa41f0643fb28606eb9581ab7da907ab80735ad560bde5966a",
+      "sha256": "36bbb3b3434c70b883ef43dd00941665573906d37a6140d8352a2963ec02cd9d",
       "executable": false
     },
     "public/brand/band.svg": {
@@ -434,7 +434,7 @@
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "5b2e838bab26688b2c006e9957046221c621292d6ab52a5097f7d498c3c44650",
+      "sha256": "f74e9e48ceb11f8dac071bb15a5c54813e4003ab31efa4cfa7b770a3377ee836",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
