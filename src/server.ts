@@ -9,6 +9,7 @@ import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
+import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', (context) => context.json({ status: 'ok', ...deploymentHealth(context.env) }))
@@ -28,6 +29,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const files = await fileImportResponse(request, env)
+    if (files) return files
     // The installed variant: the Lobby at / and the public claim state it reads.
     // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
     const state = await setupStateResponse(request, runtimeBindings(env))
