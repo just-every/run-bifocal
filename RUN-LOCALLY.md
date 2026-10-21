@@ -263,8 +263,12 @@ rer dev
 Stop the running app so no operation can write during the backup. Export saves
 its domain data before reset removes the local installation. Reset makes the
 destination empty, as import requires. Import restores the saved domain data;
-setup then establishes the owner and private local configuration excluded from
-the archive. Start development to use the restored installation.
+setup then recreates private local configuration. This adapter includes the
+original owner and operator definitions, so use the archived owner's email;
+setup keeps that owner instead of creating a fresh one. Recover access through
+native sign-in. Do not change the owner email through setup: CLI setup checks
+the canonical owner, while the shared browser installer's existing-owner check
+remains unfinished. Start development to use the restored installation.
 
 Other supported operations are `rer verify`, `rer deploy` and `rer describe`.
 
@@ -287,9 +291,18 @@ writes any, because the archive opens with a manifest that holds the final part 
 stops part-way (the machine slept, or the process was killed), run the same command again: it removes
 the unfinished import's staged data, says so, and starts over. An unexpected failure names its error
 class and code, never row data, and says to run the same command again.
-After import, run setup to establish the owner and local configuration. Auth,
-private settings and transient runtime state are excluded. Remote
-transfer is unsupported by the maintained references and fails visibly.
+After import, run setup with the archived owner's email to recreate local
+configuration. The exact include list in `scripts/installer/local.mjs` preserves
+operator/owner definitions and membership state, external identity mappings,
+bootstrap/owner claims, auth audit/settings, and file-import data, originals,
+grants and approvals. Native sessions, provider session/link credentials,
+private settings and platform bookkeeping are excluded. Provider sign-in and
+first-run enablement are reset and local development personas are suspended.
+Ordinary memberships and import grants/approvals are not automatically made
+inactive. BIF-033 still requires inactive definitions, fresh-owner
+reauthorization and complete product-domain restore; this archive is not an
+ownership-transfer path. Keep it private. Remote transfer is unsupported by the
+maintained references and fails visibly.
 
 Import defaults to the local copy. If you supply `--origin URL`, a local import
 accepts only HTTP on exactly `localhost`, `127.0.0.1` or `[::1]` at this
@@ -313,6 +326,13 @@ Missing credentials or a refused secret-list read fail the dry run. It performs
 no provider writes, uploads, secret changes or resource creation. The default environment is `production`; select another with
 `--environment NAME`. The dry run does not establish upload acceptance,
 hosted health or mail delivery.
+
+Before hosted deployment, replace `deploy.json`'s `auth@example.invalid` sender
+with an address authorized and verified by the selected provider, and privately
+supply its `MAIL_API_KEY`. The checked-in address is a placeholder. Current
+shared setup/deploy syntax validation accepts it; passing that validation is
+not provider verification. Placeholder rejection and a hosted sign-in/mail
+journey remain unproved. Local and demo mail stays suppressed.
 
 `rer describe` reads the current checkout's actual verbs,
 flags, aliases, pins, effects and local state without installing or running

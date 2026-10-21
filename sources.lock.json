@@ -286,7 +286,7 @@
       "executable": false
     },
     "docs/backup.md": {
-      "sha256": "7ded6d96bb14606ecda782ea75d3b7d54ed466a48e968f7267bdecd9e3aa73ef",
+      "sha256": "175f9b7598a88a9b91e7a92ea582a3f45a5bdb9f7fa96964304b07a86db0ab28",
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
@@ -410,15 +410,15 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "0db7d10605ca8e06434f91c6a54897bdf4abfa33bce693f43228078114b51809",
+      "sha256": "fcfdd891e76ed1a150babd9fde611b68072b49619b38f13fc24e4ac857309c72",
       "executable": false
     },
     "package.json": {
-      "sha256": "b7278af8e45625e9829643f5e5990b88579317112bb3b97e4eb78f0d4c6fdd56",
+      "sha256": "2de8ba03a7ae9ef9c3602af6b595c0750806e85bb8b66e1c373c7073e8fcefe3",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "4837574b4f0e6b07f259314215b595cdff772d83c2a99faf5612a07523595b9b",
+      "sha256": "e6548963f676c978546dddb32232b1fac9efc2fa45bdffc80ea994fac0bdf59d",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -522,7 +522,7 @@
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "f3149a846102b527033ab2685336639f204f0d658ecee561d34f17881b96d1e7",
+      "sha256": "b22e6b5210fc31d160ee239dbf5f0749402e2968e5606ac64a0cd62c95998881",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {

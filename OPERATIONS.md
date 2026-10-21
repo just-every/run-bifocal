@@ -76,14 +76,28 @@ sign-in uses the checkout’s private key; keep `RER_OPEN` private. Private
 settings are kept in `.dev.vars` with mode 0600 and are not copied into build output.
 
 Local export creates a private archive with an integrity receipt and explicit
-exclusions. The foundation has no product-domain tables or background jobs; an
-edition's archive contains the supported domain tables and resources that its
-adapter declares. Owner/auth, outbox, bookkeeping, private settings and
-transient runtime state are excluded. Archive restore validates and restores atomically
-into an empty destination; confirmed reset preserves export archives. Run setup
-after restore to establish a fresh owner. Each first-party seed verifies local
-export/import/export equivalence across its supported resources. Remote transfer
-is available only when the adapter declares complete resource coverage.
+exclusions. Bifocal's adapter explicitly includes its bounded file-import tables and original
+bytes, operator definitions (including the original owner and membership state),
+external identity mappings, bootstrap and owner-claim records, auth audit and
+settings, and import grant/approval records. See the exact table inventory in
+`scripts/installer/local.mjs`; this is not a complete BI archive under BIF-033.
+
+Native sessions, provider session/link credentials, private settings and platform
+bookkeeping do not travel. The pinned exporter disables provider sign-in and
+first-run enablement and suspends local development personas. It does not turn
+ordinary retained members or import grants/approvals into inactive definitions.
+Fresh-owner reauthorization and inactive-grant restore remain unfinished under
+BIF-033; do not use this archive to transfer an installation to a different owner.
+Treat archives as private identity and business data.
+
+Archive restore validates and restores atomically into an empty destination;
+confirmed reset preserves export archives. Setup recreates private configuration,
+not a new owner: use the archived owner's email, then recover access through
+native sign-in. Conflicting owner email must be resolved through the supported
+owner path, not by changing setup answers. The shared browser setup's existing-
+owner identity check remains an upstream dependency; use the CLI setup path,
+which checks the canonical owner. Complete domain equivalence and remote
+transfer remain unproved for Bifocal.
 
 Preserve ambiguous state and applied migration history. Never place a remote
 credential, owner secret or local resource ID in source. A schema change needs
@@ -91,11 +105,20 @@ a forward migration and verified transition/recovery.
 
 ## Deployment
 
-`rer deploy --dry-run` validates the real owner-account
-deployment declaration and builds locally without provider requests. Real
-deployment requires privately supplied `CLOUDFLARE_ACCOUNT_ID` and
-`CLOUDFLARE_API_TOKEN`, the declared owner/session/setup secrets, and a real
-verified mail sender in `deploy.json`. Follow the owner-account deploy-kit
+`rer deploy --dry-run` validates the owner-account deployment declaration and
+builds locally, then reads the target's secret-binding names using privately
+supplied `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Missing credentials
+or a refused target read fail the dry run. It performs no provider writes,
+uploads, secret changes or resource creation. It does make provider requests.
+
+Real deployment also requires the declared owner/session/setup secrets and a
+sender authorized and verified with the selected mail provider. The checked-in
+`MAIL_FROM: auth@example.invalid` in `deploy.json` is a placeholder, not a usable
+sender. Replace it before hosted deployment and supply that provider's key as
+`MAIL_API_KEY` privately. Setup and dry-run syntax validation currently accept
+this placeholder; neither validates sender ownership or provider verification.
+Shared placeholder rejection remains an upstream dependency, and hosted
+sign-in/mail proof is pending. Follow the owner-account deploy-kit
 instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account scope,
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
