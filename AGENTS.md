@@ -2,8 +2,9 @@
 
 This checkout currently provides the Base foundation, not the BI product.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
-setup at `/setup`, then open `/app`. The current app home only confirms the
-signed-in person's display name; People and analytics workflows are not built.
+setup at `/setup`, then open `/app`. The app home describes the foundation capability state and links to existing
+account tools, Lobby, Run and contract pages, with native sign-out.
+People and analytics workflows are not built.
 The separate public Run site provides `/run` and `/contract`.
 
 Bifocal has no product import screen yet: `/app/import` is not usable.

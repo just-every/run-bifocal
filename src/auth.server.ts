@@ -8,6 +8,7 @@ import { themeFrame } from './base/theme-frame'
 import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
+import { homePage } from './app/home'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -48,9 +49,9 @@ export function operatorAuth(env: Bindings) {
 
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
-async function html(body: string) {
+async function html(body: string, title = branding.name) {
  const frame = await themeFrame(theme)
- return new Response(`<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(branding.name)}</title>${fontHead}${frame.head}</head><body><main>${frame.brand}${body}</main></body></html>`, { headers: { ...privateHeaders, 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${frame.policy}` } })
+ return new Response(`<!doctype html><html lang="en"${frame.htmlClass}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(title)}</title>${fontHead}${frame.head}</head><body><main>${frame.brand}${body}</main></body></html>`, { headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${frame.policy}` } })
 }
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -67,7 +68,17 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   })(request)
   if (page) return fontDocumentResponse(page)
  }
- if (url.pathname.startsWith('/auth/')) return fontDocumentResponse(await createAuthHandler(operatorAuth(env))(request))
+ if (url.pathname.startsWith('/auth/')) {
+  const response = await createAuthHandler(operatorAuth(env))(request)
+  // Keep native authorization, origin checks and cookie revocation. A browser
+  // form receives a useful destination; API clients retain the native 204.
+  if (url.pathname === '/auth/signout' && response?.status === 204 && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
+   const headers = new Headers(response.headers)
+   headers.set('location', '/signin')
+   return new Response(null, { status: 303, headers })
+  }
+  return fontDocumentResponse(response)
+ }
  if (url.pathname === '/setup' || url.pathname === '/app' || url.pathname.startsWith('/app/')) {
   const setup = await firstRunResponse(request, env, operatorAuth(env), { theme })
   if (setup) return setup
@@ -75,7 +86,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
-  return html(`<h1 data-rer-name>${escape(branding.name)}</h1><p>Signed in as ${escape(session.operator.displayName)}</p>`)
+  return html(homePage(session.operator), `App home · ${branding.name}`)
  }
  return null
 }

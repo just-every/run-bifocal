@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/bifocal",
-  "manifest": "5a3f2d091d74a3748e6b563f54721aa47a39b1aac1ed4ca95d5835bbecc330a9",
+  "manifest": "997bc4592ec829bc2a01d10bf6753a28cc95b04e652adf0a46b547e776922eb9",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -15,6 +15,7 @@
         "kind": "local",
         "paths": [
           "src/routes",
+          "src/app",
           "src/auth.server.ts",
           "src/server.ts",
           "src/server.dev.ts",
@@ -221,7 +222,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "92b4572902db1967609c13220546208f0e8b567bd1202fcfa1f737863f282d58",
+      "sha256": "e224fdd28d1b681b091bb1fc138c60f64988a6dbc58e2df92359c1bb3a822ad6",
       "executable": false
     },
     "composition.lock.json": {
@@ -241,7 +242,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "5a3f2d091d74a3748e6b563f54721aa47a39b1aac1ed4ca95d5835bbecc330a9",
+      "sha256": "997bc4592ec829bc2a01d10bf6753a28cc95b04e652adf0a46b547e776922eb9",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -452,8 +453,16 @@
       "sha256": "3bc3ded0adc76aef4a948a5cb5642c85af813e4e8156b4bfcb323c63af968e8a",
       "executable": false
     },
+    "src/app/home.ts": {
+      "sha256": "c3c58a6cf4ca9670710ca18f29118f6fea2b969a4cb745cedf0b0d8c25dd398e",
+      "executable": false
+    },
+    "src/app/navigation.ts": {
+      "sha256": "00f5684426b6a8d26e74b17d455e4c09b12c3212177219803e5bff97a54e1d50",
+      "executable": false
+    },
     "src/auth.server.ts": {
-      "sha256": "abaea7ff882e3c087db7312604a6c84ffeaac16ceb29f3c5d435f0aee7065556",
+      "sha256": "66c7de913d3971c9f466fa40e9c0c5d6ec5c7824f8206e5ebcf6e15fad0d1d0a",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -1473,7 +1482,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "ea23491aa110df6e5d518eadbc793c81633e666982df919cb215e65f6714e4af",
+      "sha256": "5fcad6dc44a40684a0f4d7e0237bd8086985fe2571864c05dab5c915778de08e",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {
