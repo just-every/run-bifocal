@@ -19,12 +19,12 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
  * grants stay closed; no request can turn source data into access or execution. */
 export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
- if (path.startsWith('/api/rer/import/')) return json({ error: 'not_found' }, 404)
+ if (path.startsWith('/api/rer/import/')) return refuseRequest(request, { error: 'not_found' }, 404)
  if (!path.startsWith('/api/operator/import/') && !path.startsWith('/api/operator/datasets/')) return null
  const env = runtimeBindings(original), owner = await fileOwner(request, env)
- if (!owner) return json({ error: 'owner_required', reason: 'Sign in as the current installation owner and use the same app origin.' }, 401)
+ if (!owner) return refuseRequest(request, { error: 'owner_required', reason: 'Sign in as the current installation owner and use the same app origin.' }, 401)
  const dataset = path.startsWith('/api/operator/datasets/') ? path.split('/')[4] : request.headers.get('X-Import-Dataset') ?? ''
- if (!idPattern.test(dataset)) return json({ error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
+ if (!idPattern.test(dataset)) return refuseRequest(request, { error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
  const namespace = `files:${dataset}`, destination = fileDestination(dataset)
  const context = (name: string, mappingVersion = 'files-v1'): D1ImportContext => ({ destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
  const current = await fileTargets.read(env.DB, destination, 'file-table', dataset)
@@ -109,4 +109,23 @@ async function boundedBody(request: Pick<Request, 'headers' | 'body'>): Promise<
   text += decoder.decode(); const body = JSON.parse(text)
   return body && typeof body === 'object' && !Array.isArray(body) ? body : null
  } finally { await reader.cancel(); reader.releaseLock() }
+}
+
+/** Finish small denied request bodies before returning. Otherwise a streaming
+ * Worker service can abort its upstream connection while a body is in flight.
+ * Discard only: no parsing, storage, logging or unbounded drain before refusal. */
+async function refuseRequest(request: Request, body: unknown, status: number): Promise<Response> {
+ if (request.body) {
+  const reader = request.body.getReader(); let bytes = 0
+  try {
+   for (;;) {
+    const chunk = await reader.read()
+    if (chunk.done) break
+    bytes += chunk.value.byteLength
+    if (bytes > 100000) { await reader.cancel(); return json({ error: 'request_too_large' }, 413) }
+   }
+  } catch { return json({ error: 'invalid_request_stream' }, 400) }
+  finally { reader.releaseLock() }
+ }
+ return json(body, status)
 }
