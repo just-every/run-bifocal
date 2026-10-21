@@ -5,6 +5,7 @@ import { loadSnapshot, sql, transact } from '../../../modules/import-kit/src/doo
 import { readD1ImportOriginals, retireD1ImportCustody, canonicalJson, sha256 } from '../../../modules/import-kit/src/d1/index.ts'
 import type { D1ImportContext, D1Sql } from '../../../modules/import-kit/src/d1/types.ts'
 import type { DoorRequest, DoorPlanRow } from '../../../modules/import-kit/src/door/types.ts'
+import { DoorError } from '../../../modules/import-kit/src/door/protocol.ts'
 import { fileSource } from './csv'
 import { fileTargets, FILE_DESTINATION } from './targets'
 import { fileOwner } from './owner.server'
@@ -76,7 +77,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const body = await boundedBody(request.clone())
    if (typeof body?.planId === 'string') {
     const row = await rowForPlan(body.planId)
-    if (row && !row.job_id && body.reviewedFingerprint === row.fingerprint) {
+    if (row && body.reviewedFingerprint === row.fingerprint) {
      const snapshot = await loadSnapshot(admitted, row)
      if (snapshot.plan.counts.rejected) return json({ error: 'mapping_rejected', reason: 'This dataset has validation errors. Cancel the plan with Undo, correct the file or mapping and review again; no rows were published.' }, 422)
     }
@@ -93,7 +94,8 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    return json({ ...preview, preview: table ? { columns: table.columns, rowCount: (table.rows as unknown[]).length, sample: (table.rows as unknown[]).slice(0, 5), key: table.key, source: table.source } : null })
   }
   return response
- } catch {
+ } catch (error) {
+  if (error instanceof DoorError) return json({ error: error.code, ...(error.details ? { details: error.details } : {}) }, error.status)
   // No submitted data, internal database details or credentials enter diagnostics.
   return json({ error: 'file_import_conflict', reason: 'The current session, dataset or retained import changed, or custody could not be verified. Sign in again and review a fresh plan; the last committed dataset remains available.' }, 409)
  }
