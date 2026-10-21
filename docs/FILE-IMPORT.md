@@ -86,12 +86,10 @@ sniffing; original downloads additionally use an attachment and sandbox policy.
 
 To erase a dataset, POST `/api/operator/datasets/<id>/erase` with exact same-origin
 owner authority and `{ "confirmDataset": "<id>", "reviewedRevision": "<current>" }`.
-It withdraws retained upload/snapshot custody for this destination, severs this
+Each dataset has its own stable custody destination. Erasure withdraws its retained upload/snapshot custody, severs this
 dataset's import lineage and originals, deletes its native data and advances
 Base's portability erasure checkpoint in one transaction. Unrelated native
-datasets remain. The completed receipt reports affected stores. Withdrawing an
-indivisible door bundle can make other import plans unavailable; their native
-records remain. Minimal approval metadata survives, and older installation
+datasets remain. The completed receipt reports affected stores. Other datasets retain their native records, original attachments and import plans. Minimal approval metadata survives, and older installation
 archives require the current erasure journal. There is no automatic retention or
 outbound action. Source bytes and shared import custody are included in the
 installer's archive inventory; sessions and dependency secrets remain excluded.

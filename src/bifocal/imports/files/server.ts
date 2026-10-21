@@ -3,11 +3,11 @@ import { runtimeBindings, type Bindings } from '../../../auth.server'
 import { createImportOperatorHandler, readImportDoorHistory } from '../../../modules/import-kit/src/door/operator.ts'
 import { loadSnapshot, sql, transact } from '../../../modules/import-kit/src/door/store.ts'
 import { readD1ImportOriginals, retireD1ImportCustody, canonicalJson, sha256 } from '../../../modules/import-kit/src/d1/index.ts'
-import type { D1ImportContext, D1Sql } from '../../../modules/import-kit/src/d1/types.ts'
+import type { D1ImportContext } from '../../../modules/import-kit/src/d1/types.ts'
 import type { DoorRequest, DoorPlanRow } from '../../../modules/import-kit/src/door/types.ts'
 import { DoorError } from '../../../modules/import-kit/src/door/protocol.ts'
 import { fileSource } from './csv'
-import { fileTargets, FILE_DESTINATION } from './targets'
+import { fileTargets, fileDestination } from './targets'
 import { fileOwner } from './owner.server'
 
 const DOOR_KEY = 'bifocal:files:v1', PRINCIPAL = 'role:owner'
@@ -25,11 +25,11 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  if (!owner) return json({ error: 'owner_required', reason: 'Sign in as the current installation owner and use the same app origin.' }, 401)
  const dataset = path.startsWith('/api/operator/datasets/') ? path.split('/')[4] : request.headers.get('X-Import-Dataset') ?? ''
  if (!idPattern.test(dataset)) return json({ error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
- const namespace = `files:${dataset}`
- const context = (name: string, mappingVersion = 'csv-v1'): D1ImportContext => ({ destination: FILE_DESTINATION, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
- const current = await fileTargets.read(env.DB, FILE_DESTINATION, 'file-table', dataset)
+ const namespace = `files:${dataset}`, destination = fileDestination(dataset)
+ const context = (name: string, mappingVersion = 'csv-v1'): D1ImportContext => ({ destination: destination, namespace: name, mappingVersion, storage: { database: env.DB, targets: fileTargets }, authorization: { principalId: PRINCIPAL, predicate: () => owner } })
+ const current = await fileTargets.read(env.DB, destination, 'file-table', dataset)
  const source = fileSource(dataset, current, new Date().toISOString())
- const options = { ...source, database: env.DB, targets: fileTargets, destination: FILE_DESTINATION, ownerPrincipalId: PRINCIPAL,
+ const options = { ...source, database: env.DB, targets: fileTargets, destination: destination, ownerPrincipalId: PRINCIPAL,
   installationId: DOOR_KEY, appOrigin: env.AUTH_ORIGIN, ownerEmail: env.OWNER_EMAIL, namespace, format: 'json' as const,
   limits: { maxBytes: 1048576, maxRecords: 1, maxRecordBytes: 1048576 }, authorize: (incoming: Request) => fileOwner(incoming, env) }
  const rowForPlan = (id: string) => env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(id, DOOR_KEY, namespace).first<DoorPlanRow>()
@@ -38,7 +38,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
   if (path === `/api/operator/datasets/${dataset}`) {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
    // Admission alone is insufficient: fence the exact returned bytes and session.
-   await transact(env.DB, owner, [sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${fileTargets.matches(current ?? null, FILE_DESTINATION, 'file-table', dataset).sql}) THEN 1 ELSE 0 END`, ...fileTargets.matches(current ?? null, FILE_DESTINATION, 'file-table', dataset).params ?? [])])
+   await transact(env.DB, owner, [sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${fileTargets.matches(current ?? null, destination, 'file-table', dataset).sql}) THEN 1 ELSE 0 END`, ...fileTargets.matches(current ?? null, destination, 'file-table', dataset).params ?? [])])
    return current ? json({ dataset, revision: current.revision, table: current.value }) : json({ error: 'dataset_not_found' }, 404)
   }
   if (path === `/api/operator/datasets/${dataset}/erase`) {
@@ -53,9 +53,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('DELETE FROM rer_portability_guard'), sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)', identity, tombstone),
     sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
-   const match = fileTargets.matches(current, FILE_DESTINATION, 'file-table', dataset)
+   const match = fileTargets.matches(current, destination, 'file-table', dataset)
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
-    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), ...fileTargets.remove(FILE_DESTINATION, 'file-table', dataset), sql('DELETE FROM ik_d1_assertions'),
+    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: receipt.stores, reason: 'The dataset and retained import content were erased; unrelated native datasets remain. Historical approval metadata remains. Earlier installation archives require the current erasure journal.' })
   }
