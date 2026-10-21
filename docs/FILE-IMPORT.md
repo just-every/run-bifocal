@@ -14,7 +14,9 @@ File intake uses the pinned Base shared door, not a second importer:
    retry identical chunks or query `{ "uploadId": "..." }` to resume.
 2. POST `/api/operator/import/plan` with the `uploadId`. After an applied baseline,
    also send `catchup: true`. Review the fingerprint, counts, proposed schema,
-   five-row sample, source interpretation and row/column rejection reasons. No
+   five-row sample, source interpretation and up to 20 row/column type-error reasons.
+   Complete error pagination, additional encodings and key-candidate detection
+   are unfinished; current keys are explicitly selected and validated. No
    native data changes at upload or plan. A rejected table proposes no effects.
 3. POST `/api/operator/import/apply` with that exact `planId` and
    `reviewedFingerprint`. Repeat bounded calls until `job.state` is `completed`.
