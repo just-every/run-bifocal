@@ -6,7 +6,7 @@ Business intelligence and reporting. 100% free, open source alternative to Micro
 
 Homepage and docs: [run-bifocal.com](https://run-bifocal.com).
 
-Bifocal is a new seed built on the Base foundation. This checkout provides the shared Lobby, owner sign-in, people and invitations, local D1, the Run site and the target contract. The business intelligence product is not built yet: all target clauses are missing in [CONTRACT.md](CONTRACT.md). [ACCEPTANCE.md](ACCEPTANCE.md) describes the destination, not completed features.
+Bifocal is a new seed built on the Base foundation. This checkout provides the shared Lobby, owner sign-in, people and invitations, an owner-only CSV and XLSX import over HTTP ([docs/FILE-IMPORT.md](docs/FILE-IMPORT.md)), local D1, the Run site and the target contract. The business intelligence product is not built yet: in [CONTRACT.md](CONTRACT.md) two target clauses are partial (files and spreadsheets, safe analytical execution) and the rest are missing. [ACCEPTANCE.md](ACCEPTANCE.md) describes the destination, not completed features.
 
 ## Run locally
 
