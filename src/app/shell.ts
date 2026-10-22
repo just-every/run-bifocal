@@ -20,7 +20,7 @@ const TOOLS: [Place, string, string, (role: string) => boolean][] = [
 /** Every app page's styles and fonts are same-origin files; nothing inline. */
 export const appPolicy = "style-src 'self'; font-src 'self'; img-src 'self'"
 
-const lockup = '<a class="lockup" href="/app"><picture><source srcset="/brand/mark-dark.svg" media="(prefers-color-scheme: dark)"><img src="/brand/mark.svg" alt="" width="67" height="32"></picture><span>Bifocal</span></a>'
+const lockup = '<a class="lockup" href="/app"><picture><source srcset="/brand/mark-dark.svg" media="(prefers-color-scheme: dark)"><img src="/brand/mark.svg" alt="" width="67" height="32"></picture><span data-rer-name>Bifocal</span></a>'
 
 function initials(name: string) {
  const letters = name.split(/\s+/).map(word => word.match(/[\p{L}\p{N}]/u)?.[0] ?? '').filter(Boolean)
