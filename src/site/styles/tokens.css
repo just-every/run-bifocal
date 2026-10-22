@@ -12,6 +12,10 @@
   --ink-soft: #3b3b3b;
   --line: color-mix(in srgb, var(--ink) 16%, var(--white));
   --font-brush: 'Kaushan Script', 'Segoe Script', 'Brush Script MT', cursive;
+  /* The brush's thickening stroke: .05 em at the hero's 129 px (the plate's 22 px median stroke at 1536), lighter in em
+     as the type gets smaller (.03 em at the phones' 52 px), so the e, a and o counters stay open. brush.ts allows for
+     its reach. */
+  --brush-stroke: calc(.064em - 1.8px);
   --font-sans: 'Mona Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 

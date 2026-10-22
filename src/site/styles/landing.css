@@ -51,3 +51,16 @@ s::after { content: ''; position: absolute; left: var(--strike-out, -.02em); rig
   .fields .screen-copy > * { max-width: 640px; }
   .fields .proof { margin: 0; flex: 1 0 auto; min-height: 62svh; padding: 72px var(--gutter); background: var(--cobalt); display: flex; flex-direction: column; justify-content: center; }
 }
+/* A question whose desk lines would leave one word alone on a phone breaks on its narrow lines below a width (Question
+   in parts.tsx): its wide lines run together, each narrow line ends in a break, and each starts on the margin. 04 below
+   760 px, 05 below 660 px. */
+@media (max-width: 759.98px) {
+  .narrow-760 .line { display: inline; }
+  .narrow-760 .brk::after { content: '\A'; white-space: pre; }
+  .narrow-760 .lead { margin-left: var(--lead); }
+}
+@media (max-width: 659.98px) {
+  .narrow-660 .line { display: inline; }
+  .narrow-660 .brk::after { content: '\A'; white-space: pre; }
+  .narrow-660 .lead { margin-left: var(--lead); }
+}

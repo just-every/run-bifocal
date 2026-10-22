@@ -26,8 +26,9 @@ h1, h2, h3, .docs-row-title, .docs-pager-title { word-spacing: .1em; }
 .skip-link { position: absolute; left: 12px; top: -200px; z-index: 10; padding: 10px 16px; background: var(--ink); color: var(--white); font-weight: 600; }
 .skip-link:focus { top: 12px; }
 
-/* The brush voice: the hero's rough black script, thickened in its own color with a stroke, never rounded off. */
-.brush { font-family: var(--font-brush); font-weight: 400; font-synthesis: none; -webkit-text-stroke: .028em currentColor; letter-spacing: -.005em; word-spacing: .06em; }
+/* The brush voice: the hero's rough black script, thickened in its own color to the plate's weight (--brush-stroke; the
+   word space gives back what the stroke takes from the gap), never rounded off. */
+.brush { font-family: var(--font-brush); font-weight: 400; font-synthesis: none; -webkit-text-stroke: var(--brush-stroke) currentColor; letter-spacing: -.005em; word-spacing: .08em; }
 .brush .line { display: block; }
 
 /* The lockup: mark 4 and the wordmark in the heading face. */

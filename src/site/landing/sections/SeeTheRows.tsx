@@ -6,7 +6,7 @@ export function SeeTheRows() {
   const { shown, total, amount } = records.rows
   return <Screen id="rows" className="s-rows fields">
     <div className="screen-copy">
-      <Question id="rows-title" lines={['Can I see the rows?']} />
+      <Question id="rows-title" lines={['Can I see the rows?']} narrow={{ below: 760, lines: ['Can I see', 'the rows?'] }} />
       <Sentence>Three clicks take you from the chart to every invoice behind it, and the export matches.</Sentence>
     </div>
     <figure className="proof rows-figure">

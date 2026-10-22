@@ -9,6 +9,9 @@
   .rows-figure .label { position: absolute; left: calc(-1 * var(--u)); top: calc(755.1 * var(--u)); white-space: nowrap; }
 }
 @media (max-width: 1023.98px) {
+  /* "Can I see the rows?" fills the 640 px measure on tablets; it may run past it rather than wrap. Below 760 px it
+     breaks "Can I see / the rows?" (its narrow lines). */
+  .s-rows .question { max-width: none; }
   .rows-figure .numeral { font-size: min(200px, 31.8cqi); line-height: .86; white-space: normal; }
   .rows-figure .numeral .nw { display: block; }
   .rows-figure .label { margin-top: 22px; }

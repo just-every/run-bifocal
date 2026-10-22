@@ -14,7 +14,7 @@ export function Hero() {
   const { here, there } = records.customers
   return <section className="home-hero" aria-labelledby="hero-title">
     <div className="hero-offer">
-      <h1 id="hero-title" className="brush"><span className="line" style={{ marginLeft: brushIndent('B') }}>Bifocal shows </span><span className="line line-2" style={{ marginLeft: brushIndent('i') }}>its work.</span></h1>
+      <h1 id="hero-title" className="brush"><span className="line" style={{ textIndent: brushIndent('B') }}>Bifocal shows </span><span className="line line-2" style={{ textIndent: brushIndent('i') }}>its work.</span></h1>
       <p className="hero-line">Ask in plain English. Get the chart, the query, the certified definition and the rows, from every database and app you run.</p>
       <p className="hero-alt">100% free, open source alternative to <b>Power&nbsp;BI</b>, <b>Tableau</b> and <b>Looker</b></p>
       <Actions className="hero-actions" />

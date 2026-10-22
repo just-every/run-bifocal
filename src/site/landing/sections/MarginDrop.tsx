@@ -7,7 +7,7 @@ export function MarginDrop() {
   return <Screen id="margin" className="s-margin split-screen fields">
     <div className="screen-copy">
       <Question id="margin-title" lines={['Why did', 'September', 'margin drop?']} />
-      <Sentence>Freight cost 1.8 points and discounts 0.5, each traced to the certified definition and its rows.</Sentence>
+      <Sentence>Freight cost 1.8 points and discounts&nbsp;0.5, each traced to the certified definition and its rows.</Sentence>
     </div>
     <figure className="proof">
       <Waterfall orientation="vertical" />

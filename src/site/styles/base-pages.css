@@ -4,7 +4,7 @@
 body.base-page { background: var(--white); color: var(--ink); font-family: var(--font-sans); }
 body.base-page::before { content: none; }
 .base-page main { padding-top: 40px; padding-bottom: 72px; }
-.base-page .intro h1, .not-found-page .hero h1, .contract-page main > h1 { font-family: var(--font-brush); font-weight: 400; -webkit-text-stroke: .028em currentColor; letter-spacing: -.005em; word-spacing: .06em; color: var(--ink); }
+.base-page .intro h1, .not-found-page .hero h1, .contract-page main > h1 { font-family: var(--font-brush); font-weight: 400; -webkit-text-stroke: var(--brush-stroke) currentColor; letter-spacing: -.005em; word-spacing: .08em; color: var(--ink); }
 .base-page .sub, .base-page .lead { color: var(--ink-soft); }
 
 /* /run: the yellow field, the brush headline, white step panels outlined in ink, square black numerals and code. */

@@ -3,7 +3,9 @@
    alternative line, Run Bifocal and the links, above the fold), then the cobalt block. */
 .home-hero { position: relative; background: var(--yellow); }
 .hero-proof { color: var(--white); }
-.hero-line { font-weight: 400; letter-spacing: -.004em; }
+.hero-line { font-weight: 400; letter-spacing: -.004em; text-wrap: pretty; }
+/* The plate draws "its work." larger than "Bifocal shows": set at its drawn width, 812 to 1341 at 1536. */
+.home-hero h1 .line-2 { font-size: 1.216em; }
 .hero-alt { font-weight: 400; letter-spacing: -.003em; text-wrap: pretty; }
 .hero-alt b { font-weight: 800; }
 .hero-struck s { --strike-at: 48.2%; --strike: .062em; --strike-out: -.012em; }
@@ -23,9 +25,9 @@
   /* Plate x positions are measured from the 1536 plate's left edge, which sits at 50% - 768 plate units. */
   .hero-proof { left: calc(50% - 768 * var(--h) + 40 * var(--h)); width: calc(683 * var(--h)); }
   .hero-offer { left: calc(50% - 768 * var(--h) + 814 * var(--h)); width: calc(700 * var(--h)); }
-  /* The plate sets "its work." 7 px in from "Bifocal shows". */
-  .home-hero h1 .line-2 { padding-left: calc(7 * var(--h)); }
-  .home-hero h1 { position: absolute; left: calc(-9 * var(--h)); top: calc(188.6 * var(--h)); font-size: calc(129 * var(--h)); line-height: calc(166 * var(--h)); white-space: nowrap; }
+  /* The plate sets "its work." 7 px in from "Bifocal shows", its larger letters centered on the plate's row. */
+  .home-hero h1 .line-2 { padding-left: calc(7 * var(--h)); margin-top: calc(-6 * var(--h)); }
+  .home-hero h1 { position: absolute; left: calc(-9 * var(--h)); top: calc(188.6 * var(--h)); font-size: calc(129.5 * var(--h)); line-height: calc(166 * var(--h)); white-space: nowrap; }
   .hero-line { position: absolute; top: calc(543.9 * var(--h)); left: 0; width: calc(700 * var(--h)); font-size: calc(33 * var(--h)); line-height: calc(47 * var(--h)); }
   .hero-alt { position: absolute; top: calc(731.1 * var(--h)); left: calc(2.3 * var(--h)); white-space: nowrap; font-size: calc(21.8 * var(--h)); line-height: calc(32 * var(--h)); }
   .hero-actions { position: absolute; top: calc(818 * var(--h)); left: 0; flex-wrap: nowrap; gap: calc(48 * var(--h)); }
@@ -43,7 +45,8 @@
   .home-hero { display: flex; flex-direction: column; }
   .hero-offer { padding: 36px var(--gutter) 64px; }
   .hero-offer > * { max-width: 640px; }
-  .home-hero h1 { font-size: clamp(60px, 15.9cqi, 104px); line-height: 1.04; }
+  /* 56 px at the least, so "Bifocal shows" stays one line down to 360 px. */
+  .home-hero h1 { font-size: clamp(56px, 15.9cqi, 104px); line-height: 1.04; }
   .hero-line { margin-top: 22px; font-size: clamp(19px, 4.87cqi, 23px); line-height: 1.474; }
   .hero-alt { margin-top: 16px; font-size: clamp(16px, 4.1cqi, 19px); line-height: 1.5; }
   .hero-actions { margin-top: 26px; gap: 16px 28px; }

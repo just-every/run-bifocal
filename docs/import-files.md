@@ -9,7 +9,7 @@ Bifocal's HTTP interface for the installation's owner only; the import screen in
 - **Excel (XLSX)**: one chosen sheet per import, with the values the workbook last calculated; its formulas are kept
   but never run. Macro workbooks (XLSM), templates and archives are refused.
 - Columns are text, numbers, money, dates (`MM/DD/YYYY`) or true/false. Money and numbers keep their exact digits.
-- Up to 2,000 rows, 64 columns and 512 KiB of CSV text per import. These are today's limits, not a promise about
+- Up to 2,000 rows, 64 columns and 512&nbsp;KiB of CSV text per import. These are today's limits, not a promise about
   large files.
 
 ## The steps
@@ -32,6 +32,6 @@ current revision.
 ## Where the details are
 
 The requests, headers and the file envelope are in
-[FILE-IMPORT.md](https://github.com/just-every/run-bifocal/blob/main/docs/FILE-IMPORT.md) in the repository. Live
+[`FILE-IMPORT.md`](https://github.com/just-every/run-bifocal/blob/main/docs/FILE-IMPORT.md) in the repository. Live
 Google Sheets and Excel Online ranges, larger files, and moving in from Power BI, Tableau or Looker are part of the
 [contract](/contract) and are not built yet.

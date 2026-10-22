@@ -15,6 +15,7 @@
 @media (max-width: 1023.98px) {
   .stamp { align-self: flex-end; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
   .stamp-stale { font-size: clamp(17px, 4.6cqi, 24px); }
-  .stamp-time { margin-top: 14px; font-size: min(150px, 24cqi); }
+  /* Sized to the column, so the right-aligned time never runs past the left gutter (342 px at most at 390). */
+  .stamp-time { margin-top: 14px; font-size: min(150px, 21.5cqi); }
   .stamp .label { margin-top: 14px; }
 }

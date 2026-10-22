@@ -298,11 +298,11 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "048d49772b36a22d32447af8622fd95a03f3a08b3948dd6231a9daf95d5bc5f0",
+      "sha256": "1a4f01b9ab9b92a583fa012530bcac1b7e7ca62bb239eb02d3cec99e8de0f4ed",
       "executable": false
     },
     "docs/import-files.md": {
-      "sha256": "ab8da5eea9ac01ac1c4ccaf1d9981f37525cd1afaa3eed61fff5d9dbf95a4e4e",
+      "sha256": "b4489ae9869ca139cafa0939f11037406d2f81a057860fbc3b081e7e03631212",
       "executable": false
     },
     "docs/people.md": {
@@ -2670,7 +2670,7 @@
       "executable": false
     },
     "src/site/landing/Hero.tsx": {
-      "sha256": "c6d6ca49a6a5c52831f044474c2483089aa0b9a951307f401b468f048cd147a7",
+      "sha256": "c1db4a6b6ecfb1ba0ffbf1740264898b6100e69f00e3d0a6b600a77726a338e2",
       "executable": false
     },
     "src/site/landing/Landing.tsx": {
@@ -2678,7 +2678,7 @@
       "executable": false
     },
     "src/site/landing/parts.tsx": {
-      "sha256": "642cb537ec62b18f9ddb4a8b5fff9871c85819d3db4b407ae4dc5c76d7cf1eee",
+      "sha256": "6ff02ab08505631596f978dcb1c31c99ae8d72e549c687e6e1c535e61c53ae63",
       "executable": false
     },
     "src/site/landing/records.ts": {
@@ -2690,7 +2690,7 @@
       "executable": false
     },
     "src/site/landing/sections/MarginDrop.tsx": {
-      "sha256": "536216d5404752c25a67cfcfe0ad611b8dff2e36a445c3e4239c8f978caa580d",
+      "sha256": "ca564c49df4fd96cdabff5fb163cf40a442accc9b33aa47b879f930b1ce5ab74",
       "executable": false
     },
     "src/site/landing/sections/MatchPowerBI.tsx": {
@@ -2698,11 +2698,11 @@
       "executable": false
     },
     "src/site/landing/sections/SeeTheRows.tsx": {
-      "sha256": "ddec98feef914fd2dae3385e040a0b52bfd42855cd02a3ae56425035a10c4f02",
+      "sha256": "e10567d029a5186c76a6a1071773720801e90fcc8a6fc9a9e0f5df29285ea93c",
       "executable": false
     },
     "src/site/landing/sections/StuckOnFriday.tsx": {
-      "sha256": "265a36816406fa52c7de97f37000a6668ec55b323326d4be17e8167d6a9d9717",
+      "sha256": "f2b21616ec657c70a1688f0c057d65a1a79759d08257533ad69cfdc8b2993079",
       "executable": false
     },
     "src/site/landing/sections/WhatMoved.tsx": {
@@ -2730,7 +2730,7 @@
       "executable": false
     },
     "src/site/shell/brush.ts": {
-      "sha256": "712db464d6f8958a2560ce04b4a358ef624f121b9dd48cc411551d1cf35de201",
+      "sha256": "0d73c5424b9e5b7e392a000a5ca6fe15f46839842ebcef15ea968fd936ff99d8",
       "executable": false
     },
     "src/site/shell/links.ts": {
@@ -2750,15 +2750,15 @@
       "executable": false
     },
     "src/site/styles/base-pages.css": {
-      "sha256": "3d2c3861519e78073599039c51ccbd8327e6b879f2dc48e5ea9abf2f493179c3",
+      "sha256": "d2a3d5ca7d16cc502d07691878c506b368c1a8b3893489cc552e10be98df88ff",
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "0b71040b21f483252f4ebdb6f1ee230120c5e74d40d262c8318b85969d73dba3",
+      "sha256": "4efb0540c2e6a831bbbaaa8fdc8298d995f46f0522929e1b3e83350b55d75e03",
       "executable": false
     },
     "src/site/styles/landing.css": {
-      "sha256": "e4b64ff378eff79f09e62440d0003ab63682dfdd13560d84e67eaace3fdabd29",
+      "sha256": "93696583a221314db7b0538b67ff81da8f9572c04b60dd739a350485a1c63f46",
       "executable": false
     },
     "src/site/styles/sections/ask.css": {
@@ -2766,11 +2766,11 @@
       "executable": false
     },
     "src/site/styles/sections/friday.css": {
-      "sha256": "3e763be71c13e95c03fec24b384f4ff451be1812205a1abc8d35aebe37b1afc9",
+      "sha256": "b2c652415c44dec4f82a3aa881dbf0b41504d64f49bb01fdf357ed2027e72f9c",
       "executable": false
     },
     "src/site/styles/sections/hero.css": {
-      "sha256": "ea860507d5131e41ecd99cde3784a91b58f11e51a3c52a62e50220f3aecd42b9",
+      "sha256": "18f654ed10fdc10c273f81ae29d5fb8cb6254f445746bf6f3d157a118fd7f0bf",
       "executable": false
     },
     "src/site/styles/sections/margin.css": {
@@ -2786,7 +2786,7 @@
       "executable": false
     },
     "src/site/styles/sections/rows.css": {
-      "sha256": "cc7de5c97a2ffdf1cdfa60caa14307804bef6bb942759a3f60c17fee0bfec910",
+      "sha256": "146da470334b138922526c5bc3a07fb94567c7dacee143ce3f8fd2603e3d1ea8",
       "executable": false
     },
     "src/site/styles/sections/which.css": {
@@ -2794,11 +2794,11 @@
       "executable": false
     },
     "src/site/styles/site.css": {
-      "sha256": "1023f6ceefe1e74035f994a7caf92c4c1e9dbe3642da5d517253efa9e2f3f2e1",
+      "sha256": "ae002a9f646a0f1821ebab5cb74fcddbe6338b38533b904de58e43d63cd4ee43",
       "executable": false
     },
     "src/site/styles/tokens.css": {
-      "sha256": "34caada3670e1236108d1caa2d123503e3a2c6f6e0d4b2aa43bfdfb20942bd2f",
+      "sha256": "6521f2bb91587d50fdce305c2443e9c86abf496f367d3e425d2f92e26ce6d1d1",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {

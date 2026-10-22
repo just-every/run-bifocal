@@ -52,7 +52,7 @@ To start Bifocal again later, from the folder you started it in:
 cd run-bifocal && rer dev
 ```
 
-In a terminal, `rer dev` stays in the foreground: press Ctrl-C to stop it. If it is running in the background, stop
+In a terminal, `rer dev` stays in the foreground: press Ctrl&#8209;C to stop it. If it is running in the background, stop
 it from the `run-bifocal` folder with:
 
 ```sh
