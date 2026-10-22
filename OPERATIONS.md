@@ -2,8 +2,7 @@
 
 This checkout currently provides the Base foundation, not the BI product.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
-setup at `/setup`, then open `/app`. The current app home only confirms the
-signed-in person's display name; People and analytics workflows are not built.
+setup at `/setup`, then open `/app`. App home links to native data and account tools, including People for invitations and eligible account deactivation, and Your settings for display names and session revocation. Analytics roles and groups remain unfinished.
 The separate public Run site provides `/run` and `/contract`.
 
 Owners can import bounded CSV and XLSX files at `/app/import`, review an exact plan, publish atomically, inspect originals and versions, Undo and erase. See `docs/FILE-IMPORT.md` for limits. BIF-003 remains partial for live provider and broader file/large-intake qualification; BIF-025 incumbent migration remains missing. Installation archives use the separate `rer export` and `rer import`
@@ -59,7 +58,7 @@ rer import --input exports/installation.rer --yes
 These commands save and restore a supported installation archive. They do not
 use the reviewed import door or provide its plan, reconciliation and Undo.
 Archive restore requires an empty destination and explicit confirmation.
-Business-record move-in remains unavailable until the product import door is built.
+Business-record move-in uses the separate bounded file door at `/app/import`; installation archives never replace its review, reconciliation or Undo.
 
 Use `rer describe` to inspect the checkout's actual
 capabilities. `rer check --profile first-party` validates the
@@ -121,3 +120,5 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+The installed `/docs` guide is static edition documentation available signed out, without visiting the separate Run site. People (`/app/people`) delegates invitation cancellation and eligible account deactivation/reactivation to the native handlers; it does not offer owner changes. Your settings (`/app/settings`) lists your active sessions and can revoke one, including the current session. Native API clients retain their JSON/204 responses; browser forms return useful pages. Role and status changes invalidate old sessions, and reactivation does not restore them.

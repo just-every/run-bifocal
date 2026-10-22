@@ -2,8 +2,7 @@
 
 This checkout currently provides the Base foundation, not the BI product.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
-setup at `/setup`, then open `/app`. The current app home only confirms the
-signed-in person's display name; People and analytics workflows are not built.
+setup at `/setup`, then open `/app`. App home links to native data and account tools, including People for invitations and eligible account deactivation, and Your settings for display names and session revocation. Analytics roles and groups remain unfinished.
 The separate public Run site provides the homepage, `/run`, `/docs` and `/contract`.
 
 Owners can import bounded CSV and XLSX files at `/app/import`, review an exact plan, publish atomically, inspect originals and versions, Undo and erase. See `docs/FILE-IMPORT.md` for limits. BIF-003 remains partial for live provider and broader file/large-intake qualification; BIF-025 incumbent migration remains missing. Installation archives use the separate `rer export` and `rer import`

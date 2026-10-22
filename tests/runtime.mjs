@@ -86,6 +86,30 @@ try {
         await page.waitForURL(`${origin}/`)
       }
     }
+    // Installed docs: public, same-origin and static before any owner sign-in.
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 })
+      const requested = []
+      const collect = request => requested.push(request.url())
+      page.on('request', collect)
+      const docs = await page.goto(`${origin}/docs`)
+      assert.equal(docs.status(), 200)
+      await page.getByRole('heading', { name: 'Installation guide', exact: true }).waitFor()
+      assert.equal(await page.title(), 'Installation guide · Bifocal')
+      assert.match(await page.locator('main').innerText(), /Restore is not an ownership-transfer path/)
+      assert.equal(await page.locator('form').count(), 0)
+      assert.ok(requested.every(url => new URL(url).origin === origin), 'installed docs must not load an external site')
+      page.off('request', collect)
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `docs overflow at ${width}`)
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/docs-${width}.png`, fullPage: true })
+      await page.getByRole('link', { name: 'Sign in', exact: true }).click()
+      await page.waitForURL(`${origin}/signin`)
+    }
+    const docsHead = await context.request.head(`${origin}/docs`)
+    assert.equal(docsHead.status(), 200)
+    assert.equal((await docsHead.body()).length, 0)
+    assert.equal((await context.request.post(`${origin}/docs`, { data: {} })).status(), 405)
+    console.log('Installed docs: signed-out static guide, same-origin assets, useful sign-in and nonoverflowing 1440/390 layouts passed')
     await proveNotFound(false)
     const refused = await context.request.get(`${origin}/app`, { maxRedirects: 0 })
     assert.equal(refused.status(), 303)
@@ -142,6 +166,31 @@ try {
     const afterRefusal = await (await context.request.get(`${origin}/auth/operators`)).json()
     assert.ok(!afterRefusal.some(person => person.email === 'synthetic-bifocal-3@example.test'))
     console.log('People/Invite: native persistence, form errors, CSRF refusal and human HTML at 1440/390 passed')
+    // Cancellation cannot be bypassed by an ordinary reactivation request.
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await page.goto(`${origin}/app/people`)
+      const target = (await (await context.request.get(`${origin}/auth/operators`)).json()).find(person => person.email === `synthetic-bifocal-${width}@example.test`)
+      const forgedCancel = await context.request.post(`${origin}/auth/invite/cancel`, { headers: { Origin: 'https://foreign.example.test' }, form: { operatorId: target.id } })
+      assert.equal(forgedCancel.status(), 403)
+      assert.equal((await (await context.request.get(`${origin}/auth/operators`)).json()).find(person => person.id === target.id).status, 'invited')
+      await Promise.all([page.waitForURL(/updated=1/), page.getByRole('button', { name: `Cancel invitation for Synthetic person ${width}`, exact: true }).click()])
+      const cancelled = (await (await context.request.get(`${origin}/auth/operators`)).json()).find(person => person.id === target.id)
+      assert.equal(cancelled.status, 'inactive')
+      assert.ok(cancelled.version > target.version)
+      const [reactivated] = await Promise.all([page.waitForResponse(response => response.url().endsWith('/auth/operator/status')), page.getByRole('button', { name: `Reactivate Synthetic person ${width}`, exact: true }).click()])
+      assert.equal(reactivated.status(), 409)
+      assert.match(await page.getByRole('alert').innerText(), /Send a new invitation/)
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/people-cancelled-${width}.png`, fullPage: true })
+      await page.getByLabel('Name', { exact: true }).fill(`Synthetic person ${width}`)
+      await page.getByLabel('Email', { exact: true }).fill(target.email)
+      await Promise.all([page.waitForURL(/invited=1/), page.getByRole('button', { name: 'Send invitation', exact: true }).click()])
+      const reinvited = (await (await context.request.get(`${origin}/auth/operators`)).json()).find(person => person.id === target.id)
+      assert.equal(reinvited.status, 'invited')
+      assert.ok(reinvited.version > cancelled.version)
+    }
+    console.log('People cancellation: native form/version fence, CSRF refusal, cancelled reactivation refusal and same-account reinvitation at 1440/390 passed')
     // Display-name settings: follow the link, save through the native form,
     // and read the durable value back through the session, settings and home.
     for (const width of [1440, 390]) {
@@ -157,6 +206,12 @@ try {
       assert.equal(current.operator.displayName, `Synthetic owner ${width}`)
       assert.equal(current.operator.email, 'synthetic-bifocal-1@example.test')
       assert.equal(current.operator.role, 'owner')
+      await page.getByRole('heading', { name: 'This session', exact: true }).waitFor()
+      assert.equal(await page.getByRole('button', { name: 'End this session', exact: true }).count(), 1)
+      const forgedRevoke = await context.request.post(`${origin}/auth/session/revoke`, { headers: { Origin: 'https://foreign.example.test' }, form: { sessionId: current.id } })
+      assert.equal(forgedRevoke.status(), 403)
+      assert.equal((await context.request.get(`${origin}/auth/session`)).status(), 200)
+      await page.reload()
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `settings overflow at ${width}`)
       if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/settings-${width}.png`, fullPage: true })
       await page.getByRole('link', { name: 'App home', exact: true }).click()
@@ -251,6 +306,56 @@ if (process.env.BIFOCAL_DEV_ORIGIN) {
       await context.close()
     }
     console.log('Local People/Invite: native one-click invitation acceptance and member refusal at 1440/390 passed')
+    // Real native memberships and separate browser sessions, never SQL fixtures.
+    for (const width of [1440, 390]) {
+      const owner = await browser.newContext({ viewport: { width, height: 1000 } })
+      const member = await browser.newContext({ viewport: { width, height: 1000 } })
+      try {
+        for (const context of [owner, member]) {
+          assert.equal((await context.request.post(`${devOrigin}/__dev/key`, { headers: { Origin: devOrigin }, data: { key: 'synthetic-bifocal-4'.repeat(3) } })).status(), 204)
+        }
+        const page = await owner.newPage()
+        await page.goto(`${devOrigin}/auth/dev/enter?as=owner`)
+        await page.goto(`${devOrigin}/app/people`)
+        const people = await (await owner.request.get(`${devOrigin}/auth/operators`)).json()
+        const target = people.find(person => person.email === `synthetic-bifocal-local-${width}@example.test`)
+        assert.ok(target?.signInUrl)
+        await member.request.get(new URL(target.signInUrl, devOrigin).href)
+        const session = await (await member.request.get(`${devOrigin}/auth/session`)).json()
+        const staleMember = (await member.cookies()).map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+        const ownerSession = await (await owner.request.get(`${devOrigin}/auth/session`)).json()
+        assert.equal((await member.request.post(`${devOrigin}/auth/session/revoke`, { headers: { Origin: devOrigin }, form: { sessionId: ownerSession.id } })).status(), 403)
+        assert.equal((await owner.request.get(`${devOrigin}/auth/session`)).status(), 200)
+        await Promise.all([page.waitForURL(/updated=1/), page.getByRole('button', { name: `Deactivate Synthetic local ${width}`, exact: true }).click()])
+        assert.equal((await member.request.get(`${devOrigin}/auth/session`)).status(), 401)
+        for (const path of ['/auth/session', '/api/operator/queries', '/api/operator/dashboards', '/api/operator/reports']) {
+          assert.equal((await fetch(devOrigin + path, { headers: { cookie: staleMember } })).status, 401)
+        }
+        const refusedEntry = await member.request.get(new URL(target.signInUrl, devOrigin).href, { maxRedirects: 0 })
+        assert.equal(refusedEntry.status(), 404)
+        await page.reload()
+        assert.equal(await page.getByRole('link', { name: `Sign in as Synthetic local ${width}`, exact: true }).count(), 0)
+        if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/people-deactivated-${width}.png`, fullPage: true })
+        await Promise.all([page.waitForURL(/updated=1/), page.getByRole('button', { name: `Reactivate Synthetic local ${width}`, exact: true }).click()])
+        assert.equal((await fetch(`${devOrigin}/auth/session`, { headers: { cookie: staleMember } })).status, 401, 'reactivation must not revive old sessions')
+        await member.request.get(new URL(target.signInUrl, devOrigin).href)
+        assert.equal((await member.request.get(`${devOrigin}/auth/session`)).status(), 200)
+        const memberPage = await member.newPage()
+        await memberPage.goto(`${devOrigin}/app/settings`)
+        await memberPage.getByRole('heading', { name: 'This session', exact: true }).waitFor()
+        const staleNewSession = (await member.cookies()).map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+        if (process.env.BIFOCAL_PROOF_DIR) await memberPage.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/sessions-member-${width}.png`, fullPage: true })
+        await Promise.all([memberPage.waitForURL(/\/signin/), memberPage.getByRole('button', { name: 'End this session', exact: true }).click()])
+        assert.equal((await fetch(`${devOrigin}/auth/session`, { headers: { cookie: staleNewSession } })).status, 401)
+        assert.equal((await member.request.get(`${devOrigin}/app/settings`, { maxRedirects: 0 })).status(), 303)
+        assert.equal((await owner.request.get(`${devOrigin}/auth/session`)).status(), 200)
+        const ended = await owner.request.get(`${devOrigin}/auth/sessions?operatorId=${encodeURIComponent(target.id)}`)
+        assert.ok((await ended.json()).every(item => !item.active))
+        assert.equal((await owner.request.post(`${devOrigin}/auth/invite`, { headers: { Origin: devOrigin }, data: { email: `synthetic-bifocal-no-analytics-${width}@example.test`, displayName: 'Synthetic refused', role: 'viewer' } })).status(), 400)
+        assert.equal(session.operator.role, 'member')
+      } finally { await owner.close(); await member.close() }
+    }
+    console.log('Native membership controls: deactivation, stale-cookie read denial, inactive sign-in refusal, reactivation without revival and self-session revocation at 1440/390 passed')
   } finally { await browser.close() }
 }
 

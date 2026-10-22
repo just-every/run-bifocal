@@ -9,8 +9,9 @@ import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthCo
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 import { homePage } from './app/home'
+import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
-import { settingsPage, nameNotice } from './app/settings'
+import { settingsPage, nameNotice, sessionNotice, type AccountSession } from './app/settings'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -58,6 +59,10 @@ async function html(body: string, title = branding.name, status = 200) {
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
  const env = runtimeBindings(original), url = new URL(request.url)
+ if (url.pathname === '/docs') {
+  if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405, headers: { ...privateHeaders, allow: 'GET, HEAD' } })
+  return html(installedDocs(), `Installation guide · ${branding.name}`)
+ }
  if (url.pathname.startsWith('/.well-known/rer-') || url.pathname.startsWith('/auth/dependencies/')) {
   const linked = await createDependencies({ db: env.DB, origin: env.AUTH_ORIGIN, name: branding.name, provider: env.IDENTITY_PROVIDER, local: env.AUTH_LOCAL === 'true', auth: operatorAuth(env), claimOwner: token => createIdpOwnerClaimHandler({db:env.DB,authConfig:authConfig(env),clientIp:()=>request.headers.get('CF-Connecting-IP')??''})(new Request(env.AUTH_ORIGIN+'/auth/owner-claim',{method:'POST',headers:{Host:new URL(env.AUTH_ORIGIN).host,Origin:env.AUTH_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({token})})) }).handle(request)
   if (linked) return linked
@@ -71,9 +76,12 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   if (page) return fontDocumentResponse(page)
  }
  const settingsResponse = async (notice = '', status = 200) => {
-  const session = await operatorAuth(env).getSession(request)
+  const auth = operatorAuth(env)
+  const session = await auth.getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=%2Fapp%2Fsettings' } })
-  return html(settingsPage(session.operator, notice), `Your settings · ${branding.name}`, status)
+  const response = await createAuthHandler(auth)(new Request(new URL('/auth/sessions', url), { headers: request.headers }))
+  const sessions = response?.ok ? await response.json() as AccountSession[] : null
+  return html(settingsPage(session.operator, sessions, session.id, notice), `Your settings · ${branding.name}`, status)
  }
  const peopleResponse = async (notice = '', status = 200) => {
   const auth = operatorAuth(env)
@@ -82,7 +90,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   // Use the same native read adapter as /auth/operators; no UI-only access grant.
   const response = await createAuthHandler(auth)(new Request(new URL('/auth/operators', url), { headers: request.headers }))
   if (!response?.ok) return html(peopleUnavailable(session.operator.role), `People unavailable · ${branding.name}`, response?.status ?? 503)
-  return html(peoplePage(await response.json(), session.operator.role, notice), `People · ${branding.name}`, status)
+  return html(peoplePage(await response.json(), session.operator, notice), `People · ${branding.name}`, status)
  }
  if (url.pathname.startsWith('/auth/')) {
   const response = await createAuthHandler(operatorAuth(env))(request)
@@ -98,6 +106,18 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
    const error = await response?.json() as { error?: string } | undefined
    return peopleResponse(inviteNotice(error?.error ?? ''), response?.status ?? 503)
   }
+  if (['/auth/invite/cancel', '/auth/operator/status'].includes(url.pathname) && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
+   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people?updated=1' } })
+   const error = await response?.json() as { error?: string } | undefined
+   return peopleResponse(inviteNotice(error?.error ?? ''), response?.status ?? 503)
+  }
+  if (url.pathname === '/auth/session/revoke' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
+   // Native authorization handles self and administrative revocations. An ended
+   // current session redirects via settings' ordinary sign-in guard.
+   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/settings?ended=1' } })
+   const error = await response?.json() as { error?: string } | undefined
+   return settingsResponse(sessionNotice(error?.error ?? ''), response?.status ?? 503)
+  }
   if (url.pathname === '/auth/display-name' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
    if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/settings?saved=1' } })
    const error = await response?.json() as { error?: string } | undefined
@@ -110,10 +130,10 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   if (setup) return setup
  }
  if (url.pathname === '/app/settings' && ['GET', 'HEAD'].includes(request.method)) {
-  return settingsResponse(url.searchParams.get('saved') === '1' ? '<p role="status">Your display name is saved.</p>' : '')
+  return settingsResponse(url.searchParams.get('saved') === '1' ? '<p role="status">Your display name is saved.</p>' : url.searchParams.get('ended') === '1' ? '<p role="status">The session has ended.</p>' : '')
  }
  if (url.pathname === '/app/people' && ['GET', 'HEAD'].includes(request.method)) {
-  return peopleResponse(url.searchParams.get('invited') === '1' ? '<p role="status">Invitation requested. The person’s current status is shown below.</p>' : '')
+  return peopleResponse(url.searchParams.get('invited') === '1' ? '<p role="status">Invitation requested. The person’s current status is shown below.</p>' : url.searchParams.get('updated') === '1' ? '<p role="status">Access updated. The person’s current status is shown below.</p>' : '')
  }
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
