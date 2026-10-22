@@ -50,7 +50,8 @@ async function load(id = form.elements.dataset.value) {
  $('current-table').replaceChildren(...current ? [sourceView(current.table.source, current.table.updatedAt, zone), table('Current rows (first 20)', current.table.columns.map(column => column.name), current.table.rows.slice(0, 20))] : [])
  const history = await call('history', undefined, id); $('history-list').replaceChildren()
  for (const item of history.history) {
-  const row = element('div', undefined, 'history-item'); row.append(element('p', `${item.state} · ${item.owner} · ${stamp(item.approvedAt, zone)}`), element('p', `Plan ${item.planId} · ${item.fingerprint}`))
+  // Each "·" travels with the part after it, so no line ends on one; the time stays whole.
+  const row = element('div', undefined, 'history-item'), approval = element('p', `${item.state} ·\u00a0${item.owner} `); approval.append(element('span', `·\u00a0${stamp(item.approvedAt, zone)}`, 'nowrap')); row.append(approval, element('p', `Plan ${item.planId} ·\u00a0${item.fingerprint}`))
   const original = element('button', 'Download original'); original.type = 'button'; original.onclick = () => action(async () => {
    const value = await call('original/' + item.planId, undefined, id)
    const file=originalFile(value.originals)

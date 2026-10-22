@@ -454,11 +454,11 @@
       "executable": false
     },
     "public/bifocal/answers.js": {
-      "sha256": "752f616efef224db1675abfa9c00fd3f5c506a9bb527eea4731daddfbc9e807e",
+      "sha256": "e09f9ca91c1310f4ac4688c9c292e65fc62b831c34ac0161306a8371c41792ce",
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "01b8d122d717c7bdf5473e699d6e366014013295db33807b9c5d6672a2a761b0",
+      "sha256": "4197011fef15e996361cdc3b15520493a70ddb87b461c9b020d161083c5ecc9c",
       "executable": false
     },
     "public/bifocal/chevron-dark.svg": {
@@ -482,7 +482,7 @@
       "executable": false
     },
     "public/bifocal/files.js": {
-      "sha256": "df81f3f92715600ba102d017c04941cb2bea14d3104f405f19933bc0c0d74f13",
+      "sha256": "afccb94d4b49fdf831c734e0ba1d3920a411261c8310c68bbbb97f49a749f268",
       "executable": false
     },
     "public/bifocal/format.js": {

@@ -12,11 +12,13 @@ async function action(work) { if(pending)return; pending=true; status('Working鈥
 // A figure as a US reader expects it; any state other than a value reads as its own word.
 const shown = (item,currency) => item.state === 'value' ? figure(item.value,item.unit,currency) : item.state.toUpperCase()
 const KIND = {reports:'Saved report',dashboards:'Saved dashboard',queries:'Immutable snapshot'}
+// Parts joined by "路" never leave a dot at a line's end: each dot travels with the part after it, and a stamp stays whole.
+const dotted = (parts,whole=-1) => parts.flatMap((text,i)=>[...(i?[' ']:[]),element('span',(i?'路\u00a0':'')+text,i===whole?'nowrap':undefined)])
 function render(result) {
  snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';$('answer-title').textContent=result.title ?? 'Exact answer'
  const currency=result.context.currency, measures=Object.keys(result.answer.totals), columns=[...result.definition.groupBy,...measures]
- $('snapshot-note').textContent=[KIND[document.body.dataset.kind],stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean).join(' 路 ')
- $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi');tile.append(element('span',label(id),'kpi-label'),element('strong',shown(total,currency),'kpi-value'),element('span',[id,total.unit==='money'?currency:''].filter(Boolean).join(' 路 '),'kpi-id'));return tile}))
+ $('snapshot-note').replaceChildren(...dotted([KIND[document.body.dataset.kind],stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
+ $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi');const caption=element('span',undefined,'kpi-id');caption.append(...dotted([id,total.unit==='money'?currency:''].filter(Boolean)));tile.append(element('span',label(id),'kpi-label'),element('strong',shown(total,currency),'kpi-value'),caption);return tile}))
  $('groups').replaceChildren(table('Grouped results',columns.map(label),result.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],currency))]),columns.map((_,i)=>i>=result.definition.groupBy.length)))
  // Yellow marks a real exception; the standing "not certified" limitation sits in the meta line.
  $('certification').textContent=result.answer.commonSnapshot==='unavailable'?'No common upstream snapshot is available. This answer cannot be officially certified.':''

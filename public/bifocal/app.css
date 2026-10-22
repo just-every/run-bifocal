@@ -15,7 +15,7 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 
 /* Top bar: mark 4 and the wordmark, the tools this account can open, the signed-in person. */
 .topbar{display:flex;align-items:center;gap:40px;min-height:64px;padding:0 28px;background:var(--app-surface);border-bottom:1px solid var(--app-line)}
-.lockup{display:inline-flex;align-items:center;gap:10px;color:var(--app-text);font:500 25px/1 var(--font-sans);letter-spacing:-.01em;text-decoration:none}
+.lockup{display:inline-flex;align-items:center;gap:10px;color:var(--app-text);font:500 25px/1 var(--font-sans);letter-spacing:-.01em;text-decoration:none;white-space:nowrap}
 .lockup:hover{text-decoration:none}
 .lockup img{display:block;width:58px;height:28px}
 .tools{display:flex;align-self:stretch;gap:28px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
@@ -24,6 +24,7 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .tools a[aria-current=page]{color:var(--app-link);border-bottom-color:var(--app-mark);font-weight:600}
 .account{display:flex;align-items:center;gap:12px;padding-left:24px;border-left:1px solid var(--app-line);min-height:32px;font-size:15px}
 .account form{margin:0}
+.account button{white-space:nowrap}
 .avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:34px;height:34px;border-radius:50%;background:var(--app-sunk);border:1px solid var(--app-line);color:var(--app-text-2);font-size:13px;font-weight:600;letter-spacing:.02em}
 .who{color:var(--app-text);font-weight:500;white-space:nowrap;max-width:24ch;overflow:hidden;text-overflow:ellipsis}
 
@@ -201,15 +202,21 @@ ul{padding-left:20px}
  .main{padding:28px 28px 48px}
  .topbar{gap:28px;padding:0 20px}
  .tools{gap:22px}
+ .who{display:none}
+}
+/* Tablets and phones: the tools take their own row under the lockup and the person, so none is ever cut off. */
+@media (max-width:960px){
+ .topbar{flex-wrap:wrap;gap:0 12px;padding:12px 20px 0;min-height:0}
+ .account{margin-left:auto;padding-left:0;border-left:0}
+ .tools{order:3;flex:0 0 calc(100% + 40px);margin:10px -20px 0;padding:0 20px;min-height:44px;border-top:1px solid var(--app-line)}
 }
 @media (max-width:760px){
  body{font-size:15px}
- .topbar{flex-wrap:wrap;gap:0 12px;padding:12px 16px 0;min-height:0}
+ .topbar{padding:12px 16px 0}
  .lockup{font-size:21px}
  .lockup img{width:50px;height:24px}
- .account{margin-left:auto;padding-left:0;border-left:0;gap:8px}
- .who{display:none}
- .tools{order:3;flex:0 0 calc(100% + 32px);margin:10px -16px 0;padding:0 16px;gap:14px;min-height:44px;border-top:1px solid var(--app-line)}
+ .account{gap:8px}
+ .tools{flex:0 0 calc(100% + 32px);margin:10px -16px 0;padding:0 16px;gap:14px}
  .tools a{font-size:14px}
  .layout,.layout.single{display:flex;flex-direction:column;min-height:0}
  .main{order:1;padding:24px 16px 32px}
