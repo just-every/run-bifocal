@@ -13,7 +13,7 @@ export function NotFoundPage() {
   <div className="brand"><img src={identity.mark} alt="" /><span>{identity.deployment}</span></div>
   <h1>Page not found</h1>
   <p>This address has no page in this installation.</p>
-  <p>Business-data imports and analytical workflows are not built yet. App home lists the foundation tools you can use.</p>
+  <p>This route is unavailable. App home lists the bounded file import, exact-answer and account tools you can use; full BI authoring remains unfinished.</p>
   <nav aria-label="Page recovery"><ul><li><a href="/app">Open app home</a></li><li><a href="/">Go to Lobby</a></li></ul></nav>
  </main></HydrationUnit>
 }
