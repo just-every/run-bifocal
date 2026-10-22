@@ -271,7 +271,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "3218f27646545de7f386060c8d68ccd1266cc962946765894d8a0ffb003e2e37",
+      "sha256": "3d4b03b1d1b02a26c55d9a690c4fe08d489536cb3bcd394f28746f4a04877b3c",
       "executable": false
     },
     "base-copies.json": {
@@ -455,11 +455,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "9a9679b02a65b19cd5ba79a864c33408c4dd1033f6968067eed97d4fdf202955",
+      "sha256": "a4163bc45bb69dc57df7e24dc4f4d2cc1bd3068711ed33c5ef3775eafb597604",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "4628a1a6657c1ea3326f8434b32ff24ff09d410673bd43f326bc0897b72efe56",
+      "sha256": "2a026fc379de01cdfafce8856289bf6d20613a1006fa30d932fe6ab1863dfbc2",
       "executable": false
     },
     "public/app-theme.css": {
@@ -579,7 +579,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "a45e188dee72cd72c7db50a165af751f87e16bc3706cb4ef17c307b2f1c88b9b",
+      "sha256": "217a6425692fd72bc9dbd257b182613f6b9e8bdd4fa48b04c3e087b4171c87c0",
       "executable": false
     },
     "rer-setup.json": {
