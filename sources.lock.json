@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/bifocal",
-  "manifest": "fce361149f4259ed69643c1fe9c6b4b3906ac02bc2df9c7108716e31eb0f96b0",
+  "manifest": "ffb2f6d14c265ed9d5847ea68bf8be406c57a04a06026b4bd5b513a44573d9cf",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -23,7 +23,8 @@
           "src/branding.json",
           "src/site",
           "scripts/installer",
-          "src/bifocal"
+          "src/bifocal",
+          "src/demo.ts"
         ]
       },
       "baseline": null
@@ -241,6 +242,10 @@
     }
   ],
   "files": {
+    ".github/workflows/run-demo.yml": {
+      "sha256": "41365ec7c002e9451166313b085f9e64ed2e3ea002c27f3d5ead845bc9c302b2",
+      "executable": false
+    },
     ".github/workflows/run-site.yml": {
       "sha256": "1466e0cc78eeee30a85f1602c0b4bbb74f053fc9f1aa723635c5f0fc5a0f19b0",
       "executable": false
@@ -254,7 +259,7 @@
       "executable": false
     },
     ".gitignore": {
-      "sha256": "b1997dc843f26bc9915cbf4a00c8b27a7740ca899d173c4980f23f37b3931388",
+      "sha256": "73a899ee5b6af1bde5e53e8b6c8cf3cdd34fed32c2d447c652a9d2a57a213b58",
       "executable": false
     },
     ".node-version": {
@@ -266,7 +271,11 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "eace6ad64d2685f7b28ea4e91dea470abad8da15fc7fc1e249a9984a678f02a1",
+      "sha256": "3218f27646545de7f386060c8d68ccd1266cc962946765894d8a0ffb003e2e37",
+      "executable": false
+    },
+    "base-copies.json": {
+      "sha256": "ffaeea3ab239a3c0c6a8891ebefba0855bee8c56237ad943c200d66c02eefeb1",
       "executable": false
     },
     "composition.lock.json": {
@@ -275,6 +284,10 @@
     },
     "CONTRACT.md": {
       "sha256": "72cf954e6a1dabf0ab3e2c4058aa0be385ffa4563cbc77cf484c1472c4773d1b",
+      "executable": false
+    },
+    "deploy-demo.json": {
+      "sha256": "f3f7ce34e50c00b47e09cf6d003275e5758ecac1dd91d675096fc3cd62f5d2b7",
       "executable": false
     },
     "deploy-site.json": {
@@ -330,7 +343,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "fce361149f4259ed69643c1fe9c6b4b3906ac02bc2df9c7108716e31eb0f96b0",
+      "sha256": "ffb2f6d14c265ed9d5847ea68bf8be406c57a04a06026b4bd5b513a44573d9cf",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -442,11 +455,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "2de8ba03a7ae9ef9c3602af6b595c0750806e85bb8b66e1c373c7073e8fcefe3",
+      "sha256": "9a9679b02a65b19cd5ba79a864c33408c4dd1033f6968067eed97d4fdf202955",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "e6548963f676c978546dddb32232b1fac9efc2fa45bdffc80ea994fac0bdf59d",
+      "sha256": "4628a1a6657c1ea3326f8434b32ff24ff09d410673bd43f326bc0897b72efe56",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -562,7 +575,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "b52f624e5fc27764c26196efd9baedbd584a04957dc581bdb6876827c6d9c0ce",
+      "sha256": "a45e188dee72cd72c7db50a165af751f87e16bc3706cb4ef17c307b2f1c88b9b",
       "executable": false
     },
     "rer-setup.json": {
@@ -678,7 +691,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "a412c1cef2aa24406e2e7e8419f1ed7455fd62066a0bdfd694b48fc8bd0f1493",
+      "sha256": "a1d6b739bf82f0040518069d627fcad5944c4e30ee191d94adbf658b6f9cb8e4",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -955,6 +968,10 @@
     },
     "src/client.tsx": {
       "sha256": "4fee14f6b63bceec0df77131ffd959fc4d02e3c501982a1f4b5b30c96c1d936a",
+      "executable": false
+    },
+    "src/demo.ts": {
+      "sha256": "5c534df9033d367bb28ab5672186e8450fd2d8dc01cca4506754ab5d2280b9ce",
       "executable": false
     },
     "src/dev-personas.ts": {
@@ -2626,7 +2643,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "960f06ee347fd698363ab97f94c5f3127e7f983f569184d4e4c126ecb5177dca",
+      "sha256": "17530c73d8c90c6ccb6a79b22af962c4d02848c672f8bdd8d92f0caa22f28b70",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -2809,6 +2826,10 @@
       "sha256": "068913ef9b78d091099cdf24ad8f250d74ebd362037a7d61067f0be6c62a8f45",
       "executable": false
     },
+    "tests/demo-owner-claim.test.mjs": {
+      "sha256": "b11b615e985c081dc64a6e1be613b9da69ad1011f641e6ef1aa5b7b66aa06f93",
+      "executable": false
+    },
     "tests/incremental-typecheck.test.mjs": {
       "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
       "executable": false
@@ -2858,7 +2879,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "cc67cbd5d6d20401303f2f8c079310406d821c357f21b17153c74af341cb6cac",
+      "sha256": "d1ec621cdf762d5ee518c027269a736ad2009318af2905e63b3d3569f5e67586",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
@@ -2866,7 +2887,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "25114c20959f54e1a67e6c1aeeea19f37430d2fd3f24b1af4b3a72893b2cd026",
+      "sha256": "8d53bfdfb5e8b4b4005e81ee1447eaec322f495f5a255c464b775b2f1fe92e8f",
       "executable": false
     },
     "vite.site.config.ts": {

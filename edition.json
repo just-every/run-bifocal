@@ -22,7 +22,8 @@
           "src/branding.json",
           "src/site",
           "scripts/installer",
-          "src/bifocal"
+          "src/bifocal",
+          "src/demo.ts"
         ]
       }
     },

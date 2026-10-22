@@ -23,6 +23,7 @@
       "hosted": true,
       "commands": [
         "pnpm run build",
+        "node --test tests/demo-owner-claim.test.mjs",
         "pnpm run test:runtime",
         "pnpm run test:site"
       ]
