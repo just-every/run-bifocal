@@ -462,6 +462,10 @@
       "sha256": "4628a1a6657c1ea3326f8434b32ff24ff09d410673bd43f326bc0897b72efe56",
       "executable": false
     },
+    "public/app-theme.css": {
+      "sha256": "e97bf521a2a9ac456b8ecb046b769c60b0c6857e45a1b0ed431a9d57b81d6cd6",
+      "executable": false
+    },
     "public/apple-touch-icon.png": {
       "sha256": "3faacbfcbd2dce83f99f150b0218f473b033157d5b6e44fc033542ddf31ee36e",
       "executable": false
