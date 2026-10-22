@@ -72,7 +72,7 @@ try {
         await page.getByRole('heading', { name: 'Page not found', exact: true }).waitFor()
         assert.equal(await page.title(), 'Page not found · Bifocal')
         assert.match(await missing.text(), /<title>Page not found · Bifocal<\/title>/)
-        assert.match(await page.locator('main').innerText(), /not built yet/)
+        assert.match(await page.locator('main').innerText(), /bounded file import, exact-answer and account tools/)
         assert.equal(await page.getByRole('link', { name: 'Go to Lobby', exact: true }).getAttribute('href'), '/')
         assert.equal(await page.locator('a[href="/app/import"]').count(), 0)
         await page.keyboard.press('Tab')

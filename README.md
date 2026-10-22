@@ -2,7 +2,7 @@
 
 Business intelligence and reporting. 100% free, open source alternative to Microsoft Power BI, Tableau (Salesforce), Looker (Google Cloud).
 
-Bifocal is a new seed built on the Base foundation. This checkout provides the shared Lobby, owner sign-in, local D1, the Run site and the target contract. The business intelligence product is not built yet: all target clauses are missing in [CONTRACT.md](CONTRACT.md). [ACCEPTANCE.md](ACCEPTANCE.md) describes the destination, not completed features.
+Bifocal is a new seed built on the Base foundation. This checkout provides the shared Lobby, owner sign-in and account tools, local D1, bounded CSV/XLSX import, US company conventions, exact tabular answers and the Run site. Full BI authoring remains unfinished. [CONTRACT.md](CONTRACT.md) records each clause’s current status and remaining gaps; [ACCEPTANCE.md](ACCEPTANCE.md) separates existing evidence from the full target workflows.
 
 Install the shared command and run Bifocal:
 
