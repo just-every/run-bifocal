@@ -286,7 +286,7 @@
       "executable": false
     },
     "docs/backup.md": {
-      "sha256": "175f9b7598a88a9b91e7a92ea582a3f45a5bdb9f7fa96964304b07a86db0ab28",
+      "sha256": "715d8c17ad70fac8ea7009666fab444684b53b68e142a8c59d6f47bf2c829a74",
       "executable": false
     },
     "docs/EXACT-QUERIES.md": {
@@ -302,7 +302,7 @@
       "executable": false
     },
     "docs/import-files.md": {
-      "sha256": "b4489ae9869ca139cafa0939f11037406d2f81a057860fbc3b081e7e03631212",
+      "sha256": "c4f7e5f6d807f6330a609b6fc5e3ff7fc1cf415a51403390390c86058b7861de",
       "executable": false
     },
     "docs/people.md": {
@@ -314,7 +314,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "2a2a19357ceab15c9c06342eaddb11ca4c6153f09890d2b91dbd3df416ca1cb8",
+      "sha256": "68f4c35735dc5ed14e79545c83fcfe64939ed64c4c3315984b73ad6c6d43e23a",
       "executable": false
     },
     "docs/SPREADSHEET-RANGES.md": {
@@ -326,7 +326,7 @@
       "executable": false
     },
     "docs/what-runs-today.md": {
-      "sha256": "058a49647e2a650ca66331096fa0d74d9bcaeaf99b1078fa5675e82051ddca4c",
+      "sha256": "d6a8288731016b779e5526484d573b9aab606a234e38a788f3425d3cdfda1cdf",
       "executable": false
     },
     "edition.json": {
@@ -566,7 +566,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "95e6449ac2164c7171dc9f91b717c867589f36b3c6cb402dce10b5dc12420963",
+      "sha256": "b52f624e5fc27764c26196efd9baedbd584a04957dc581bdb6876827c6d9c0ce",
       "executable": false
     },
     "rer-setup.json": {

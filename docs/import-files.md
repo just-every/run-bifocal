@@ -1,6 +1,6 @@
 Bifocal can take in a CSV file, or one sheet of an Excel workbook, as a dataset. Every import is reviewed before
-anything changes, applied as one step, checked against what was sent and can be undone. Today this runs through
-Bifocal's HTTP interface for the installation's owner only; the import screen in the app is not built yet.
+anything changes, applied as one step, checked against what was sent and can be undone. Today it is for the
+installation's owner only, in the app's **Files** screen or through Bifocal's HTTP interface.
 
 ## What it takes
 
@@ -32,6 +32,7 @@ current revision.
 ## Where the details are
 
 The requests, headers and the file envelope are in
-[`FILE-IMPORT.md`](https://github.com/just-every/run-bifocal/blob/main/docs/FILE-IMPORT.md) in the repository. Live
-Google Sheets and Excel Online ranges, larger files, and moving in from Power BI, Tableau or Looker are part of the
+[`FILE-IMPORT.md`](https://github.com/just-every/run-bifocal/blob/main/docs/FILE-IMPORT.md) in the repository. Reading
+one Google Sheets or Excel Online range with an access grant you supply is not yet proven against those services.
+Refreshing a live range, larger files, and moving in from Power BI, Tableau or Looker are part of the
 [contract](/contract) and are not built yet.

@@ -47,7 +47,7 @@
           "slug": "import-files",
           "title": "Import CSV and Excel files",
           "file": "import-files.md",
-          "summary": "Bring a CSV file or one Excel sheet in as a dataset: reviewed before anything changes, checked after and undoable. Today through the owner's HTTP interface."
+          "summary": "Bring a CSV file or one Excel sheet in as a dataset: reviewed before anything changes, checked after and undoable. Today for the owner, in the app or over HTTP."
         }
       ]
     }

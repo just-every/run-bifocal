@@ -11,8 +11,8 @@ rer export --output exports/bifocal.rer
 ```
 
 `rer export` saves the installation's records to `exports/bifocal.rer` with an integrity receipt: the owner and the
-people you invited with their roles, sign-in settings and history, and your imported datasets with their original
-files. It leaves out sign-in sessions and links, private settings and other state that belongs to this computer
+people you invited with their roles, sign-in settings and history, your imported datasets with their original files,
+your company conventions and your saved exact answers. It leaves out sign-in sessions and links, private settings and other state that belongs to this computer
 only. A large installation takes a while; the command prints a line every few seconds with the parts done and the
 time left.
 
