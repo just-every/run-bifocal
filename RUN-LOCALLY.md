@@ -6,12 +6,10 @@ setup at `/setup`, then open `/app`. The current app home only confirms the
 signed-in person's display name; People and analytics workflows are not built.
 The separate public Run site provides `/run` and `/contract`.
 
-Bifocal has no product import screen yet: `/app/import` is not usable.
-BIF-003 (files and spreadsheets) and BIF-025 (incumbent migration) remain
-missing. Installation archives use the separate `rer export` and `rer import`
+Owners can import bounded CSV and XLSX files at `/app/import`, review an exact plan, publish atomically, inspect originals and versions, Undo and erase. See `docs/FILE-IMPORT.md` for limits. BIF-003 remains partial for live provider and broader file/large-intake qualification; BIF-025 incumbent migration remains missing. Installation archives use the separate `rer export` and `rer import`
 commands; they do not import business records or replace the product import door.
 
-When implementing data move-in, mount Base's shared door at `/app/import` for
+Data move-in uses Base's shared door at `/app/import` for
 supported source exports, with review, exact-plan approval, reconciliation and
 Undo. Do not add a separate importer. Base's reference people-JSON reader is
 not a Bifocal business-data importer, and `.rer` archives are not door uploads.
@@ -235,9 +233,9 @@ start anyway. Reusing a checkout's running server is never refused for memory.
 
 ## Back up and restore this installation
 
-Business-record move-in is not available yet; `/app/import` remains unbuilt.
+Bounded owner CSV/XLSX move-in uses `/app/import`; incumbent migration and large-file qualification remain unfinished.
 The `rer export` and `rer import` commands below back up and restore this
-installation. They do not provide the future shared door's reviewed plan,
+installation. They do not replace the file door's reviewed plan,
 reconciliation or Undo, and `.rer` archives are not product-import uploads.
 
 Reset is destructive local cleanup; preserve a backup of any data you need to

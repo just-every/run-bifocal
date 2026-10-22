@@ -1,9 +1,8 @@
 # CSV and XLSX import HTTP backend
 
-The browser import screen at `/app/import` is unfinished. This document describes
-the implemented HTTP backend for installation owners; it is not a claim that
-BIF-003 or BIF-057 is complete. No live spreadsheet grant or analytical execution
-is provided. Business grants remain closed, including on installations provisioned
+The owner browser file workflow is at `/app/import`. This document describes
+the implemented HTTP backend; it is not a claim that
+BIF-003 or BIF-057 is complete. Live ranges use a manually supplied one-read delegated grant under `docs/SPREADSHEET-RANGES.md`; live provider qualification is pending. There is no automatic refresh. Business grants remain closed, including on installations provisioned
 with `RER_IMPORT_DOOR=on`; `/api/rer/import/*` returns 404.
 
 File intake uses the pinned Base shared door, not a second importer:
@@ -15,8 +14,7 @@ File intake uses the pinned Base shared door, not a second importer:
 2. POST `/api/operator/import/plan` with the `uploadId`. After an applied baseline,
    also send `catchup: true`. Review the fingerprint, counts, proposed schema,
    five-row sample, source interpretation and up to 20 row/column type-error reasons.
-   Complete error pagination, additional encodings and key-candidate detection
-   are unfinished; current keys are explicitly selected and validated. No
+   All typed-cell and row-width errors persist without cell values in `bf_file_reviews`, including after cancellation. GET `/api/operator/import/review/<planId>?offset=100` pages errors 100 at a time. Candidate unique non-null keys are shown; keys remain explicitly selected and validated. CSV originals support UTF-8, UTF-16LE/BE and Windows-1252 with decoded-text/byte agreement. No
    native data changes at upload or plan. A rejected table proposes no effects.
 3. POST `/api/operator/import/apply` with that exact `planId` and
    `reviewedFingerprint`. Repeat bounded calls until `job.state` is `completed`.
@@ -31,7 +29,7 @@ exact app `Origin`, and `X-Import-Dataset` header. Dataset ids start with a lowe
 letter and contain at most 64 lowercase letters, digits or hyphens. The current
 owner's exact session, membership version, expiry and linked IdP policy are
 rechecked inside each write transaction. Admin/member/machine access is denied;
-this conservative default remains provisional until ct approves the import roles.
+this interim authority was ruled by ct on 21 October 2026. Future source permissions and machine grants extend this same door; Business imports require explicit owner opt-in under BIF-035, never first owner claim.
 BIF-032/019/035 must carry this authority boundary into future roles and doors.
 
 The uploaded bytes are the UTF-8 JSON envelope, including the original CSV text:
@@ -77,7 +75,7 @@ Bounds are explicit admission limits: 512 KiB CSV text, 1 MiB envelope, 2,000 da
 rows, 64 columns, 4,096 characters per cell, and 768 KiB final table. The whole
 result is one atomic native effect. Interrupted uploads and failed validation
 leave the last committed dataset intact. These are not a large-file scale claim;
-large production ingestion and XLSX/live-range acceptance remain open.
+large production ingestion, real Excel-saved workbook/client and live-grant qualification remain open.
 
 GET `/api/operator/datasets/<id>` returns the current revision, typed table,
 original filename/digest, interpretation and update time. GET
@@ -88,18 +86,30 @@ round-trips without normalization. Originals withheld by credential removal or
 erasure are explicitly unavailable. All responses disable caching and MIME
 sniffing; original downloads additionally use an attachment and sandbox policy.
 
-To erase a dataset, POST `/api/operator/datasets/<id>/erase` with exact same-origin
+To erase a dataset, POST `/api/operator/datasets/<id>/erase` with same-origin
 owner authority and `{ "confirmDataset": "<id>", "reviewedRevision": "<current>" }`.
-Each dataset has its own stable custody destination. Erasure withdraws its retained upload/snapshot custody, severs this
-dataset's import lineage and originals, deletes its native data and advances
-Base's portability erasure checkpoint in one transaction. Unrelated native
-datasets remain. The completed receipt reports affected stores. Other datasets retain their native records, original attachments and import plans. Minimal approval metadata survives, and older installation
-archives require the current erasure journal. There is no automatic retention or
-outbound action. Source bytes and shared import custody are included in the
-installer's archive inventory; sessions and dependency secrets remain excluded.
+When no table is published, explicitly send `reviewedRevision: null`. This covers
+rejected or cancelled imports and an undone first import. Either consent is
+refused with 409 if the reviewed state changed. Omitting the revision is refused.
 
-Full browser intake, accessible review states, Google Sheets/Excel Online range
-authorization and revocation, production large-file qualification, isolated
+Each dataset has its own stable custody destination. One transaction withdraws
+every upload, snapshot and original in that namespace, including rejected,
+cancelled, interrupted, undone and superseded versions, deletes the native table
+and advances Base's portability erasure checkpoint. Other datasets retain their
+records, original attachments and plans. The receipt reports affected custody
+stores and row counts, without erased values. Plan ids, fingerprints, approving
+owner, times and dataset id remain as approval history.
+
+The dataset id is retired. Later plans answer `source_erased`; use a new id for
+new data until BIF-034 defines re-ingestion policy. An archive made before the
+erasure is refused only where the erasure journal is known. A fresh installation
+without that journal cannot detect the erasure. The receipt states this limit;
+it does not claim a universal archive fence. There is no automatic expiry or
+outbound action. Retention rules remain open under BIF-034/057. Source bytes and
+import custody are included in installer archives; sessions and dependency
+secrets remain excluded.
+
+Full live Google Sheets/Excel Online grant qualification and durable OAuth refresh custody, production large-file qualification, broader workbook/client qualification, isolated
 SQL/Python/extensions and all
 other BI workflows remain unfinished. No provider sandbox or cross-platform
 qualification is claimed by the CSV journey.
@@ -137,3 +147,11 @@ entity declarations, external relationships, VBA/macros, active controls and
 embedded binaries are rejected. ZIP bytes never become extracted app files or
 public content. Large or unsupported workbooks need a bounded values-only export;
 that is an explicit limitation and does not close large-file acceptance.
+
+## Browser workflow and retained copies
+
+`/app/import` uses the same HTTP upload/plan/apply/reconcile/Undo handlers. It detects byte-order marks and unambiguous header delimiters, requires an explicit encoding when UTF-8 decoding fails, previews columns/candidate keys and interpretation, displays lineage/time/formulas, binds explicit approval to the full fingerprint and reports completion only after reconciliation. Upload chunk references in session storage contain only a digest and id; select the identical file to resume. No file bytes or provider token are stored in browser storage. Error metadata is owner-only and dataset erasure deletes it.
+
+The browser downloads original CSV/XLSX bytes under the original filename; a live range downloads its derived JSON snapshot with formulas and lineage. Erasure clears the page preview and selected file buffer as well as withdrawing native custody.
+
+Native exact queries retain source rows in immutable snapshots. Explicit dataset erasure also withdraws dependent query snapshots and saved tabular dashboard/report results in the same retirement transaction, including after Undo leaves no published table. Undo unpublishes data while retaining historical owner-held answers until explicit erasure. The erasure receipt includes those affected native stores and counts. Archive inventory includes convention versions, error reviews and query custody; transient guards, sessions and provider tokens are excluded.

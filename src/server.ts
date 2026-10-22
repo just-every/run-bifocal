@@ -9,6 +9,12 @@ import { lobbyResponse } from './base/lobby'
 import { setupStateResponse } from './base/setup-state'
 import { authResponse, runtimeBindings, type Bindings } from './auth.server'
 import { identity } from './identity'
+import { spreadsheetRangeResponse } from './bifocal/sources/spreadsheets/server'
+import { fileImportPage } from './bifocal/imports/files/page.server'
+import { companyPage } from './bifocal/company/page.server'
+import { conventionsResponse } from './bifocal/company/server'
+import { exactAnswerPage } from './bifocal/query/page.server'
+import { exactQueryResponse } from './bifocal/query/server'
 import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -29,6 +35,18 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const settings = await companyPage(request, env)
+    if (settings) return settings
+    const conventions = await conventionsResponse(request, env)
+    if (conventions) return conventions
+    const answer = await exactAnswerPage(request, env)
+    if (answer) return answer
+    const query = await exactQueryResponse(request, env)
+    if (query) return query
+    const range = await spreadsheetRangeResponse(request, env)
+    if (range) return range
+    const page = await fileImportPage(request, env)
+    if (page) return page
     const files = await fileImportResponse(request, env)
     if (files) return files
     // The installed variant: the Lobby at / and the public claim state it reads.
