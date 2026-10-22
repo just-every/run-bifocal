@@ -96,7 +96,7 @@ html.rer-themed h1 { font: 700 28px/1.2 var(--font-sans); letter-spacing: -.015e
 html.rer-themed h2 { font-family: var(--font-sans); }
 html.rer-themed p, html.rer-themed dt { color: var(--app-muted); }
 html.rer-themed dd { color: var(--app-text); }
-html.rer-themed .brand, html.rer-themed .rer-brand { gap: 10px; margin: 0 0 32px; color: var(--app-text); font: 500 22px/1 var(--font-sans); letter-spacing: -.01em; }
+html.rer-themed .brand, html.rer-themed .rer-brand { gap: 10px; margin: 0 0 32px; color: var(--app-text); font: 700 22px/1 var(--font-sans); letter-spacing: -.01em; }
 /* Mark 4 is a wide lockup (two lenses on a bridge, 2.1:1); draw it at its own width beside the name. */
 html.rer-themed .brand::before, html.rer-themed .rer-brand::before { width: 50px; height: 24px; }
 html.rer-themed label { color: var(--app-text); font-size: 14px; font-weight: 600; }
