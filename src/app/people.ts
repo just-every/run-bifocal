@@ -1,5 +1,5 @@
 import type { Operator } from '../modules/operator-auth/index.mjs'
-import { escapeHtml, navigation } from './navigation'
+import { escapeHtml } from './shell'
 
 type Person = Operator & { signInUrl?: string }
 function personControls(person: Person, actor: Operator) {
@@ -13,12 +13,12 @@ function personControls(person: Person, actor: Operator) {
 
 export function peoplePage(people: Person[], actor: Operator, notice = '') {
  const role = actor.role
- const rows = people.map(person => `<li><h2>${escapeHtml(person.displayName)}</h2><dl><dt>Email</dt><dd>${escapeHtml(person.email)}</dd><dt>Foundation role</dt><dd>${escapeHtml(person.role)}</dd><dt>Status</dt><dd>${escapeHtml(person.status)}</dd></dl>${person.signInUrl ? `<p><a href="${escapeHtml(person.signInUrl)}">Sign in as ${escapeHtml(person.displayName)}</a></p>` : ''}${personControls(person, actor)}</li>`).join('')
- return `<h1>People</h1><p>Manage this installation’s foundation accounts. Analytics roles and groups are not built yet.</p><p>Deactivation ends existing sessions and refuses new sign-ins. Reactivation never restores old sessions. Cancel an invitation to revoke its pending sign-in links; invite that person again to let them join. Owner changes require a separate fresh-proof path and are not offered here.</p>${notice}<ul aria-label="People">${rows}</ul><h2>Invite a person</h2><p>Invitations grant only the selected foundation role. In development and demo, mail is suppressed; use the available “Sign in as” link.</p><form method="post" action="/auth/invite"><label>Name <input name="displayName" required maxlength="120" autocomplete="name"></label><label>Email <input name="email" type="email" required maxlength="254" autocomplete="email"></label><label>Foundation role <select name="role"><option value="member">Member</option>${role === 'owner' ? '<option value="admin">Admin</option>' : ''}</select></label><button type="submit">Send invitation</button></form>${navigation(role)}`
+ const rows = people.map(person => `<li class="person"><span class="avatar" aria-hidden="true">${escapeHtml(person.displayName.trim().charAt(0).toUpperCase() || '·')}</span><div class="person-main"><h2>${escapeHtml(person.displayName)}</h2><dl class="facts-grid"><div><dt>Email</dt><dd>${escapeHtml(person.email)}</dd></div><div><dt>Foundation role</dt><dd>${escapeHtml(person.role)}</dd></div><div><dt>Status</dt><dd><span class="state state-${escapeHtml(person.status)}">${escapeHtml(person.status)}</span></dd></div></dl>${person.signInUrl ? `<p><a href="${escapeHtml(person.signInUrl)}">Sign in as ${escapeHtml(person.displayName)}</a></p>` : ''}</div>${personControls(person, actor)}</li>`).join('')
+ return `<div class="pagehead"><div><h1>People</h1><p class="lead">Manage this installation’s foundation accounts. Analytics roles and groups are not built yet.</p></div></div><p class="note">Deactivation ends existing sessions and refuses new sign-ins. Reactivation never restores old sessions. Cancel an invitation to revoke its pending sign-in links; invite that person again to let them join. Owner changes require a separate fresh-proof path and are not offered here.</p>${notice}<ul class="panel people" aria-label="People">${rows}</ul><section class="panel"><h2 class="cardhead">Invite a person</h2><p>Invitations grant only the selected foundation role. In development and demo, mail is suppressed; use the available “Sign in as” link.</p><form method="post" action="/auth/invite"><div class="fields"><label>Name <input name="displayName" required maxlength="120" autocomplete="name"></label><label>Email <input name="email" type="email" required maxlength="254" autocomplete="email"></label><label>Foundation role <select name="role"><option value="member">Member</option>${role === 'owner' ? '<option value="admin">Admin</option>' : ''}</select></label></div><div class="actions"><button type="submit" class="primary">Send invitation</button></div></form></section>`
 }
 
-export function peopleUnavailable(role: string) {
- return `<h1>People unavailable</h1><p role="alert">People and invitations require an active owner or admin account. If your access changed, sign in again. Otherwise, return to app home and retry.</p>${navigation(role)}`
+export function peopleUnavailable() {
+ return `<div class="pagehead"><div><h1>People unavailable</h1></div></div><p class="status" data-error="true" role="alert">People and invitations require an active owner or admin account. If your access changed, sign in again. Otherwise, return to app home and retry.</p>`
 }
 
 export function inviteNotice(code: string) {
@@ -34,5 +34,5 @@ export function inviteNotice(code: string) {
   operator_not_found: 'This account is no longer available. Reload People.',
   invalid_status: 'Choose an active or inactive account status.',
  }
- return `<p role="alert">${messages[code] ?? 'The people change could not be completed. Check your access and the person’s details, then try again.'}</p>`
+ return `<p class="status" data-error="true" role="alert">${messages[code] ?? 'The people change could not be completed. Check your access and the person’s details, then try again.'}</p>`
 }

@@ -1,8 +1,7 @@
 // Installed documentation: static edition content, never installation settings
 // or account data. Available before sign-in and without the separate Run site.
 export function installedDocs() {
- return `<h1>Installation guide</h1>
-<p>This guide is served by your Bifocal installation and is available signed out. Keep your checkout and its operation guides for recovery.</p>
+ return `<article class="guide"><div class="pagehead"><div><h1>Installation guide</h1><p class="lead">This guide is served by your Bifocal installation and is available signed out. Keep your checkout and its operation guides for recovery.</p></div></div>
 <h2>Open the app</h2><p><a href="/signin">Sign in</a>, complete first-run setup at <a href="/setup">Finish setup</a>, then open <a href="/app">App home</a>. Only invited active accounts can sign in. An email domain alone grants no access.</p>
 <h2>Available tools</h2><p>The current owner can review bounded CSV and XLSX files at <a href="/app/import">Files</a>, set US calendars and currency rates at <a href="/app/company">Company conventions</a>, and retain immutable tabular results at <a href="/app/queries">Exact answers</a>. File uploads are limited to 512 KiB, 2,000 rows and 64 columns. Review the exact plan before applying; inspect history and originals, Undo, or explicitly erase a dataset.</p>
 <p>General source sync, semantic-model authoring, SQL and Python notebooks, large analytical compute and scheduled delivery remain unfinished. These bounded tools do not qualify the full BI product or its scale targets.</p>
@@ -14,5 +13,5 @@ export function installedDocs() {
 <p>Archives retain the original owner and membership definitions, but exclude sessions, provider credentials and private settings. Restore is not an ownership-transfer path: reuse the archived owner’s identity and reconnect privately. Inactive-grant and fresh-owner restore are unfinished; do not use an archive to transfer custody. For a deployed owner whose mail is unavailable, the supported <code>rer signin</code> recovery command requires the credentials and deploy record for that installation. It is not a local-development sign-in command. Never share its one-use link.</p>
 <h2>Deployment and dependencies</h2><p>Deploy only to your authorized Cloudflare account and chosen domain. Supply your own owner/session/setup secrets and verified mail sender. The checked-in example sender is a placeholder. <code>rer deploy --dry-run</code> builds and reads target secret-binding names; it performs provider requests and needs authorized credentials, though it does not write resources.</p>
 <p>Package installation and deployment require their registries and Cloudflare. Mail and linked identity providers use the services you configure. This installed guide and native app tools do not require opening the author’s Run site. Analytical dependency health, complete upgrade/restore and independent-operation qualification remain unfinished. The checkout’s <code>OPERATIONS.md</code> and <code>RUN-LOCALLY.md</code> describe the supported paths and limits.</p>
-<nav aria-label="Guide"><ul><li><a href="/">Go to Lobby</a></li><li><a href="/app">Open app home</a></li></ul></nav>`
+<nav class="guide-links" aria-label="Guide"><ul><li><a href="/">Go to Lobby</a></li><li><a href="/app">Open app home</a></li></ul></nav></article>`
 }

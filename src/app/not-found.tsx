@@ -1,12 +1,13 @@
 import { HydrationUnit } from '../base/hydration/unit'
 import { identity } from '../identity'
 
-// Match the existing foundation card and its declared theme tokens. Shared
-// Base sources, the Lobby, public Run site and brand assets stay untouched.
-export const notFoundStyle = '.bifocal-not-found{box-sizing:border-box;max-width:480px;margin:32px auto;padding:36px;background:var(--rer-surface,#fff);border-radius:var(--rer-radius,12px);box-shadow:0 1px 2px #0000000d,0 14px 36px #00000014;overflow-wrap:anywhere}'
- + '.bifocal-not-found .brand{display:flex;align-items:center;gap:12px;margin:0 0 28px;font-size:18px;font-weight:600}.bifocal-not-found .brand img{width:32px;height:32px}'
- + '.bifocal-not-found h1{font-size:30px;line-height:1.25;margin:0 0 16px}.bifocal-not-found p{margin:0 0 20px;color:var(--rer-muted,#475569)}'
- + '@media(max-width:480px){.bifocal-not-found{margin:8px auto;padding:28px 20px}.bifocal-not-found h1{font-size:26px}}'
+// The app's quiet card (public/bifocal/app.css): a hairline, the app radius, mark 4 at its own width, read from the
+// declared --rer-* tokens. Shared Base sources, the Lobby, public Run site and brand assets stay untouched.
+export const notFoundStyle = '.bifocal-not-found{box-sizing:border-box;max-width:440px;margin:48px auto;padding:40px;background:var(--rer-surface,#fff);border:1px solid var(--app-line,#e3e6ec);border-radius:var(--rer-radius,8px);overflow-wrap:anywhere}'
+ + '.bifocal-not-found .brand{display:flex;align-items:center;gap:10px;margin:0 0 32px;font:700 22px/1 var(--rer-font-heading,inherit);letter-spacing:-.01em}.bifocal-not-found .brand img{width:50px;height:24px}'
+ + '.bifocal-not-found h1{font:700 28px/1.2 var(--rer-font-heading,inherit);letter-spacing:-.015em;margin:0 0 16px}.bifocal-not-found p{margin:0 0 16px;color:var(--rer-muted,#5b6475)}'
+ + '.bifocal-not-found ul{display:flex;flex-wrap:wrap;gap:8px 20px;margin:24px 0 0;padding:0;list-style:none}.bifocal-not-found a{color:var(--rer-link,#1d5ed8);font-weight:600}'
+ + '@media(max-width:480px){.bifocal-not-found{margin:16px auto;padding:28px 20px}.bifocal-not-found h1{font-size:26px}}'
 
 export function NotFoundPage() {
  return <HydrationUnit><main className="bifocal-not-found">
