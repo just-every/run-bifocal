@@ -314,7 +314,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "68f4c35735dc5ed14e79545c83fcfe64939ed64c4c3315984b73ad6c6d43e23a",
+      "sha256": "5582254a940811adafd9505fa50eaa8e84504f8441f6e0c22688151829e87e24",
       "executable": false
     },
     "docs/SPREADSHEET-RANGES.md": {
@@ -326,7 +326,7 @@
       "executable": false
     },
     "docs/what-runs-today.md": {
-      "sha256": "d6a8288731016b779e5526484d573b9aab606a234e38a788f3425d3cdfda1cdf",
+      "sha256": "635279b4a8d58a4ffb4c708fb89d58f40eea5888cd1aa4191b6ff043f0a9f3ae",
       "executable": false
     },
     "edition.json": {
@@ -2754,7 +2754,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "4efb0540c2e6a831bbbaaa8fdc8298d995f46f0522929e1b3e83350b55d75e03",
+      "sha256": "5ce11113b691fac38abefebb830cded889f4aea0bc0f8b0978dcf22ba506b903",
       "executable": false
     },
     "src/site/styles/landing.css": {

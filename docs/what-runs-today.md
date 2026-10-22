@@ -32,7 +32,7 @@ above are for the installation's owner only.
 
 The [contract](/contract) lists every clause Bifocal is being built to meet, from database connections to the
 customer portal, and marks each one done, partial or missing, judged from the code and its tests. Today one clause is
-done, numerical correctness and reproducible answers (BIF-045), and four are partial: files and spreadsheets (BIF-003),
-US dates, money and calendars (BIF-036), safe analytical execution (BIF-057) and durable operation (BIF-058). The rest
+done, numerical correctness and reproducible answers (BIF&#8209;045), and four are partial: files and spreadsheets (BIF&#8209;003),
+US dates, money and calendars (BIF&#8209;036), safe analytical execution (BIF&#8209;057) and durable operation (BIF&#8209;058). The rest
 are missing. The homepage shows the product the contract describes; this page and the contract say
 what runs now.
