@@ -275,7 +275,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "ffaeea3ab239a3c0c6a8891ebefba0855bee8c56237ad943c200d66c02eefeb1",
+      "sha256": "cb8f63b7e0b29e824e595e697eafed5c34abdb30ba5c37dd0c6b78e3c4b3f2b1",
       "executable": false
     },
     "composition.lock.json": {
