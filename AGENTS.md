@@ -1,6 +1,6 @@
 # Agent instructions
 
-This checkout provides the Base foundation and a bounded owner-only CSV/XLSX import HTTP backend. The full BI product and browser import screen are unfinished.
+This checkout provides the Base foundation and a bounded owner-only CSV/XLSX import HTTP backend. The browser file workflow and bounded exact-answer APIs are available; the full BI product is unfinished.
 Start with the installed Lobby at `/`, sign in at `/signin`, finish first-run
 setup at `/setup`, then open `/app`. The app home describes the foundation capability state and links to existing
 account tools, Lobby, Run and contract pages, with native sign-out.
@@ -11,7 +11,7 @@ authorization. Only foundation owner/admin/member roles exist; analytics
 workflows and roles are not built.
 The separate public Run site provides the homepage, `/run`, `/docs` and `/contract`.
 
-Bifocal has no product import screen yet: `/app/import` is not usable.
+The owner file workflow is at `/app/import`: prepare, review, approve, reconcile, inspect history and originals, Undo and erase. `/app/queries` creates exact immutable answers and saves tabular dashboard/report results. Native US company/calendar/rate APIs are documented in `docs/US-CONVENTIONS.md`.
 The file HTTP backend uses Base’s shared review/apply/reconcile/Undo door; see
 `docs/FILE-IMPORT.md` for its bounds and explicit unfinished scope.
 BIF-003 and BIF-057 are partial; BIF-025 (incumbent migration) remains missing. Installation archives use the separate `rer export` and `rer import`
@@ -140,7 +140,7 @@ flags, private state, deployment inputs and remote limitations.
 
 Choose and verify the edition UX before adding product functionality. This
 source includes minimal real owner/operator auth, D1 and silent development
-mail suppression. Its only current product domain is bounded CSV/XLSX datasets; it has no background jobs.
+mail suppression. Its current product domains are bounded file/range datasets, native company conventions and immutable exact answers; it has no general background jobs.
 
 A change that ships or alters a contract clause updates that clause's row in
 `CONTRACT.md`'s Status table in the same PR; `rer check` refuses a table that

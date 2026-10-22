@@ -9,6 +9,7 @@ import { DoorError } from '../../../modules/import-kit/src/door/protocol.ts'
 import { fileSource } from './csv'
 import { fileTargets, fileDestination } from './targets'
 import { fileOwner } from './owner.server'
+import { retainReview, readReview } from './reviews.server'
 
 const DOOR_KEY = 'bifocal:files:v1', PRINCIPAL = 'role:owner'
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox", 'referrer-policy': 'no-referrer' }
@@ -44,7 +45,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
   if (path === `/api/operator/datasets/${dataset}/erase`) {
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
    const raw = await boundedBody(request)
-   if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || !current || raw.reviewedRevision !== current.revision) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the current dataset revision and explicitly confirm its id before erasing.' }, 409)
+   if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || raw.reviewedRevision !== (current?.revision ?? null)) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the dataset state and explicitly confirm its id and current revision, or null when no table is published, before erasing.' }, 409)
    const state = await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{ source_identity: string }>()
    const identity = state?.source_identity ?? randomUUID()
    const tombstone = sha256(canonicalJson([identity, 'rer_portability_state', { id: 1 }]))
@@ -53,16 +54,31 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('DELETE FROM rer_portability_guard'), sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)', identity, tombstone),
     sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
-   const match = fileTargets.matches(current, destination, 'file-table', dataset)
+   const match = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
+   const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
+   const counts = sql(`SELECT 'bf_file_tables' AS store,count(*) AS rows FROM bf_file_tables WHERE id=?
+    UNION ALL SELECT 'bf_file_reviews',count(*) FROM bf_file_reviews WHERE dataset_id=?
+    UNION ALL SELECT 'bf_query_snapshots',count(*) FROM bf_query_snapshots WHERE id IN (${derived})
+    UNION ALL SELECT 'bf_query_sources',count(*) FROM bf_query_sources WHERE snapshot_id IN (${derived})
+    UNION ALL SELECT 'bf_query_artifacts',count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived})`, dataset, dataset, dataset, dataset, dataset)
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
-    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM ik_d1_assertions'),
+    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
+    sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: receipt.stores, reason: 'The dataset and retained import content were erased; unrelated native datasets remain. Historical approval metadata remains. Earlier installation archives require the current erasure journal.' })
+   const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots and report results were withdrawn. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
   if (path === '/api/operator/import/history') {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
    const history = await readImportDoorHistory(env.DB, DOOR_KEY, owner)
    return json({ history: history.filter(entry => entry.namespace === namespace), businessImports: 'disabled' })
+  }
+  if (path.startsWith('/api/operator/import/review/')) {
+   if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
+   const offset = Number(new URL(request.url).searchParams.get('offset') ?? '0')
+   if (!Number.isSafeInteger(offset) || offset < 0) return json({ error: 'invalid_offset' }, 400)
+   const review = await readReview(env.DB, owner, dataset, path.slice('/api/operator/import/review/'.length), offset)
+   return review ? json(review) : json({ error: 'review_not_found' }, 404)
   }
   if (path.startsWith('/api/operator/import/original/')) {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
@@ -90,8 +106,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    if (!row) return json({ error: 'plan_not_found' }, 404)
    const snapshot = await loadSnapshot(admitted, row)
    const table = snapshot.plan.entries[0]?.effects[0]?.value as Record<string, unknown> | undefined
+   const validation = await retainReview(env.DB, owner, dataset, row.id, snapshot.plan)
    await transact(env.DB, owner, [])
-   return json({ ...preview, preview: table ? { columns: table.columns, rowCount: (table.rows as unknown[]).length, sample: (table.rows as unknown[]).slice(0, 5), key: table.key, source: table.source } : null })
+   return json({ ...preview, validation, preview: table ? { columns: table.columns, rowCount: (table.rows as unknown[]).length, sample: (table.rows as unknown[]).slice(0, 5), key: table.key, keyCandidates: table.keyCandidates, source: table.source, updatedAt: table.updatedAt } : null })
   }
   return response
  } catch (error) {
