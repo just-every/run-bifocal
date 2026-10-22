@@ -20,7 +20,7 @@ export const Route = createRootRoute({
 function Document({ children }: { children: ReactNode }) {
  return <html lang="en"><head>
     {fontLinks.map(link => <link key={link.href} {...link} />)}
-    <link rel="stylesheet" href="/rer-theme.css" />
+    <link rel="stylesheet" href="/app-theme.css" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
     <style>{introCss}</style>

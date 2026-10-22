@@ -1,10 +1,10 @@
-/* Bifocal's run-site tokens. The brand's colours and faces are defined once in public/rer-theme.css, which the
+/* Bifocal's run-site tokens. The brand's colours and faces are defined once in public/app-theme.css, which the
    installed app links and this file imports; the site sets its own --rer-* values over the app's. The look is the
    owner's hero H (design desk, 20-21 Oct 2026): hard flat fields of cobalt, golden yellow, ink and white with straight
    seams; three voices only (a rough brush script for questions, a regular neo-grotesk for sentences, a heavy grotesk
    for numerals and the wordmark); nothing rounded, no gradients, shadows or cards. Base's /run, /contract and
    not-found pages read the --rer-* names below. */
-@import '../../../public/rer-theme.css';
+@import '../../../public/app-theme.css';
 :root {
   --font-brush: 'Kaushan Script', 'Segoe Script', 'Brush Script MT', cursive;
   /* The brush's thickening stroke: .05 em at the hero's 129 px (the plate's 22 px median stroke at 1536), lighter in em

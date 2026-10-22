@@ -70,6 +70,6 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
       ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: document(docs(page.slug).title, docs(page.slug).description, <DocsArticle slug={page.slug} />, COPY) })),
       { path: '/404', html: base('not-found', siteNotFoundHtml(site, data, contract), 'Not found · Bifocal', DESCRIPTION) },
     ],
-    assets: ['rer-theme.css', 'fonts', 'brand', 'site', 'favicon.ico', 'favicon-32.svg', 'apple-touch-icon.png'],
+    assets: ['rer-theme.css', 'app-theme.css', 'fonts', 'brand', 'site', 'favicon.ico', 'favicon-32.svg', 'apple-touch-icon.png'],
   }
 }

@@ -13,8 +13,8 @@ import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
 import { settingsPage, nameNotice, sessionNotice, type AccountSession } from './app/settings'
 import { displayZone } from './bifocal/company/display-zone'
 
-// The edition's declared theme (public/rer-theme.css), as Base frames link it.
-const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
+// The edition's declared theme (public/app-theme.css), as Base frames link it.
+const theme = { href: '/app-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
  DB: D1Database

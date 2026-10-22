@@ -567,7 +567,7 @@
       "executable": false
     },
     "public/rer-theme.css": {
-      "sha256": "e97bf521a2a9ac456b8ecb046b769c60b0c6857e45a1b0ed431a9d57b81d6cd6",
+      "sha256": "462d89e5bcb07f418dfd177814e3274ce75b1e79c8d075686c682ff86b717df3",
       "executable": false
     },
     "public/site/share.png": {
@@ -683,7 +683,7 @@
       "executable": false
     },
     "src/app/shell.ts": {
-      "sha256": "acfe16ed5ae70c48efc96af2d6b7e33dd35fde6d2a6a0443f2354b4f9b89e2a6",
+      "sha256": "ce42c326c4a47ecc95920c47305c0e7fb47db7e4df39709775aed8d1fab987b6",
       "executable": false
     },
     "src/app/time.ts": {
@@ -691,7 +691,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "a1d6b739bf82f0040518069d627fcad5944c4e30ee191d94adbf658b6f9cb8e4",
+      "sha256": "f48fb3a07e15fe48bbd6b50c15020df7fec93073de4537799a26b0db05006310",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -983,7 +983,7 @@
       "executable": false
     },
     "src/identity.ts": {
-      "sha256": "8ece58da3ea57a8d5ecf91398aa3722759e5bac9f0a2d6fc86061a6169e80542",
+      "sha256": "dd6f8207e3bb00d7d52efeec41b794a847427f0ae3595765b92400e2049d882f",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2631,7 +2631,7 @@
       "executable": false
     },
     "src/routes/__root.tsx": {
-      "sha256": "a6e7eabfc16292f6f12a268a005b6cd0c26e818c4baa4351ab3028111a591881",
+      "sha256": "17c4a5f70ace477072aadc7bc64a34463a690270949737c0dad631b1a74bf2c7",
       "executable": false
     },
     "src/routeTree.gen.ts": {
@@ -2739,7 +2739,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "492249611fff9cdc894ace3f93aa1b40d80f9dee78771956e77ade88a284072f",
+      "sha256": "9799ec70d0693e99cbbeebfdc06f3943aace01c155f61990f8b3b6ea81268880",
       "executable": false
     },
     "src/site/run.json": {
@@ -2823,7 +2823,7 @@
       "executable": false
     },
     "src/site/styles/tokens.css": {
-      "sha256": "068913ef9b78d091099cdf24ad8f250d74ebd362037a7d61067f0be6c62a8f45",
+      "sha256": "f41aec7e0485076d52e0f932c7c7980c68680ce51a353552d7f3c859413139f5",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

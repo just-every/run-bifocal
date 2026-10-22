@@ -15,7 +15,7 @@ export const identity: EditionIdentity = {
   runSite: `https://${site.domain}`,
   // An installed instance serves the Lobby at /.
   installedHome: 'lobby',
-  theme: '/rer-theme.css',
+  theme: '/app-theme.css',
   mark: '/brand/mark.svg',
   fonts: '/fonts/fonts.css',
   accentColor: branding.primaryColor,
