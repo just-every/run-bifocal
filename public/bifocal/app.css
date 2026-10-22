@@ -56,7 +56,9 @@ p{margin:0 0 12px;text-wrap:pretty}
 .section{margin:36px 0 4px}
 .hint,.muted{color:var(--app-muted);font-size:14px}
 .note{margin:20px 0;padding:14px 16px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text-2);font-size:14px}
-.links{margin-top:20px;font-size:15px}
+/* A wrapped links line breaks before its "·", never after it, with room for 24 px targets. */
+.links{margin-top:20px;font-size:15px;line-height:2}
+.links .dot{margin-left:4px}
 .mono,code,pre,.digest{font-family:var(--font-mono)}
 .nowrap{white-space:nowrap}
 code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px solid var(--app-line);font-size:13px}

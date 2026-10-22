@@ -458,7 +458,7 @@
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "4197011fef15e996361cdc3b15520493a70ddb87b461c9b020d161083c5ecc9c",
+      "sha256": "4f8e86136fe5426f47086aefd4bdf07090b4ffba6e6c3400a62b72974e4cd0e5",
       "executable": false
     },
     "public/bifocal/chevron-dark.svg": {
@@ -654,7 +654,7 @@
       "executable": false
     },
     "src/app/home.ts": {
-      "sha256": "7db2f531cbc0af3f840ccef3bd24f49a8ae59270f51f4095d14caf1a21f209f9",
+      "sha256": "c27782f441f4baad5b35f88df86df45a0b28f1ec5e9aea1cb2937d131c978efb",
       "executable": false
     },
     "src/app/not-found.tsx": {
