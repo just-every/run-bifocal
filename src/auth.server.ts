@@ -11,6 +11,7 @@ import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './
 import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
 import { settingsPage, nameNotice, sessionNotice, type AccountSession } from './app/settings'
+import { displayZone } from './bifocal/company/display-zone'
 
 // The edition's declared theme (public/rer-theme.css), as Base frames link it.
 const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
@@ -50,7 +51,7 @@ export function operatorAuth(env: Bindings) {
 }
 
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
-// Signed-in pages wear the app frame (src/app/shell.ts); the installed guide wears it signed out.
+// Every app page wears the frame (src/app/shell.ts); the installed guide wears it signed out too, without tools.
 function html(main: string, title: string, viewer: Viewer | null, place: Place, status = 200) {
  const side = viewer ? accountSide(viewer.role, place) : ''
  return new Response(appDocument({ title, viewer, place, side, main }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
@@ -60,7 +61,8 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  const env = runtimeBindings(original), url = new URL(request.url)
  if (url.pathname === '/docs') {
   if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405, headers: { ...privateHeaders, allow: 'GET, HEAD' } })
-  return html(installedDocs(), `Installation guide · ${branding.name}`, null, 'guide')
+  const session = await operatorAuth(env).getSession(request)
+  return html(installedDocs(), `Installation guide · ${branding.name}`, session?.operator ?? null, 'guide')
  }
  if (url.pathname.startsWith('/.well-known/rer-') || url.pathname.startsWith('/auth/dependencies/')) {
   const linked = await createDependencies({ db: env.DB, origin: env.AUTH_ORIGIN, name: branding.name, provider: env.IDENTITY_PROVIDER, local: env.AUTH_LOCAL === 'true', auth: operatorAuth(env), claimOwner: token => createIdpOwnerClaimHandler({db:env.DB,authConfig:authConfig(env),clientIp:()=>request.headers.get('CF-Connecting-IP')??''})(new Request(env.AUTH_ORIGIN+'/auth/owner-claim',{method:'POST',headers:{Host:new URL(env.AUTH_ORIGIN).host,Origin:env.AUTH_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({token})})) }).handle(request)
@@ -80,7 +82,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=%2Fapp%2Fsettings' } })
   const response = await createAuthHandler(auth)(new Request(new URL('/auth/sessions', url), { headers: request.headers }))
   const sessions = response?.ok ? await response.json() as AccountSession[] : null
-  return html(settingsPage(session.operator, sessions, session.id, notice), `Your settings · ${branding.name}`, session.operator, 'settings', status)
+  return html(settingsPage(session.operator, sessions, session.id, await displayZone(env, session.operator.email), notice), `Your settings · ${branding.name}`, session.operator, 'settings', status)
  }
  const peopleResponse = async (notice = '', status = 200) => {
   const auth = operatorAuth(env)

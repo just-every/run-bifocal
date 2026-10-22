@@ -27,9 +27,12 @@ function initials(name: string) {
  return (letters.length > 1 ? letters[0] + letters[letters.length - 1] : letters[0] ?? '·').toUpperCase()
 }
 
+/** A person's initials disc, the one avatar the bar and People draw. */
+export const avatar = (name: string) => `<span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span>`
+
 function topBar(viewer: Viewer | null, place: Place) {
  const tools = viewer ? TOOLS.filter(([, , , allowed]) => allowed(viewer.role)).map(([id, label, href]) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`).join('') : ''
- const account = viewer ? `<div class="account"><span class="avatar" aria-hidden="true">${escapeHtml(initials(viewer.displayName))}</span><span class="who">${escapeHtml(viewer.displayName)}</span><form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></div>` : ''
+ const account = viewer ? `<div class="account">${avatar(viewer.displayName)}<span class="who">${escapeHtml(viewer.displayName)}</span><form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></div>` : ''
  return `<header class="topbar">${lockup}${tools ? `<nav class="tools" aria-label="App">${tools}</nav>` : ''}${account}</header>`
 }
 

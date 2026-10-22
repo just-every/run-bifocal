@@ -1,6 +1,7 @@
 import { element, table, metadata, sourceView } from './file-view.js'
 import { envelope, upload, originalFile } from './file-upload.js'
-const $ = id => document.getElementById(id), form = $('import-form')
+import { stamp } from './format.js'
+const $ = id => document.getElementById(id), form = $('import-form'), zone = document.body.dataset.zone
 let plan, planDataset, current, reviewedDataset, nextErrors, activeInput, busy = false
 function status(text, error = false) { $('status').textContent = text; $('status').dataset.error = String(error) }
 async function request(path, body, dataset, method = body === undefined ? 'GET' : 'POST') {
@@ -36,7 +37,7 @@ function renderPlan(value, dataset) {
  $('plan-summary').replaceChildren(metadata([['Dataset', dataset], ['Fingerprint', value.fingerprint], ['Result rows', preview?.rowCount ?? 'Blocked'], ['Selected key', preview?.key], ['Detected candidate keys', preview?.keyCandidates?.join(', ') ?? 'None']]))
  $('sample').replaceChildren(preview ? table('First five resulting rows', columns.map(column => column.name), preview.sample) : element('p', value.rejected.map(row => row.reason).join('\n'), 'warning'))
  $('mapping').replaceChildren(table('Reviewed column mapping', ['Column', 'Type'], columns.map(column => [column.name, column.type])))
- $('source').replaceChildren(preview ? sourceView(preview.source, preview.updatedAt) : element('p', 'No valid table is proposed. Original upload remains in custody until dataset erasure.'))
+ $('source').replaceChildren(preview ? sourceView(preview.source, preview.updatedAt, zone) : element('p', 'No valid table is proposed. Original upload remains in custody until dataset erasure.'))
  showErrors(value.validation); $('apply').disabled = true
  $('review').scrollIntoView({ block: 'start' }); status(value.counts.rejected ? 'Import blocked. Inspect the errors before cancelling and correcting it.' : 'Plan ready. Review the rows, source and exact fingerprint before approving.')
 }
@@ -46,10 +47,10 @@ async function load(id = form.elements.dataset.value) {
  if (!response.ok && response.status !== 404) throw Error(data.reason ?? data.error)
  current = response.ok ? data : null; reviewedDataset = id
  $('current-empty').textContent = current ? `Revision ${current.revision}. ${current.table.rows.length} rows.` : 'No table is published. Retained rejected or undone imports can still be erased.'
- $('current-table').replaceChildren(...current ? [sourceView(current.table.source, current.table.updatedAt), table('Current rows (first 20)', current.table.columns.map(column => column.name), current.table.rows.slice(0, 20))] : [])
+ $('current-table').replaceChildren(...current ? [sourceView(current.table.source, current.table.updatedAt, zone), table('Current rows (first 20)', current.table.columns.map(column => column.name), current.table.rows.slice(0, 20))] : [])
  const history = await call('history', undefined, id); $('history-list').replaceChildren()
  for (const item of history.history) {
-  const row = element('div', undefined, 'history-item'); row.append(element('p', `${item.state} · ${item.owner} · ${item.approvedAt}`), element('p', `Plan ${item.planId} · ${item.fingerprint}`))
+  const row = element('div', undefined, 'history-item'); row.append(element('p', `${item.state} · ${item.owner} · ${stamp(item.approvedAt, zone)}`), element('p', `Plan ${item.planId} · ${item.fingerprint}`))
   const original = element('button', 'Download original'); original.type = 'button'; original.onclick = () => action(async () => {
    const value = await call('original/' + item.planId, undefined, id)
    const file=originalFile(value.originals)

@@ -454,11 +454,19 @@
       "executable": false
     },
     "public/bifocal/answers.js": {
-      "sha256": "a9094b1f8b25819ac27595b8f2cf86e8fd7bba9b4402843a7580a64c11c9d64b",
+      "sha256": "752f616efef224db1675abfa9c00fd3f5c506a9bb527eea4731daddfbc9e807e",
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "1baa6a9dacf39e9280b6d8a3dc56d597cb4fc0894bf11b7cc5e2f59a93972b89",
+      "sha256": "01b8d122d717c7bdf5473e699d6e366014013295db33807b9c5d6672a2a761b0",
+      "executable": false
+    },
+    "public/bifocal/chevron-dark.svg": {
+      "sha256": "21bf9697eb8a816fbe595c2cfc56fb718d1fe505d115eba01c16eac6ba5274bf",
+      "executable": false
+    },
+    "public/bifocal/chevron.svg": {
+      "sha256": "50d2dd2e7e815deeb8b5279b7bcefe8b6084f1c871cd3b003b05e4ba4c2dddf8",
       "executable": false
     },
     "public/bifocal/company.js": {
@@ -470,11 +478,15 @@
       "executable": false
     },
     "public/bifocal/file-view.js": {
-      "sha256": "184d5bdfee58ad9a27339e9c2f8df7fe4eb2341fa137020da86e71ca2dad2a94",
+      "sha256": "79db1b5bd669c02c5b7212e918b96ac44163376d52252b36cf9365e351b10afe",
       "executable": false
     },
     "public/bifocal/files.js": {
-      "sha256": "764ad630ad1db650e68494a84cdf9806806c5e9321ca2509faa5e6a541edef19",
+      "sha256": "df81f3f92715600ba102d017c04941cb2bea14d3104f405f19933bc0c0d74f13",
+      "executable": false
+    },
+    "public/bifocal/format.js": {
+      "sha256": "cc643fabf2fbe0c7220b49199a32376c6c36eaa35c0fe9838ef8102bc563df36",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -650,19 +662,23 @@
       "executable": false
     },
     "src/app/people.ts": {
-      "sha256": "f1f3b75d7fe9fc4018062b4732c4b10a46b62795ba740e014ed7816b041ed890",
+      "sha256": "46669cb10756ed798571289e4c6f4a4078df53844768bb3b0f089b5ba88c1712",
       "executable": false
     },
     "src/app/settings.ts": {
-      "sha256": "77d8b3c175b2eaa680e5255f9f41af99635318266b1554720e2e1bd45fcd29f7",
+      "sha256": "1f2e314dc5a403aa30b290471b33d33b1f01168f4f4a13090f89807afeccd974",
       "executable": false
     },
     "src/app/shell.ts": {
-      "sha256": "fb6124a84d8f2f4d19ec0956816eea3b71f11bca666c610d9136180f7fa765d1",
+      "sha256": "acfe16ed5ae70c48efc96af2d6b7e33dd35fde6d2a6a0443f2354b4f9b89e2a6",
+      "executable": false
+    },
+    "src/app/time.ts": {
+      "sha256": "e1ad331cc59e6d75f3a61808ef2cdf9775d60cee368edede753a518364c2798a",
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "88423760c99bcc1eba3ecbc19ef772adb755ae396293e7f00fdc123cc030d351",
+      "sha256": "a412c1cef2aa24406e2e7e8419f1ed7455fd62066a0bdfd694b48fc8bd0f1493",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -793,8 +809,12 @@
       "sha256": "fb4392b611576c71e3cef187c2b86d5d70fc5f380d2b53672d99dbfe360a30b7",
       "executable": false
     },
+    "src/bifocal/company/display-zone.ts": {
+      "sha256": "7ab848ee7c1b3d642dcefd4a2844bfd8ca4ccb6e58874c02259dc332083f0762",
+      "executable": false
+    },
     "src/bifocal/company/page.server.ts": {
-      "sha256": "f04143105a3dc5ef2f0771b7d2851fbc2e384792bbbbc544cc5f71cf90731da8",
+      "sha256": "3d18d7eb527fe4e3fc4af66f39ed0e5123df9f9227330cb5e4fc3b4cbc27b6f5",
       "executable": false
     },
     "src/bifocal/company/protocol.ts": {
@@ -854,7 +874,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/page.server.ts": {
-      "sha256": "a44bc72c2529e80b9691770f2970018c6d0bb275be97999c3a7528f072a68d55",
+      "sha256": "0138847bc5f0457f7f9b587f71380e1491aacbd938d1e4de1c09c2d25333262e",
       "executable": false
     },
     "src/bifocal/imports/files/reviews.server.ts": {
@@ -882,7 +902,7 @@
       "executable": false
     },
     "src/bifocal/query/page.server.ts": {
-      "sha256": "2a55565cdf9c3a3f0e1fa433de0a1fc2baf53632009d0fdc91c14f1d78a710fa",
+      "sha256": "fb35a8adf39b2c27ae524a3e2070b70a96640f1c79cf8261a72177eacb1e2028",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
