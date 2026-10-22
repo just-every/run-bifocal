@@ -526,7 +526,7 @@ BIF-045 is done for current numerical/replay doors; BIF-003/036/057/058 are part
 
 ## Status
 
-Judged from the code and tests at commit `07522330d4845da8617ac9cd9cc24dfff9f36e0b` (22 October 2026).
+Judged from the code and tests at commit `5ddc65614368a9e4c7461e673c3402b8a0142c0b` (22 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
