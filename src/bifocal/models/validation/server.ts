@@ -111,5 +111,5 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
    return json({...snapshot,modelId:id,environment,revision,cacheEpoch:model.cache_epoch,productionSends:0,sourceWrites:0},201)
   }
   return json({error:'not_found'},404)
- }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'semantic_conflict',reason:'The current authority, source, conventions or exact reviewed model changed. No publication was committed.'},409)}
+ }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'semantic_conflict',reason:'The current authority, source, conventions or exact reviewed model changed. No publication was committed.'},409)}finally{await discardBody(request)}
 }

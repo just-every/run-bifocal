@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d51eb1270897ce2d09fc8729a54ab84b55a1321569499e18cd5a59df2173eaec",
+      "sha256": "f57946bd1071cab11c884f338f4c721d7072b47e06e0e66e69705745c3ceec4f",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6a49577c021dbb2e132498809f337541c3820e9c1b8f9d654901a9c030ee71ac",
+      "sha256": "140429f60134fcee6082194b91a2f375657ef78a00f345af3c88f177ed5b5849",
       "executable": false
     },
     "deploy-demo.json": {
@@ -1011,7 +1011,7 @@
       "executable": false
     },
     "src/bifocal/models/validation/server.ts": {
-      "sha256": "527a6cadfd5daf30923bd0e330e71b00920bd163f2d1d5e1be840613815d412f",
+      "sha256": "668953f023badb019dd1c2622c12c978677d970e96a2d53ac44173516b95cfc0",
       "executable": false
     },
     "src/bifocal/models/validation/store.server.ts": {
@@ -3059,7 +3059,7 @@
       "executable": false
     },
     "tests/journeys/exact-queries.mjs": {
-      "sha256": "301350e0c7e5333173a5576b4f7620ba6879d8711690d8f80a5b3bebcbc08b02",
+      "sha256": "5b1e6e3657e85dfe98911ea7bff4580d6f62ab7cab0419019c5d30b616009ccc",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
@@ -3071,7 +3071,7 @@
       "executable": false
     },
     "tests/journeys/report-custody.mjs": {
-      "sha256": "24dbf004a906e050ce02ae90b7e0cca1f02d03086e82266d6db82b640552412d",
+      "sha256": "e759392b3308bce7375a73873ca2ac73f2d9cd51355b0aa97cc999f3fdd3414c",
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {

@@ -140,6 +140,7 @@ async function proveSemanticPromotion(origin,context,page,query,dimension,files)
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:origin,Cookie:''},data:{definition}})).status(),401)
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:'https://foreign.example.test'},data:{definition}})).status(),401)
  await request('/synthetic-bifocal-999',{definition},404)
+ await request('?synthetic-bifocal-999=1',{definition},400)
  const sourceBefore=await files.read(query.dataset)
  const model=await request('',{definition},201),prefix='/'+model.modelId,first=prefix+'/branches/'+model.branchId
  const preview=await request(first+'/validate',{})
