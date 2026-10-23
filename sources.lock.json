@@ -450,6 +450,18 @@
       "sha256": "eb1ff508a7edfa46246235144c3d72e0c3a959fb7c7fbd6b2a83933aa27717f0",
       "executable": false
     },
+    "migrations/core/0025_analytics_reads.sql": {
+      "sha256": "ccc0cf4bfc95763618576c949cc2fec167f9e7a2851fb0bf3939f7dc06d49ccf",
+      "executable": false
+    },
+    "migrations/core/0026_cross_system_results.sql": {
+      "sha256": "d457c081b3efa18adae5366f03518d12d86758dac83115fcea30532cf2be1a7e",
+      "executable": false
+    },
+    "migrations/core/0027_warehouse_exports.sql": {
+      "sha256": "a601db383c6a4d82468ec4a2c767c5c4a35dd9358643bcd4b37d3f65b6955613",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -484,6 +496,10 @@
     },
     "public/bifocal/app.css": {
       "sha256": "4a1015ae8907f531e625595417a468b4154d295985de79b9b1258285e43f02e5",
+      "executable": false
+    },
+    "public/bifocal/board.js": {
+      "sha256": "10cb14232adc806d4612bcc7789b62bff784ad8cf501a5633c9e35a977865371",
       "executable": false
     },
     "public/bifocal/chevron-dark.svg": {
@@ -886,8 +902,24 @@
       "sha256": "941a8a710c4577cf940d117709ae1aae2848e26355002c838557e73abb80b491",
       "executable": false
     },
+    "src/bifocal/dashboards/page.ts": {
+      "sha256": "89d9a0aa2108f4caaec19dc52f93071c4798fd1eb5bbd0abe64e62a053e742d5",
+      "executable": false
+    },
+    "src/bifocal/dashboards/store.server.ts": {
+      "sha256": "3b9d4d93beae07d3c6b529d20fd16cb7141b1d1d84eaf5cbdeddf34f672e87f6",
+      "executable": false
+    },
     "src/bifocal/data/snapshots/store.ts": {
       "sha256": "540d44c8dc48d867749497cf1172923efab5f66287a8e24edd2341c228c8de6d",
+      "executable": false
+    },
+    "src/bifocal/exports/warehouse/rows.ts": {
+      "sha256": "8e85e200e0ced5d48b4ba76bf960910ece938dffe47c40b26aef78d38b5da18b",
+      "executable": false
+    },
+    "src/bifocal/exports/warehouse/server.ts": {
+      "sha256": "119b4987a69445382745a94a98e86dce32b350b3e2620370215424bc6e5c227e",
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
@@ -948,6 +980,38 @@
     },
     "src/bifocal/reconciliation/compare.ts": {
       "sha256": "cd1b103ad83c461ea428c5564c1e159c0ec2ec054aa34f1c1abdc0f4c984474a",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/audit.server.ts": {
+      "sha256": "80870b1254cf5b4ded3e60699dc1b078ca271f254cbea46b9298e7a45bfcffb8",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/door.server.ts": {
+      "sha256": "5128919ccccc7bc379f38a1296bc7e49294035f7fc8571a12818b7eb1413ea4b",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/lineage.ts": {
+      "sha256": "54703d21b976048d0424118845159ef276f0ec1c3ecc4021b10ffb324a61967e",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/protocol.ts": {
+      "sha256": "a4403bb258e6b2a2909e621ceac175b66b8d6526847b16efa6318fb7ef618466",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/server.ts": {
+      "sha256": "cea4014213709e4a81fe5882bfcf369564ff2fffb9a9806b46d00b5ba5ac4bd4",
+      "executable": false
+    },
+    "src/bifocal/sources/analytics/setup.ts": {
+      "sha256": "062691cedac3c29ff8e3bbfcbf24fe0560df51873df0e48b32d5831b23a32ef2",
+      "executable": false
+    },
+    "src/bifocal/sources/databases/bigquery.ts": {
+      "sha256": "5b8fca05220267fed88ed8edee5193399a4ba02c01a688e53f8eef60d476fb3b",
+      "executable": false
+    },
+    "src/bifocal/sources/siblings/vane.ts": {
+      "sha256": "80a73547151167c544449a18a1543fc87318bffb10a0ad24a47ad059cf5ba832",
       "executable": false
     },
     "src/bifocal/sources/spreadsheets/consent.server.ts": {
@@ -2884,6 +2948,14 @@
     },
     "tests/incremental-typecheck.test.mjs": {
       "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
+      "executable": false
+    },
+    "tests/journeys/analytics-boundaries.mjs": {
+      "sha256": "a975673a86baa84d31355bf848cae0f904b12c834c0cbb986d462cf386755ef9",
+      "executable": false
+    },
+    "tests/journeys/analytics-edge.mjs": {
+      "sha256": "11f64299d6dcaf35a0eee67c1acfc9c034ee3420215459bac80b755238874d07",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {

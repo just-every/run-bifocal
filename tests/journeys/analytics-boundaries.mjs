@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import { analyticsEdge } from './analytics-edge.mjs'
 const grant='synthetic-bifocal-60'
 export async function proveAnalyticsBoundaries(original,context,page,persist) {
+ const browserRequests=[]
+ const recordRequest=request=>browserRequests.push(request.url())
+ page.on('request',recordRequest)
  const edge=await analyticsEdge(persist),{origin,vaneOrigin,state}=edge
  const call=async(path,data,status=200,extra={})=>{
   const response=await context.request.fetch(origin+'/api/operator/'+path,{method:data===undefined?'GET':'POST',headers:{Origin:origin,...extra},...(data===undefined?{}:{data})})
@@ -95,6 +98,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('dashboards/'+lastBoard.id,undefined,404);await call('warehouse/send',{id:pending.id,fingerprint:pending.fingerprint,accessToken:grant,confirmExport:true},409)
   await page.goto(origin+'/app/dashboards/'+lastBoard.id);await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true');await shot('withdrawn',390)
   assert.ok(!await page.locator('#business-board').isVisible(),'withdrawn cross-system source values are not rendered')
+  assert.ok(browserRequests.every(url=>new URL(url).origin === origin),'the built analytics workflow loads no external tracker or telemetry script')
   console.log('Analytics boundaries: Vane Stats/export and permitted product table beside exact ledger revenue, source links, chart/report and warehouse acknowledgement at 1440/390; separate setup links, no tracker/telemetry, revoked/partial source preservation, uncertain/partial non-replay and erasure withdrawal passed (official-schema network edges, not live-provider proof)')
- } finally {await page.goto(original+'/app');await edge.close()}
+ } finally {page.off('request',recordRequest);await page.goto(original+'/app');await edge.close()}
 }
