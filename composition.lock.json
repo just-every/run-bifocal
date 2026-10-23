@@ -2213,6 +2213,13 @@
       "repository": "base",
       "source": "modules/operator-auth/identity/oidc/README.md"
     },
+    "src/modules/operator-auth/identity/oidc/aes-gcm.mjs": {
+      "sha256": "afe49eda22b936c7582c2db203c529861f16492fd96267fe6daca91683aee103",
+      "mode": 420,
+      "component": "operator-auth",
+      "repository": "base",
+      "source": "modules/operator-auth/identity/oidc/aes-gcm.mjs"
+    },
     "src/modules/operator-auth/identity/oidc/client-auth.mjs": {
       "sha256": "061ac35699976c075b120891f7eacb4b1c893b9081faff1e5b3bd0a5834d97ef",
       "mode": 420,
