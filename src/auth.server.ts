@@ -6,6 +6,9 @@ import { fontDocumentResponse } from './base/font-response'
 import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthConfig } from './modules/operator-auth/index.mjs'
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
+import { appList } from './bifocal/catalog/apps/store.server'
+import { fileOwner } from './bifocal/imports/files/owner.server'
+import { ownerIdentity } from './bifocal/data/snapshots/store'
 import { homePage } from './app/home'
 import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './app/shell'
 import { installedDocs } from './app/docs'
@@ -153,7 +156,9 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
-  return html(homePage(session.operator), `App home · ${branding.name}`, session.operator, 'home')
+  const owner = await fileOwner(request, env)
+  const apps = owner ? await appList(env, owner, await ownerIdentity(env, owner)) : []
+  return html(homePage(session.operator, apps.filter(app => app.publishedVersion)), `App home · ${branding.name}`, session.operator, 'home')
  }
  return null
 }

@@ -1,3 +1,4 @@
+import { proveReportingApps, proveReportingAppWithdrawal } from '../bifocal-reporting-apps.mjs'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { proveExactBrowser } from './exact-browser.mjs'
@@ -60,6 +61,7 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.equal(joined.answer.joinDiagnostics[0].duplicateRowsRemoved,1)
  const dashboard = await call('/dashboards',{queryId:joined.queryId,title:'West margin'})
  const report = await call('/reports',{queryId:joined.queryId,title:'West margin report'})
+ await proveReportingApps(origin,context,page,{query:joined,dashboard,report})
  assert.deepEqual(dashboard.answer,joined.answer); assert.deepEqual(report.answer,joined.answer)
  for(const path of [`/queries/${snapshot.queryId}`,`/dashboards/${dashboard.id}`,`/reports/${report.id}`])assert.equal((await context.request.get(origin+'/api/operator'+path,{headers:{Cookie:''}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/queries/'+snapshot.queryId+'/rerun',{headers:{Origin:'https://foreign.example.test'},data:{}});assert.equal(foreign.status(),401)
@@ -117,6 +119,7 @@ export async function proveExactQueries(origin, context, files, page) {
  await call(`/queries/${snapshot.queryId}`,undefined,404)
  await call(`/queries/${snapshot.queryId}/rerun`,{},404)
  await call(`/dashboards/${dashboard.id}`,undefined,404); await call(`/reports/${report.id}`,undefined,404)
+ await proveReportingAppWithdrawal(origin,context,page)
  await proveExactBrowser(origin,page,query,'erased',report.id)
  console.log('Exact answers: integer-cents SQL parity, distinct/weighted/subtotals, fanout refusal, immutable cross-door replay, scope denial and source erasure passed')
 }

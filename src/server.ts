@@ -18,6 +18,8 @@ import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
+import { reportingAppsResponse } from './bifocal/catalog/apps/server'
+import { reportingAppsPage } from './bifocal/catalog/apps/page.server'
 import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -38,6 +40,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const appsPage = await reportingAppsPage(request, env)
+    if (appsPage) return appsPage
+    const apps = await reportingAppsResponse(request, env)
+    if (apps) return apps
     const settings = await companyPage(request, env)
     if (settings) return settings
     const conventions = await conventionsResponse(request, env)

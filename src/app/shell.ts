@@ -7,10 +7,11 @@ import { iconHead } from '../base/icon-head'
 export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!))
 
 export type Viewer = { displayName: string; role: string }
-export type Place = 'home' | 'files' | 'answers' | 'company' | 'people' | 'settings' | 'guide'
+export type Place = 'home' | 'apps' | 'files' | 'answers' | 'company' | 'people' | 'settings' | 'guide'
 
 const TOOLS: [Place, string, string, (role: string) => boolean][] = [
  ['home', 'App home', '/app', () => true],
+ ['apps', 'Reporting apps', '/app/apps', role => role === 'owner'],
  ['files', 'Files', '/app/import', role => role === 'owner'],
  ['answers', 'Exact answers', '/app/queries', role => role === 'owner'],
  ['company', 'Company', '/app/company', role => role === 'owner'],
