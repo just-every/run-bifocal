@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6f0fd170b010b1d3a78df1fb9ca626bc447cce371530f6f4083072e8edd29968",
+      "sha256": "f8a453b9601ae8ca99416f205ea8a9b6957cc2073205b2ae9938d370f276da7b",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0ed684fc328a61028997914a94550e0227fded0bf639fdc6e55da6b8bd2a714c",
+      "sha256": "2d07824bb8b5e586ff705aab02da97cb1f718e7f82052873d91e309ec15484de",
       "executable": false
     },
     "deploy-demo.json": {
@@ -675,7 +675,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "598dd9610685ecdbe92882dc48d1cb2a8a0d670015e7372ffd7a86ee3400fa3a",
+      "sha256": "b0a28a3174bbda29c281bd57641fbabc31f7bbb57824127a263d0e7164facfae",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -875,7 +875,7 @@
       "executable": false
     },
     "src/bifocal/catalog/authority.server.ts": {
-      "sha256": "574e5fd7ea41751e0dadd9b37f4a09a743f09a35b90798e33285c0269a25d0e6",
+      "sha256": "88516103577c60b045ca9487e55c6c7d72beea681e9aa58989698122ba38e09e",
       "executable": false
     },
     "src/bifocal/catalog/certification.server.ts": {
@@ -883,7 +883,7 @@
       "executable": false
     },
     "src/bifocal/catalog/erasure.ts": {
-      "sha256": "0563e709570b34b6c9abcb5247c7c9b16c6d56bbc1c49ff429339b732d0723e1",
+      "sha256": "e2035c8c28dbc8091560d3663614e00f0ce7e9aa156b49281353545f7c381763",
       "executable": false
     },
     "src/bifocal/catalog/protocol.ts": {
@@ -891,7 +891,7 @@
       "executable": false
     },
     "src/bifocal/catalog/server.ts": {
-      "sha256": "6840114d4d038b9b28e3086bf6f6e98712f037fcf3c6a748ac2443a253688a3e",
+      "sha256": "4d5be5236962f99d27e1159f5ca2c7fe1bd6353c2397876a5d77abefab1e2b99",
       "executable": false
     },
     "src/bifocal/catalog/store.server.ts": {
@@ -3047,7 +3047,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "2ff162308497f69ace55c3b0e4701381ddf76ec89b2349c2e71b875426586e06",
+      "sha256": "ef20688c696640314d9c0a3b986f90f6609c3952cd4d58f6b7a951a99ea66f28",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {

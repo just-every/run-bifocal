@@ -142,6 +142,12 @@ async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
  await call(owner,'/items/'+metric.id+'/grants',{readerId,enabled:false},200,'PUT')
  await call(reader,'/items/'+metric.id,undefined,404)
  assert.ok(!(await call(reader,'/search?q=churn')).items.some(item=>item.id===metric.id))
+ const inactiveDefinitions=(await call(owner,'/items/'+metric.id+'/grants')).grants
+ assert.ok(inactiveDefinitions.some(grant=>grant.readerId===readerId&&grant.active===false))
+ await call(owner,'/items/'+metric.id+'/grants',{readerId,enabled:true},200,'PUT')
+ assert.equal((await call(reader,'/items/'+metric.id)).id,metric.id)
+ assert.ok((await call(owner,'/items/'+metric.id+'/grants')).grants.some(grant=>grant.readerId===readerId&&grant.active===true))
+ await call(owner,'/items/'+metric.id+'/grants',{readerId,enabled:false},200,'PUT')
  const reports=await proveReportCustody(origin,owner,reader,fixtures,null)
  const receipt=await owner.request.post(origin+'/api/operator/datasets/'+fixtures.dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:fixtures.dataset,reviewedRevision:fixtures.revision}})
  assert.equal(receipt.status(),200,await receipt.text())

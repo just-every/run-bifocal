@@ -41,7 +41,7 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
   if(url.search)fail('query_parameters_not_supported',400)
   if(path==='/collections'){
    if(request.method==='GET'){
-    const rows=(await env.DB.prepare(`SELECT c.* FROM bf_catalog_collections c WHERE c.owner_id=? OR EXISTS(SELECT 1 FROM bf_catalog_collection_grants g WHERE g.collection_id=c.id AND g.operator_id=?) ORDER BY c.name,c.id`).bind(actor.id,actor.id).all()).results
+    const rows=(await env.DB.prepare(`SELECT c.* FROM bf_catalog_collections c WHERE c.owner_id=? OR EXISTS(SELECT 1 FROM bf_catalog_collection_grants g JOIN bf_catalog_grant_activation a ON a.kind='collection' AND a.resource_id=g.collection_id AND a.operator_id=g.operator_id JOIN oa_operators o ON o.id=g.operator_id AND o.status='active' AND o.version=a.operator_version WHERE g.collection_id=c.id AND g.operator_id=?) ORDER BY c.name,c.id`).bind(actor.id,actor.id).all()).results
     await commit([])
     return json({collections:rows.map(row=>({...row,parent_id:actor.role==='owner'?row.parent_id:null}))})
    }
@@ -55,7 +55,7 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
    owner();if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
    const input=await jsonBody(request);exactKeys(input,['readerId','enabled']);const readerId=uuid(input.readerId)
    if(typeof input.enabled!=='boolean')fail('grant_enabled_required',400)
-   await commit([assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_collections WHERE id=? AND owner_id=?)',collectionGrant[1],actor.id)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active')",readerId)),input.enabled?sql('INSERT OR IGNORE INTO bf_catalog_collection_grants(collection_id,operator_id) VALUES(?,?)',collectionGrant[1],readerId):sql('DELETE FROM bf_catalog_collection_grants WHERE collection_id=? AND operator_id=?',collectionGrant[1],readerId),audit(actor,actor.id,'collection-grant-changed',null,null,digest(input))])
+   await commit([assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_collections WHERE id=? AND owner_id=?)',collectionGrant[1],actor.id)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND (?=0 OR status='active'))",readerId,Number(input.enabled))),sql('INSERT OR IGNORE INTO bf_catalog_collection_grants(collection_id,operator_id) VALUES(?,?)',collectionGrant[1],readerId),input.enabled?sql("INSERT INTO bf_catalog_grant_activation(kind,resource_id,operator_id,operator_version) VALUES('collection',?,?,(SELECT version FROM oa_operators WHERE id=?)) ON CONFLICT(kind,resource_id,operator_id) DO UPDATE SET operator_version=excluded.operator_version",collectionGrant[1],readerId,readerId):sql("DELETE FROM bf_catalog_grant_activation WHERE kind='collection' AND resource_id=? AND operator_id=?",collectionGrant[1],readerId),audit(actor,actor.id,'collection-grant-changed',null,null,digest(input))])
    return json({enabled:input.enabled})
   }
   if(path==='/items'){
@@ -93,7 +93,7 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
      const id=text(event.id,120),itemId=uuid(event.itemId),readerId=uuid(event.readerId),tenant=text(event.tenant,120),openedAt=text(event.openedAt,40),time=Date.parse(openedAt)
      if(!Number.isFinite(time)||new Date(time).toISOString()!==openedAt||time>now||time<now-90*86400000)fail('usage_event_outside_ninety_days',400)
      const hash=digest(event)
-     statements.push(assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_items WHERE id=? AND owner_id=?)',itemId,actor.id)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators o JOIN bf_catalog_items i ON i.id=? WHERE o.id=? AND o.status='active' AND (i.owner_id=o.id OR EXISTS(SELECT 1 FROM bf_catalog_grants g WHERE g.item_id=i.id AND g.operator_id=o.id)))",itemId,readerId)),assertion(sql('NOT EXISTS(SELECT 1 FROM bf_catalog_usage WHERE id=? AND fingerprint<>?)',id,hash)),sql('INSERT OR IGNORE INTO bf_catalog_usage(id,item_id,reader_id,tenant,opened_at,fingerprint,imported_at) VALUES(?,?,?,?,?,?,?)',id,itemId,readerId,tenant,openedAt,hash,new Date().toISOString()))
+     statements.push(assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_items WHERE id=? AND owner_id=?)',itemId,actor.id)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators o JOIN bf_catalog_items i ON i.id=? WHERE o.id=? AND o.status='active' AND (i.owner_id=o.id OR EXISTS(SELECT 1 FROM bf_catalog_grants g JOIN bf_catalog_grant_activation a ON a.kind='item' AND a.resource_id=g.item_id AND a.operator_id=g.operator_id AND a.operator_version=o.version WHERE g.item_id=i.id AND g.operator_id=o.id)))",itemId,readerId)),assertion(sql('NOT EXISTS(SELECT 1 FROM bf_catalog_usage WHERE id=? AND fingerprint<>?)',id,hash)),sql('INSERT OR IGNORE INTO bf_catalog_usage(id,item_id,reader_id,tenant,opened_at,fingerprint,imported_at) VALUES(?,?,?,?,?,?,?)',id,itemId,readerId,tenant,openedAt,hash,new Date().toISOString()))
     }
     await commit([assertion(policyGuard),...statements,audit(actor,actor.id,'usage-imported',null,policy.version,digest(input.events))])
     return json({accepted:input.events.length,policyVersion:policy.version},201)
@@ -152,11 +152,15 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
     await commit([...guards.map(assertion),sql('UPDATE bf_catalog_items SET archived=?,version=?,updated_at=? WHERE id=?',Number(archived),version,new Date().toISOString(),item.id),versionStatement(item.id,version,{...itemDocument(item),archived,version}),audit(actor,actor.id,operation,item.id,version,review.digest)])
     return json({id:item.id,archived,version})
    }
+   if(operation==='grants'&&request.method==='GET'){
+    const grants=(await env.DB.prepare("SELECT g.operator_id AS readerId,CASE WHEN a.operator_version=o.version AND o.status='active' THEN 1 ELSE 0 END AS active FROM bf_catalog_grants g JOIN oa_operators o ON o.id=g.operator_id LEFT JOIN bf_catalog_grant_activation a ON a.kind='item' AND a.resource_id=g.item_id AND a.operator_id=g.operator_id WHERE g.item_id=? ORDER BY g.operator_id").bind(item.id).all()).results
+    await commit([assertion(itemGuard(item))]);return json({grants:grants.map(grant=>({...grant,active:!!grant.active})),restore:'Definitions travel; activation is installation-local and requires fresh owner approval.'})
+   }
    if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
    const input=await jsonBody(request)
    if(operation==='grants'){
     exactKeys(input,['readerId','enabled']);const readerId=uuid(input.readerId);if(typeof input.enabled!=='boolean')fail('grant_enabled_required',400)
-    await commit([assertion(itemGuard(item)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active')",readerId)),input.enabled?sql('INSERT OR IGNORE INTO bf_catalog_grants(item_id,operator_id) VALUES(?,?)',item.id,readerId):sql('DELETE FROM bf_catalog_grants WHERE item_id=? AND operator_id=?',item.id,readerId),audit(actor,actor.id,input.enabled?'grant-enabled':'grant-revoked',item.id,item.version,digest({readerId}))])
+    await commit([assertion(itemGuard(item)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND (?=0 OR status='active'))",readerId,Number(input.enabled))),sql('INSERT OR IGNORE INTO bf_catalog_grants(item_id,operator_id) VALUES(?,?)',item.id,readerId),input.enabled?sql("INSERT INTO bf_catalog_grant_activation(kind,resource_id,operator_id,operator_version) VALUES('item',?,?,(SELECT version FROM oa_operators WHERE id=?)) ON CONFLICT(kind,resource_id,operator_id) DO UPDATE SET operator_version=excluded.operator_version",item.id,readerId,readerId):sql("DELETE FROM bf_catalog_grant_activation WHERE kind='item' AND resource_id=? AND operator_id=?",item.id,readerId),audit(actor,actor.id,input.enabled?'grant-enabled':'grant-revoked',item.id,item.version,digest({readerId}))])
     return json({enabled:input.enabled})
    }
    exactKeys(input,['dependsOn','enabled']);const dependsOn=uuid(input.dependsOn);if(typeof input.enabled!=='boolean'||dependsOn===item.id)fail('invalid_dependency',400)
