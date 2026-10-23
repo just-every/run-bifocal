@@ -2915,7 +2915,7 @@
       "executable": false
     },
     "tests/site/site.test.mjs": {
-      "sha256": "c8bf2c38997e7d522af10acffd88a79cc9c06c117dc34a40047b4b225e502894",
+      "sha256": "e4fa12eff43fd93ec9651203597e63509d9220b1e800a317cd08125330d2ac04",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {
