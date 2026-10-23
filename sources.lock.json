@@ -2955,11 +2955,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "4d404709646232157fb2786a3c9649dd3cda8a54a519cfb53b71b3c94e7a7aa5",
+      "sha256": "8c419c3587c3a57e4d88b59de7e4b7e589db727d30fbe29058b28e3601e6daf1",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "49b997fb0517bc13187a96749dc1ae87d811a5b6c919a3041f9ad287777140ec",
+      "sha256": "27f95425383ea64ca25a450c0fd2f6f16537b78a34d20d203da437bb5a3cbda3",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
