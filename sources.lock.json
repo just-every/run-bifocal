@@ -446,6 +446,10 @@
       "sha256": "9c8fa5f94c48a230f326cd4d666cbc2bd1e7d5a18327b89e65b339ac6a533d9a",
       "executable": false
     },
+    "migrations/core/0024_company_defaults_restore.sql": {
+      "sha256": "eb1ff508a7edfa46246235144c3d72e0c3a959fb7c7fbd6b2a83933aa27717f0",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -847,7 +851,7 @@
       "executable": false
     },
     "src/bifocal/company/routes.ts": {
-      "sha256": "aa70365f471b0301fc58937167918fd8b6dc18174dd42e279ff3f24fb68682a3",
+      "sha256": "a8d50cc8f7f5e03ca6117672cb3a7e7a9cc4b78a594c8127f883fc7d59824598",
       "executable": false
     },
     "src/bifocal/company/server.ts": {
@@ -2875,7 +2879,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "70e34f43a440622b3ead8eeafed382f434b453803c4f2f10a78b1bfdeac886e7",
+      "sha256": "0f818fb349eeb590f9a81cff691d497fe0e6caa9459e9f9c8582bd51d84d898c",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {

@@ -11,7 +11,7 @@ export async function readCompany(env: Bindings, owner: Authority) {
  return rows[0]
 }
 export function companyValue(row: CompanyRow) {
- return { revision: row.revision, settings: JSON.parse(row.value_json) as unknown, updatedAt: row.updated_at, updatedBy: row.updated_by }
+ return { revision: row.revision, settings: JSON.parse(row.value_json) as unknown, updatedAt: row.updated_at || null, updatedBy: row.updated_by }
 }
 export async function companyRoute(request: Request, env: Bindings, owner: Authority): Promise<unknown> {
  if (request.method === 'GET') return companyValue(await readCompany(env, owner))

@@ -107,7 +107,14 @@ test('restored owner definitions survive archives and browser setup refuses a di
   assert.ok(ready)
   const claim = await fetch(origin + '/auth/bootstrap', { method: 'POST', redirect: 'manual', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ token: syntheticSetup, displayName: 'Synthetic retained owner', returnTo: '/app' }) })
   assert.equal(claim.status, 303)
+  const cookie = claim.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
   await claim.body?.cancel()
+  const currentCompany = await (await fetch(origin + '/api/operator/company', { headers: { cookie } })).json()
+  assert.equal(currentCompany.updatedAt, null, 'built-in defaults have no owner-authored save time')
+  const changedCompany = await fetch(origin + '/api/operator/company', { method: 'PUT', headers: { cookie, Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ previousRevision: currentCompany.revision, settings: { name: 'Synthetic retained company' } }) })
+  assert.equal(changedCompany.status, 200)
+  const savedCompany = await changedCompany.json()
+  assert.ok(savedCompany.updatedAt)
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
@@ -124,6 +131,14 @@ test('restored owner definitions survive archives and browser setup refuses a di
   rer('import', '--input', 'exports/owner.rer', '--yes')
   const owners = () => JSON.parse(run(process.execPath, [...wrangler, 'd1', 'execute', 'foundation', '--local', '--config', 'wrangler.jsonc', '--command', "SELECT email,role,status FROM oa_operators WHERE role='owner'", '--json']))[0].results
   assert.deepEqual(owners(), [{ email: originalOwner, role: 'owner', status: 'active' }])
+  const company = () => JSON.parse(run(process.execPath, [...wrangler, 'd1', 'execute', 'foundation', '--local', '--config', 'wrangler.jsonc', '--command', 'SELECT revision,value_json,updated_at,updated_by FROM bf_company_settings', '--json']))[0].results
+  const expectedCompany = [{ revision: savedCompany.revision, value_json: JSON.stringify(savedCompany.settings), updated_at: savedCompany.updatedAt, updated_by: originalOwner }]
+  assert.deepEqual(company(), expectedCompany, 'owner-saved values and time survive restore exactly')
+  const nonempty = spawnSync(process.execPath, [join(scratch, 'node_modules/@runeditrun/rer/bin/rer.mjs'), 'import', '--input', 'exports/owner.rer', '--yes', '--non-interactive', '--json'], { cwd: scratch, env: environment, encoding: 'utf8' })
+  assert.equal(nonempty.status, 4, 'a populated destination still refuses restore')
+  assert.match(nonempty.stdout, /target_not_empty/)
+  assert.deepEqual(owners(), [{ email: originalOwner, role: 'owner', status: 'active' }])
+  assert.deepEqual(company(), expectedCompany, 'refused restore makes no partial writes')
   const { createSeed } = await import(new URL('file://' + join(scratch, 'scripts/installer/seed.mjs')))
   installer = await startInstaller(scratch, { seed: createSeed(scratch) })
   browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
