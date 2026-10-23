@@ -2998,6 +2998,10 @@
       "sha256": "4cfe2030050a85e75ff05de5aee97a411374bc2c49582efb88f9b9c0300d8d48",
       "executable": false
     },
+    "tests/local-membership.mjs": {
+      "sha256": "c8522e2ad32a050549df5aa5a0ce9519db5ea75de54da1fdbec5fa8188afeb82",
+      "executable": false
+    },
     "tests/runtime.mjs": {
       "sha256": "d39ce11af616197af9d0837680ef0825ff3c0b43e2aca57c4b60ff0c7f29353d",
       "executable": false
@@ -3015,7 +3019,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "d1ec621cdf762d5ee518c027269a736ad2009318af2905e63b3d3569f5e67586",
+      "sha256": "20ef0bcada4bb61c43640e07082b44fe0a27026adc8bab53d6f04b758b0befeb",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
