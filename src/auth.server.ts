@@ -11,6 +11,7 @@ import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './
 import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
 import { settingsPage, nameNotice, sessionNotice, type AccountSession } from './app/settings'
+import { peopleSessionsPage, peopleSessionsUnavailable } from './app/people-sessions'
 import { displayZone } from './bifocal/company/display-zone'
 
 // The edition's declared theme (public/app-theme.css), as Base frames link it.
@@ -149,6 +150,33 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  }
  if (url.pathname === '/app/people' && ['GET', 'HEAD'].includes(request.method)) {
   return peopleResponse(url.searchParams.get('invited') === '1' ? '<p class="status" role="status">Invitation requested. The person’s current status is shown below.</p>' : url.searchParams.get('updated') === '1' ? '<p class="status" role="status">Access updated. The person’s current status is shown below.</p>' : '')
+ }
+ if (url.pathname === '/app/people/sessions') {
+  const auth = operatorAuth(env), session = await auth.getSession(request)
+  if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=' + encodeURIComponent(url.pathname + url.search) } })
+  if (!['GET', 'HEAD', 'POST'].includes(request.method)) return new Response(null, { status: 405, headers: { ...privateHeaders, allow: 'GET, HEAD, POST' } })
+  const native = createAuthHandler(auth)
+  const get = (path: string) => native(new Request(new URL(path, url), { headers: request.headers }))
+  // The native people and session doors independently authorize this account;
+  // the page never turns a guessed person id into a session-list grant.
+  const people = await get('/auth/operators')
+  if (!people?.ok) return html(peopleSessionsUnavailable(), `Sessions unavailable · ${branding.name}`, session.operator, 'people', people?.status ?? 503)
+  const person = (await people.json() as typeof session.operator[]).find(person => person.id === url.searchParams.get('person'))
+  if (!person) return html(peopleSessionsUnavailable(), `Sessions unavailable · ${branding.name}`, session.operator, 'people', 404)
+  const target = '/auth/sessions?operatorId=' + encodeURIComponent(person.id)
+  let sessions = await get(target)
+  if (!sessions?.ok) return html(peopleSessionsUnavailable(), `Sessions unavailable · ${branding.name}`, session.operator, 'people', sessions?.status ?? 503)
+  let notice = url.searchParams.get('ended') === '1' ? '<p class="status" role="status">The session has ended.</p>' : '', status = 200
+  if (request.method === 'POST') {
+   const response = await native(new Request(new URL('/auth/session/revoke', url), request))
+   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people/sessions?person=' + encodeURIComponent(person.id) + '&ended=1' } })
+   const error = await response?.json() as { error?: string } | undefined
+   notice = sessionNotice(error?.error ?? '')
+   status = response?.status ?? 503
+   sessions = await get(target)
+   if (!sessions?.ok) return html(peopleSessionsUnavailable(), `Sessions unavailable · ${branding.name}`, session.operator, 'people', sessions?.status ?? 503)
+  }
+  return html(peopleSessionsPage(person, await sessions.json(), session.id, await displayZone(env, session.operator.email), notice), `Sessions · ${branding.name}`, session.operator, 'people', status)
  }
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)

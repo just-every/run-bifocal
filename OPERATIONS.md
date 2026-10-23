@@ -118,7 +118,7 @@ resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
 
-The installed `/docs` guide is static edition documentation available signed out, without visiting the separate Run site. People (`/app/people`) delegates invitation cancellation and eligible account deactivation/reactivation to the native handlers; it does not offer owner changes. Your settings (`/app/settings`) lists your active sessions and can revoke one, including the current session. Native API clients retain their JSON/204 responses; browser forms return useful pages. Role and status changes invalidate old sessions, and reactivation does not restore them.
+The installed `/docs` guide is static edition documentation available signed out, without visiting the separate Run site. People (`/app/people`) delegates invitation cancellation and eligible account deactivation/reactivation to the native handlers; it does not offer owner changes. People also links to each eligible account’s active sessions at `/app/people/sessions`: owners can manage any account, admins can manage themselves and members, and every read and revocation uses the native session handler. Ending a session does not deactivate the account; a fresh sign-in remains possible. Your settings (`/app/settings`) lists your active sessions and can revoke one, including the current session. Native API clients retain their JSON/204 responses; browser forms return useful pages. Role and status changes invalidate old sessions, and reactivation does not restore them.
 
 ### Dependency signing-key custody
 

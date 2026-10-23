@@ -6,6 +6,7 @@ import { proveAnalyticsBoundaries } from './journeys/analytics-boundaries.mjs'
 import { proveFileImports } from './journeys/file-import.mjs'
 import { proveSpreadsheetEdges } from './journeys/spreadsheet-edge.mjs'
 import { proveConventions } from './journeys/conventions.mjs'
+import { provePeopleSessions, proveAdministrativeSessions } from './journeys/people-sessions.mjs'
 import { chromium } from '@playwright/test'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
@@ -231,6 +232,7 @@ try {
       assert.ok(reinvited.version > cancelled.version)
     }
     console.log('People cancellation: native form/version fence, CSRF refusal, cancelled reactivation refusal and same-account reinvitation at 1440/390 passed')
+    await provePeopleSessions(origin, context, page)
     // Display-name settings: follow the link, save through the native form,
     // and read the durable value back through the session, settings and home.
     for (const width of [1440, 390]) {
@@ -397,6 +399,7 @@ if (process.env.BIFOCAL_DEV_ORIGIN) {
       } finally { await owner.close(); await member.close() }
     }
     console.log('Native membership controls: deactivation, stale-cookie read denial, inactive sign-in refusal, reactivation without revival and self-session revocation at 1440/390 passed')
+    await proveAdministrativeSessions(devOrigin, browser)
   } finally { await browser.close() }
 }
 

@@ -21,7 +21,7 @@ export function nameNotice(code: string) {
 
 export function sessionNotice(code: string) {
  const messages: Record<string, string> = {
-  forbidden: 'You cannot end that session. Only your own sessions are managed here.',
+  forbidden: 'Your current access cannot end that session.',
   session_not_found: 'That session is no longer available. Reload settings.',
   authority_changed: 'Your access changed. Sign in again before trying to end a session.',
   invalid_origin: 'This request did not come from this installation. Reload settings and try again.',
