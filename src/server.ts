@@ -15,6 +15,7 @@ import { fileImportPage } from './bifocal/imports/files/page.server'
 import { companyPage } from './bifocal/company/page.server'
 import { conventionsResponse } from './bifocal/company/server'
 import { exactAnswerPage } from './bifocal/query/page.server'
+import { chartResponse } from './bifocal/charts/server'
 import { exactQueryResponse } from './bifocal/query/server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
@@ -44,6 +45,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (conventions) return conventions
     const answer = await exactAnswerPage(request, env)
     if (answer) return answer
+    const chart = await chartResponse(request, env)
+    if (chart) return chart
     const query = await exactQueryResponse(request, env)
     if (query) return query
     const warehouse = await warehouseResponse(request, env)
