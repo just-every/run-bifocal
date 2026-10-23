@@ -61,7 +61,7 @@ export async function proveAdministrativeSessions(origin, browser) {
     await page.goto(`${origin}/app/people`)
     await page.getByLabel('Name', { exact: true }).fill(role === 'admin' ? 'Maya Chen' : 'Jordan Brooks')
     await page.getByLabel('Email', { exact: true }).fill(`synthetic-bifocal-sessions-${role}-${width}@example.test`)
-    await page.getByLabel('Foundation role', { exact: true }).selectOption(role)
+    await page.getByRole('combobox', { name: /Foundation role/ }).selectOption(role)
     await Promise.all([page.waitForURL(/invited=1/), page.getByRole('button', { name: 'Send invitation', exact: true }).click()])
     invited.push((await (await owner.request.get(`${origin}/auth/operators`)).json()).find(person => person.email === `synthetic-bifocal-sessions-${role}-${width}@example.test`))
    }
