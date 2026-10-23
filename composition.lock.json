@@ -30,7 +30,7 @@
     },
     "base": {
       "repository": "runeditrun/base",
-      "commit": "d1249b3d696c4011e9c72de2097f3757436074a6"
+      "commit": "4280971d7c0295b8a88c3e1179048efcbbe14f30"
     }
   },
   "assemblyTool": {
@@ -933,7 +933,7 @@
       "source": "foundation/runtime/rejected-response.ts"
     },
     "src/base/run-site.ts": {
-      "sha256": "bd85ff68d78fb8439821dcea6e6bff0f8279e1f086df7f7fabac0b65a02fc739",
+      "sha256": "57465315cebe21cf4ab6954a376d7fdfa462f9fd70c240c1083d73e00bf8632e",
       "mode": 420,
       "component": "base",
       "repository": "base",
@@ -1199,7 +1199,7 @@
       "source": "modules/demo/vite.mjs"
     },
     "src/modules/dependencies/README.md": {
-      "sha256": "d60674a6d0f221787bdd5b46a9a4fa0e0cf916e5927ca78c7e5003390aa9d69b",
+      "sha256": "79e0eef431e8211ed74a14198a39ba201ad67db3de5e03310ac297834c691d22",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1213,7 +1213,7 @@
       "source": "modules/dependencies/approval.mjs"
     },
     "src/modules/dependencies/auth.mjs": {
-      "sha256": "c1e864461c204731395555b0235a9cb058a8979fde84ae58abce559053ba27f0",
+      "sha256": "6dd0ee20fff4a25af3d5657a1c139af184b92f18776a21fac8906b99ee60957b",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1227,21 +1227,21 @@
       "source": "modules/dependencies/authority.mjs"
     },
     "src/modules/dependencies/crypto.mjs": {
-      "sha256": "8dc3397e90b6f8ec1dad81ba68da6e1a5e966ddd8c1b9ace943e964098fea950",
+      "sha256": "2df5bdc44e90b067e8c44514d32e4a67672765a9641d345ebe99cb520dc05040",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
       "source": "modules/dependencies/crypto.mjs"
     },
     "src/modules/dependencies/index.d.mts": {
-      "sha256": "667f8fd42fb7319b5d43c5cced539ad0ad13bfca46887c45b52c1bee19ef7a22",
+      "sha256": "0528c460eb7f012bae6853bf2d9464aa381e8e1c66d0bd93cb41998eb063198d",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
       "source": "modules/dependencies/index.d.mts"
     },
     "src/modules/dependencies/index.mjs": {
-      "sha256": "6ce61db101b89b60fd69ea1eaa62da4226b18fcea5dd1ec46e42a73282309e89",
+      "sha256": "27a0aa745fdacac6deae5a58b35744e1db4db6ca3765bc95adffa21e1afa11ab",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -1283,7 +1283,7 @@
       "source": "modules/dependencies/schema/dependencies.sql"
     },
     "src/modules/dependencies/store.mjs": {
-      "sha256": "1d102b080d60634fe28da383c80d32a191b9b99cd94600168d6071ac25f0a606",
+      "sha256": "cd3c17373565ff5e4ffd1222299bcc9f8f018ec476db7def8d6d3aef52fa610f",
       "mode": 420,
       "component": "dependencies",
       "repository": "base",
@@ -2095,7 +2095,7 @@
       "source": "modules/operator-auth/docs/README.md"
     },
     "src/modules/operator-auth/docs/native-accounts.md": {
-      "sha256": "068f1c664d3e6ac55942f2ea0db5791dd9656b3607b456aacb69c8c8480d701c",
+      "sha256": "9aca0b540aff3f134cef296d48267e4dd1536e5631119c5c49b4dc59e6ba6df0",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2228,7 +2228,7 @@
       "source": "modules/operator-auth/identity/oidc/config.mjs"
     },
     "src/modules/operator-auth/identity/oidc/crypto.mjs": {
-      "sha256": "968787aa4d88b2d5323ef55dce0755d50e32502a6753505eaf3f6a0298078ff8",
+      "sha256": "51fa925f5467544784514f727ab4d27797e2486533c9edca896623566da93db2",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",
@@ -2298,7 +2298,7 @@
       "source": "modules/operator-auth/identity/principal.mjs"
     },
     "src/modules/operator-auth/index.d.mts": {
-      "sha256": "234369e19398f5dd19db672f239e836012ddbc7702f2f4d7c034d0e7128af36c",
+      "sha256": "ebbcdb87aba07fdb94de45264d78221627e23685836d54fbdd3ad10aef419c36",
       "mode": 420,
       "component": "operator-auth",
       "repository": "base",

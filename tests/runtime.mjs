@@ -1,6 +1,7 @@
 import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { proveFileImports } from './journeys/file-import.mjs'
 import { proveSpreadsheetEdges } from './journeys/spreadsheet-edge.mjs'
 import { proveConventions } from './journeys/conventions.mjs'
@@ -21,8 +22,9 @@ const persist = await mkdtemp(join(tmpdir(), 'foundation-runtime-'))
 execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
 const origin = `http://127.0.0.1:${port}`
 const syntheticSetup = 'synthetic-bifocal-1'.repeat(3)
+const syntheticInstallationKey = createHash('sha256').update('synthetic-bifocal-6').digest('hex')
 function startWorker() {
- const child = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port), '--var', `AUTH_ORIGIN:${origin}`, '--var', 'AUTH_LOCAL:true', '--var', 'OWNER_EMAIL:synthetic-bifocal-1@example.test', '--var', 'MAIL_FROM:synthetic-bifocal-2@example.test', '--var', `SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`, '--var', `SETUP_TOKEN:${syntheticSetup}`], { stdio: ['ignore', 'pipe', 'pipe'] })
+ const child = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port), '--var', `AUTH_ORIGIN:${origin}`, '--var', 'AUTH_LOCAL:true', '--var', 'OWNER_EMAIL:synthetic-bifocal-1@example.test', '--var', 'MAIL_FROM:synthetic-bifocal-2@example.test', '--var', `SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`, '--var', `SETUP_TOKEN:${syntheticSetup}`, '--var', `INSTALLATION_KEY:${syntheticInstallationKey}`], { stdio: ['ignore', 'pipe', 'pipe'] })
  child.stdout.on('data', chunk => { output += chunk })
  child.stderr.on('data', chunk => { output += chunk })
  return child
@@ -59,6 +61,28 @@ try {
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
+  // Adopted dependency custody: discover through the public link door, then
+  // inspect the real persisted row. Public JWKS and sector survive a restart;
+  // the private signing material is stored only in an authenticated envelope.
+  const discovery = await fetch(`${origin}/.well-known/rer-dependencies`)
+  assert.equal(discovery.status, 200)
+  const dependency = await discovery.json()
+  const jwks = await (await fetch(dependency.jwks_uri)).json()
+  assert.equal(jwks.keys.length, 1)
+  assert.equal(jwks.keys[0].kty, 'EC')
+  assert.equal(jwks.keys[0].d, undefined)
+  const stored = JSON.parse(execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json', '--command', 'SELECT k.private_key, i.keys_sealed FROM rer_dependency_keys k CROSS JOIN rer_dependency_installation i', '--json'], { encoding: 'utf8', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }, stdio: ['ignore', 'pipe', 'pipe'] }))[0].results
+  assert.equal(stored.length, 1)
+  assert.equal(stored[0].keys_sealed, 1)
+  const envelope = JSON.parse(stored[0].private_key)
+  assert.deepEqual(Object.keys(envelope).sort(), ['ciphertext', 'iv', 'kid', 'version'])
+  assert.equal(envelope.version, 1)
+  assert.ok(envelope.ciphertext.length > 40)
+  assert.ok(!stored[0].private_key.includes(syntheticInstallationKey))
+  await restartWorker()
+  assert.equal((await (await fetch(`${origin}/.well-known/rer-dependencies`)).json()).sector_id, dependency.sector_id)
+  assert.deepEqual(await (await fetch(dependency.jwks_uri)).json(), jwks)
+  console.log('Dependency custody: public discovery/JWKS, sealed persisted key and stable restart passed')
   // Foundation home: actual bootstrap, setup, private entry and native sign-out.
   const browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
   try {

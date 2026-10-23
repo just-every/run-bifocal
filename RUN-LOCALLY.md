@@ -444,3 +444,7 @@ consumers before deleting its queues, then confirms their absence in Cloudflare.
 It waits up to a minute for a deleted queue to disappear from the account list.
 If the provider still lists it, the error names the queue and the call; keep the
 record and rerun the printed removal command after resolving the cause.
+
+### Dependency signing-key custody
+
+Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.79. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
