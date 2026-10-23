@@ -256,7 +256,7 @@ ul{padding-left:20px}
 #board-cards details{margin-top:16px}
 #business-board>h2{font-size:28px}
 #business-board>.actions{margin:24px 0}
-fieldset{min-width:0;border:1px solid var(--app-line);margin:16px 0;padding:12px}
+#compose-form fieldset{min-width:0;border:1px solid var(--app-line);margin:16px 0;padding:12px}
 #board-choices .checkbox{align-items:flex-start}
 
 #warehouse-rows>.tablewrap{margin-bottom:16px}
