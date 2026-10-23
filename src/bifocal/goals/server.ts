@@ -74,7 +74,7 @@ export async function goalResponse(request:Request,original:Bindings):Promise<Re
    if(!Number.isFinite(Date.parse(observedAt))||Date.parse(observedAt)>now||now-Date.parse(observedAt)>def.maxAgeSeconds*1000)actual={state:'stale',status:'unknown',forecast:null,reason:'The source exceeds this goal’s freshness limit.',lastObservedAt:observedAt}
    else if(evaluation.value.state==='value') {
     const cents=BigInt(evaluation.value.value!.replace('.','')),target=BigInt(def.target.replace('.','')),elapsed=BigInt(Math.round((Date.parse(cutoff)-Date.parse(def.from))/86400000)),days=BigInt(Math.round((Date.parse(def.to)-Date.parse(def.from))/86400000))
-    const projected=cents*days/elapsed,decimal=(v:bigint)=>`${v<0n?'-':''}${(v<0n?-v:v)/100n}.${String((v<0n?-v:v)%100n).padStart(2,'0')}`
+    const projected=cents * days / elapsed,decimal=(v:bigint)=>`${v<0n?'-':''}${(v<0n?-v:v)/100n}.${String((v<0n?-v:v)%100n).padStart(2,'0')}`
     actual={state:'value',status:cents>=target?'target reached':cents*days>=target*elapsed?'on pace':'behind pace',value:evaluation.value,forecast:{kind:'linear pace, not a financial forecast',value:decimal(projected)},asOf,query:evaluation.query,metric:{id:m.id,revision:rev.revision,digest:rev.digest},sourceWatermarks:evaluation.answer.sourceWatermarks}
    }
    await transact(env.DB,owner,[assertion(metricGuard(m)),...evaluation.sources.map(sourceMatch).map(assertion)])
