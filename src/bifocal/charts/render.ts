@@ -1,7 +1,7 @@
 import type { Snapshot } from '../data/snapshots/store'
 import { fail, type Value } from '../query/types'
 
-export const chartTypes = ['vertical-bar','horizontal-bar','line','stepped-line','area','sparkline','table','kpi'] as const
+export const chartTypes = ['vertical-bar','horizontal-bar','line','stepped-line','area','sparkline','table','kpi','pie','donut'] as const
 export type ChartType = typeof chartTypes[number]
 export type ChartOptions = { type: ChartType; measure: string; scale: 'linear' | 'log'; width: number }
 const xml = (value: unknown): string => {
@@ -36,8 +36,10 @@ export function chartOptions(snapshot: Snapshot, type: string, search: URLSearch
 }
 export function chartData(snapshot: Snapshot, options: ChartOptions) {
  const rows = snapshot.answer.rows.map(row => ({dimensions: row.dimensions, label: row.dimensions.map(cell => cell === null ? '(Missing dimension)' : String(cell)).join(' · ') || 'All rows', value: row.values[options.measure], formatted: displayValue(row.values[options.measure],snapshot.context.currency)}))
+ if (['pie','donut'].includes(options.type) && !['sum','count'].includes(snapshot.definition.measures.find(measure=>measure.id===options.measure)!.op)) fail('chart_part_to_whole_requires_additive_measure')
  const values = (options.type === 'kpi' ? [snapshot.answer.totals[options.measure]] : rows.map(row => row.value)).filter(value => value.state === 'value').map(value => Number(value.value))
  if (values.some(value => !Number.isFinite(value))) fail('chart_geometry_out_of_range')
+ if (['pie','donut'].includes(options.type) && (rows.some(row=>row.value.state!=='value' || Number(row.value.value)<0) || !values.some(value=>value>0))) fail('chart_part_to_whole_requires_complete_nonnegative_values')
  if (options.scale === 'log' && values.some(value => value <= 0)) fail('chart_log_requires_positive_values')
  return {version:1, renderer:'native-svg-v1', options, queryId:snapshot.queryId, digest:snapshot.digest, createdAt:snapshot.createdAt, filters:snapshot.definition.filters, modelVersion:snapshot.context.definitionVersions?.model, metricVersion:snapshot.context.definitionVersions?.metrics, sources:snapshot.answer.sourceWatermarks, rows, total:snapshot.answer.totals[options.measure], totalFormatted:displayValue(snapshot.answer.totals[options.measure],snapshot.context.currency), geometry:'IEEE-754 coordinates only; labels and data retain exact query decimals'}
 }
@@ -64,7 +66,26 @@ export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
  if (!data.rows.length && options.type !== 'kpi') graphic=chunks('No groups match the retained query filters.').map((label,index)=>text(left,plotTop+60+index*22,label)).join('')
  else if (options.type === 'kpi') graphic=group(`${options.measure}: ${data.totalFormatted}`,kpiLines.map((label,index)=>text(left,plotTop+50+index*30,label,'font-size="24"')).join(''))
  else if (options.type === 'table') graphic=chunks('Exact grouped values are listed below.').map((label,index)=>text(left,plotTop+50+index*22,label)).join('')
- else if (options.type === 'horizontal-bar') {
+ else if (['pie','donut'].includes(options.type)) {
+  const cx=(left+right)/2,cy=(plotTop+plotBottom)/2,r=Math.min(112,(right-left)/2),maximum=Math.max(...numbers),weights=numbers.map(value=>value/maximum),total=weights.reduce((sum,value)=>sum+value,0)
+  let angle=-Math.PI/2
+  data.rows.forEach((row,index)=>{
+   const span=weights[index]/total*Math.PI*2
+   if(span===0)return
+   const end=angle+span, sx=cx+r*Math.cos(angle),sy=cy+r*Math.sin(angle),ex=cx+r*Math.cos(end),ey=cy+r*Math.sin(end)
+   // Patterns and the numbered table identify slices without relying on colour.
+   const pattern=`sector-${index}`
+   const mark=`<defs><pattern id="${pattern}" width="${6+index%4*3}" height="${6+index%4*3}" patternUnits="userSpaceOnUse" patternTransform="rotate(${index*27})"><rect width="20" height="20" fill="#edf3f8"/><path d="M 0 0 V 20" stroke="#175397" stroke-width="${1+index%3}"/></pattern></defs>`
+   const shape=span>Math.PI*2-1e-10?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${pattern})" stroke="#102a43"/>`:`<path d="M ${cx} ${cy} L ${sx} ${sy} A ${r} ${r} 0 ${span>Math.PI?1:0} 1 ${ex} ${ey} Z" fill="url(#${pattern})" stroke="#102a43"/>`
+   const labelX=cx+r*.72*Math.cos(angle+span/2),labelY=cy+r*.72*Math.sin(angle+span/2)
+   graphic+=group(`${index+1}. ${row.label}: ${row.formatted}`,mark+shape)
+   // A tiny slice retains its exact accessible label and patterned outline;
+   // the full numbered value always remains in the table.
+   if(span>=.20)graphic+=text(labelX,labelY+5,String(index+1),'text-anchor="middle" font-weight="bold"')
+   angle=end
+  })
+  if(options.type==='donut')graphic+=`<circle cx="${cx}" cy="${cy}" r="${r*.45}" fill="#ffffff" stroke="#102a43"/>`
+ } else if (options.type === 'horizontal-bar') {
   const zero=left+fraction(0)*(right-left)
   graphic=line(zero,plotTop,zero,plotBottom)
   data.rows.forEach((row,index)=>{

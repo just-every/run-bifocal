@@ -859,7 +859,7 @@
       "executable": false
     },
     "src/bifocal/charts/render.ts": {
-      "sha256": "62c3765457d4fd74e4a8ddbe12fd955ec66e89f1dc1b3f4d827869b482e24522",
+      "sha256": "a631679a6c45a723dc85633ae9534c7acae7deefa9fb24456ba797b3f56d4ceb",
       "executable": false
     },
     "src/bifocal/charts/server.ts": {
@@ -2955,7 +2955,7 @@
       "executable": false
     },
     "tests/bifocal-charts.mjs": {
-      "sha256": "2b214d5f5915ef2615e64e8b25f06f7099900df49312f6cd5966c4700f043048",
+      "sha256": "aa521312714e78f8bf8f7d6f245f29b2e643ae25696b60abd966ab3c71c14df8",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

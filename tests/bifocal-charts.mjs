@@ -53,21 +53,25 @@ before(async()=>{
 after(async()=>{if(browser)await browser.close();if(worker){worker.kill('SIGTERM');await new Promise(resolve=>worker.exitCode!==null?resolve():worker.once('exit',resolve))}if(persist)await rm(persist,{recursive:true,force:true})})
 
 test('native chart families retain exact scoped values, missing states and accessible labelled graphics',{timeout:120000},async()=>{
- const catalog=await call('/charts');assert.deepEqual(catalog.types,['vertical-bar','horizontal-bar','line','stepped-line','area','sparkline','table','kpi'])
+ const catalog=await call('/charts');assert.deepEqual(catalog.types,['vertical-bar','horizontal-bar','line','stepped-line','area','sparkline','table','kpi','pie','donut'])
+ const counts=await call('/queries/run',{...query,measures:[{id:'records',op:'count',unit:'count',scale:0}]},201)
  for(const type of catalog.types)for(const width of [1440,390]) {
-  const path=chartUrl+'/'+type+'.svg?width='+width, response=await context.request.get(origin+path)
+  const partToWhole=['pie','donut'].includes(type),expectedSnapshot=partToWhole?counts:snapshot,baseUrl=partToWhole?'/api/operator/charts/'+counts.queryId:chartUrl
+  const path=baseUrl+'/'+type+'.svg?width='+width, response=await context.request.get(origin+path)
   assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['cache-control'],'no-store');assert.match(response.headers()['content-security-policy'],/sandbox/)
   await page.setViewportSize({width,height:1000});await page.goto(origin+path)
   assert.equal(await page.locator('parsererror').count(),0)
   assert.equal(await page.locator('script').count(),0)
   assert.equal(await page.locator('svg').getAttribute('aria-labelledby'),'chart-title chart-description')
   const metadata=JSON.parse(await page.locator('metadata').textContent())
-  assert.equal(metadata.digest,snapshot.digest);assert.deepEqual(metadata.filters,[]);assert.deepEqual(metadata.sources,snapshot.answer.sourceWatermarks)
-  assert.deepEqual(metadata.rows.map(row=>row.value),snapshot.answer.rows.map(row=>row.values.amount))
+  assert.equal(metadata.digest,expectedSnapshot.digest);assert.deepEqual(metadata.filters,[]);assert.deepEqual(metadata.sources,expectedSnapshot.answer.sourceWatermarks)
+  assert.deepEqual(metadata.rows.map(row=>row.value),expectedSnapshot.answer.rows.map(row=>row.values[partToWhole?'records':'amount']))
+  if(partToWhole){assert.equal(metadata.rows.find(row=>row.label==='West').formatted,'1');assert.equal(await page.locator('pattern').count(),8)}else {
   assert.equal(metadata.rows.find(row=>row.label==='West').formatted,'USD 100.10')
   assert.equal(metadata.rows.find(row=>row.label==='East').formatted,'USD -20.02')
   for(const [region,state] of [['South','null'],['North','value'],['Unknown','unknown'],['Restricted','suppressed'],['Pending','incomplete']])assert.equal(metadata.rows.find(row=>row.label===region).value.state,state)
   assert.match(await page.locator('svg').textContent(),/USD 100\.10/)
+  }
   assert.equal(await page.locator('a, image, foreignObject').count(),0)
   assert.equal(await page.getByRole('table',{name:'Exact chart values'}).getByRole('row').count(),8)
   if(['vertical-bar','horizontal-bar'].includes(type)){
@@ -97,7 +101,7 @@ test('native chart families retain exact scoped values, missing states and acces
 
 test('chart door refuses unsupported semantics and unauthorized access without retaining a copy',async()=>{
  for(const [suffix,status,error] of [
-  ['/state-map.svg',422,'chart_type_not_supported'],['/line.png',404,'chart_not_found'],['/line.svg?measure=absent',422,'chart_measure_not_found'],['/line.svg?scale=log',422,'chart_log_requires_positive_values'],['/area.svg?scale=log',422,'chart_log_requires_line'],['/line.svg?scale=symlog',422,'chart_scale_not_supported'],['/line.svg?measure=amount&measure=amount',400,'chart_option_not_supported'],['/line.svg?url=https%3A%2F%2Fexample.test',400,'chart_option_not_supported'],['/line.svg?width=1',422,'chart_width_out_of_range']]) {
+  ['/state-map.svg',422,'chart_type_not_supported'],['/pie.svg',422,'chart_part_to_whole_requires_complete_nonnegative_values'],['/donut.svg',422,'chart_part_to_whole_requires_complete_nonnegative_values'],['/line.png',404,'chart_not_found'],['/line.svg?measure=absent',422,'chart_measure_not_found'],['/line.svg?scale=log',422,'chart_log_requires_positive_values'],['/area.svg?scale=log',422,'chart_log_requires_line'],['/line.svg?scale=symlog',422,'chart_scale_not_supported'],['/line.svg?measure=amount&measure=amount',400,'chart_option_not_supported'],['/line.svg?url=https%3A%2F%2Fexample.test',400,'chart_option_not_supported'],['/line.svg?width=1',422,'chart_width_out_of_range']]) {
   const response=await context.request.get(origin+chartUrl+suffix);assert.equal(response.status(),status,await response.text());assert.equal((await response.json()).error,error)
  }
  assert.equal((await context.request.get(origin+chartUrl+'/line.svg',{headers:{Cookie:''}})).status(),401)
