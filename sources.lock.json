@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7f144bef50f9b6b3167b826820c5fcd25671f0b3a435666f9bf145e0b38a7a67",
+      "sha256": "ed3567a86fb187d332c7532f6fcf3831aab93050e31b44cd6c34bf708fe628d8",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c83897664d5088568bfc578e450c5389894ec8c0934889738ce09715d0759142",
+      "sha256": "ff12aba9f9d0eb10bb1058712c8e1df913bbb9baf27b278477311321a00551db",
       "executable": false
     },
     "deploy-demo.json": {
@@ -544,6 +544,14 @@
     },
     "public/bifocal/company.js": {
       "sha256": "0eb28a2e0c9edabd878db852b2ca46d23b0a3746025feeda28ab45c270f3a138",
+      "executable": false
+    },
+    "public/bifocal/explore.css": {
+      "sha256": "94c3321de28de42fab3b562d50a84a755f36729a2e56261f35940ee3a1d8d625",
+      "executable": false
+    },
+    "public/bifocal/explore.js": {
+      "sha256": "623cf04bff058cb6802f45b105964a4de0a8b18d7c16067fb0f07c0f6a4b5d12",
       "executable": false
     },
     "public/bifocal/file-upload.js": {
@@ -978,6 +986,18 @@
       "sha256": "a82bda2c81d5dbb92cafefa0f2ef81b4baac47858e445cbeb028a493033d512e",
       "executable": false
     },
+    "src/bifocal/explore/page.server.ts": {
+      "sha256": "2a03d70308a80477397ac69b1bb8e9b6a75478686a95943b802c319c59c25649",
+      "executable": false
+    },
+    "src/bifocal/explore/server.ts": {
+      "sha256": "b572ade876a6e9cc84d8bce56a84b86171529ef6958e288c6cf12c3e26591ab4",
+      "executable": false
+    },
+    "src/bifocal/explore/table-export.ts": {
+      "sha256": "47483d096ebba2c8113e099607f8143ccd32bbcc13ea52a9918272379a41d9c0",
+      "executable": false
+    },
     "src/bifocal/exports/warehouse/rows.ts": {
       "sha256": "8e85e200e0ced5d48b4ba76bf960910ece938dffe47c40b26aef78d38b5da18b",
       "executable": false
@@ -1079,11 +1099,11 @@
       "executable": false
     },
     "src/bifocal/query/execute.ts": {
-      "sha256": "3f3d8ec19d5a701ea1392429bdbc208810fecaceb6abb2fdc9fd5e163a9009e7",
+      "sha256": "9790d18ad3a88138c187a65a4b1ee0a92463d8e469a52bf009108f1e7cf5705f",
       "executable": false
     },
     "src/bifocal/query/page.server.ts": {
-      "sha256": "6e08d9a53e558bb4a45abf1655988266584a770bb72af8d0912ae93aea71bde5",
+      "sha256": "b5731ab66ad9c071c11455abd31b73b1100ca3d92c9a6453b2ce7cb09058ad5e",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
@@ -1091,7 +1111,7 @@
       "executable": false
     },
     "src/bifocal/query/types.ts": {
-      "sha256": "b0320fc7806264f10c3806bb6938c8eb8dbb9eef9ed1fb51f8f8bac07314222c",
+      "sha256": "be59161aeaf7434f4a090dd353441c1dcf31959f657921a78417adce9ed8a3d9",
       "executable": false
     },
     "src/bifocal/query/validate.ts": {
@@ -2895,7 +2915,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "b5a224733827a1492a14b9eac3fa399467a360ef8e04c1c56a08ae2a224232b6",
+      "sha256": "7f7c70450c3b4864b71d84b501055203edb950e0297895128ce17675dc37abdd",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -3082,6 +3102,10 @@
       "sha256": "0ba40bccacdf796e0d1571a8fca43ea7a9694c192c10bf9971276b03cdc1b2f9",
       "executable": false
     },
+    "tests/bifocal-exploration.mjs": {
+      "sha256": "96d52f375926f87e439d30ccdd85c3c6ba882e31dd9c549a96a6ccdb575f7e43",
+      "executable": false
+    },
     "tests/bifocal-quality-lineage.mjs": {
       "sha256": "c1ce07398b47c938f4526f392208f7f9f7255bbec6c095273b2a39e86d1c94bf",
       "executable": false
@@ -3091,7 +3115,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "c560b8eaab835f70ab76e4d52020b700d3b2d19dd0315c24c22da6d936bdfbc1",
+      "sha256": "c9f7248be592bb7d6844a14419315fd3f586abb959806e5b08e8ce7e425f5407",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

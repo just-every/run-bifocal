@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveExploration} from './bifocal-exploration.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -27,7 +28,9 @@ try {
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)
  await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])
  const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'No icon-only control lacks a tooltip');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}}
+ await page.goto(origin+'/app/queries');await page.getByRole('status').filter({hasText:'Paste a definition'}).waitFor();await proveScreen('answers-exploration-navigation');await page.getByRole('link',{name:'Explore a question',exact:true}).click();await page.getByRole('status').filter({hasText:'No published models yet'}).waitFor()
  await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'No source data yet'}).waitFor();await proveScreen('model-empty')
+ await page.goto(origin+'/app/questions');await page.getByRole('status').filter({hasText:'No published models yet'}).waitFor();await proveScreen('explore-no-model');await page.goto(origin+'/app/models')
  await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}})
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:null,definition:{name:'Retail 445',kind:'445',startMonth:2,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
  const upload=async(dataset,data,catchup=false)=>{
@@ -118,10 +121,11 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  assert.equal((await call('/queries/'+answer.queryId)).answer.totals.revenue.value,'69.06')
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:1,definition:{name:'New retail revision',kind:'445',startMonth:3,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
  await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:/Open model/}).first().click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
+ await proveExploration({origin,context,page,call,upload,proveScreen,definition})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
  assert.equal((await context.request.get(origin+'/api/operator/model-authoring/'+saved.modelId+'/'+saved.branchId+'/document')).status(),404)
- await context.request.post(origin+'/auth/signout',{headers,form:{}});assert.equal((await context.request.get(origin+'/api/operator/model-authoring')).status(),401)
+ await context.request.post(origin+'/auth/signout',{headers,form:{}});assert.equal((await context.request.get(origin+'/api/operator/model-authoring')).status(),401);assert.equal((await context.request.get(origin+'/api/operator/explore')).status(),401);assert.equal((await context.request.post(origin+'/api/operator/explore/'+answer.queryId+'/export',{headers,data:{scope:'underlying',format:'csv'}})).status(),401)
  console.log('Semantic models: native YAML authoring and revision review, exact fiscal SQL parity, fanout and grain refusals, immutable cross-door answers, current authority and source erasure passed')
  await context.close()
 }finally{if(browser)await browser.close();worker.kill('SIGTERM');await new Promise(r=>worker.exitCode!==null?r():worker.once('exit',r));await rm(persist,{recursive:true,force:true})}

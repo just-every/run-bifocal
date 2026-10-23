@@ -6,7 +6,7 @@ import { date as civilDate } from '../calendars/date'
 type Row = Record<string, Cell>
 type Column = { type: string; alias: string }
 const key = canonicalJson
-export function execute(query: Query, sources: Source[], context: Context): Answer {
+export function execute(query: Query, sources: Source[], context: Context, capture?: (rows: Row[], resolve: (ref: string) => string) => void): Answer {
  const base = sources.find(s => s.id === query.dataset)!, columns = new Map<string, Column>()
  const tableFor = (dataset: string) => sources.find(s => s.id === dataset)!.table
  function register(dataset: string, alias: string) { for (const c of tableFor(dataset).columns) columns.set(`${alias}.${c.name}`, { type: c.type, alias }) }
@@ -94,6 +94,7 @@ export function execute(query: Query, sources: Source[], context: Context): Answ
   if (a === null) return false
   const result = compare(a,b as Cell,f.column); return f.op === 'gte' ? result >= 0 : result <= 0
  }))
+ capture?.(rows,resolve)
  function aggregate(group: Row[], m: Measure): Value {
   let n = rational(0n), d = rational(0n), nonnull = 0, nulls = 0, excluded = 0
   let state: Value['state'] = 'value'; const rank = { value:0, null:0, incomplete:1, unknown:2, suppressed:3 }
