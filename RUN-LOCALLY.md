@@ -263,9 +263,7 @@ destination empty, as import requires. Import restores the saved domain data;
 setup then recreates private local configuration. This adapter includes the
 original owner and operator definitions, so use the archived owner's email;
 setup keeps that owner instead of creating a fresh one. Recover access through
-native sign-in. Do not change the owner email through setup: CLI setup checks
-the canonical owner, while the shared browser installer's existing-owner check
-remains unfinished. Start development to use the restored installation.
+native sign-in. Do not change the owner email through setup: both CLI setup and the supported browser installer check the canonical retained owner and refuse a different email. The browser installer delegates to CLI setup, including after restore into empty state without private settings. Start development to use the restored installation.
 
 Other supported operations are `rer verify`, `rer deploy` and `rer describe`.
 
@@ -448,3 +446,5 @@ record and rerun the printed removal command after resolving the cause.
 ### Dependency signing-key custody
 
 Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.79. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
+
+The forward-only company-default normalization (0024) gives untouched built-in defaults no owner-authored update time (`updatedAt: null` at the company API). Owner-saved revisions and timestamps are preserved. This makes a fresh destination’s migration row reproducible for Base’s exact empty-state restore check; populated destinations remain refused. Backward restore of archives preceding this migration remains unqualified; Base migration-data refusals remain enforced.

@@ -267,11 +267,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b658d454448a668155139aac8c80da7ff763478374ec988df50878ffb229196c",
+      "sha256": "39eb955dd76f4c2a3cd607a356eab582d59d4234d24a7c0f7f757e1799de61d3",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "de1fa334cacd188889950c1aee72ecf7ce717ce8f5c39d764e3339233c6faeaf",
+      "sha256": "e9b6e96dc3553b01c593404b9204713184ef40fe82b79ca40c8d286e1b2071c6",
       "executable": false
     },
     "base-copies.json": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bfbe40fed13747c45b9db7ffece23216c9c6fbb3006b0941f77764082196548d",
+      "sha256": "c769cbfea275c55bf812a2deb5c202a30616231e6c90e908bd8f24728a89a528",
       "executable": false
     },
     "deploy-demo.json": {
@@ -459,7 +459,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "ec543b79daa3481070634a49c52ac7b620e9b720dcad007ab89a70e3d7c70841",
+      "sha256": "3918d8f4936a35e46d19616cdb2812e2fbce7f084f2776032e2b0df4370a02cc",
       "executable": false
     },
     "package.json": {
@@ -595,7 +595,7 @@
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "434c42aa0d19fc8d7b20dafb5a193e47d9e394c1a4d871637eb8adecd094a010",
+      "sha256": "90a9eb14615a1ed8fc7c36c1b05ad78490a25eab503670381acb118f948376d4",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
@@ -679,7 +679,7 @@
       "executable": false
     },
     "src/app/docs.ts": {
-      "sha256": "70b0399c3112984b0f2d975df5c1675a9fc9e2eb778aade81f05323a972a16e0",
+      "sha256": "6d9e992b7efbf54c7b3d3f1a68f08b4da6ff33b850890f7058de24c631f2c5c0",
       "executable": false
     },
     "src/app/home.ts": {
@@ -2915,11 +2915,11 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "5172ff2cb81d6f032f9a6cca40156f2869bef73dee11ce172fa8a9232fd6976b",
+      "sha256": "eac2051fdf2c762ab59724d0a3ecea9f1a4e7b687d9270c1b93c882ceedfc327",
       "executable": false
     },
     "tests/site/site.test.mjs": {
-      "sha256": "e4fa12eff43fd93ec9651203597e63509d9220b1e800a317cd08125330d2ac04",
+      "sha256": "7189175149358aedc4d018356d97c580924d7890aa5b4600cb6adf64291b9337",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

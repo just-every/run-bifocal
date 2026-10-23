@@ -91,10 +91,7 @@ Archive restore validates and restores atomically into an empty destination;
 confirmed reset preserves export archives. Setup recreates private configuration,
 not a new owner: use the archived owner's email, then recover access through
 native sign-in. Conflicting owner email must be resolved through the supported
-owner path, not by changing setup answers. The shared browser setup's existing-
-owner identity check remains an upstream dependency; use the CLI setup path,
-which checks the canonical owner. Complete domain equivalence and remote
-transfer remain unproved for Bifocal.
+owner path, not by changing setup answers. Both CLI setup and the supported browser installer check the canonical retained owner and refuse a different email before recreating private settings. The browser installer delegates to the same bounded CLI setup command. The bounded CLI owner/company round trip, private-setting/session exclusions, nonempty refusal and changed-owner browser refusal are exercised by the explicit restore journey in tests/demo-owner-claim.test.mjs. Complete domain equivalence and remote transfer remain unproved for Bifocal.
 
 Preserve ambiguous state and applied migration history. Never place a remote
 credential, owner secret or local resource ID in source. A schema change needs
@@ -126,3 +123,5 @@ The installed `/docs` guide is static edition documentation available signed out
 ### Dependency signing-key custody
 
 Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.79. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
+
+The forward-only company-default normalization (0024) gives untouched built-in defaults no owner-authored update time (`updatedAt: null` at the company API). Owner-saved revisions and timestamps are preserved. This makes a fresh destination’s migration row reproducible for Base’s exact empty-state restore check; populated destinations remain refused. Backward restore of archives preceding this migration remains unqualified; Base migration-data refusals remain enforced.

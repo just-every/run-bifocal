@@ -17,7 +17,7 @@ const anchors = html => [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"[^>]*>([\s\S
 test('the run site builds, its Run Bifocal actions open /run, and every link and file it names resolves', () => {
   const output = execFileSync(join(root, 'node_modules/.bin/rer'), ['build', '--site'], { cwd: root, encoding: 'utf8', stdio: 'pipe', env: { ...process.env, PWD: root.replace(/\/$/, '') } })
   assert.match(output, /Run site written to dist\/site \(\d+ pages, \d+ files\)/, 'the published pin names the usable checkout-relative site path')
-  assert.ok(output.includes('[REDACTED]/dist/site'), 'the inherited private absolute path stays redacted')
+  assert.match(output, /Run site written to dist\/site[^\n]*:\s*\[REDACTED\](?:\/?dist\/site)?\s*$/m, 'the private absolute destination stays redacted across nested command capture')
   assert.ok(!output.includes(root), 'the checkout path must not bypass global redaction')
   const home = readFileSync(join(site, 'index.html'), 'utf8')
   const runs = anchors(home).filter(a => /^Run Bifocal\b/.test(a.text))
