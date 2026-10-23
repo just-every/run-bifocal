@@ -20,7 +20,7 @@ export async function chartResponse(request: Request, original: Bindings): Promi
   if(url.pathname==='/api/operator/charts') {
    if(url.search)fail('chart_option_not_supported',400)
    await transact(env.DB,owner,[])
-   return new Response(request.method==='HEAD'?null:JSON.stringify({types:chartTypes,formats:['svg','json'],maxGroups:40,scales:{linear:chartTypes,log:['line','stepped-line','sparkline']}}),{headers:{...headers,'content-type':'application/json'}})
+   return new Response(request.method==='HEAD'?null:JSON.stringify({types:chartTypes,formats:['svg','json'],maxGroups:40,minGroupWidth:24,width:{min:320,max:1440,default:720},scales:{linear:chartTypes,log:['line','stepped-line','sparkline']}}),{headers:{...headers,'content-type':'application/json'}})
   }
   const match=/^\/api\/operator\/charts\/([a-f0-9-]{36})\/([a-z-]+)\.(svg|json)$/.exec(url.pathname)
   if(!match)fail('chart_not_found',404)

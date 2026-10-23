@@ -31,6 +31,7 @@ export function chartOptions(snapshot: Snapshot, type: string, search: URLSearch
  if (scale === 'log' && !['line','stepped-line','sparkline'].includes(type)) fail('chart_log_requires_line')
  // Never discard extra groups or quietly take the first page.
  if (snapshot.answer.rows.length > 40) fail('chart_group_limit_40')
+ if (!['horizontal-bar','table','kpi'].includes(type) && snapshot.answer.rows.length>Math.floor((Number(requestedWidth)-112)/24)) fail('chart_groups_require_wider_view')
  return {type: type as ChartType, measure, scale: scale as ChartOptions['scale'], width:Number(requestedWidth)}
 }
 export function chartData(snapshot: Snapshot, options: ChartOptions) {
@@ -43,7 +44,9 @@ export function chartData(snapshot: Snapshot, options: ChartOptions) {
 export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
  const data = chartData(snapshot, options), width=options.width, left=76, right=width-36
  const chunks=(value:string,limit=Math.floor((width-left-24)/16))=>Array.from(value).reduce<string[]>((parts,character)=>{if(!parts.length||Array.from(parts.at(-1)!).length>=limit)parts.push('');parts[parts.length-1]+=character;return parts},[])
- const heading=chunks(options.measure), headingOffset=(heading.length-1)*22, plotTop=110+headingOffset, plotBottom=plotTop+260
+ const heading=chunks(options.measure), headingOffset=(heading.length-1)*22, plotTop=110+headingOffset
+ const kpiLines=chunks(data.totalFormatted,Math.floor((width-left-24)/24))
+ const plotBottom=plotTop+Math.max(260,options.type==='horizontal-bar'?data.rows.length*26:options.type==='kpi'?70+kpiLines.length*30:260)
  const numbers = data.rows.filter(row => row.value.state === 'value').map(row => Number(row.value.value))
  const transformed = numbers.map(value => options.scale === 'log' ? Math.log10(value) : value)
  let low = options.scale === 'log' ? Math.min(...transformed, 0) : Math.min(0,...transformed), high = Math.max(0,...transformed)
@@ -59,7 +62,7 @@ export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
  const group=(label:string,content:string)=>`<g tabindex="0" role="img" aria-label="${xml(label)}"><title>${xml(label)}</title>${content}</g>`
  let graphic = ''
  if (!data.rows.length && options.type !== 'kpi') graphic=chunks('No groups match the retained query filters.').map((label,index)=>text(left,plotTop+60+index*22,label)).join('')
- else if (options.type === 'kpi') graphic=group(`${options.measure}: ${data.totalFormatted}`,chunks(data.totalFormatted,Math.floor((width-left-24)/32)).map((label,index)=>text(left,plotTop+50+index*38,label,'font-size="32"')).join(''))
+ else if (options.type === 'kpi') graphic=group(`${options.measure}: ${data.totalFormatted}`,kpiLines.map((label,index)=>text(left,plotTop+50+index*30,label,'font-size="24"')).join(''))
  else if (options.type === 'table') graphic=chunks('Exact grouped values are listed below.').map((label,index)=>text(left,plotTop+50+index*22,label)).join('')
  else if (options.type === 'horizontal-bar') {
   const zero=left+fraction(0)*(right-left)
