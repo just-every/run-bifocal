@@ -68,7 +68,7 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.deepEqual(dashboard.answer,joined.answer); assert.deepEqual(report.answer,joined.answer)
  for(const path of [`/queries/${snapshot.queryId}`,`/dashboards/${dashboard.id}`,`/reports/${report.id}`])assert.equal((await context.request.get(origin+'/api/operator'+path,{headers:{Cookie:''}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/queries/'+snapshot.queryId+'/rerun',{headers:{Origin:'https://foreign.example.test'},data:{}});assert.equal(foreign.status(),401)
- await proveSemanticPromotion(origin,context,page,query,dimension)
+ await proveSemanticPromotion(origin,context,page,query,dimension,files)
  await proveExactBrowser(origin,page,joinedQuery,'create')
  const replacement = await files.plan({...file,data:'id,date,region,customer,revenue,profit,score,weight\n6,01/20/2026,West,c9,$999.99,$0.00,3,1\n'},true,dataset)
  await files.apply(replacement,dataset)
@@ -128,7 +128,7 @@ export async function proveExactQueries(origin, context, files, page) {
 }
 
 /** Semantic promotion: CLI/API impact, exact review and coherent rollback. */
-async function proveSemanticPromotion(origin,context,page,query,dimension) {
+async function proveSemanticPromotion(origin,context,page,query,dimension,files) {
  const headers={Origin:origin}
  const request=async(path,data,expected=200,method=data===undefined?'GET':'POST')=>{
   const response=await context.request.fetch(origin+'/api/operator/models'+path,{method,headers,...(data===undefined?{}:{data})})
@@ -138,6 +138,7 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
  const definition={views:['chart','notebook','report','subscription','portal','agent'].map(kind=>({id:kind,kind,query:structuredClone(scoped),rowRules:[{column:'region',op:'eq',value:'West'}]})),quality:[{view:'report',measure:'revenue',expected:'80.07'}]}
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:origin,Cookie:''},data:{definition}})).status(),401)
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:'https://foreign.example.test'},data:{definition}})).status(),401)
+ const sourceBefore=await files.read(query.dataset)
  const model=await request('',{definition},201),prefix='/'+model.modelId,first=prefix+'/branches/'+model.branchId
  const preview=await request(first+'/validate',{})
  assert.equal(preview.compatible,true);assert.equal(preview.impacts.length,6);assert.ok(preview.quality.every(q=>q.passed))
@@ -157,6 +158,13 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
   assert.equal(result.productionSends,0);assert.equal(result.sourceWrites,0)
  }
  const staleBranch=await request(prefix+'/branches',{definition},201)
+ await request(prefix+'/staging/send',{recipient:'synthetic-bifocal-8@example.test'},404)
+ assert.deepEqual(await files.read(query.dataset),sourceBefore)
+ const qualityDefinition=structuredClone(definition);qualityDefinition.quality[0].expected='999.99'
+ const qualityBranch=await request(prefix+'/branches',{definition:qualityDefinition},201)
+ const qualityPreview=await request(prefix+'/branches/'+qualityBranch.branchId+'/validate',{})
+ assert.equal(qualityPreview.quality[0].passed,false);assert.equal(qualityPreview.compatible,false)
+ await request(prefix+'/branches/'+qualityBranch.branchId+'/approve',{digest:qualityPreview.digest},409)
  const v1=await request(first+'/promote',{environment:'production',digest:preview.digest})
  const staleReview=await request(prefix+'/branches/'+staleBranch.branchId+'/validate',{})
  assert.equal(staleReview.compatible,false)
