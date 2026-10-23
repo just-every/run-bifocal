@@ -2,6 +2,7 @@ import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { proveReportProvider } from './journeys/report-edge.mjs'
 import { proveContentGovernance } from './journeys/content-governance.mjs'
 import { proveAnalyticsBoundaries } from './journeys/analytics-boundaries.mjs'
 import { proveFileImports } from './journeys/file-import.mjs'
@@ -274,6 +275,7 @@ try {
     const journeyErrors = []
     for (const [name, run] of [
       ['conventions', () => proveConventions(origin, context, page)],
+      ['report custody provider', () => proveReportProvider(persist)],
       ['analytics boundaries', () => proveAnalyticsBoundaries(origin, context, page, persist)],
       ['spreadsheet edges', () => proveSpreadsheetEdges(origin, context, persist)],
       ['file and exact-answer journeys', () => proveFileImports(origin, context, page, restartWorker)],

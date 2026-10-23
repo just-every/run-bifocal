@@ -474,6 +474,10 @@
       "sha256": "96aadb88dcdbbadb1d713f4f849ed9f828171622758dff51bd6772e5aa7a52ad",
       "executable": false
     },
+    "migrations/core/0030_report_custody.sql": {
+      "sha256": "5ef9d87cc7dbfd10307544231cd7c42f21adbaa537e43b65c570d10f19537178",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -846,6 +850,10 @@
       "sha256": "b65a43496156ee6ebe86ab9d0158ea0d18659146aa1d22aaa380ac14d83d64d0",
       "executable": false
     },
+    "src/bifocal/artifacts/downloads.server.ts": {
+      "sha256": "205926fbb54f7e09060608318687fa8b926c3aac071f1699ecda211aa4bcaea1",
+      "executable": false
+    },
     "src/bifocal/calendars/date.ts": {
       "sha256": "77d2f9e8d03794469be204444a22db8f9572087646a87f2a4eef3ed2f4587227",
       "executable": false
@@ -1036,6 +1044,22 @@
     },
     "src/bifocal/reconciliation/compare.ts": {
       "sha256": "cd1b103ad83c461ea428c5564c1e159c0ec2ec054aa34f1c1abdc0f4c984474a",
+      "executable": false
+    },
+    "src/bifocal/reports/server.ts": {
+      "sha256": "954975a16d8b4ba3041e04e6b495769165af94091c7ec6937c471d631cc173ac",
+      "executable": false
+    },
+    "src/bifocal/reports/store.server.ts": {
+      "sha256": "2e2eefa2f7202c873928381be3888183a2fde107f2e956618be2f2daec301693",
+      "executable": false
+    },
+    "src/bifocal/reports/transport.server.d.mts": {
+      "sha256": "edb90acb5a7ad35200ff4de83076f1d6dfe6069f7aaecad5317214d19ecd9e8e",
+      "executable": false
+    },
+    "src/bifocal/reports/transport.server.mjs": {
+      "sha256": "78895028d2cbc8469d0c7c05886103a0389a2bc26408588e035c79a05704edda",
       "executable": false
     },
     "src/bifocal/sources/analytics/audit.server.ts": {
@@ -3019,7 +3043,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "fc4a3470c37033b6b99d88ba070ca82ea2265f71992205d722bd7d25d75cfe47",
+      "sha256": "2fb34f0e47d7505059ee753f25d43ba1aabd11e05debe782140ca0e72d4d4c7d",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -3047,7 +3071,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "cfc2889ec4cf17616dc51806ae3ae1d55adf14dbb5c99c42c6243363240419e6",
+      "sha256": "450a12c32d846a5806a78fe2aa666fab0ac15f0280c5f2c1f148029674e4d0a5",
       "executable": false
     },
     "tests/site/site.test.mjs": {

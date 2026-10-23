@@ -5,6 +5,7 @@ import { createServer } from 'node:net'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { proveReportCustody } from './report-custody.mjs'
 import { chromium } from '@playwright/test'
 
 /** The actual local-only entry supplies native invited-member sign-in. The
@@ -46,7 +47,7 @@ export async function proveContentGovernance(){
   assert.equal((await reader.request.get(origin+'/api/operator/datasets/'+fixtures.dataset)).status(),401)
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/people')
-   await page.getByRole('heading',{name:'People',exact:true}).waitFor()
+   await page.getByRole('heading',{name:'Invite a person',exact:true}).waitFor()
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/catalog-native-membership-'+width+'.png',fullPage:true})
   }
@@ -60,16 +61,16 @@ export async function proveContentGovernance(){
  }
 }
 
-async function importDataset(origin,owner){
- const dataset='synthetic-bifocal-catalog',input={version:1,datasetId:dataset,filename:'synthetic-bifocal-91.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:'id,region,revenue\n1,West,$100.00\n2,East,$200.00\n'}
+export async function importDataset(origin,owner,replace=false){
+ const dataset='synthetic-bifocal-catalog',input={version:1,datasetId:dataset,filename:'synthetic-bifocal-91.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:replace?'id,region,revenue,net_revenue\n1,West,$999.00,$900.00\n':'id,region,revenue,net_revenue\n1,West,$100.00,$90.00\n2,East,$200.00,$180.00\n'}
  const bytes=Buffer.from(JSON.stringify(input)),hash=createHash('sha256').update(bytes).digest('hex'),headers={Origin:origin,'X-Import-Dataset':dataset}
  const post=async(action,data)=>{const response=await owner.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(response.status(),200,await response.text());return response.json()}
  const upload=await post('uploads',{name:'synthetic-bifocal-91.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')})
- const plan=await post('plan',{uploadId:upload.uploadId})
+ const plan=await post('plan',{uploadId:upload.uploadId,...replace?{catchup:true}:{}})
  let applied=false
  for(let attempt=0;attempt<20;attempt++){const result=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(result.job.state==='completed'){applied=true;break}}
  assert.ok(applied)
- return {dataset,revision:(await(await owner.request.get(origin+'/api/operator/datasets/'+dataset)).json()).revision}
+ return {dataset,replace:()=>importDataset(origin,owner,true),revision:(await(await owner.request.get(origin+'/api/operator/datasets/'+dataset)).json()).revision}
 }
 
 async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
@@ -129,8 +130,10 @@ async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
  await call(owner,'/items/'+metric.id+'/grants',{readerId,enabled:false},200,'PUT')
  await call(reader,'/items/'+metric.id,undefined,404)
  assert.ok(!(await call(reader,'/search?q=churn')).items.some(item=>item.id===metric.id))
+ const reports=await proveReportCustody(origin,owner,reader,fixtures,null)
  const receipt=await owner.request.post(origin+'/api/operator/datasets/'+fixtures.dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:fixtures.dataset,reviewedRevision:fixtures.revision}})
  assert.equal(receipt.status(),200,await receipt.text())
+ await reports.erased()
  assert.ok((await receipt.json()).stores.some(store=>store.store==='bf_catalog_items'&&store.rows===5))
  assert.equal((await call(owner,'/search?q=churn')).total,0)
  assert.equal((await call(owner,'/hygiene')).denominator.historicalOpens,0)
