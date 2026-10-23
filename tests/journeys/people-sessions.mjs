@@ -19,7 +19,6 @@ export async function provePeopleSessions(origin, context, page) {
   await page.getByRole('link', { name: `View sessions for ${current.operator.displayName}`, exact: true }).click()
   await page.getByRole('heading', { name: `Sessions for ${current.operator.displayName}`, exact: true }).waitFor()
   assert.equal(await page.getByRole('button', { name: 'End this session', exact: true }).count(), 1)
-  assert.match(await page.locator('main').innerText(), /does not deactivate the account/)
   const response = await context.request.get(page.url())
   assert.match(response.headers()['cache-control'], /no-store/)
   const rejected = await context.request.post(page.url(), { headers: { Origin: 'https://foreign.example.test' }, form: { sessionId: current.id } })

@@ -2991,7 +2991,7 @@
       "executable": false
     },
     "tests/journeys/people-sessions.mjs": {
-      "sha256": "cdad21fbafcde682883a22e475a79c859aaff24436c556fc53999bff87b2c765",
+      "sha256": "d4a503971f9efccb0dc280fb9ae983398722a0d9d61a483d49f40276bf9ddac9",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {
