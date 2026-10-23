@@ -100,5 +100,13 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboards/'+lastBoard.id);await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true');await shot('withdrawn',width);assert.ok(!await page.locator('#business-board').isVisible(),'withdrawn cross-system source values are not rendered')}
   assert.ok(browserRequests.every(url=>new URL(url).origin === origin),'the built analytics workflow loads no external tracker or telemetry script')
   console.log('Analytics boundaries: Vane Stats/export and permitted product table beside exact ledger revenue, source links, chart/report and warehouse acknowledgement at 1440/390; separate setup links, no tracker/telemetry, revoked/partial source preservation, uncertain/partial non-replay and erasure withdrawal passed (official-schema network edges, not live-provider proof)')
- } finally {page.off('request',recordRequest);await page.goto(original+'/app');await edge.close()}
+ } finally {page.off('request',recordRequest);if(original)await page.goto(original+'/app');await edge.close()}
+}
+
+// The same public-door journey can run alone while iterating. CI invokes it
+// from runtime.mjs; this entry never substitutes for the push Verify wall.
+if(process.argv[1]===new URL(import.meta.url).pathname){
+ const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
 }
