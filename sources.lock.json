@@ -563,7 +563,7 @@
       "executable": false
     },
     "public/bifocal/models.js": {
-      "sha256": "f1e824ad64364390e3c412b3f99dcf9c03b8838a58220ee87fae78fb9a41a4f1",
+      "sha256": "c8038e641c75cb2bbcb7a85f890389d6a34801a13da439438285266c8d93ed30",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -3091,7 +3091,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "5d64fe2a3e1688f7cdbec3d55a48620eb0eaa185f392be69eb7177961233921e",
+      "sha256": "c560b8eaab835f70ab76e4d52020b700d3b2d19dd0315c24c22da6d936bdfbc1",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
