@@ -1,3 +1,4 @@
+import { qualityState } from '../quality/server'
 import { boardDocument, readBoard, saveBoard } from '../dashboards/store.server'
 import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../auth.server'
@@ -57,7 +58,7 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
     await transact(env.DB,authority,[assertion(guard)])
     return json({...snapshot,reproduced:true})
    }
-   return json(snapshot)
+   return json({...snapshot,quality:await qualityState(env,sources.map(s=>s.id))})
   }
   const artifact=/^\/api\/operator\/(dashboards|reports)(?:\/([^/]+))?$/.exec(path)
   if (artifact) {
@@ -79,7 +80,7 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
    if(!row)fail('artifact_not_found',404)
    const {snapshot,guard}=await readQuery(env,authority,ownerId,row.snapshot_id)
    await transact(env.DB,authority,[assertion(guard),assertion(sql('EXISTS(SELECT 1 FROM bf_query_artifacts WHERE id=? AND kind=? AND owner_id=? AND snapshot_id=?)',row.id,kind,ownerId,row.snapshot_id))])
-   return json({id:row.id,kind,title:row.title,artifactCreatedAt:row.created_at,...snapshot})
+   return json({id:row.id,kind,title:row.title,artifactCreatedAt:row.created_at,...snapshot,quality:await qualityState(env,snapshot.answer.sourceWatermarks.map(s=>s.dataset))})
   }
   if(path==='/api/operator/reconciliations') {
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)

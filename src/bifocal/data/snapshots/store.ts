@@ -36,6 +36,7 @@ async function persist(env: Bindings, authority: Authority, snapshot: Snapshot, 
  const {digest:ignored,...content} = snapshot; snapshot.digest = digest(content)
  await transact(env.DB,authority,[...sources.map(sourceMatch).map(assertion),...guards.map(assertion),
   sql('INSERT INTO bf_query_snapshots(id,owner_id,query_json,context_json,answer_json,digest,created_at) VALUES(?,?,?,?,?,?,?)',snapshot.snapshotId,snapshot.context.ownerId,canonicalJson(snapshot.definition),canonicalJson(snapshot.context),canonicalJson(snapshot.answer),snapshot.digest,snapshot.createdAt),
+  ...(snapshot.context.metric?[sql('INSERT INTO bf_metric_uses(snapshot_id,metric_id,revision) VALUES(?,?,?)',snapshot.snapshotId,snapshot.context.metric.id,snapshot.context.metric.revision)]:[]),
   ...sources.map(s=>sql('INSERT INTO bf_query_sources(snapshot_id,dataset_id,revision,value_json) VALUES(?,?,?,?)',snapshot.snapshotId,s.id,s.revision,s.value_json))])
  return snapshot
 }

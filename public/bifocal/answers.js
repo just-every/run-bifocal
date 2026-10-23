@@ -23,7 +23,7 @@ function render(result) {
  $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi');const caption=element('span',undefined,'kpi-id');caption.append(...dotted([id,total.unit==='money'?currency:''].filter(Boolean)));tile.append(element('span',label(id),'kpi-label'),element('strong',shown(total,currency),'kpi-value'),caption);return tile}))
  $('groups').replaceChildren(table('Grouped results',columns.map(label),result.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],currency))]),columns.map((_,i)=>i>=result.definition.groupBy.length)))
  // Yellow marks a real exception; the standing "not certified" limitation sits in the meta line.
- $('certification').textContent=result.answer.commonSnapshot==='unavailable'?'No common upstream snapshot is available. This answer cannot be officially certified.':''
+ $('certification').textContent=(result.quality&&result.quality.state!=='healthy'?'Quality '+result.quality.state+'. Retained result; inspect Data quality for the exact test. ':'')+(result.answer.commonSnapshot==='unavailable'?'No common upstream snapshot is available. This answer cannot be officially certified.':'')
  $('context').textContent=JSON.stringify({snapshot:{id:result.snapshotId,createdAt:result.createdAt,...(result.artifactCreatedAt?{savedAt:result.artifactCreatedAt}:{})},exact:{totals:result.answer.totals,rows:result.answer.rows},definition:result.definition,context:result.context,sources:result.answer.sourceWatermarks,joinDiagnostics:result.answer.joinDiagnostics,digest:result.digest},null,2)
  $('title').value=result.title??'';current();status('Answer loaded. Exact values and retained context are shown below.')
 }

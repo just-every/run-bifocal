@@ -25,6 +25,7 @@
         "pnpm run build",
         "node --test tests/demo-owner-claim.test.mjs",
         "pnpm run test:runtime",
+        "node tests/bifocal-certified-metrics.mjs",
         "pnpm run test:site"
       ]
     }

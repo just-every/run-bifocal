@@ -16,6 +16,9 @@ import { companyPage } from './bifocal/company/page.server'
 import { conventionsResponse } from './bifocal/company/server'
 import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
+import { goalResponse } from './bifocal/goals/server'
+import { qualityResponse } from './bifocal/quality/server'
+import { metricResponse } from './bifocal/metrics/store.server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
@@ -45,6 +48,12 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (settings) return settings
     const conventions = await conventionsResponse(request, env)
     if (conventions) return conventions
+    const goal = await goalResponse(request, env)
+    if (goal) return goal
+    const quality = await qualityResponse(request, env)
+    if (quality) return quality
+    const metrics = await metricResponse(request, env)
+    if (metrics) return metrics
     const answer = await exactAnswerPage(request, env)
     if (answer) return answer
     const custody = await reportCustodyResponse(request, env)
