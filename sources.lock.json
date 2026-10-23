@@ -470,6 +470,10 @@
       "sha256": "bade316f02a8411f48ce998cf257b4b401e3f9a12a93439bc9cfc8212a27b78e",
       "executable": false
     },
+    "migrations/core/0029_content_catalog.sql": {
+      "sha256": "96aadb88dcdbbadb1d713f4f849ed9f828171622758dff51bd6772e5aa7a52ad",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -862,6 +866,26 @@
       "sha256": "fb4392b611576c71e3cef187c2b86d5d70fc5f380d2b53672d99dbfe360a30b7",
       "executable": false
     },
+    "src/bifocal/catalog/authority.server.ts": {
+      "sha256": "574e5fd7ea41751e0dadd9b37f4a09a743f09a35b90798e33285c0269a25d0e6",
+      "executable": false
+    },
+    "src/bifocal/catalog/erasure.ts": {
+      "sha256": "0563e709570b34b6c9abcb5247c7c9b16c6d56bbc1c49ff429339b732d0723e1",
+      "executable": false
+    },
+    "src/bifocal/catalog/protocol.ts": {
+      "sha256": "90f54ac20337904c0bcacf5979b07051f32757904706c48d57047a299f83eae1",
+      "executable": false
+    },
+    "src/bifocal/catalog/server.ts": {
+      "sha256": "40587e52872d44902f46d1f1d9fb640bbc88649d87dab36896156e2e8e803ce4",
+      "executable": false
+    },
+    "src/bifocal/catalog/store.server.ts": {
+      "sha256": "c6282d8ce98c685e7442db097d722201689745ef808061857fd2cfe6d957f001",
+      "executable": false
+    },
     "src/bifocal/company/display-zone.ts": {
       "sha256": "7ab848ee7c1b3d642dcefd4a2844bfd8ca4ccb6e58874c02259dc332083f0762",
       "executable": false
@@ -964,6 +988,10 @@
     },
     "src/bifocal/models/validation/cli.mjs": {
       "sha256": "c9027aa164d0b2af56fc0dbf5513911d3ce4c7ed0ba467668ecb73aa781871cc",
+      "executable": false
+    },
+    "src/bifocal/models/validation/erasure.ts": {
+      "sha256": "aa380fc705325ab905d834ab4e6f09c5560235460b125f74b2fec4fa4f6c687e",
       "executable": false
     },
     "src/bifocal/models/validation/protocol.ts": {
@@ -2990,6 +3018,10 @@
       "sha256": "443cd02fb74182d83a3f51ceb62a24ef776817e8ffce1515d461875f749e6f82",
       "executable": false
     },
+    "tests/journeys/content-governance.mjs": {
+      "sha256": "a255ec33628654710ca17a30104cf0c436f7818f4acb7863a1c36cbd1e7183e3",
+      "executable": false
+    },
     "tests/journeys/conventions.mjs": {
       "sha256": "0b69eb47787228c266873bd78205013bc74c1aa784ed240dfcb4f8be2da922d0",
       "executable": false
@@ -3039,7 +3071,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "8d53bfdfb5e8b4b4005e81ee1447eaec322f495f5a255c464b775b2f1fe92e8f",
+      "sha256": "a7405dfe12a409fa5b816aa021cca8bfd662e1f2e64ee7450ba2e9ead5154539",
       "executable": false
     },
     "vite.site.config.ts": {
