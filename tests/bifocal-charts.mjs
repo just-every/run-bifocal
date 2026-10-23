@@ -69,17 +69,28 @@ test('native chart families retain exact scoped values, missing states and acces
   for(const [region,state] of [['South','null'],['North','value'],['Unknown','unknown'],['Restricted','suppressed'],['Pending','incomplete']])assert.equal(metadata.rows.find(row=>row.label===region).value.state,state)
   assert.match(await page.locator('svg').textContent(),/USD 100\.10/)
   assert.equal(await page.locator('a, image, foreignObject').count(),0)
+  assert.equal(await page.getByRole('table',{name:'Exact chart values'}).getByRole('row').count(),8)
+  if(['vertical-bar','horizontal-bar'].includes(type)){
+   const dimension=type==='vertical-bar'?'height':'width'
+   const west=await page.locator('g[aria-label="West: USD 100.10"] rect').getAttribute(dimension),east=await page.locator('g[aria-label="East: USD -20.02"] rect').getAttribute(dimension)
+   assert.ok(Math.abs(Number(west)/Number(east)-5)<1e-9,'mark lengths preserve the independently known five-to-one value ratio')
+  }
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'chart overflows viewport')
   assert.ok(await page.locator('g[tabindex="0"]').count()>0)
   await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('tabindex')),'0')
   const outside=await page.locator('text').evaluateAll(nodes=>nodes.filter(node=>{const b=node.getBBox(),v=node.ownerSVGElement.viewBox.baseVal;return b.x<0||b.y<0||b.x+b.width>v.width||b.y+b.height>v.height}).map(node=>node.textContent))
   assert.deepEqual(outside,[],`clipped text for ${type} at ${width}`)
-  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,`chart-${type}-${width}.png`),fullPage:true})
+  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,`chart-${type}-${width}.png`),fullPage:false})
  }
  // Filters are applied by the query engine before geometry and retained verbatim.
  const filtered=await call('/queries/run',{...query,filters:[{column:'region',op:'eq',value:'West'}]},201)
  const scoped=await call('/charts/'+filtered.queryId+'/line.json?scale=log')
  assert.deepEqual(scoped.rows.map(row=>row.value.value),['100.10']);assert.deepEqual(scoped.filters,filtered.definition.filters)
+ const positive=await context.request.get(origin+'/api/operator/charts/'+filtered.queryId+'/line.svg?scale=log&width=390');assert.equal(positive.status(),200);assert.ok(!(await positive.text()).match(/NaN|Infinity/))
+ const empty=await call('/queries/run',{...query,filters:[{column:'region',op:'eq',value:'No matching region'}]},201)
+ await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/api/operator/charts/'+empty.queryId+'/line.svg?width=390')
+ assert.match(await page.locator('svg').textContent(),/No groups match/);assert.equal(await page.getByRole('row').count(),0)
+ if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'chart-empty-390.png')})
  const line=await(await context.request.get(origin+chartUrl+'/line.svg')).text()
  assert.equal((line.match(/<path /g)||[]).length,2,'non-numeric states split the two numeric runs')
 })

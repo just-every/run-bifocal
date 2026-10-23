@@ -4,7 +4,14 @@ import { fail, type Value } from '../query/types'
 export const chartTypes = ['vertical-bar','horizontal-bar','line','stepped-line','area','sparkline','table','kpi'] as const
 export type ChartType = typeof chartTypes[number]
 export type ChartOptions = { type: ChartType; measure: string; scale: 'linear' | 'log'; width: number }
-const xml = (value: unknown) => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]!))
+const xml = (value: unknown): string => {
+ const text=String(value)
+ for(const character of text) {
+  const code=character.codePointAt(0)!
+  if ((code<32 && ![9,10,13].includes(code)) || (code>=0xd800 && code<=0xdfff) || [0xfffe,0xffff].includes(code)) fail('chart_text_not_xml')
+ }
+ return text.replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]!))
+}
 
 /** Formatting preserves the exact decimal string; floating point is geometry only. */
 export function displayValue(value: Value, currency: string): string {
@@ -34,7 +41,9 @@ export function chartData(snapshot: Snapshot, options: ChartOptions) {
  return {version:1, renderer:'native-svg-v1', options, queryId:snapshot.queryId, digest:snapshot.digest, createdAt:snapshot.createdAt, filters:snapshot.definition.filters, modelVersion:snapshot.context.definitionVersions?.model, metricVersion:snapshot.context.definitionVersions?.metrics, sources:snapshot.answer.sourceWatermarks, rows, total:snapshot.answer.totals[options.measure], totalFormatted:displayValue(snapshot.answer.totals[options.measure],snapshot.context.currency), geometry:'IEEE-754 coordinates only; labels and data retain exact query decimals'}
 }
 export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
- const data = chartData(snapshot, options), width=options.width, plotTop=110, plotBottom=370, left=76, right=width-36
+ const data = chartData(snapshot, options), width=options.width, left=76, right=width-36
+ const chunks=(value:string,limit=Math.floor((width-left-24)/16))=>Array.from(value).reduce<string[]>((parts,character)=>{if(!parts.length||Array.from(parts.at(-1)!).length>=limit)parts.push('');parts[parts.length-1]+=character;return parts},[])
+ const heading=chunks(options.measure), headingOffset=(heading.length-1)*22, plotTop=110+headingOffset, plotBottom=plotTop+260
  const numbers = data.rows.filter(row => row.value.state === 'value').map(row => Number(row.value.value))
  const transformed = numbers.map(value => options.scale === 'log' ? Math.log10(value) : value)
  let low = options.scale === 'log' ? Math.min(...transformed, 0) : Math.min(0,...transformed), high = Math.max(0,...transformed)
@@ -49,9 +58,9 @@ export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
  const line=(x1:number,y1:number,x2:number,y2:number,extra='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#43536b" ${extra}/>`
  const group=(label:string,content:string)=>`<g tabindex="0" role="img" aria-label="${xml(label)}"><title>${xml(label)}</title>${content}</g>`
  let graphic = ''
- if (!data.rows.length && options.type !== 'kpi') graphic=text(left,180,'No groups match the retained query filters.')
- else if (options.type === 'kpi') graphic=group(`${options.measure}: ${data.totalFormatted}`,text(left,180,data.totalFormatted,'font-size="32"'))
- else if (options.type === 'table') graphic=text(left,160,'Exact grouped values are listed below.')
+ if (!data.rows.length && options.type !== 'kpi') graphic=chunks('No groups match the retained query filters.').map((label,index)=>text(left,plotTop+60+index*22,label)).join('')
+ else if (options.type === 'kpi') graphic=group(`${options.measure}: ${data.totalFormatted}`,chunks(data.totalFormatted,Math.floor((width-left-24)/32)).map((label,index)=>text(left,plotTop+50+index*38,label,'font-size="32"')).join(''))
+ else if (options.type === 'table') graphic=chunks('Exact grouped values are listed below.').map((label,index)=>text(left,plotTop+50+index*22,label)).join('')
  else if (options.type === 'horizontal-bar') {
   const zero=left+fraction(0)*(right-left)
   graphic=line(zero,plotTop,zero,plotBottom)
@@ -76,7 +85,7 @@ export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
   }
   data.rows.forEach((row,index)=>{
    const cx=x(index)
-   if(row.value.state!=='value') {flush();graphic+=text(cx,plotBottom+32,`${index+1}: ${row.formatted}`,'text-anchor="middle" font-size="12"');return}
+   if(row.value.state!=='value') {flush();graphic+=group(`${row.label}: ${row.formatted}`,text(cx,plotBottom+26,'×','text-anchor="middle" font-size="16"'));return}
    const cy=y(Number(row.value.value))
    if(options.type==='vertical-bar') {
     const w=Math.min(42,(right-left)/data.rows.length*.7)
@@ -86,15 +95,14 @@ export function chartSvg(snapshot: Snapshot, options: ChartOptions): string {
   // Markers are drawn last so area fills never cover them.
   data.rows.forEach((row,index)=>{if(row.value.state==='value')graphic+=group(`${row.label}: ${row.formatted}`,`<circle cx="${x(index)}" cy="${y(Number(row.value.value))}" r="4" fill="#102a43"/>`);graphic+=text(x(index),plotBottom+52,String(index+1),'text-anchor="middle" font-size="12"')})
  }
- const chunks=(value:string)=>Array.from(value).reduce<string[]>((parts,character)=>{if(!parts.length||Array.from(parts.at(-1)!).length>=Math.floor((width-left-24)/16))parts.push('');parts[parts.length-1]+=character;return parts},[])
- let tableY=480, table=''
+ let tableY=plotBottom+110, table=''
  data.rows.forEach((row,index)=>{
-  const labels=chunks(`${index+1}. ${row.label}`), values=chunks(`${row.formatted} · ${row.value.state}`)
+  const labels=chunks(`${index+1}. ${row.label}`), values=chunks(row.formatted)
   const title=`${row.label}: ${row.formatted}`
-  table+=group(title,[...labels,...values].map((label,offset)=>text(left,tableY+offset*22,label)).join(''))
+  table+=`<g role="row" tabindex="0" aria-label="${xml(title)}"><g role="cell" aria-label="${xml(row.label)}">${labels.map((label,offset)=>text(left,tableY+offset*22,label)).join('')}</g><g role="cell" aria-label="${xml(row.formatted+' · '+row.value.state)}">${values.map((label,offset)=>text(left,tableY+(labels.length+offset)*22,label)).join('')}</g></g>`
   tableY+=(labels.length+values.length)*22+16
  })
  if(!data.rows.length)table=text(left,tableY,'No grouped rows.'); else tableY-=16
  const height=Math.max(560,tableY+80), title=`${options.measure} · ${options.type}`
- return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chart-title chart-description"><title id="chart-title">${xml(title)}</title><desc id="chart-description">Retained exact query. ${xml(options.scale)} scale. Numbered marks correspond to the exact values below. Missing, unknown, suppressed and incomplete values have no numeric mark. Line gaps are not connected. Source and filter metadata is embedded.</desc><metadata>${xml(JSON.stringify(data))}</metadata><rect width="${width}" height="${height}" fill="#ffffff"/><g fill="#102a43" font-family="sans-serif" font-size="16">${text(left,28,options.measure)}${text(left,52,options.type)}${text(left,76,`${options.scale} scale · ${data.rows.length} groups`,'font-size="13"')}${graphic}${text(left,450,'Exact values and data states','font-weight="bold" font-size="14"')}${table}${text(12,height-24,'Retained owner snapshot; no live refresh.','font-size="12"')}</g></svg>`
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="chart-title chart-description"><title id="chart-title">${xml(title)}</title><desc id="chart-description">Retained exact query. ${xml(options.scale)} scale. Numbered marks correspond to the exact values below. Missing, unknown, suppressed and incomplete values have no numeric mark; a cross below the plot refers to their named state in the table. Line gaps are not connected. Source and filter metadata is embedded.</desc><metadata>${xml(JSON.stringify(data))}</metadata><rect width="${width}" height="${height}" fill="#ffffff"/><g fill="#102a43" font-family="sans-serif" font-size="16">${heading.map((label,index)=>text(left,28+index*22,label)).join('')}${text(left,52+headingOffset,options.type)}${text(left,76+headingOffset,`${options.scale} scale · ${data.rows.length} groups`,'font-size="13"')}${graphic}${text(left,plotBottom+80,'Exact values and data states','font-weight="bold" font-size="14"')}<g role="table" aria-label="Exact chart values">${table}</g>${text(12,height-24,'Retained owner snapshot; no live refresh.','font-size="12"')}</g></svg>`
 }

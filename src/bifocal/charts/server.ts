@@ -1,3 +1,4 @@
+import { rejectedResponse } from '../../base/rejected-response'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity, readQuery } from '../data/snapshots/store'
@@ -29,6 +30,6 @@ export async function chartResponse(request: Request, original: Bindings): Promi
   await transact(env.DB,owner,[assertion(guard)])
   return new Response(request.method==='HEAD'?null:document,{headers:{...headers,'content-type':match[3]==='svg'?'image/svg+xml; charset=utf-8':'application/json; charset=utf-8'}})
  } catch(error) {
-  return Response.json({error:error instanceof QueryError?error.code:'chart_snapshot_conflict'},{status:error instanceof QueryError?error.status:409,headers})
+  return rejectedResponse(request,Response.json({error:error instanceof QueryError?error.code:'chart_snapshot_conflict'},{status:error instanceof QueryError?error.status:409,headers}))
  }
 }
