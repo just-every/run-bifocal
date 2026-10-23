@@ -25,3 +25,10 @@ CREATE TABLE bf_semantic_cache (
 );
 CREATE TRIGGER bf_semantic_revision_immutable BEFORE UPDATE ON bf_semantic_revisions BEGIN SELECT RAISE(ABORT,'immutable_semantic_revision'); END;
 CREATE TRIGGER bf_semantic_history_immutable BEFORE UPDATE ON bf_semantic_history BEGIN SELECT RAISE(ABORT,'immutable_semantic_history'); END;
+
+CREATE TABLE bf_semantic_approvals (
+ id TEXT PRIMARY KEY, model_id TEXT NOT NULL REFERENCES bf_semantic_models(id),
+ revision_id TEXT NOT NULL REFERENCES bf_semantic_revisions(id), digest TEXT NOT NULL,
+ actor_id TEXT NOT NULL, security_resolution TEXT, recorded_at TEXT NOT NULL
+);
+CREATE TRIGGER bf_semantic_approval_immutable BEFORE UPDATE ON bf_semantic_approvals BEGIN SELECT RAISE(ABORT,'immutable_semantic_approval'); END;

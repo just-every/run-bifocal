@@ -13,3 +13,9 @@ export async function jsonBody(request:Request):Promise<Record<string,unknown>> 
  }finally{await reader.cancel();reader.releaseLock()}
 }
 export function exactKeys(input:Record<string,unknown>,keys:string[]) {if(Object.keys(input).some(key=>!keys.includes(key)))fail('unsupported_input',400)}
+
+export async function discardBody(request:Request):Promise<void>{
+ if(!request.body)return
+ const reader=request.body.getReader();let size=0
+ try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>65536){await reader.cancel();break}}}catch{}finally{reader.releaseLock()}
+}

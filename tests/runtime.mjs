@@ -302,6 +302,9 @@ try {
     await context.close()
   } finally { await browser.close() }
   console.log('HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
+} catch(error) {
+  console.error(output.split('\n').filter(line=>/error|exception|body|promise|reset/i.test(line)).join('\n'))
+  throw error
 } finally {
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))

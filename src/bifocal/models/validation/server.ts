@@ -6,7 +6,7 @@ import { ownerIdentity, readSources, saveQuery, readQuery } from '../../data/sna
 import { queryContext } from '../../query/context'
 import { fail, QueryError } from '../../query/types'
 import { definitionInput, scopedQuery } from './protocol'
-import { exactKeys, json, jsonBody } from './transport'
+import { discardBody, exactKeys, json, jsonBody } from './transport'
 import { branchGuard, modelGuard, promote, readBranch, readDefinition, readModel, revisionStatement, validateBranch } from './store.server'
 
 /** Same-origin native human sessions only; there is no machine approval door. */
@@ -15,7 +15,7 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
  if(!match)return null
  const env=runtimeBindings(original)
  try {
-  const owner=await fileOwner(request,env);if(!owner)return json({error:'owner_required'},401)
+  const owner=await fileOwner(request,env);if(!owner){await discardBody(request);return json({error:'owner_required'},401)}
   const ownerId=await ownerIdentity(env,owner)
   if(url.search)fail('query_parameters_not_supported',400)
   const [,id,action]=match
@@ -72,19 +72,23 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
    if(input.securityResolution!==undefined && (typeof input.securityResolution!=='string' || !input.securityResolution.trim() || input.securityResolution.length>1000))fail('invalid_security_resolution',400)
    if(review.accessReviewRequired && !input.securityResolution)fail('security_resolution_required',409)
    const approval={digest:review.digest,ownerId,securityResolution:input.securityResolution??null,reviewedAt:new Date().toISOString()}
-   await transact(env.DB,owner,[...guards.map(assertion),sql('UPDATE bf_semantic_branches SET approval_json=? WHERE id=?',JSON.stringify(approval),branch.id)])
+   await transact(env.DB,owner,[...guards.map(assertion),sql('UPDATE bf_semantic_branches SET approval_json=? WHERE id=?',JSON.stringify(approval),branch.id),sql('INSERT INTO bf_semantic_approvals(id,model_id,revision_id,digest,actor_id,security_resolution,recorded_at) VALUES(?,?,?,?,?,?,?)',randomUUID(),id,branch.revision_id,review.digest,ownerId,approval.securityResolution,approval.reviewedAt)])
    return json({approved:true,...approval})
   }
-  if(action==='rollback'){
+  if(action==='rollback' || action==='rollback-preview'){
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)
-   const input=await jsonBody(request);exactKeys(input,['revision','previousGeneration'])
-   if(input.previousGeneration!==model.generation || typeof input.revision!=='string')fail('exact_rollback_review_required',409)
+   const input=await jsonBody(request);exactKeys(input,['revision','previousGeneration','digest','securityResolution'])
+   if(action==='rollback' && input.previousGeneration!==model.generation || typeof input.revision!=='string')fail('exact_rollback_review_required',409)
    const history=await env.DB.prepare("SELECT id FROM bf_semantic_history WHERE model_id=? AND revision_id=? AND environment='production'").bind(id,input.revision).first()
    if(!history)fail('production_revision_required',409)
+   const {review,guards}=await validateBranch(env,model,{id:'rollback',model_id:id,base_generation:model.generation,revision_id:input.revision,version:model.generation,approval_json:null})
+   if(action==='rollback-preview'){await transact(env.DB,owner,guards.map(assertion));return json(review)}
+   if(!review.compatible || input.digest!==review.digest)fail('exact_current_review_required',409)
+   if(review.accessReviewRequired && (typeof input.securityResolution!=='string' || !input.securityResolution.trim() || input.securityResolution.length>1000))fail('security_resolution_required',409)
    const epoch=model.cache_epoch+1
    // A rollback is itself a current human review of a previously approved full
    // definition. Both environments move together; no stale staging survives.
-   await transact(env.DB,owner,[assertion(modelGuard(model)),sql('UPDATE bf_semantic_models SET production=?,staging=?,generation=generation+1,cache_epoch=? WHERE id=?',input.revision,input.revision,epoch,id),sql('DELETE FROM bf_semantic_cache WHERE model_id=?',id),sql('INSERT INTO bf_semantic_history(id,model_id,environment,revision_id,action,actor_id,cache_epoch,recorded_at) VALUES(?,?,?,?,?,?,?,?)',randomUUID(),id,'production',input.revision,'rollback',ownerId,epoch,new Date().toISOString())])
+   await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT INTO bf_semantic_approvals(id,model_id,revision_id,digest,actor_id,security_resolution,recorded_at) VALUES(?,?,?,?,?,?,?)',randomUUID(),id,input.revision,review.digest,ownerId,typeof input.securityResolution==='string'?input.securityResolution:null,new Date().toISOString()),sql('UPDATE bf_semantic_models SET production=?,staging=?,generation=generation+1,cache_epoch=? WHERE id=?',input.revision,input.revision,epoch,id),sql('DELETE FROM bf_semantic_cache WHERE model_id=?',id),sql('INSERT INTO bf_semantic_history(id,model_id,environment,revision_id,action,actor_id,cache_epoch,recorded_at) VALUES(?,?,?,?,?,?,?,?)',randomUUID(),id,'production',input.revision,'rollback',ownerId,epoch,new Date().toISOString())])
    return json({revision:input.revision,cacheEpoch:epoch,generation:model.generation+1})
   }
   const run=/^(production|staging)\/run$/.exec(action)
