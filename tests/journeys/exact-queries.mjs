@@ -139,6 +139,7 @@ async function proveSemanticPromotion(origin,context,page,query,dimension,files)
  const definition={views:['chart','notebook','report','subscription','portal','agent'].map(kind=>({id:kind,kind,query:structuredClone(scoped),rowRules:[{column:'region',op:'eq',value:'West'}]})),quality:[{view:'report',measure:'revenue',expected:'80.07'}]}
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:origin,Cookie:''},data:{definition}})).status(),401)
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:'https://foreign.example.test'},data:{definition}})).status(),401)
+ await request('/synthetic-bifocal-999',{definition},404)
  const sourceBefore=await files.read(query.dataset)
  const model=await request('',{definition},201),prefix='/'+model.modelId,first=prefix+'/branches/'+model.branchId
  const preview=await request(first+'/validate',{})

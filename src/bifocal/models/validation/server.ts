@@ -20,6 +20,7 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
   if(url.search)fail('query_parameters_not_supported',400)
   const [,id,action]=match
   if(!id){
+   if(url.pathname!=='/api/operator/models'){await discardBody(request);return json({error:'not_found'},404)}
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)
    const input=await jsonBody(request);exactKeys(input,['definition'])
    const definition=definitionInput(input.definition),modelId=randomUUID(),branchId=randomUUID(),revision=revisionStatement(modelId,definition)
