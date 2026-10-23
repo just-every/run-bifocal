@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "aadea4729c521e2cb25d7cd5710f388fec88dd6b3c43d7f9a999e0be1a0e67c9",
+      "sha256": "5676c5fd6300f4c1873c6c7829158da105ba7b3ce9a824a67ebc5fdac55dd5c7",
       "executable": false
     },
     "deploy-demo.json": {
@@ -466,6 +466,10 @@
       "sha256": "a601db383c6a4d82468ec4a2c767c5c4a35dd9358643bcd4b37d3f65b6955613",
       "executable": false
     },
+    "migrations/core/0028_reporting_apps.sql": {
+      "sha256": "aa0c11bd0ae620b01fa7f0c2a9f8361e4af12223d1fe713a1f878fd6921fe80d",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -500,6 +504,10 @@
     },
     "public/bifocal/app.css": {
       "sha256": "3d1eef0043790ad1ec004345cbc706021f37e4a20ddea9a41af45ecda6e8d23c",
+      "executable": false
+    },
+    "public/bifocal/apps.js": {
+      "sha256": "17571e9016ae8be8e74022f6ea7f687630f769e1257cd27b27cec57a96456fa4",
       "executable": false
     },
     "public/bifocal/board.js": {
@@ -856,6 +864,18 @@
     },
     "src/bifocal/calendars/timezone.ts": {
       "sha256": "fb4392b611576c71e3cef187c2b86d5d70fc5f380d2b53672d99dbfe360a30b7",
+      "executable": false
+    },
+    "src/bifocal/catalog/apps/page.server.ts": {
+      "sha256": "8cde8ddfd29381b3bf8584e0ad2888fc8facfb1b5ab8d130bc8a388a0f60e56c",
+      "executable": false
+    },
+    "src/bifocal/catalog/apps/server.ts": {
+      "sha256": "13e46240e1d44689e83dd568d2b1f2e732799ed049494d554210e3331512743e",
+      "executable": false
+    },
+    "src/bifocal/catalog/apps/store.server.ts": {
+      "sha256": "d327414ca3efaf520b0dcd33b6fa8efce0fa8487858a5e79335e5b6b3baf743a",
       "executable": false
     },
     "src/bifocal/company/display-zone.ts": {
@@ -2944,6 +2964,10 @@
     },
     "src/site/styles/tokens.css": {
       "sha256": "f41aec7e0485076d52e0f932c7c7980c68680ce51a353552d7f3c859413139f5",
+      "executable": false
+    },
+    "tests/bifocal-reporting-apps.mjs": {
+      "sha256": "cabbe6f74d8688846d2f712c31dfed73f35a92241cc6dae59fe28133311c1aa9",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
