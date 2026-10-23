@@ -526,7 +526,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Existing judgments use the code and tests at commit `7fd1fecd5a5c3e99067b463e6466e6ab4cad6971` (23 October 2026); BIF-011 is updated with the bounded public-door evidence below.
+Judged from the code and tests at commit `8e1f949dafe3c90352e148ebc4931b1dc67c4c34` (23 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
