@@ -30,8 +30,11 @@ export async function proveContentGovernance(){
   browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
-  const page=await owner.newPage();await page.goto(origin+'/auth/dev/enter?as=owner')
+  const bootstrap=await owner.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-3'.repeat(3),displayName:'Synthetic content owner',returnTo:'/app'},maxRedirects:0})
+  assert.equal(bootstrap.status(),303,await bootstrap.text())
+  const page=await owner.newPage();await page.goto(origin+'/setup')
   if(new URL(page.url()).pathname==='/setup'){await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])}
+  const ownerSessionCheck=await owner.request.get(origin+'/auth/session');assert.equal(ownerSessionCheck.status(),200,await ownerSessionCheck.text())
   assert.equal((await owner.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-reader@example.test',displayName:'Synthetic reader',role:'member'}})).status(),200)
   const people=await(await owner.request.get(origin+'/auth/operators')).json(),target=people.find(person=>person.email==='synthetic-bifocal-reader@example.test')
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
