@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "846e84486714ede5bcb362e4b440952730fface47aa2a805d3ec259a36f1d24c",
+      "sha256": "cee50634582402316440eda8c75faa4c73481c66a8ce1487f3a6cae55c6da6fd",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6c38be4c146d46972cbdd88bb7da0b3376a8278102e2d4efac47893195772555",
+      "sha256": "ecdd27af879ef8dfe30a3ef650eaf9eb381bcb573a222e6aa317c3950d83b7a0",
       "executable": false
     },
     "deploy-demo.json": {
@@ -467,7 +467,7 @@
       "executable": false
     },
     "migrations/core/0028_semantic_validation.sql": {
-      "sha256": "9072a8f93a518be6d8964caa3af41c2df4fc99eaf932181955b1e65355416ba9",
+      "sha256": "bade316f02a8411f48ce998cf257b4b401e3f9a12a93439bc9cfc8212a27b78e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -667,7 +667,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "d95fceddbf6e1ea750bbb89e528d1cb3def9eff52df5d504fd0cd6b8bbdcdf60",
+      "sha256": "c65799c5b4b734098093278ebeba39430dbffe0df323cc392ec863089f26e56c",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -951,7 +951,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "45e376fd9f4698168319dbb264b3435bdcac6e595b5c35927ff8763df8a4e88c",
+      "sha256": "c473df2ec66d71ea3dc7d1c1de6c3d0aab4f04d91405ba581b2f8fec6b100576",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -2787,7 +2787,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "60388e25e6cc53e912102c8bb9f5e1e4a561b94abc7514b59a1266a267a80416",
+      "sha256": "45fa80b008f438987dfebd69d34d7377a52c8d5310e22b32bb16cff1098a4be2",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -2999,7 +2999,7 @@
       "executable": false
     },
     "tests/journeys/exact-queries.mjs": {
-      "sha256": "9477f0344e5dd8f15eb35b7ac65f7baac74f0b248d47825b0973c90d84c0220b",
+      "sha256": "054c659f82efeba62c6b35602698f25a997bfe3d8d33c91e4c983fde4b0d9ef9",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
@@ -3015,7 +3015,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "42fd0e281031d26275ab40d66fb0a8cdf36177df0e80ee9790396d89356881ee",
+      "sha256": "cfc2889ec4cf17616dc51806ae3ae1d55adf14dbb5c99c42c6243363240419e6",
       "executable": false
     },
     "tests/site/site.test.mjs": {

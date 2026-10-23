@@ -2,6 +2,7 @@ import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { proveContentGovernance } from './journeys/content-governance.mjs'
 import { proveAnalyticsBoundaries } from './journeys/analytics-boundaries.mjs'
 import { proveFileImports } from './journeys/file-import.mjs'
 import { proveSpreadsheetEdges } from './journeys/spreadsheet-edge.mjs'
@@ -310,6 +311,8 @@ try {
   await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
   await rm(persist, { recursive: true, force: true })
 }
+
+await proveContentGovernance()
 
 // Optional local-only proof against this checkout's actual Vite dev entry.
 // The harness starts it with this synthetic gate, never a real browser session.

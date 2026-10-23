@@ -120,6 +120,7 @@ export async function proveExactQueries(origin, context, files, page) {
  const revision = (await files.read(dataset)).revision
  const erasure = await context.request.post(`${origin}/api/operator/datasets/${dataset}/erase`,{headers,data:{confirmDataset:dataset,reviewedRevision:revision}})
  assert.equal(erasure.status(),200,await erasure.text())
+ if(context.semanticModelId)assert.equal((await context.request.get(origin+'/api/operator/models/'+context.semanticModelId)).status(),404)
  await call(`/queries/${snapshot.queryId}`,undefined,404)
  await call(`/queries/${snapshot.queryId}/rerun`,{},404)
  await call(`/dashboards/${dashboard.id}`,undefined,404); await call(`/reports/${report.id}`,undefined,404)
@@ -226,5 +227,6 @@ async function proveSemanticPromotion(origin,context,page,query,dimension,files)
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/semantic-restored-'+width+'.png',fullPage:true})
  }
+ context.semanticModelId=model.modelId
  console.log('Semantic promotion: CLI/API field, relationship, row-rule and quality impact, exact approval, isolated staging and atomic rollback passed')
 }

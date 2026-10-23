@@ -1,0 +1,4 @@
+import { sql } from '../../../modules/import-kit/src/door/store.ts'
+const models=`SELECT r.model_id FROM bf_semantic_revisions r,json_each(r.definition_json,'$.views') v WHERE json_extract(v.value,'$.query.dataset')=? OR EXISTS(SELECT 1 FROM json_each(v.value,'$.query.joins') j WHERE json_extract(j.value,'$.dataset')=?)`
+export const semanticErasureCounts=(dataset:string)=>['bf_semantic_models','bf_semantic_revisions','bf_semantic_branches','bf_semantic_history','bf_semantic_approvals','bf_semantic_cache'].map(table=>({store:table,query:sql(`SELECT count(*) FROM ${table} WHERE ${table==='bf_semantic_models'?'id':'model_id'} IN (${models})`,dataset,dataset)}))
+export const semanticErasure=(dataset:string)=>sql(`DELETE FROM bf_semantic_models WHERE id IN (${models})`,dataset,dataset)

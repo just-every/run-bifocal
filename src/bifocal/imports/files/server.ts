@@ -1,3 +1,5 @@
+import { catalogErasure, catalogErasureCounts } from '../../catalog/erasure'
+import { semanticErasure, semanticErasureCounts } from '../../models/validation/erasure'
 import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
 import { createImportOperatorHandler, readImportDoorHistory } from '../../../modules/import-kit/src/door/operator.ts'
@@ -56,6 +58,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const match = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
+   const extraCounts=[...semanticErasureCounts(dataset),...catalogErasureCounts(dataset)]
    const counts = sql(`SELECT json_extract(value,'$.store') AS store,json_extract(value,'$.rows') AS rows FROM json_each(json_array(
     json_object('store','bf_file_tables','rows',(SELECT count(*) FROM bf_file_tables WHERE id=?)),
     json_object('store','bf_file_reviews','rows',(SELECT count(*) FROM bf_file_reviews WHERE dataset_id=?)),
@@ -63,13 +66,13 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     json_object('store','bf_query_sources','rows',(SELECT count(*) FROM bf_query_sources WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_query_artifacts','rows',(SELECT count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_analytics_boards','rows',(SELECT count(*) FROM bf_analytics_boards WHERE id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),
-    json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived}))))))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset)
+    json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),${extraCounts.map(entry=>`json_object('store','${entry.store}','rows',(${entry.query.sql}))`).join(',')}))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset,...extraCounts.flatMap(entry=>entry.query.params??[]))
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
-    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
+    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, semanticErasure(dataset),catalogErasure(dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots and report results were withdrawn. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
   if (path === '/api/operator/import/history') {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
