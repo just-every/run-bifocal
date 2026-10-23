@@ -475,7 +475,7 @@
       "executable": false
     },
     "migrations/core/0030_report_custody.sql": {
-      "sha256": "5ef9d87cc7dbfd10307544231cd7c42f21adbaa537e43b65c570d10f19537178",
+      "sha256": "ab8d7f16fcf3ac7751ca62ef345f4a2783efc71f67204dabbe10c52418041e00",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -675,7 +675,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "a632e5bbc6052a701443a92e20a8749a19b7b042b982b37dce3ad6d32650579f",
+      "sha256": "598dd9610685ecdbe92882dc48d1cb2a8a0d670015e7372ffd7a86ee3400fa3a",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -887,7 +887,7 @@
       "executable": false
     },
     "src/bifocal/catalog/server.ts": {
-      "sha256": "40587e52872d44902f46d1f1d9fb640bbc88649d87dab36896156e2e8e803ce4",
+      "sha256": "da5f718b8b64aeea4145f4420855892350b8d4491109144e936327febe844174",
       "executable": false
     },
     "src/bifocal/catalog/store.server.ts": {
@@ -1047,7 +1047,7 @@
       "executable": false
     },
     "src/bifocal/reports/server.ts": {
-      "sha256": "954975a16d8b4ba3041e04e6b495769165af94091c7ec6937c471d631cc173ac",
+      "sha256": "5a8ef4398179908bdd6c56e2e5e337b9fa5cc65a38bae97b51a7058f16bbf338",
       "executable": false
     },
     "src/bifocal/reports/store.server.ts": {
@@ -3043,7 +3043,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "2fb34f0e47d7505059ee753f25d43ba1aabd11e05debe782140ca0e72d4d4c7d",
+      "sha256": "dccf103a0fbbabe022d8295ab4b4e2fdd23d479bd24acb16370b7bc99b536b9b",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -3064,6 +3064,14 @@
     },
     "tests/journeys/file-import.mjs": {
       "sha256": "4a503db7d2a8406a442831f9682c4505e93306003b2c1731345c8fdfe8d11a0d",
+      "executable": false
+    },
+    "tests/journeys/report-custody.mjs": {
+      "sha256": "76d839d5f3e586cac2d9e62c4b51ba2b829ed9343d6f710a85bd930d4d72764e",
+      "executable": false
+    },
+    "tests/journeys/report-edge.mjs": {
+      "sha256": "4be79bb918675fe71b7b9c49ea916d35a28e92383187e304264d1dfa69ca9172",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {

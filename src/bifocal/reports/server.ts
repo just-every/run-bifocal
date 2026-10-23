@@ -27,7 +27,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
    const input=await jsonBody(request);exactKeys(input,['previousVersion','days','consent'])
    if(input.previousVersion!==(policy?.version??0)||input.consent!==true||input.days!==null&&(!Number.isSafeInteger(input.days)||Number(input.days)<1||Number(input.days)>3650))fail('exact_retention_consent_required',409)
    const guard=policy?sql('EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=? AND version=?)',actor.id,policy.version):sql('NOT EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=?)',actor.id)
-   await transact(env.DB,actor,[assertion(guard),sql('INSERT INTO bf_report_retention(owner_id,version,days,consented_at) VALUES(?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET version=excluded.version,days=excluded.days,consented_at=excluded.consented_at',actor.id,(policy?.version??0)+1,input.days,new Date().toISOString())])
+   await transact(env.DB,actor,[assertion(guard),sql('INSERT INTO bf_report_retention(owner_id,version,days,consented_at) VALUES(?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET version=excluded.version,days=excluded.days,consented_at=excluded.consented_at',actor.id,(policy?.version??0)+1,input.days,new Date().toISOString()),sql('INSERT INTO bf_report_retention_audit(owner_id,actor_id,version,days,consented_at) VALUES(?,?,?,?,?)',actor.id,actor.id,(policy?.version??0)+1,input.days,new Date().toISOString())])
    return json({version:(policy?.version??0)+1,days:input.days,appliesTo:'new runs; existing artifacts retain their reviewed cutoff',automaticErasure:false})
   }
   if(path==='/series'){

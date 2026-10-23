@@ -49,6 +49,14 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
    await commit([...parent?[assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_collections WHERE id=? AND owner_id=?)',parent,actor.id))]:[],sql('INSERT INTO bf_catalog_collections(id,owner_id,parent_id,name) VALUES(?,?,?,?)',id,actor.id,parent,name),audit(actor,actor.id,'collection-created',null,null,digest({name,parent}))])
    return json({id,name,parentId:parent,version:1},201)
   }
+  const collectionGrant=/^\/collections\/([a-f0-9-]{36})\/grants$/.exec(path)
+  if(collectionGrant){
+   owner();if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
+   const input=await jsonBody(request);exactKeys(input,['readerId','enabled']);const readerId=uuid(input.readerId)
+   if(typeof input.enabled!=='boolean')fail('grant_enabled_required',400)
+   await commit([assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_collections WHERE id=? AND owner_id=?)',collectionGrant[1],actor.id)),assertion(sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active')",readerId)),input.enabled?sql('INSERT OR IGNORE INTO bf_catalog_collection_grants(collection_id,operator_id) VALUES(?,?)',collectionGrant[1],readerId):sql('DELETE FROM bf_catalog_collection_grants WHERE collection_id=? AND operator_id=?',collectionGrant[1],readerId),audit(actor,actor.id,'collection-grant-changed',null,null,digest(input))])
+   return json({enabled:input.enabled})
+  }
   if(path==='/items'){
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)
    owner();const input=await jsonBody(request);exactKeys(input,['kind','title','description','tags','definition','sourceLinks','verified','collectionId','sourceDatasets'])
@@ -105,6 +113,15 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
   if(match){
    const item=await readItem(env,actor,match[1]),operation=match[2]
    if(!operation){
+    if(request.method==='PUT'){
+     owner();if(item.owner_id!==actor.id)fail('content_not_found',404)
+     if(item.archived)fail('restore_before_edit',409)
+     const input=await jsonBody(request);exactKeys(input,['previousVersion','kind','title','description','tags','definition','sourceLinks','verified','collectionId','sourceDatasets'])
+     if(input.previousVersion!==item.version||!Array.isArray(input.sourceDatasets)||input.sourceDatasets.length>10||!input.sourceDatasets.every(v=>typeof v==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(v)))fail('current_metadata_review_required',409)
+     const value=metadata(input),sources=[...new Set(input.sourceDatasets)] as string[],version=item.version+1
+     await commit([assertion(itemGuard(item)),...value.collectionId?[assertion(sql('EXISTS(SELECT 1 FROM bf_catalog_collections WHERE id=? AND owner_id=?)',value.collectionId,actor.id))]:[],...sources.map(dataset=>assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=?)',dataset))),sql('UPDATE bf_catalog_items SET collection_id=?,kind=?,title=?,description=?,tags_json=?,definition_json=?,source_links_json=?,verified=?,fingerprint=?,version=?,updated_at=? WHERE id=?',value.collectionId,value.kind,value.title,value.description,canonicalJson(value.tags),canonicalJson(value.definition),canonicalJson(value.sourceLinks),Number(value.verified),value.fingerprint,version,new Date().toISOString(),item.id),...sources.map(dataset=>sql('INSERT OR IGNORE INTO bf_catalog_sources(item_id,dataset_id) VALUES(?,?)',item.id,dataset)),versionStatement(item.id,version,value),audit(actor,actor.id,'metadata-reviewed',item.id,version,digest(value))])
+     return json({id:item.id,version})
+    }
     if(request.method!=='GET')return json({error:'method_not_allowed'},405)
     const favourite=!!await env.DB.prepare('SELECT 1 FROM bf_catalog_favourites WHERE item_id=? AND operator_id=?').bind(item.id,actor.id).first()
     await commit([assertion(itemGuard(item)),assertion(accessGuard(actor,item.id))])

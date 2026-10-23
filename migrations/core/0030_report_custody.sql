@@ -43,3 +43,8 @@ CREATE TABLE bf_report_dispatch_claims (
 );
 CREATE TRIGGER bf_report_claim_immutable BEFORE UPDATE ON bf_report_dispatch_claims BEGIN SELECT RAISE(ABORT,'immutable_dispatch_claim'); END;
 CREATE TRIGGER bf_report_claim_no_delete BEFORE DELETE ON bf_report_dispatch_claims BEGIN SELECT RAISE(ABORT,'immutable_dispatch_claim'); END;
+CREATE TABLE bf_report_retention_audit (
+ owner_id TEXT NOT NULL, actor_id TEXT NOT NULL, version INTEGER NOT NULL, days INTEGER,
+ consented_at TEXT NOT NULL, PRIMARY KEY(owner_id,version)
+);
+CREATE TRIGGER bf_report_retention_audit_immutable BEFORE UPDATE ON bf_report_retention_audit BEGIN SELECT RAISE(ABORT,'immutable_retention_consent'); END;

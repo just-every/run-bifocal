@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { proveReportCustody } from './report-custody.mjs'
@@ -14,7 +14,8 @@ export async function proveContentGovernance(){
  const persist=await mkdtemp(join(tmpdir(),'bifocal-content-governance-')),socket=createServer()
  await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
  const origin='http://127.0.0.1:'+port,varsFile=join(process.cwd(),'.dev.vars')
- let varsWritten=false,child,browser,output=''
+ const privateArchive=join(process.cwd(),'exports','synthetic-bifocal-private.json')
+ let varsWritten=false,archiveWritten=false,child,browser,output=''
  const environment={...process.env,CI:'1',WRANGLER_SEND_METRICS:'false',RER_STATE_DIR:persist,RER_DEV_ORIGIN:origin,RER_DEV_KEY:'synthetic-bifocal-4'.repeat(3)}
  try{
   await writeFile(varsFile,`AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=synthetic-bifocal-1@example.test\nSESSION_SECRET=${'synthetic-bifocal-2'.repeat(3)}\nSETUP_TOKEN=${'synthetic-bifocal-3'.repeat(3)}\nINSTALLATION_KEY=${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`,{flag:'wx',mode:0o600});varsWritten=true
@@ -35,6 +36,8 @@ export async function proveContentGovernance(){
   assert.equal(bootstrap.status(),303,await bootstrap.text())
   const page=await owner.newPage();await page.goto(origin+'/setup')
   if(new URL(page.url()).pathname==='/setup'){await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])}
+  await mkdir(join(process.cwd(),'exports'),{recursive:true});await writeFile(privateArchive,'synthetic-bifocal-private-archive',{flag:'wx',mode:0o600});archiveWritten=true
+  for(const path of ['/exports/synthetic-bifocal-private.json','/@fs'+privateArchive,'/.dev.vars']){const response=await owner.request.get(origin+path);assert.ok([403,404].includes(response.status()),'private installation files stay unreadable');assert.ok(!(await response.text()).includes('synthetic-bifocal-private-archive'))}
   const ownerSessionCheck=await owner.request.get(origin+'/auth/session');assert.equal(ownerSessionCheck.status(),200,await ownerSessionCheck.text())
   assert.equal((await owner.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-reader@example.test',displayName:'Synthetic reader',role:'member'}})).status(),202)
   const people=await(await owner.request.get(origin+'/auth/operators')).json(),target=people.find(person=>person.email==='synthetic-bifocal-reader@example.test')
@@ -57,6 +60,7 @@ export async function proveContentGovernance(){
   await browser?.close()
   if(child){child.kill('SIGTERM');await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve))}
   if(varsWritten)await rm(varsFile)
+  if(archiveWritten)await rm(privateArchive)
   await rm(persist,{recursive:true,force:true})
  }
 }
@@ -95,6 +99,12 @@ async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
  assert.deepEqual(await call(reader,'/search?q=salary'),{items:[],total:0,suggestions:[],nextOffset:null})
  await call(reader,'/items/'+privateColumn.id,undefined,404)
  assert.equal((await call(reader,'/collections')).collections.length,0)
+ await call(owner,'/collections/'+folder.id+'/grants',{readerId,enabled:true},200,'PUT')
+ const sharedFolders=(await call(reader,'/collections')).collections
+ assert.equal(sharedFolders.length,1);assert.equal(sharedFolders[0].name,'Finance');assert.equal(sharedFolders[0].parent_id,null)
+ await call(owner,'/items/'+question.id,{...entry,kind:'question',title:'Churn question revised',verified:false,definition:{question:'What changed in churn?'},sourceLinks:['/app/queries'],sourceDatasets:[],previousVersion:1},200,'PUT')
+ await call(owner,'/items/'+question.id,{...entry,previousVersion:1},409,'PUT')
+ assert.ok((await call(reader,'/search?q=revised')).items.some(i=>i.id===question.id))
  await call(reader,'/items/'+metric.id+'/favourite',{favourite:true},200,'PUT')
  const original=await call(reader,'/items/'+metric.id)
  assert.equal(original.favourite,true);assert.deepEqual(original.sourceLinks,entry.sourceLinks)
