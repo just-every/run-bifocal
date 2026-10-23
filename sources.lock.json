@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f57946bd1071cab11c884f338f4c721d7072b47e06e0e66e69705745c3ceec4f",
+      "sha256": "6f0fd170b010b1d3a78df1fb9ca626bc447cce371530f6f4083072e8edd29968",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "140429f60134fcee6082194b91a2f375657ef78a00f345af3c88f177ed5b5849",
+      "sha256": "0ed684fc328a61028997914a94550e0227fded0bf639fdc6e55da6b8bd2a714c",
       "executable": false
     },
     "deploy-demo.json": {
@@ -3075,7 +3075,7 @@
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {
-      "sha256": "4be79bb918675fe71b7b9c49ea916d35a28e92383187e304264d1dfa69ca9172",
+      "sha256": "7a094967943389643de8a4215e8c1a666ddbd280854ed3bd68b193515f23309e",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {
