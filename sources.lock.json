@@ -478,6 +478,10 @@
       "sha256": "ab8d7f16fcf3ac7751ca62ef345f4a2783efc71f67204dabbe10c52418041e00",
       "executable": false
     },
+    "migrations/core/0031_catalog_grant_custody.sql": {
+      "sha256": "511a69aac53c01f15e934223aa410bb91c163be4fd0dc5bd9cfba1da8b9808a5",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
