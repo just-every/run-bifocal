@@ -295,6 +295,8 @@ try {
     assert.equal((await context.request.get(`${origin}/app/people`, { maxRedirects: 0 })).status(), 303)
     assert.equal((await context.request.get(`${origin}/app/settings`, { maxRedirects: 0 })).status(), 303)
     assert.equal((await context.request.post(`${origin}/auth/display-name`, { headers: { Origin: origin }, data: { displayName: 'Synthetic refused' } })).status(), 401)
+    assert.equal((await fetch(origin+'/api/operator/apps/'+context.reportingApp.id,{headers:{cookie:staleCookie}})).status,401)
+    assert.equal((await context.request.get(origin+'/app/apps/'+context.reportingApp.id+'/published',{maxRedirects:0})).status(),303)
     const pendingFile = context.fileImportPending
     assert.equal((await context.request.post(`${origin}/api/operator/import/apply`, { headers: { Origin: origin, 'X-Import-Dataset': pendingFile.dataset }, data: { planId: pendingFile.planId, reviewedFingerprint: pendingFile.fingerprint } })).status(), 401)
     assert.equal((await context.request.get(`${origin}/api/operator/datasets/${pendingFile.dataset}`)).status(), 401)

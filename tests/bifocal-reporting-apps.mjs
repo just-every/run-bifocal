@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 // Existing emitted-Worker journey supplies only resources created through HTTP.
-export async function proveReportingApps(origin,context,page,{query,dashboard,report}) {
+export async function proveReportingApps(origin,context,page,{query,dashboard,report},restartWorker) {
  const headers={Origin:origin},base='/api/operator/apps'
  const call=async(path='',data,method=data===undefined?'GET':'POST',expected=200)=>{
   const response=await context.request.fetch(origin+base+path,{method,headers,...(data===undefined?{}:{data})})
@@ -21,6 +21,7 @@ export async function proveReportingApps(origin,context,page,{query,dashboard,re
  const review=await call('/'+id+'/review')
  assert.equal(review.access,'owner-only');assert.equal(review.schedules,'unavailable')
  await call('/'+id+'/publish',{generation:review.generation,reviewedDigest:review.digest})
+ await restartWorker()
  const first=await call('/'+id+'/published')
  assert.deepEqual(first.content,draft);assert.equal(first.ordinal,1)
  app=await call('/'+id)
@@ -51,6 +52,8 @@ export async function proveReportingApps(origin,context,page,{query,dashboard,re
   await page.getByRole('status').filter({hasText:'Published app loaded'}).waitFor()
   assert.equal(await page.locator('#reader h3').innerText(),'Sales review')
   assert.deepEqual(await page.locator('#reader a').allTextContents(),draft.items.map(i=>i.label))
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/apps-published-${width}.png`,fullPage:true})
   await page.getByRole('link',{name:'Finance detail',exact:true}).click()
   await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor()
   await page.goto(origin+'/app')
@@ -75,8 +78,8 @@ export async function proveReportingApps(origin,context,page,{query,dashboard,re
  assert.deepEqual((await call('/'+id+'/published')).content,draft)
  assert.deepEqual(app.draft,revised)
  assert.deepEqual(app.history.map(event=>event.action),['draft','publish','draft','publish','rollback'])
- context.reportingApp={id,version:first.versionId}
- console.log('Reporting apps: native curated content, exact reviewed atomic publication, independent drafts, stale review refusal, home placement, rollback and 1440/390 passed')
+ context.reportingApp={id,version:first.versionId,history:app.history}
+ console.log('Reporting apps: native curated content, exact reviewed atomic publication, independent drafts, stale review refusal, home placement, rollback and 1440 and 390 passed')
 }
 
 export async function proveReportingAppWithdrawal(origin,context,page){
@@ -84,11 +87,11 @@ export async function proveReportingAppWithdrawal(origin,context,page){
  assert.equal((await context.request.get(origin+base+'/published')).status(),404)
  const app=await(await context.request.get(origin+base)).json()
  assert.equal(app.draft,null);assert.equal(app.publishedVersion,null);assert.equal(app.versions.length,0)
- assert.deepEqual(app.history.map(event=>event.action),['draft','publish','draft','publish','rollback'])
+ assert.deepEqual(app.history,context.reportingApp.history)
  for(const width of [1440,390]){
   await page.setViewportSize({width,height:1000})
   await page.goto(origin+'/app/apps/'+id+'/published')
-  await page.getByRole('status').filter({hasText:'app_not_published'}).waitFor()
+  await page.getByRole('status').filter({hasText:'This app has no retained published version'}).waitFor()
   assert.equal(await page.locator('#reader a').count(),0)
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/apps-withdrawn-${width}.png`,fullPage:true})

@@ -2,9 +2,10 @@ const $=id=>document.getElementById(id),status=$('status'),id=document.body.data
 let current=null,choices=[],review=null
 const node=(tag,text)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=text;return element}
 const message=text=>{status.textContent=text}
+const errors={owner_required:'Your current owner session is required. Sign in again.',app_not_published:'This app has no retained published version. Open app home or review its available content.',app_not_found:'This app is unavailable. Open app home to choose an available app.',app_draft_withdrawn:'This draft was withdrawn with its source content. Choose retained content and save a new draft.',app_changed_review_again:'The app changed. Reload it and review the current draft.',exact_app_review_required:'Review the exact current draft before publishing.',app_content_unavailable:'Some selected content is unavailable. Choose retained content and save the draft.',snapshot_not_found:'A selected answer was withdrawn. Choose retained content and save the draft.',app_title_and_one_to_twenty_items_required:'Enter an app title and choose between one and twenty content items.',duplicate_app_item:'Choose each content item once.'}
 async function api(path='',data,method=data===undefined?'GET':'POST'){
  const response=await fetch('/api/operator/apps'+path,{method,headers:data===undefined?{}:{'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})})
- const result=await response.json();if(!response.ok)throw Error(result.reason??result.error);return result
+ const result=await response.json();if(!response.ok)throw Error(result.reason??errors[result.error]??'This reporting app could not be loaded. Reload and try again.');return result
 }
 const action=fn=>async()=>{try{await fn()}catch(error){message(error.message)}}
 const clearReview=()=>{review=null;$('review-content').replaceChildren();$('consent').checked=false;$('consent').disabled=true;$('publish').disabled=true}
@@ -27,9 +28,9 @@ async function load(){
  if(id){current=await api('/'+id);$('app-title').value=current.draft?.title??'';for(const item of current.draft?.items??[])itemRow(item)
   if(current.publishedVersion){const link=node('a','Open published app');link.href='/app/apps/'+id+'/published';$('versions').append(link)}
   for(const version of current.versions){const section=node('section');section.append(node('h3','Version '+version.ordinal),contentView(version.content));const button=node('button','Restore version '+version.ordinal);button.type='button';button.onclick=()=>{clearReview();$('review-content').replaceChildren(contentView(version.content),node('p','Restore published version '+version.ordinal+'. The unpublished draft stays separate.'));review={generation:current.generation,reviewedDigest:version.digest,versionId:version.id};$('consent').disabled=false;message('Review rollback, then confirm publication')};section.append(button);$('versions').append(section)}
-  const history=node('ol');for(const event of current.history)history.append(node('li',event.action+' · revision '+event.generation+' · '+event.created_at+(event.version_id?'':' · no retained version')));$('history').append(history)
+  const history=node('ol');for(const event of current.history)history.append(node('li',event.action+' · revision '+event.generation+' · '+event.created_at+(event.version_id&&!current.versions.some(version=>version.id===event.version_id)?' · withdrawn version':'')));$('history').append(history)
  }else if(choices.length)itemRow()
- $('review').disabled=!id||!current?.draft;message(choices.length?'Draft ready. Published readers keep their last reviewed version.':'No content yet. Create an exact answer before packaging an app.')
+ $('review').disabled=!id||!current?.draft;message(id&&!current?.draft?'The draft was withdrawn with its source content. Choose retained content and save a new draft.':choices.length?'Draft ready. Published readers keep their last reviewed version.':'No content yet. Create an exact answer before packaging an app.')
 }
 $('add-item').onclick=()=>{if($('items').children.length<20&&choices.length){itemRow();clearReview()}}
 $('app-title').oninput=clearReview

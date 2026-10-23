@@ -80,6 +80,6 @@ export async function publish(env:Bindings,owner:Authority,ownerId:string,row:Ap
 }
 export async function appList(env:Bindings,owner:Authority,ownerId:string){
  const rows=(await env.DB.prepare('SELECT a.id,a.generation,a.published_version,a.draft_json,v.content_json,v.ordinal FROM bf_reporting_apps a LEFT JOIN bf_reporting_versions v ON v.id=a.published_version WHERE a.owner_id=? ORDER BY a.created_at,a.id LIMIT 100').bind(ownerId).all<{id:string;generation:number;published_version:string|null;draft_json:string|null;content_json:string|null;ordinal:number|null}>()).results
- await transact(env.DB,owner,[])
+ await transact(env.DB,owner,rows.map(row=>assertion(sql('EXISTS(SELECT 1 FROM bf_reporting_apps WHERE id=? AND owner_id=? AND generation=? AND draft_json IS ? AND published_version IS ?)',row.id,ownerId,row.generation,row.draft_json,row.published_version))))
  return rows.map(row=>({id:row.id,generation:row.generation,publishedVersion:row.published_version,ordinal:row.ordinal,title:row.content_json?JSON.parse(row.content_json).title:row.draft_json?JSON.parse(row.draft_json).title:'Withdrawn app'}))
 }

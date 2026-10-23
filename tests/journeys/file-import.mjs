@@ -297,7 +297,7 @@ export async function proveFileImports(origin, context, page, restartWorker) {
  console.log('File safety: anonymous/origin/fingerprint denial, inert hostile text and formulas at 1440/390, protected originals, consented erasure and replay fence passed')
  // A stale signed-out session cannot finish work planned while it was active.
  await proveFileBrowser(origin, context, page, syntheticWorkbook())
- await proveExactQueries(origin, context, { plan, apply, read, undo }, page)
+ await proveExactQueries(origin, context, { plan, apply, read, undo }, page, restartWorker)
  const pending = await plan({ ...base, mode: 'replace', data: 'id,date,region,amount,note\n8,03/01/2026,West,$8.00,Pending\n' }, true)
  // Leave the pending plan id for the outer native-signout assertion below.
  context.fileImportPending = { dataset, planId: pending.planId, fingerprint: pending.fingerprint }

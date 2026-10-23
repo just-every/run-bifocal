@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { proveExactBrowser } from './exact-browser.mjs'
 
-export async function proveExactQueries(origin, context, files, page) {
+export async function proveExactQueries(origin, context, files, page, restartWorker) {
  const headers = { Origin: origin }
  const call = async (path, data, expected = data === undefined ? 200 : 201) => {
   const response = await context.request.fetch(origin + '/api/operator' + path, { method: data === undefined ? 'GET' : 'POST', headers, ...(data === undefined ? {} : { data }) })
@@ -61,7 +61,7 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.equal(joined.answer.joinDiagnostics[0].duplicateRowsRemoved,1)
  const dashboard = await call('/dashboards',{queryId:joined.queryId,title:'West margin'})
  const report = await call('/reports',{queryId:joined.queryId,title:'West margin report'})
- await proveReportingApps(origin,context,page,{query:joined,dashboard,report})
+ await proveReportingApps(origin,context,page,{query:joined,dashboard,report},restartWorker)
  assert.deepEqual(dashboard.answer,joined.answer); assert.deepEqual(report.answer,joined.answer)
  for(const path of [`/queries/${snapshot.queryId}`,`/dashboards/${dashboard.id}`,`/reports/${report.id}`])assert.equal((await context.request.get(origin+'/api/operator'+path,{headers:{Cookie:''}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/queries/'+snapshot.queryId+'/rerun',{headers:{Origin:'https://foreign.example.test'},data:{}});assert.equal(foreign.status(),401)
@@ -116,6 +116,9 @@ export async function proveExactQueries(origin, context, files, page) {
  const revision = (await files.read(dataset)).revision
  const erasure = await context.request.post(`${origin}/api/operator/datasets/${dataset}/erase`,{headers,data:{confirmDataset:dataset,reviewedRevision:revision}})
  assert.equal(erasure.status(),200,await erasure.text())
+ const custodyReceipt=await erasure.json()
+ assert.ok(custodyReceipt.stores.some(store=>store.store==='bf_reporting_versions'&&store.rows===2))
+ assert.ok(custodyReceipt.stores.some(store=>store.store==='bf_reporting_drafts'&&store.rows===1))
  await call(`/queries/${snapshot.queryId}`,undefined,404)
  await call(`/queries/${snapshot.queryId}/rerun`,{},404)
  await call(`/dashboards/${dashboard.id}`,undefined,404); await call(`/reports/${report.id}`,undefined,404)

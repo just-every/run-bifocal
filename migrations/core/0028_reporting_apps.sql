@@ -23,7 +23,7 @@ CREATE TABLE bf_reporting_draft_dependencies (
 CREATE TABLE bf_reporting_events (
  id TEXT PRIMARY KEY NOT NULL, app_id TEXT NOT NULL REFERENCES bf_reporting_apps(id) ON DELETE CASCADE,
  generation INTEGER NOT NULL, action TEXT NOT NULL CHECK(action IN ('draft','publish','rollback')),
- version_id TEXT REFERENCES bf_reporting_versions(id) ON DELETE SET NULL,
+ version_id TEXT,
  actor_id TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(app_id,generation)
 );
 CREATE TRIGGER bf_reporting_version_immutable BEFORE UPDATE ON bf_reporting_versions BEGIN SELECT RAISE(ABORT,'immutable_reporting_version'); END;

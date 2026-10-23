@@ -63,7 +63,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     json_object('store','bf_query_sources','rows',(SELECT count(*) FROM bf_query_sources WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_query_artifacts','rows',(SELECT count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_analytics_boards','rows',(SELECT count(*) FROM bf_analytics_boards WHERE id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),
-    json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived}))))))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset)
+    json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived}))))),
+    json_object('store','bf_reporting_versions','rows',(SELECT count(*) FROM bf_reporting_versions WHERE id IN (SELECT version_id FROM bf_reporting_dependencies WHERE snapshot_id IN (${derived})))),
+    json_object('store','bf_reporting_drafts','rows',(SELECT count(DISTINCT app_id) FROM bf_reporting_draft_dependencies WHERE snapshot_id IN (${derived})))))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset, dataset, dataset)
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
     sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM ik_d1_assertions'),
