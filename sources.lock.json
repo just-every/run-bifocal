@@ -298,6 +298,10 @@
       "sha256": "00539dceaa6b5141c36514f8cc34ff98c277c6186f1ef778201c026b821dc35d",
       "executable": false
     },
+    "docs/ANALYTICS-HANDOFFS.md": {
+      "sha256": "c364c482d6bf4455fbc3ac7d97d7eabd43941d6c275eb8ee9d02aa1e3de10fee",
+      "executable": false
+    },
     "docs/backup.md": {
       "sha256": "715d8c17ad70fac8ea7009666fab444684b53b68e142a8c59d6f47bf2c829a74",
       "executable": false
