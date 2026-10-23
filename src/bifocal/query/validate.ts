@@ -1,3 +1,4 @@
+import { semanticInput, fiscalInput } from '../models/semantics'
 import { fail, type Query } from './types'
 const obj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 export const id = (v: unknown): v is string => typeof v === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(v)
@@ -5,13 +6,19 @@ const ref = (v: unknown): v is string => typeof v === 'string' && v.length > 0 &
 function keys(v: Record<string, unknown>, allowed: string[]) { if (Object.keys(v).some(k => !allowed.includes(k))) fail('unsupported_query_field', 400) }
 export function queryInput(v: unknown): Query {
  if (!obj(v)) fail('query_object_required', 400)
- keys(v, ['version','dataset','joins','filters','groupBy','measures','context'])
+ keys(v, ['version','dataset','joins','filters','groupBy','measures','context','semantic','fiscal'])
  if (v.version !== 1 || !id(v.dataset) || !Array.isArray(v.joins) || v.joins.length > 2 || !Array.isArray(v.filters) || v.filters.length > 20 || !Array.isArray(v.groupBy) || v.groupBy.length > 4 || !v.groupBy.every(ref) || new Set(v.groupBy).size !== v.groupBy.length || !Array.isArray(v.measures) || !v.measures.length || v.measures.length > 12 || !obj(v.context)) fail('invalid_query_shape', 400)
  const aliases = new Set(['base'])
  for (const j of v.joins) {
   if (!obj(j)) fail('invalid_join', 400)
-  keys(j, ['dataset','as','left','right','duplicates'])
+  keys(j, ['dataset','as','left','right','duplicates','cardinality','effective'])
   if (!id(j.dataset) || !id(j.as) || aliases.has(j.as) || !ref(j.left) || !ref(j.right) || !['reject','identical'].includes(String(j.duplicates))) fail('invalid_join', 400)
+  if (j.cardinality !== undefined && !['many-to-one','one-to-one'].includes(String(j.cardinality))) fail('unsupported_relationship_cardinality',400)
+  if(j.effective!==undefined){
+   if(!obj(j.effective))fail('invalid_effective_relationship',400)
+   keys(j.effective,['asOf','from','to'])
+   if(!ref(j.effective.asOf)||!ref(j.effective.from)||!ref(j.effective.to)||j.effective.from===j.effective.to)fail('invalid_effective_relationship',400)
+  }
   aliases.add(j.as)
  }
  for (const f of v.filters) {
@@ -40,5 +47,7 @@ export function queryInput(v: unknown): Query {
  const version = (x: unknown) => typeof x === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/.test(x)
  const resource = (x: unknown) => obj(x) && Object.keys(x).every(k => ['id','version'].includes(k)) && id(x.id) && Number.isSafeInteger(x.version) && Number(x.version)>0
  if (!version(c.modelVersion) || !version(c.metricVersion) || !['cash','accrual','not-applicable'].includes(String(c.accountingBasis)) || !resource(c.calendar) || (c.rateSource !== undefined && !resource(c.rateSource)) || !['half-even','half-away-from-zero'].includes(String(c.rounding))) fail('invalid_query_context',400)
+ if (v.semantic !== undefined) v.semantic = semanticInput(v.semantic)
+ if (v.fiscal !== undefined) v.fiscal = fiscalInput(v.fiscal)
  return v as unknown as Query
 }

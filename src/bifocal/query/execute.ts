@@ -1,3 +1,4 @@
+import { fiscalFilters, validateGrain } from '../models/semantics'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { plus as add, decimal, divide, times as multiply, rational, rounded, type Rational } from '../currency/decimal'
 import { fail, type Answer, type Cell, type Context, type Measure, type Query, type Source, type Value } from './types'
@@ -13,9 +14,12 @@ export function execute(query: Query, sources: Source[], context: Context): Answ
  const resolve = (ref: string) => { const normalized = columns.has(ref) ? ref : `base.${ref}`; if (!columns.has(normalized)) fail('unknown_column'); return normalized }
  const col = (ref: string) => columns.get(resolve(ref))!
  const numeric = (ref: string) => { if (!['number','money'].includes(col(ref).type)) fail('numeric_column_required'); if (col(ref).alias !== 'base') fail('measure_grain_base_required') }
+ validateGrain(query,base,columns,resolve)
+ const filters = [...query.filters,...fiscalFilters(query,context)]
+ if (query.fiscal && col(query.fiscal.column).type !== 'date') fail('fiscal_date_column_required')
  const get = (row: Row, ref: string): Cell => row[resolve(ref)] ?? null
  for (const ref of query.groupBy) resolve(ref)
- for (const f of query.filters) {
+ for (const f of filters) {
   const type = col(f.column).type
   if (f.op === 'is-null') { if (f.value !== undefined) fail('unexpected_filter_value',400); continue }
   if (['gte','lte'].includes(f.op) && (type === 'boolean' || f.value === null || Array.isArray(f.value) || typeof f.value === 'boolean')) fail('ordered_filter_value_required')
@@ -42,6 +46,30 @@ export function execute(query: Query, sources: Source[], context: Context): Answ
   const left = resolve(join.left), right = `${join.as}.${join.right}`
   if (columns.get(left)?.alias !== 'base' || !columns.has(right) || columns.get(left)?.type !== columns.get(right)?.type) fail('join_key_type_or_grain_mismatch')
   const joinKey = (value: Cell) => { if (['money','number'].includes(columns.get(right)!.type)) { const v = decimal(value); return key([v.numerator.toString(),v.denominator.toString()]) } return key(value) }
+  if (join.cardinality === 'one-to-one') {
+   const seen = new Set<string>()
+   for (const row of rows) { const value=row[left]; if(value===null) continue; const k=joinKey(value); if(seen.has(k)) fail('one_to_one_left_grain_violated',409); seen.add(k) }
+  }
+  if(join.effective){
+   const effective=join.effective, asOf=resolve(effective.asOf), from=`${join.as}.${effective.from}`, to=`${join.as}.${effective.to}`
+   if(columns.get(asOf)?.alias!=='base'||columns.get(asOf)?.type!=='date'||columns.get(from)?.type!=='date'||columns.get(to)?.type!=='date')fail('effective_relationship_date_columns_required')
+   const history=new Map<string,Row[]>()
+   for(const cells of tableFor(join.dataset).rows){
+    const row=makeRow(cells,join.dataset,join.as)
+    if(typeof row[from]!=='string'||row[to]!==null&&typeof row[to]!=='string'||row[to]!==null&&String(row[to])<=String(row[from]))fail('invalid_dimension_effective_interval',409)
+    if(row[right]===null)continue
+    const key=joinKey(row[right]), versions=history.get(key)??[];versions.push(row);history.set(key,versions)
+   }
+   for(const versions of history.values()){
+    versions.sort((a,b)=>String(a[from]).localeCompare(String(b[from])))
+    for(let i=1;i<versions.length;i++)if(versions[i-1][to]===null||String(versions[i-1][to])>String(versions[i][from]))fail('overlapping_dimension_history',409)
+   }
+   let unmatchedRows=0
+   const empty=makeRow(tableFor(join.dataset).columns.map(()=>null),join.dataset,join.as)
+   rows=rows.map(row=>{const at=row[asOf], match=row[left]===null||at===null?undefined:history.get(joinKey(row[left]))?.find(version=>String(version[from])<=String(at)&&(version[to]===null||String(at)<String(version[to])));if(!match)unmatchedRows++;return {...row,...(match??empty)}})
+   joinDiagnostics.push({alias:join.as,duplicateRowsRemoved:0,unmatchedRows})
+   continue
+  }
   const lookup = new Map<string, Row>(); let duplicateRowsRemoved = 0, unmatchedRows = 0
   for (const cells of tableFor(join.dataset).rows) {
    const row = makeRow(cells,join.dataset,join.as), value = row[right]
@@ -58,7 +86,7 @@ export function execute(query: Query, sources: Source[], context: Context): Answ
   return a === b ? 0 : String(a) < String(b) ? -1 : 1
  }
  const inputRows = rows.length
- rows = rows.filter(row => query.filters.every(f => {
+ rows = rows.filter(row => filters.every(f => {
   const a = get(row,f.column), b = f.value
   if (f.op === 'is-null') return a === null
   if (f.op === 'in') return (b as Cell[]).some(v => a === null || v === null ? a === v : compare(a,v,f.column) === 0)
