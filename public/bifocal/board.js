@@ -50,7 +50,8 @@ export function renderBoard(result,request,action,status) {
  form.onsubmit=event=>{event.preventDefault();action(async()=>{
   const data=Object.fromEntries(new FormData(form));preview=await request('warehouse/preview',{...data,artifactId:board.id})
   $('warehouse-review').hidden=false;$('warehouse-destination').textContent=`${preview.destination.project}.${preview.destination.dataset}.${preview.destination.table} · ${preview.rowCount} rows · fingerprint ${preview.fingerprint}`
-  $('warehouse-rows').replaceChildren(table('Exact rows proposed for warehouse export',preview.fields,preview.rows.map(row=>preview.fields.map(field=>row[field]))))
+  const fields=['snapshot_id','metric','dimensions_json','value','unit','state'],payload=element('details'),summary=element('summary','Complete exact warehouse payload (all fields)'),pre=element('pre',JSON.stringify(preview.rows,null,2),'export-payload');payload.append(summary,pre)
+  $('warehouse-rows').replaceChildren(table('Exact rows proposed for warehouse export',fields.map(label),preview.rows.map(row=>fields.map(field=>row[field]))),payload)
   $('warehouse-confirm').checked=false;$('warehouse-send').disabled=true;status('Review the exact destination and rows. No warehouse request has been made.')
  })}
  $('warehouse-confirm').onchange=()=>{$('warehouse-send').disabled=!preview||!$('warehouse-confirm').checked}

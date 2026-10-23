@@ -499,11 +499,11 @@
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "4a1015ae8907f531e625595417a468b4154d295985de79b9b1258285e43f02e5",
+      "sha256": "ba642eab3fcec5ea95510ecfbadfe13ef895b500b2f3371891a6e59d144bea13",
       "executable": false
     },
     "public/bifocal/board.js": {
-      "sha256": "10cb14232adc806d4612bcc7789b62bff784ad8cf501a5633c9e35a977865371",
+      "sha256": "b7885cc7531dc1d53a0302e7932d265b4aa70f8c3c878989d4da373a0efa2c21",
       "executable": false
     },
     "public/bifocal/chevron-dark.svg": {
@@ -1007,7 +1007,7 @@
       "executable": false
     },
     "src/bifocal/sources/analytics/setup.ts": {
-      "sha256": "cb636a429b1e3f5c1b8c475bec0ca59b24ba346697be243f6feec7ecfd2767bc",
+      "sha256": "d5caf29bdfe8a86c9d2a1d153216662651b521cb4e9a82da50e08a9c60c6f33d",
       "executable": false
     },
     "src/bifocal/sources/databases/bigquery.ts": {

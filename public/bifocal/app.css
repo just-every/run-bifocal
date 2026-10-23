@@ -258,3 +258,7 @@ ul{padding-left:20px}
 #business-board>.actions{margin:24px 0}
 fieldset{min-width:0;border:1px solid var(--app-line);margin:16px 0;padding:12px}
 #board-choices .checkbox{align-items:flex-start}
+
+#warehouse-rows>.tablewrap{margin-bottom:16px}
+#warehouse-rows>details{margin:20px 0}
+.export-payload{max-height:28rem;overflow:auto}
