@@ -67,16 +67,19 @@ test('signed owner claims require both demo mode and trusted runtime keys', asyn
 test('restored owner definitions survive archives and browser setup refuses a different owner', { skip: process.env.BIFOCAL_RESTORE_OWNER_PROOF !== '1', timeout: 600_000 }, async () => {
  const { cp, mkdir, writeFile, readFile, access } = await import('node:fs/promises')
  const { spawnSync } = await import('node:child_process')
+ const { createHash } = await import('node:crypto')
  const { chromium } = await import('@playwright/test')
  const { startInstaller } = await import('@runeditrun/rer/installer-server')
  const root = process.cwd(), scratch = await mkdtemp(join(tmpdir(), 'bifocal-restored-owner-'))
  const originalOwner = 'synthetic-bifocal-1@example.test', changedOwner = 'synthetic-bifocal-9@example.test'
  const syntheticSecret = 'synthetic-bifocal-2'.repeat(3), syntheticSetup = 'synthetic-bifocal-3'.repeat(3)
+ const syntheticInstallationKey = createHash('sha256').update('synthetic-bifocal-6').digest('hex')
  const environment = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
  let worker, installer, browser
  const run = (command, args) => {
   const result = spawnSync(command, args, { cwd: scratch, env: environment, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
-  assert.equal(result.status, 0, `Disposable archive journey command exits successfully: ${command.split('/').at(-1)}`)
+  const errors = (result.stdout ?? '').split('\n').flatMap(line => { try { const event = JSON.parse(line); return event.event === 'error' ? [event.message] : [] } catch { return [] } })
+  assert.equal(result.status, 0, `Disposable archive journey command exits successfully: ${args[1] ?? command.split('/').at(-1)}; ${errors.join(' ')}`)
   return result.stdout
  }
  const rer = (...args) => run(process.execPath, [join(scratch, 'node_modules/@runeditrun/rer/bin/rer.mjs'), ...args, '--non-interactive', '--json'])
@@ -90,7 +93,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const port = socket.address().port
   await new Promise(resolve => socket.close(resolve))
   const origin = `http://127.0.0.1:${port}`
-  await writeFile(join(scratch, '.dev.vars'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`, { mode: 0o600 })
+  await writeFile(join(scratch, '.dev.vars'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nINSTALLATION_KEY=${syntheticInstallationKey}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`, { mode: 0o600 })
   const wrangler = ['node_modules/wrangler/bin/wrangler.js']
   run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
   worker = spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
@@ -112,7 +115,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   rer('export', '--output', 'exports/owner.rer')
   const archive = await readFile(join(scratch, 'exports/owner.rer'), 'utf8')
   assert.ok(archive.includes('oa_operators'), 'archive includes original owner definitions')
-  assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup), 'private settings do not travel')
+  assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup) && !archive.includes(syntheticInstallationKey), 'private settings do not travel')
   assert.ok(!archive.includes('"table":"oa_sessions"'), 'installation sessions do not travel')
   await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
   await rm(join(scratch, '.dev.vars'))

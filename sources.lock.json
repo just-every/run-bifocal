@@ -2875,7 +2875,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "e6272bfb767385ac757c2c2c8350bfa377f23a47e9fd7e37b577c9221a3a17b2",
+      "sha256": "70e34f43a440622b3ead8eeafed382f434b453803c4f2f10a78b1bfdeac886e7",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {
