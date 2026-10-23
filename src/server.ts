@@ -18,6 +18,7 @@ import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
+import { semanticResponse } from './bifocal/models/validation/server'
 import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -44,6 +45,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (conventions) return conventions
     const answer = await exactAnswerPage(request, env)
     if (answer) return answer
+    const semantic = await semanticResponse(request, env)
+    if (semantic) return semantic
     const query = await exactQueryResponse(request, env)
     if (query) return query
     const warehouse = await warehouseResponse(request, env)

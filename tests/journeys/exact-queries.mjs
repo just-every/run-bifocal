@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { proveExactBrowser } from './exact-browser.mjs'
 
 export async function proveExactQueries(origin, context, files, page) {
@@ -63,6 +68,7 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.deepEqual(dashboard.answer,joined.answer); assert.deepEqual(report.answer,joined.answer)
  for(const path of [`/queries/${snapshot.queryId}`,`/dashboards/${dashboard.id}`,`/reports/${report.id}`])assert.equal((await context.request.get(origin+'/api/operator'+path,{headers:{Cookie:''}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/queries/'+snapshot.queryId+'/rerun',{headers:{Origin:'https://foreign.example.test'},data:{}});assert.equal(foreign.status(),401)
+ await proveSemanticPromotion(origin,context,page,query,dimension)
  await proveExactBrowser(origin,page,joinedQuery,'create')
  const replacement = await files.plan({...file,data:'id,date,region,customer,revenue,profit,score,weight\n6,01/20/2026,West,c9,$999.99,$0.00,3,1\n'},true,dataset)
  await files.apply(replacement,dataset)
@@ -119,4 +125,86 @@ export async function proveExactQueries(origin, context, files, page) {
  await call(`/dashboards/${dashboard.id}`,undefined,404); await call(`/reports/${report.id}`,undefined,404)
  await proveExactBrowser(origin,page,query,'erased',report.id)
  console.log('Exact answers: integer-cents SQL parity, distinct/weighted/subtotals, fanout refusal, immutable cross-door replay, scope denial and source erasure passed')
+}
+
+/** Semantic promotion: CLI/API impact, exact review and coherent rollback. */
+async function proveSemanticPromotion(origin,context,page,query,dimension) {
+ const headers={Origin:origin}
+ const request=async(path,data,expected=200,method=data===undefined?'GET':'POST')=>{
+  const response=await context.request.fetch(origin+'/api/operator/models'+path,{method,headers,...(data===undefined?{}:{data})})
+  assert.equal(response.status(),expected,await response.text());return response.json()
+ }
+ const scoped={...query,filters:query.filters.slice(1)}
+ const definition={views:['chart','notebook','report','subscription','portal','agent'].map(kind=>({id:kind,kind,query:scoped,rowRules:[{column:'region',op:'eq',value:'West'}]})),quality:[{view:'report',measure:'revenue',expected:'80.07'}]}
+ assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:origin,Cookie:''},data:{definition}})).status(),401)
+ assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:'https://foreign.example.test'},data:{definition}})).status(),401)
+ const model=await request('',{definition},201),prefix='/'+model.modelId,first=prefix+'/branches/'+model.branchId
+ const preview=await request(first+'/validate',{})
+ assert.equal(preview.compatible,true);assert.equal(preview.impacts.length,6);assert.ok(preview.quality.every(q=>q.passed))
+ // Real CLI talks to the same emitted Worker using a synthetic native session.
+ const directory=await mkdtemp(join(tmpdir(),'bifocal-semantic-cli-'))
+ try {
+  const sessionFile=join(directory,'session');await writeFile(sessionFile,(await context.cookies()).map(c=>c.name+'='+c.value).join('; '),{mode:0o600})
+  const result=await promisify(execFile)(process.execPath,['src/bifocal/models/validation/cli.mjs','validate','--origin',origin,'--model',model.modelId,'--branch',model.branchId,'--session-file',sessionFile])
+  assert.deepEqual(JSON.parse(result.stdout),preview)
+ }finally{await rm(directory,{recursive:true,force:true})}
+ await request(first+'/approve',{digest:preview.digest})
+ await request(first+'/promote',{environment:'production',digest:preview.digest},409)
+ await request(first+'/promote',{environment:'staging',digest:preview.digest})
+ for(const kind of ['chart','notebook','report','subscription','portal','agent']){
+  const result=await request(prefix+'/staging/run',{viewId:kind},201)
+  assert.equal(result.answer.totals.revenue.value,'80.07');assert.equal(result.answer.filteredRows,4)
+  assert.equal(result.productionSends,0);assert.equal(result.sourceWrites,0)
+ }
+ const v1=await request(first+'/promote',{environment:'production',digest:preview.digest})
+ const oldAnswer=await request(prefix+'/production/run',{viewId:'report'},201)
+ assert.equal(oldAnswer.context.modelVersion,undefined);assert.equal(oldAnswer.context.definitionVersions.model.label,model.revision)
+ const candidate=structuredClone(definition)
+ candidate.views[0].query.measures[0].column='renamed-revenue'
+ candidate.views[1].query.joins=[{dataset:dimension,as:'customers',left:'customer',right:'customer',duplicates:'reject'}]
+ for(const view of candidate.views)view.rowRules=[]
+ const branch=await request(prefix+'/branches',{definition:candidate},201),path=prefix+'/branches/'+branch.branchId
+ const invalid=await request(path+'/validate',{})
+ assert.equal(invalid.compatible,false)
+ assert.equal(invalid.impacts[0].after.error,'unknown_column');assert.equal(invalid.impacts[1].after.error,'join_fanout_refused')
+ assert.ok(invalid.impacts.every(i=>i.accessReviewRequired))
+ assert.equal(invalid.impacts[2].before.answer.totals.customers.value,'3')
+ assert.equal(invalid.impacts[2].after.answer.totals.customers.value,'4')
+ await request(path+'/approve',{digest:invalid.digest,securityResolution:'Reviewed explicit scope'},409)
+ const fixed=structuredClone(candidate);fixed.views[0].query.measures[0].column='revenue';fixed.views[1].query.joins[0].duplicates='identical'
+ const fixedVersion=await request(path,{definition:fixed,previousVersion:1},200,'PUT')
+ assert.equal(fixedVersion.version,2)
+ let reviewed=await request(path+'/validate',{})
+ assert.equal(reviewed.compatible,true)
+ await request(path+'/approve',{digest:reviewed.digest},409)
+ await request(path+'/approve',{digest:reviewed.digest,securityResolution:'The owner expressly permits both regions for these six dependent views.'})
+ // Another editor's revision invalidates even an otherwise identical approval.
+ await request(path,{definition:fixed,previousVersion:2},200,'PUT')
+ await request(path+'/promote',{environment:'staging',digest:reviewed.digest},409)
+ await request(path,{definition:fixed,previousVersion:2},409,'PUT')
+ reviewed=await request(path+'/validate',{})
+ await request(path+'/approve',{digest:reviewed.digest,securityResolution:'Reviewed both regions and duplicate removal on the current version.'})
+ await request(path+'/promote',{environment:'staging',digest:reviewed.digest})
+ const current=await request(path+'/promote',{environment:'production',digest:reviewed.digest})
+ const v2=await request(prefix+'/production/run',{viewId:'report'},201)
+ assert.equal(v2.answer.totals.customers.value,'4')
+ assert.notEqual(v2.revision,v1.revision)
+ assert.equal((await request(prefix)).cache.length,1)
+ const beforeRollback=await request(prefix)
+ const rollback=await request(prefix+'/rollback',{revision:v1.revision,previousGeneration:beforeRollback.generation})
+ const afterRollback=await request(prefix)
+ assert.equal(afterRollback.production,v1.revision);assert.equal(afterRollback.staging,v1.revision);assert.equal(afterRollback.cache.length,0)
+ assert.ok(rollback.cacheEpoch>current.cacheEpoch)
+ assert.deepEqual((await request(prefix+'/production/run',{viewId:'report'},201)).answer.totals,oldAnswer.answer.totals)
+ const historical=await context.request.get(origin+'/api/operator/queries/'+v2.queryId)
+ assert.equal((await historical.json()).context.definitionVersions.model.label,v2.revision)
+ assert.deepEqual(afterRollback.history.map(h=>h.action),['promote','promote','promote','promote','rollback'])
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+oldAnswer.queryId)
+  await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor()
+  assert.match(await page.locator('#totals').innerText(),/80\.07/)
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/semantic-restored-'+width+'.png',fullPage:true})
+ }
+ console.log('Semantic promotion: CLI/API field, relationship, row-rule and quality impact, exact approval, isolated staging and atomic rollback passed')
 }
