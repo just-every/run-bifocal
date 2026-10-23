@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
+import { certifiedReportMetric } from '../catalog/certification.server'
 import { currentAuthority } from '../catalog/authority.server'
 import { text, uuid } from '../catalog/protocol'
 import { readQuery } from '../data/snapshots/store'
@@ -40,7 +41,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   }
   if(!path){
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)
-   const input=await jsonBody(request);exactKeys(input,['seriesId','queryId','title','narrative','corrects','audience','acceptStale','retentionVersion'])
+   const input=await jsonBody(request);exactKeys(input,['seriesId','queryId','title','narrative','corrects','audience','acceptStale','retentionVersion','metricRef'])
    const seriesId=uuid(input.seriesId),queryId=uuid(input.queryId),title=text(input.title),narrative=input.narrative===''?'':text(input.narrative,4000)
    if(typeof input.acceptStale!=='boolean'||!Array.isArray(input.audience)||input.audience.length!==1||input.audience[0]!==actor.id)fail('current_owner_only_snapshot_scope',403)
    const series=await env.DB.prepare('SELECT period,next_revision FROM bf_report_series WHERE id=? AND owner_id=?').bind(seriesId,actor.id).first<{period:string;next_revision:number}>()
@@ -50,9 +51,10 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
    const policy=await env.DB.prepare('SELECT version,days FROM bf_report_retention WHERE owner_id=?').bind(actor.id).first<{version:number;days:number|null}>()
    if(input.retentionVersion!==(policy?.version??0))fail('current_retention_review_required',409)
    const {snapshot,sources,guard}=await readQuery(env,actor,actor.id,queryId),current=await freshness(env,sources)
+   const metric=await certifiedReportMetric(env,actor,input.metricRef,snapshot.definition)
    if(current.stale&&!input.acceptStale)fail('fresh_snapshot_required',409)
    const id=randomUUID(),createdAt=new Date().toISOString(),retainUntil=policy?.days?new Date(Date.now()+policy.days*86400000).toISOString():null
-   await transact(env.DB,actor,[assertion(guard),...current.guards.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_report_series WHERE id=? AND owner_id=? AND next_revision=?)',seriesId,actor.id,series.next_revision)),assertion(policy?sql('EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=? AND version=?)',actor.id,policy.version):sql('NOT EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=?)',actor.id)),sql("INSERT INTO bf_report_runs(id,series_id,owner_id,revision,corrects,period,snapshot_id,state,request_json,retain_until,created_at) VALUES(?,?,?,?,?,?,?,'queued',?,?,?)",id,seriesId,actor.id,series.next_revision,input.corrects,series.period,snapshot.snapshotId,canonicalJson({title,narrative,acceptStale:input.acceptStale,audience:[actor.id]}),retainUntil,createdAt),sql('UPDATE bf_report_series SET next_revision=next_revision+1 WHERE id=?',seriesId)])
+   await transact(env.DB,actor,[assertion(guard),assertion(metric.guard),...current.guards.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_report_series WHERE id=? AND owner_id=? AND next_revision=?)',seriesId,actor.id,series.next_revision)),assertion(policy?sql('EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=? AND version=?)',actor.id,policy.version):sql('NOT EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=?)',actor.id)),sql("INSERT INTO bf_report_runs(id,series_id,owner_id,revision,corrects,period,snapshot_id,state,request_json,retain_until,created_at) VALUES(?,?,?,?,?,?,?,'queued',?,?,?)",id,seriesId,actor.id,series.next_revision,input.corrects,series.period,snapshot.snapshotId,canonicalJson({title,narrative,acceptStale:input.acceptStale,audience:[actor.id],metricRef:metric.reference}),retainUntil,createdAt),sql('UPDATE bf_report_series SET next_revision=next_revision+1 WHERE id=?',seriesId)])
    return json({id,seriesId,period:series.period,revision:series.next_revision,corrects:input.corrects,state:'queued',version:1},201)
   }
   const match=/^\/([a-f0-9-]{36})(?:\/(render|approve|send|download-link|download|cancel|purge))?$/.exec(path)
@@ -83,7 +85,8 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   }
   exactKeys(input,['digest','previousVersion'])
   if(input.digest!==run.artifact_digest||input.previousVersion!==run.version||!run.artifact_json||!run.snapshot_id||run.retain_until&&Date.parse(run.retain_until)<=Date.now())fail('exact_retained_report_review_required',409)
-  const {guard,sources}=await readQuery(env,actor,actor.id,run.snapshot_id),current=await freshness(env,sources),artifact=JSON.parse(run.artifact_json)
+  const {guard,sources,snapshot}=await readQuery(env,actor,actor.id,run.snapshot_id),current=await freshness(env,sources),artifact=JSON.parse(run.artifact_json)
+  const metric=await certifiedReportMetric(env,actor,artifact.metricRef,snapshot.definition)
   if(canonicalJson(current.cutoffs)!==canonicalJson(artifact.observedSources))fail('source_changed_after_render_create_revision',409)
   const member=await env.DB.prepare("SELECT version,email FROM oa_operators WHERE id=? AND role='owner' AND status='active'").bind(actor.id).first<{version:number;email:string}>()
   if(!member)fail('owner_required',401)
@@ -91,7 +94,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   if(operation==='approve'){
    if(run.state!=='rendered')fail('rendered_report_required',409)
    const approval={actorId:actor.id,operatorVersion:member.version,digest:run.artifact_digest,reviewedAt:new Date().toISOString()}
-   await transact(env.DB,actor,[assertion(runGuard(run)),assertion(guard),assertion(memberGuard),...current.guards.map(assertion),sql("UPDATE bf_report_runs SET state='approved',approval_json=?,version=version+1 WHERE id=?",canonicalJson(approval),run.id),reportAudit(actor,run,'approved')])
+   await transact(env.DB,actor,[assertion(runGuard(run)),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),sql("UPDATE bf_report_runs SET state='approved',approval_json=?,version=version+1 WHERE id=?",canonicalJson(approval),run.id),reportAudit(actor,run,'approved')])
    return json({id:run.id,state:'approved',version:run.version+1,digest:run.artifact_digest})
   }
   if(run.state!=='approved'||!run.approval_json)fail('exact_approved_report_required',409)
@@ -99,7 +102,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   if(approval.actorId!==actor.id||approval.operatorVersion!==member.version||approval.digest!==run.artifact_digest)fail('approval_authority_changed',409)
   if(env.AUTH_LOCAL!=='true'&&env.RER_DEMO!=='1'&&(env.MAIL_PROVIDER!=='sendgrid'||!env.MAIL_API_KEY||!env.MAIL_FROM))fail('configured_sendgrid_transport_required',503)
   const claimId=randomUUID()
-  await transact(env.DB,actor,[assertion(runGuard(run)),assertion(guard),assertion(memberGuard),...current.guards.map(assertion),sql('INSERT INTO bf_report_dispatch_claims(id,run_id,artifact_digest,owner_id,recipient_id,recipient_version,created_at) VALUES(?,?,?,?,?,?,?)',claimId,run.id,run.artifact_digest,actor.id,actor.id,member.version,new Date().toISOString()),sql("UPDATE bf_report_runs SET state='dispatching',version=version+1 WHERE id=?",run.id),reportAudit(actor,run,'dispatch-claimed')])
+  await transact(env.DB,actor,[assertion(runGuard(run)),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),sql('INSERT INTO bf_report_dispatch_claims(id,run_id,artifact_digest,owner_id,recipient_id,recipient_version,created_at) VALUES(?,?,?,?,?,?,?)',claimId,run.id,run.artifact_digest,actor.id,actor.id,member.version,new Date().toISOString()),sql("UPDATE bf_report_runs SET state='dispatching',version=version+1 WHERE id=?",run.id),reportAudit(actor,run,'dispatch-claimed')])
   // The claim is the dispatch boundary. Erasure after it discloses an in-flight
   // external exception. No queued claim is retried automatically after restart.
   let result

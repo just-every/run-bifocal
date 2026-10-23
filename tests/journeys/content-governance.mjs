@@ -66,7 +66,7 @@ export async function proveContentGovernance(){
 }
 
 export async function importDataset(origin,owner,replace=false){
- const dataset='synthetic-bifocal-catalog',input={version:1,datasetId:dataset,filename:'synthetic-bifocal-91.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:replace?'id,region,revenue,net_revenue\n1,West,$999.00,$900.00\n':'id,region,revenue,net_revenue\n1,West,$100.00,$90.00\n2,East,$200.00,$180.00\n'}
+ const dataset='synthetic-bifocal-catalog',input={version:1,datasetId:dataset,filename:'synthetic-bifocal-91.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:replace?'id,region,revenue,net_revenue,opening_customers,cancelled_customers\n1,West,$999.00,$900.00,100,5\n':'id,region,revenue,net_revenue,opening_customers,cancelled_customers\n1,West,$100.00,$90.00,100,5\n2,East,$200.00,$180.00,100,8\n'}
  const bytes=Buffer.from(JSON.stringify(input)),hash=createHash('sha256').update(bytes).digest('hex'),headers={Origin:origin,'X-Import-Dataset':dataset}
  const post=async(action,data)=>{const response=await owner.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(response.status(),200,await response.text());return response.json()}
  const upload=await post('uploads',{name:'synthetic-bifocal-91.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')})
@@ -85,7 +85,9 @@ async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
  await call(reader,'/collections',{name:'Refused',parentId:null},403)
  const collection=await call(owner,'/collections',{name:'Company reporting',parentId:null})
  const folder=await call(owner,'/collections',{name:'Finance',parentId:collection.id})
- const entry={kind:'metric',title:'Certified churn',description:'Human-reviewed churn definition for company reporting.',tags:['retention','finance'],definition:{formula:'cancelled_customers / opening_customers',grain:'month'},sourceLinks:['https://example.test/reports/churn'],verified:true,collectionId:folder.id,sourceDatasets:[fixtures.dataset]}
+ const calendarResponse=await owner.request.post(origin+'/api/operator/calendars',{headers:{Origin:origin},data:{id:'synthetic-bifocal-catalog-year',previousVersion:null,definition:{name:'Churn year',kind:'fiscal',startMonth:1}}});assert.equal(calendarResponse.status(),201,await calendarResponse.text())
+ const churnQuery={version:1,dataset:fixtures.dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'churn',op:'ratio',numerator:'cancelled_customers',denominator:'opening_customers',unit:'percent',scale:2}],context:{modelVersion:'churn-model-v1',metricVersion:'draft',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-catalog-year',version:1},rounding:'half-even'}}
+ const entry={kind:'metric',title:'Certified churn',description:'Human-reviewed churn definition for company reporting.',tags:['retention','finance'],definition:{query:churnQuery},sourceLinks:['https://example.test/reports/churn'],verified:true,collectionId:folder.id,sourceDatasets:[fixtures.dataset]}
  const metric=await call(owner,'/items',entry)
  const duplicate=await call(owner,'/items',{...entry,title:'Churn duplicate',verified:false})
  const question=await call(owner,'/items',{...entry,kind:'question',title:'Churn question',verified:false,definition:{question:'What changed in churn?'},sourceLinks:['/app/queries']})
@@ -144,7 +146,7 @@ async function proveCatalog(origin,owner,reader,readerId,ownerId,fixtures){
  const receipt=await owner.request.post(origin+'/api/operator/datasets/'+fixtures.dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:fixtures.dataset,reviewedRevision:fixtures.revision}})
  assert.equal(receipt.status(),200,await receipt.text())
  await reports.erased()
- assert.ok((await receipt.json()).stores.some(store=>store.store==='bf_catalog_items'&&store.rows===5))
+ assert.ok((await receipt.json()).stores.some(store=>store.store==='bf_catalog_items'&&store.rows===6))
  assert.equal((await call(owner,'/search?q=churn')).total,0)
  assert.equal((await call(owner,'/hygiene')).denominator.historicalOpens,0)
  const records=(await call(owner,'/audit')).records
