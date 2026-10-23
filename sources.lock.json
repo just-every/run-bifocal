@@ -967,7 +967,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "cd097b687c07da138ba46df23abdfaaf52be51ae193c87254f9cbc3e7cac599c",
+      "sha256": "56a8c639125e777ee4e412b23cb55fcd749bad47be7bf47ff06d40e21277d1f8",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -2967,7 +2967,7 @@
       "executable": false
     },
     "tests/bifocal-reporting-apps.mjs": {
-      "sha256": "e13809ffa319fa33b22baea93c35f872a71c4a9ba48e9008f2ee087824b36c72",
+      "sha256": "af72f7f7eb370c76859bbf9fb864ffb4e850316ecc097be2c6cc475487a11caf",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

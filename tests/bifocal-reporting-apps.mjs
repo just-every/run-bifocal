@@ -13,7 +13,26 @@ export async function proveReportingApps(origin,context,page,{query,dashboard,re
  assert.equal((await context.request.post(origin+base,{headers:{Origin:'https://foreign.example.test'},data:draft})).status(),401)
  await call('',{...draft,audiences:['Board']},'POST',400)
  await call('',{...draft,items:[...draft.items,draft.items[0]]},'POST',400)
- const created=await call('',draft,'POST',201),id=created.id
+ // Curate the package with the built app's native form, including its order.
+ await page.goto(origin+'/app/apps')
+ await page.getByRole('status').filter({hasText:'Draft ready'}).waitFor()
+ await page.getByLabel('App title',{exact:true}).fill(draft.title)
+ for(let index=0;index<draft.items.length;index++){
+  if(index)await page.getByRole('button',{name:'Add content',exact:true}).click()
+  const row=page.locator('#items fieldset').nth(index),entry=draft.items[index]
+  await row.getByLabel('Existing content',{exact:true}).selectOption(entry.kind+':'+entry.id)
+  await row.getByLabel('Navigation label',{exact:true}).fill(entry.label)
+ }
+ await page.locator('#items fieldset').last().getByRole('button',{name:'Move earlier',exact:true}).click()
+ await page.locator('#items fieldset').nth(1).getByRole('button',{name:'Move later',exact:true}).click()
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000})
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/apps-create-${width}.png`,fullPage:true})
+ }
+ await page.getByRole('button',{name:'Save draft',exact:true}).click()
+ await page.waitForURL(/\/app\/apps\/[a-f0-9-]{36}$/)
+ const id=new URL(page.url()).pathname.split('/').at(-1)
  let app=await call('/'+id)
  assert.deepEqual(app.draft,draft)
  await call('/'+id+'/published',undefined,'GET',404)
