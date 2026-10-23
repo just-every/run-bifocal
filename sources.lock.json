@@ -710,6 +710,10 @@
       "sha256": "ff1053706141aeec92e4ca05166642e2b47cb9e402245f29c3abdcc2640b9119",
       "executable": false
     },
+    "src/app/people-sessions.ts": {
+      "sha256": "4b25ae8d76273d7865674985d7fc0941eea544ca54aa8350e9dab295b6619ea4",
+      "executable": false
+    },
     "src/app/people.ts": {
       "sha256": "42589e5611f9acb333c20768edc5a531108c05d5bbdde01a493c8b024177882a",
       "executable": false
@@ -2984,6 +2988,10 @@
     },
     "tests/journeys/file-import.mjs": {
       "sha256": "4a503db7d2a8406a442831f9682c4505e93306003b2c1731345c8fdfe8d11a0d",
+      "executable": false
+    },
+    "tests/journeys/people-sessions.mjs": {
+      "sha256": "3e2e5210c784f2b37098cdad4281e4d562f6cba620e5a45542be74aff7d281b2",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {
