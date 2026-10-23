@@ -671,7 +671,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "c65799c5b4b734098093278ebeba39430dbffe0df323cc392ec863089f26e56c",
+      "sha256": "a632e5bbc6052a701443a92e20a8749a19b7b042b982b37dce3ad6d32650579f",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -975,7 +975,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "c473df2ec66d71ea3dc7d1c1de6c3d0aab4f04d91405ba581b2f8fec6b100576",
+      "sha256": "a5560517f5bdcfa7cdb5b49770c13ffb5a4e3eb58b8f401b5d15c702aed3620a",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -2815,7 +2815,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "45fa80b008f438987dfebd69d34d7377a52c8d5310e22b32bb16cff1098a4be2",
+      "sha256": "067dc00b6a9ef378dc9b5d73f7305dac68d169470b17592ed2257967e123c09f",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -3019,7 +3019,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "e01c8a6d3fb2211d110fee7be1d8b0f277ec7a09b0f06797ab5b6a86836f91bf",
+      "sha256": "fc4a3470c37033b6b99d88ba070ca82ea2265f71992205d722bd7d25d75cfe47",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {

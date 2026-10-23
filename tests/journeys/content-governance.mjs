@@ -35,7 +35,7 @@ export async function proveContentGovernance(){
   const page=await owner.newPage();await page.goto(origin+'/setup')
   if(new URL(page.url()).pathname==='/setup'){await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])}
   const ownerSessionCheck=await owner.request.get(origin+'/auth/session');assert.equal(ownerSessionCheck.status(),200,await ownerSessionCheck.text())
-  assert.equal((await owner.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-reader@example.test',displayName:'Synthetic reader',role:'member'}})).status(),200)
+  assert.equal((await owner.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-reader@example.test',displayName:'Synthetic reader',role:'member'}})).status(),202)
   const people=await(await owner.request.get(origin+'/auth/operators')).json(),target=people.find(person=>person.email==='synthetic-bifocal-reader@example.test')
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
   const readerSession=await(await reader.request.get(origin+'/auth/session')).json(),ownerSession=await(await owner.request.get(origin+'/auth/session')).json()

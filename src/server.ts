@@ -18,6 +18,7 @@ import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
+import { reportCustodyResponse } from './bifocal/reports/server'
 import { catalogResponse } from './bifocal/catalog/server'
 import { semanticResponse } from './bifocal/models/validation/server'
 import { fileImportResponse } from './bifocal/imports/files/server'
@@ -46,6 +47,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (conventions) return conventions
     const answer = await exactAnswerPage(request, env)
     if (answer) return answer
+    const custody = await reportCustodyResponse(request, env)
+    if (custody) return custody
     const catalog = await catalogResponse(request, env)
     if (catalog) return catalog
     const semantic = await semanticResponse(request, env)

@@ -1,3 +1,4 @@
+import { reportErasureCounts } from '../../reports/store.server'
 import { catalogErasure, catalogErasureCounts } from '../../catalog/erasure'
 import { semanticErasure, semanticErasureCounts } from '../../models/validation/erasure'
 import { randomUUID } from 'node:crypto'
@@ -58,7 +59,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const match = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
-   const extraCounts=[...semanticErasureCounts(dataset),...catalogErasureCounts(dataset)]
+   const extraCounts=[...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset)]
    const counts = sql(`SELECT json_extract(value,'$.store') AS store,json_extract(value,'$.rows') AS rows FROM json_each(json_array(
     json_object('store','bf_file_tables','rows',(SELECT count(*) FROM bf_file_tables WHERE id=?)),
     json_object('store','bf_file_reviews','rows',(SELECT count(*) FROM bf_file_reviews WHERE dataset_id=?)),
