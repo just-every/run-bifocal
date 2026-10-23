@@ -61,3 +61,102 @@ test('signed owner claims require both demo mode and trusted runtime keys', asyn
   }
  } finally { await rm(persist, { recursive: true, force: true }) }
 })
+
+// Installer/archive qualification is intentionally outside push Verify. Run this
+// committed public-door journey explicitly, with the exact candidate checked out.
+test('restored owner definitions survive archives and browser setup refuses a different owner', { skip: process.env.BIFOCAL_RESTORE_OWNER_PROOF !== '1', timeout: 600_000 }, async () => {
+ const { cp, mkdir, writeFile, readFile, access } = await import('node:fs/promises')
+ const { spawnSync } = await import('node:child_process')
+ const { chromium } = await import('@playwright/test')
+ const { startInstaller } = await import('@runeditrun/rer/installer-server')
+ const root = process.cwd(), scratch = await mkdtemp(join(tmpdir(), 'bifocal-restored-owner-'))
+ const originalOwner = 'synthetic-bifocal-1@example.test', changedOwner = 'synthetic-bifocal-9@example.test'
+ const syntheticSecret = 'synthetic-bifocal-2'.repeat(3), syntheticSetup = 'synthetic-bifocal-3'.repeat(3)
+ const environment = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
+ let worker, installer, browser
+ const run = (command, args) => {
+  const result = spawnSync(command, args, { cwd: scratch, env: environment, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+  assert.equal(result.status, 0, `Disposable archive journey command exits successfully: ${command.split('/').at(-1)}`)
+  return result.stdout
+ }
+ const rer = (...args) => run(process.execPath, [join(scratch, 'node_modules/@runeditrun/rer/bin/rer.mjs'), ...args, '--non-interactive', '--json'])
+ try {
+  const tree = execFileSync('git', ['archive', 'HEAD'], { cwd: root, maxBuffer: 32 * 1024 * 1024 })
+  execFileSync('tar', ['-x', '-C', scratch], { input: tree })
+  await cp(join(root, 'node_modules'), join(scratch, 'node_modules'), { recursive: true, verbatimSymlinks: true })
+  await cp(join(root, 'dist'), join(scratch, 'dist'), { recursive: true, verbatimSymlinks: true })
+  const socket = createServer()
+  await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
+  const port = socket.address().port
+  await new Promise(resolve => socket.close(resolve))
+  const origin = `http://127.0.0.1:${port}`
+  await writeFile(join(scratch, '.dev.vars'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`, { mode: 0o600 })
+  const wrangler = ['node_modules/wrangler/bin/wrangler.js']
+  run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
+  worker = spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
+  let ready = false
+  for (let attempt = 0; attempt < 120; attempt++) {
+   assert.equal(worker.exitCode, null)
+   try { ready = (await fetch(origin + '/health')).ok } catch {}
+   if (ready) break
+   await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  assert.ok(ready)
+  const claim = await fetch(origin + '/auth/bootstrap', { method: 'POST', redirect: 'manual', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ token: syntheticSetup, displayName: 'Synthetic retained owner', returnTo: '/app' }) })
+  assert.equal(claim.status, 303)
+  await claim.body?.cancel()
+  worker.kill('SIGTERM')
+  await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
+  worker = undefined
+  await mkdir(join(scratch, 'exports'))
+  rer('export', '--output', 'exports/owner.rer')
+  const archive = await readFile(join(scratch, 'exports/owner.rer'), 'utf8')
+  assert.ok(archive.includes('oa_operators'), 'archive includes original owner definitions')
+  assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup), 'private settings do not travel')
+  assert.ok(!archive.includes('"table":"oa_sessions"'), 'installation sessions do not travel')
+  await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
+  await rm(join(scratch, '.dev.vars'))
+  await rm(join(scratch, '.seed'), { recursive: true, force: true })
+  await rm(join(scratch, '.rer'), { recursive: true, force: true })
+  rer('import', '--input', 'exports/owner.rer', '--yes')
+  const owners = () => JSON.parse(run(process.execPath, [...wrangler, 'd1', 'execute', 'foundation', '--local', '--config', 'wrangler.jsonc', '--command', "SELECT email,role,status FROM oa_operators WHERE role='owner'", '--json']))[0].results
+  assert.deepEqual(owners(), [{ email: originalOwner, role: 'owner', status: 'active' }])
+  const { createSeed } = await import(new URL('file://' + join(scratch, 'scripts/installer/seed.mjs')))
+  installer = await startInstaller(scratch, { seed: createSeed(scratch) })
+  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  const context = await browser.newContext(), page = await context.newPage()
+  const response = await page.goto(installer.origin)
+  const token = /<meta name="installer-token" content="([^"]+)"/.exec(await response.text())?.[1]
+  assert.ok(token)
+  const headers = { Origin: installer.origin, 'x-installer-token': token }
+  assert.equal((await context.request.post(installer.origin + '/api/draft', { headers, data: { OWNER_EMAIL: changedOwner, displayName: 'Synthetic changed owner' } })).status(), 200)
+  assert.equal((await context.request.post(installer.origin + '/api/start', { headers, data: {} })).status(), 202)
+  let state
+  for (let attempt = 0; attempt < 300; attempt++) {
+   state = await (await context.request.get(installer.origin + '/api/state', { headers })).json()
+   if (['complete', 'failed'].includes(state.phase)) break
+   await new Promise(resolve => setTimeout(resolve, 1000))
+  }
+  assert.equal(state.phase, 'failed', 'changed-owner setup cannot silently succeed after restore')
+  assert.match(state.error, /Local database already belongs to synthetic-bifocal-1@example.test/)
+  assert.match(state.error, /Existing data and private settings were kept/)
+  assert.deepEqual(owners(), [{ email: originalOwner, role: 'owner', status: 'active' }])
+  await assert.rejects(access(join(scratch, '.dev.vars')), { code: 'ENOENT' })
+  for (const width of [1440, 390]) {
+   await page.setViewportSize({ width, height: 1000 })
+   await page.reload()
+   await page.getByRole('alert').filter({ hasText: 'Local database already belongs' }).waitFor()
+   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+   if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/restored-owner-refusal-${width}.png`, fullPage: true })
+  }
+  await context.close()
+ } finally {
+  await browser?.close()
+  await installer?.close()
+  if (worker) {
+   worker.kill('SIGTERM')
+   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
+  }
+  await rm(scratch, { recursive: true, force: true })
+ }
+})
