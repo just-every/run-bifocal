@@ -82,7 +82,7 @@ export async function proveAdministrativeSessions(origin, browser) {
    await screenshot(memberPage, 'people-sessions-permission', width)
    await administratorPage.goto(`${origin}/app/people`)
    assert.equal(await administratorPage.getByRole('link', { name: `View sessions for ${ownerSession.operator.displayName}`, exact: true }).count(), 0)
-   await administratorPage.getByRole('link', { name: `View sessions for ${person.displayName}`, exact: true }).click()
+   await administratorPage.getByRole('listitem').filter({ hasText: person.email }).getByRole('link', { name: `View sessions for ${person.displayName}`, exact: true }).click()
    await administratorPage.getByRole('heading', { name: `Sessions for ${person.displayName}`, exact: true }).waitFor()
    assert.equal(await administratorPage.getByRole('list', { name: 'Active sessions', exact: true }).getByRole('listitem').count(), 2)
    await screenshot(administratorPage, 'people-sessions-admin', width)
