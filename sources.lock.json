@@ -2959,7 +2959,7 @@
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "11f64299d6dcaf35a0eee67c1acfc9c034ee3420215459bac80b755238874d07",
+      "sha256": "b602a6c4eac0e66b8a471463fb97946180be1136ca656a575453375d798b6b48",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
