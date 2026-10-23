@@ -7,6 +7,7 @@ export async function proveConventions(origin, context, page) {
  }
  assert.equal((await fetch(origin + '/api/operator/company')).status, 401)
  const initial = await call('/company')
+ assert.equal(initial.updatedAt, null, 'built-in defaults have no owner-authored update time')
  assert.equal(initial.settings.currency, 'USD'); assert.equal(initial.settings.dateFormat, 'MM/DD/YYYY'); assert.equal(initial.settings.timezone, 'America/New_York')
  const settings = { name: 'Synthetic Bifocal Supply', reportCutoff: '02:00' }
  const saved = await call('/company', { previousRevision: initial.revision, settings }, 'PUT')

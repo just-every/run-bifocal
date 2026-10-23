@@ -2879,7 +2879,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "0f818fb349eeb590f9a81cff691d497fe0e6caa9459e9f9c8582bd51d84d898c",
+      "sha256": "cec6a1291a7f2747de92916faf9dcbc3f8dc61ad1099b56ea9c830cd682fd78e",
       "executable": false
     },
     "tests/incremental-typecheck.test.mjs": {
@@ -2891,7 +2891,7 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "7b894c9f1418d07c7488164b88b969eca3588f7ab6711d3ad107ad44d141a89b",
+      "sha256": "0b69eb47787228c266873bd78205013bc74c1aa784ed240dfcb4f8be2da922d0",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {

@@ -65,7 +65,7 @@ test('signed owner claims require both demo mode and trusted runtime keys', asyn
 // Installer/archive qualification is intentionally outside push Verify. Run this
 // committed public-door journey explicitly, with the exact candidate checked out.
 test('restored owner definitions survive archives and browser setup refuses a different owner', { skip: process.env.BIFOCAL_RESTORE_OWNER_PROOF !== '1', timeout: 600_000 }, async () => {
- const { cp, mkdir, writeFile, readFile, access } = await import('node:fs/promises')
+ const { cp, mkdir, writeFile, readFile, access, rename } = await import('node:fs/promises')
  const { spawnSync } = await import('node:child_process')
  const { createHash } = await import('node:crypto')
  const { chromium } = await import('@playwright/test')
@@ -95,6 +95,8 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const origin = `http://127.0.0.1:${port}`
   await writeFile(join(scratch, '.dev.vars'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nINSTALLATION_KEY=${syntheticInstallationKey}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`, { mode: 0o600 })
   const wrangler = ['node_modules/wrangler/bin/wrangler.js']
+  const normalization = join(scratch, 'migrations/core/0024_company_defaults_restore.sql')
+  await rename(normalization, join(scratch, 'pending-company-defaults.sql'))
   run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
   worker = spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
   let ready = false
@@ -110,7 +112,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const cookie = claim.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
   await claim.body?.cancel()
   const currentCompany = await (await fetch(origin + '/api/operator/company', { headers: { cookie } })).json()
-  assert.equal(currentCompany.updatedAt, null, 'built-in defaults have no owner-authored save time')
+  assert.ok(currentCompany.updatedAt, 'the prior migration stamped built-in defaults at install time')
   const changedCompany = await fetch(origin + '/api/operator/company', { method: 'PUT', headers: { cookie, Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ previousRevision: currentCompany.revision, settings: { name: 'Synthetic retained company' } }) })
   assert.equal(changedCompany.status, 200)
   const savedCompany = await changedCompany.json()
@@ -118,12 +120,17 @@ test('restored owner definitions survive archives and browser setup refuses a di
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
+  await rename(join(scratch, 'pending-company-defaults.sql'), normalization)
+  run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
   await mkdir(join(scratch, 'exports'))
   rer('export', '--output', 'exports/owner.rer')
   const archive = await readFile(join(scratch, 'exports/owner.rer'), 'utf8')
-  assert.ok(archive.includes('oa_operators'), 'archive includes original owner definitions')
+  const { fileRecords } = await import('@runeditrun/rer/modules/portability/files')
+  let manifest
+  for await (const record of fileRecords(join(scratch, 'exports/owner.rer'))) if (record.kind === 'manifest') manifest = record
+  assert.ok(manifest.tables.some(table => table.name === 'oa_operators'), 'archive includes original owner definitions')
+  for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
   assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup) && !archive.includes(syntheticInstallationKey), 'private settings do not travel')
-  assert.ok(!archive.includes('"table":"oa_sessions"'), 'installation sessions do not travel')
   await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
   await rm(join(scratch, '.dev.vars'))
   await rm(join(scratch, '.seed'), { recursive: true, force: true })
@@ -156,14 +163,16 @@ test('restored owner definitions survive archives and browser setup refuses a di
    await new Promise(resolve => setTimeout(resolve, 1000))
   }
   assert.equal(state.phase, 'failed', 'changed-owner setup cannot silently succeed after restore')
-  assert.match(state.error, /Local database already belongs to synthetic-bifocal-1@example.test/)
-  assert.match(state.error, /Existing data and private settings were kept/)
+  assert.match(state.logs.join('\n'), /Local database already belongs to synthetic-bifocal-1@example.test/)
+  assert.match(state.logs.join('\n'), /Existing data and private settings were kept/)
   assert.deepEqual(owners(), [{ email: originalOwner, role: 'owner', status: 'active' }])
   await assert.rejects(access(join(scratch, '.dev.vars')), { code: 'ENOENT' })
   for (const width of [1440, 390]) {
    await page.setViewportSize({ width, height: 1000 })
    await page.reload()
-   await page.getByRole('alert').filter({ hasText: 'Local database already belongs' }).waitFor()
+   await page.getByRole('heading', { name: 'Installation needs attention', exact: true }).waitFor()
+   assert.match(await page.getByLabel('Installation log', { exact: true }).innerText(), /Local database already belongs to synthetic-bifocal-1@example.test/)
+   await page.getByRole('button', { name: 'Review saved answers', exact: true }).waitFor()
    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
    if (process.env.BIFOCAL_PROOF_DIR) await page.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/restored-owner-refusal-${width}.png`, fullPage: true })
   }
