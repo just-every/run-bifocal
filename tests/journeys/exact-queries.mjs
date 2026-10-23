@@ -135,7 +135,7 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
   assert.equal(response.status(),expected,await response.text());return response.json()
  }
  const scoped={...query,filters:query.filters.slice(1)}
- const definition={views:['chart','notebook','report','subscription','portal','agent'].map(kind=>({id:kind,kind,query:scoped,rowRules:[{column:'region',op:'eq',value:'West'}]})),quality:[{view:'report',measure:'revenue',expected:'80.07'}]}
+ const definition={views:['chart','notebook','report','subscription','portal','agent'].map(kind=>({id:kind,kind,query:structuredClone(scoped),rowRules:[{column:'region',op:'eq',value:'West'}]})),quality:[{view:'report',measure:'revenue',expected:'80.07'}]}
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:origin,Cookie:''},data:{definition}})).status(),401)
  assert.equal((await context.request.post(origin+'/api/operator/models',{headers:{Origin:'https://foreign.example.test'},data:{definition}})).status(),401)
  const model=await request('',{definition},201),prefix='/'+model.modelId,first=prefix+'/branches/'+model.branchId
@@ -156,9 +156,16 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
   assert.equal(result.answer.totals.revenue.value,'80.07');assert.equal(result.answer.filteredRows,4)
   assert.equal(result.productionSends,0);assert.equal(result.sourceWrites,0)
  }
+ const staleBranch=await request(prefix+'/branches',{definition},201)
  const v1=await request(first+'/promote',{environment:'production',digest:preview.digest})
+ const staleReview=await request(prefix+'/branches/'+staleBranch.branchId+'/validate',{})
+ assert.equal(staleReview.compatible,false)
+ await request(prefix+'/branches/'+staleBranch.branchId+'/approve',{digest:staleReview.digest},409)
  const oldAnswer=await request(prefix+'/production/run',{viewId:'report'},201)
  assert.equal(oldAnswer.context.modelVersion,undefined);assert.equal(oldAnswer.context.definitionVersions.model.label,model.revision)
+ const savedReport=await context.request.post(origin+'/api/operator/reports',{headers,data:{queryId:oldAnswer.queryId,title:'Versioned semantic report'}})
+ assert.equal(savedReport.status(),201)
+ const savedReportId=(await savedReport.json()).id
  const candidate=structuredClone(definition)
  candidate.views[0].query.measures[0].column='renamed-revenue'
  candidate.views[1].query.joins=[{dataset:dimension,as:'customers',left:'customer',right:'customer',duplicates:'reject'}]
@@ -166,6 +173,7 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
  const branch=await request(prefix+'/branches',{definition:candidate},201),path=prefix+'/branches/'+branch.branchId
  const invalid=await request(path+'/validate',{})
  assert.equal(invalid.compatible,false)
+ assert.ok(invalid.dependencies.some(d=>d.id===savedReportId&&d.kind==='saved-report'&&d.history==='pinned-original'))
  assert.equal(invalid.impacts[0].after.error,'unknown_column');assert.equal(invalid.impacts[1].after.error,'join_fanout_refused')
  assert.ok(invalid.impacts.every(i=>i.accessReviewRequired))
  assert.equal(invalid.impacts[2].before.answer.totals.customers.value,'3')
@@ -196,6 +204,8 @@ async function proveSemanticPromotion(origin,context,page,query,dimension) {
  const afterRollback=await request(prefix)
  assert.equal(afterRollback.production,v1.revision);assert.equal(afterRollback.staging,v1.revision);assert.equal(afterRollback.cache.length,0)
  assert.ok(rollback.cacheEpoch>current.cacheEpoch)
+ assert.ok(afterRollback.approvals.some(a=>a.security_resolution?.includes('both regions')))
+ assert.ok(afterRollback.approvals.every(a=>a.actor_id===afterRollback.owner_id))
  assert.deepEqual((await request(prefix+'/production/run',{viewId:'report'},201)).answer.totals,oldAnswer.answer.totals)
  const historical=await context.request.get(origin+'/api/operator/queries/'+v2.queryId)
  assert.equal((await historical.json()).context.definitionVersions.model.label,v2.revision)

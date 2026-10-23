@@ -30,9 +30,10 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
   if(!action){
    if(request.method!=='GET')return json({error:'method_not_allowed'},405)
    const history=(await env.DB.prepare('SELECT * FROM bf_semantic_history WHERE model_id=? ORDER BY recorded_at,id').bind(id).all()).results
+   const approvals=(await env.DB.prepare('SELECT revision_id,digest,actor_id,security_resolution,recorded_at FROM bf_semantic_approvals WHERE model_id=? ORDER BY recorded_at,id').bind(id).all()).results
    const cache=(await env.DB.prepare('SELECT environment,view_id,snapshot_id,epoch FROM bf_semantic_cache WHERE model_id=?').bind(id).all()).results
    await transact(env.DB,owner,[assertion(modelGuard(model))])
-   return json({...model,history,cache})
+   return json({...model,history,cache,approvals})
   }
   if(action==='branches'){
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)

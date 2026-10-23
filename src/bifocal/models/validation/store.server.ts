@@ -52,9 +52,16 @@ export async function validateBranch(env:Bindings,model:Model,branch:Branch) {
   const after=impacts.find(impact=>impact.id===check.view)?.after
   return {...check,passed:after?.state==='compiled' && after.answer.totals[check.measure]?.state==='value' && after.answer.totals[check.measure]?.value===check.expected}
  })
- const compatible=impacts.every(i=>i.after.state==='compiled') && quality.every(q=>q.passed)
- const review={modelId:model.id,branchId:branch.id,revision:branch.revision_id,generation:model.generation,branchVersion:branch.version,impacts,quality,compatible,accessReviewRequired:impacts.some(i=>i.accessReviewRequired),sideEffects:{productionSends:0,sourceWrites:0},inheritingClauses:['BIF-006','BIF-007','BIF-010','BIF-012','BIF-014','BIF-015','BIF-020','BIF-022','BIF-063','BIF-069']}
- return {review:{...review,digest:sha256(canonicalJson(review))},guards}
+ const compatible=branch.base_generation===model.generation && impacts.every(i=>i.after.state==='compiled') && quality.every(q=>q.passed)
+ const dependencies= model.production ? (await env.DB.prepare(`
+ SELECT 'query' AS kind,id,id AS snapshot_id FROM bf_query_snapshots WHERE owner_id=? AND json_extract(query_json,'$.context.modelVersion')=?
+ UNION ALL SELECT 'saved-'||a.kind,a.id,a.snapshot_id FROM bf_query_artifacts a JOIN bf_query_snapshots q ON q.id=a.snapshot_id WHERE a.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?
+ UNION ALL SELECT 'board-'||b.kind,b.id,c.snapshot_id FROM bf_analytics_boards b JOIN bf_analytics_cards c ON c.board_id=b.id JOIN bf_query_snapshots q ON q.id=c.snapshot_id WHERE b.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?
+ ORDER BY kind,id,snapshot_id LIMIT 201`).bind(model.owner_id,model.production,model.owner_id,model.production,model.owner_id,model.production).all<{kind:string;id:string;snapshot_id:string}>()).results : []
+ if(dependencies.length>200)fail('dependency_inventory_limit',413)
+ if(model.production)guards.push(sql(`(SELECT count(*) FROM bf_query_snapshots WHERE owner_id=? AND json_extract(query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind==='query').length),sql(`(SELECT count(*) FROM bf_query_artifacts a JOIN bf_query_snapshots q ON q.id=a.snapshot_id WHERE a.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind.startsWith('saved-')).length),sql(`(SELECT count(*) FROM bf_analytics_boards b JOIN bf_analytics_cards c ON c.board_id=b.id JOIN bf_query_snapshots q ON q.id=c.snapshot_id WHERE b.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind.startsWith('board-')).length))
+ const review={modelId:model.id,branchId:branch.id,revision:branch.revision_id,generation:model.generation,branchVersion:branch.version,impacts,quality,compatible,dependencies:dependencies.map(d=>({...d,history:'pinned-original'})),accessReviewRequired:impacts.some(i=>i.accessReviewRequired),sideEffects:{productionSends:0,sourceWrites:0},inheritingClauses:['BIF-006','BIF-007','BIF-010','BIF-012','BIF-014','BIF-015','BIF-020','BIF-022','BIF-063','BIF-069']}
+ return {review:{...review,digest:sha256(canonicalJson(review))},guards:[...new Map(guards.map(guard=>[canonicalJson(guard),guard])).values()]}
 }
 export async function promote(env:Bindings,owner:Owner,model:Model,branch:Branch,environment:'staging'|'production',digest:unknown){
  if(branch.base_generation!==model.generation)fail('stale_model_branch',409)
