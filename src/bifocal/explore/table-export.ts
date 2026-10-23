@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'fflate'
 import { fail, type Cell } from '../query/types'
 export type ExportColumn={name:string;type:string}
-const xml=(value:string)=>value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!))
+const xml=(value:string)=>{if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/.test(value)||[...value].some(c=>{const n=c.codePointAt(0)!;return n>=0xd800&&n<=0xdfff}))fail('xlsx_xml_character_refused',422);return value.replace(/_x[0-9a-f]{4}_/gi,match=>'_x005F_'+match.slice(1)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!))}
 export function exportTable(columns:ExportColumn[],rows:Cell[][],format:'csv'|'xlsx'):{body:BodyInit;type:string} {
  if(format==='csv') {
   const cell=(value:Cell,type:string)=>{let text=value===null?'':String(value);if(type==='text'&&/^[\s]*[=+@-]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'}

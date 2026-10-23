@@ -76,6 +76,15 @@ print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE 
   assert.match(await page.locator('#scope-note').innerText(),/10 matching source rows/);assert.match(await page.locator('#results').innerText(),/2026-06-30/);assert.equal(await page.getByRole('region',{name:'Pivot of summarized rows',exact:true}).isVisible(),true);assert.match(await page.locator('#comparison').innerText(),/69.36/);await screen('explore-period-pivot')
   await page.getByLabel('Filter field').selectOption('region');await page.getByLabel('Filter equals').fill('Hidden');await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();assert.match(await page.locator('#scope-note').innerText(),/0 matching source rows/);await screen('explore-empty')
  }
+ // Exports preserve source text or refuse an unrepresentable workbook value.
+ const formulaCSV=csv.replace('synthetic-bifocal-12,','=synthetic-bifocal-12,').replace('synthetic-bifocal-13,','synthetic-bifocal-13_x0041_,')
+ await upload(dataset,formulaCSV.replace('synthetic-bifocal-11,','synthetic-bifocal-11\u0001,'),true)
+ const unusual=await call('/explore/run',input)
+ const csvResponse=await context.request.post(origin+'/api/operator/explore/'+unusual.snapshotId+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'csv'}});assert.equal(csvResponse.status(),200);const unusualCSV=await csvResponse.text();assert.ok(unusualCSV.includes('synthetic-bifocal-11\u0001'));assert.ok(unusualCSV.includes("\"'=synthetic-bifocal-12\""))
+ const invalid=await call('/explore/'+unusual.snapshotId+'/export',{scope:'underlying',format:'xlsx'},422);assert.equal(invalid.error,'xlsx_xml_character_refused')
+ await upload(dataset,formulaCSV,true)
+ const literal=await call('/explore/run',input),workbook=await context.request.post(origin+'/api/operator/explore/'+literal.snapshotId+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'xlsx'}});assert.equal(workbook.status(),200)
+ const literalXML=strFromU8(unzipSync(new Uint8Array(await workbook.body()))['xl/worksheets/sheet1.xml']);assert.ok(literalXML.includes('=synthetic-bifocal-12'));assert.ok(literalXML.includes('synthetic-bifocal-13_x005F_x0041_'),'A literal workbook escape remains source text rather than becoming A');assert.ok(!literalXML.includes('<f>'))
  // Model promotion inventories real exploration answers, then invalidates old questions.
  const branch=await call('/models/'+saved.modelId+'/branches',{definition:model}),branchPath='/models/'+saved.modelId+'/branches/'+branch.branchId
  const next=await call(branchPath+'/validate',{},200);assert.ok(next.dependencies.some(d=>d.kind==='query'&&d.id===run.snapshotId))
