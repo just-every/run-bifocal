@@ -2919,7 +2919,7 @@
       "executable": false
     },
     "tests/site/site.test.mjs": {
-      "sha256": "7189175149358aedc4d018356d97c580924d7890aa5b4600cb6adf64291b9337",
+      "sha256": "e354ed471d7a920ae2412f9b9ac72624f418b6a5dc2f576cd5ecaab511ac1dbb",
       "executable": false
     },
     "tests/typecheck-checks.mjs": {

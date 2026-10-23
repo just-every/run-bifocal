@@ -15,7 +15,10 @@ const attrs = (html, name) => [...html.matchAll(new RegExp(`\\s${name}="([^"]*)"
 const anchors = html => [...html.matchAll(/<a\b[^>]*\shref="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map(([, href, inner]) => ({ href, text: inner.replace(/<[^>]+>/g, '').replace(/&nbsp;|\s+/g, ' ').trim() }))
 
 test('the run site builds, its Run Bifocal actions open /run, and every link and file it names resolves', () => {
-  const output = execFileSync(join(root, 'node_modules/.bin/rer'), ['build', '--site'], { cwd: root, encoding: 'utf8', stdio: 'pipe', env: { ...process.env, PWD: root.replace(/\/$/, '') } })
+  // A nested rer child sends its result to its owning capture. Assert the
+  // public terminal boundary, including when this test itself runs in Verify.
+  const rer = join(root, 'node_modules/.bin/rer')
+  const output = execFileSync(rer, ['queue', 'site-output', '--', rer, 'build', '--site'], { cwd: root, encoding: 'utf8', stdio: 'pipe', env: { ...process.env, PWD: root.replace(/\/$/, '') } })
   assert.match(output, /Run site written to dist\/site \(\d+ pages, \d+ files\)/, 'the published pin names the usable checkout-relative site path')
   assert.match(output, /Run site written to dist\/site[^\n]*:\s*\[REDACTED\](?:\/?dist\/site)?\s*$/m, 'the private absolute destination stays redacted across nested command capture')
   assert.ok(!output.includes(root), 'the checkout path must not bypass global redaction')
