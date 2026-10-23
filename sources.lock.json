@@ -267,7 +267,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cee50634582402316440eda8c75faa4c73481c66a8ce1487f3a6cae55c6da6fd",
+      "sha256": "d51eb1270897ce2d09fc8729a54ab84b55a1321569499e18cd5a59df2173eaec",
       "executable": false
     },
     "AGENTS.md": {
@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ecdd27af879ef8dfe30a3ef650eaf9eb381bcb573a222e6aa317c3950d83b7a0",
+      "sha256": "6ec330e026d2ced133b301388025dfd829dba00b66b7b055c15263885f2fda9f",
       "executable": false
     },
     "deploy-demo.json": {
@@ -876,6 +876,10 @@
     },
     "src/bifocal/catalog/authority.server.ts": {
       "sha256": "574e5fd7ea41751e0dadd9b37f4a09a743f09a35b90798e33285c0269a25d0e6",
+      "executable": false
+    },
+    "src/bifocal/catalog/certification.server.ts": {
+      "sha256": "34e7ed7fdcc9f7fefd1ca0d55dbe1af927f1cc59d4322c96ea946df96b3530bd",
       "executable": false
     },
     "src/bifocal/catalog/erasure.ts": {
