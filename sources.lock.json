@@ -3071,7 +3071,7 @@
       "executable": false
     },
     "tests/bifocal-scorecards.mjs": {
-      "sha256": "a282f5c19d34611536ba2eadb6b0b1515d7526f2943a4c74ab6a3abcbe90b191",
+      "sha256": "5defc7e8a7d51e39560c5a838abc770cc49bc627c40acd679c558e3fe447bb87",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
