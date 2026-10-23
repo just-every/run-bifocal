@@ -1,3 +1,4 @@
+import { boardDocument, readBoard, saveBoard } from '../dashboards/store.server'
 import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
@@ -40,9 +41,9 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   }
   if (path==='/api/operator/queries') {
    if (request.method!=='GET') return json({error:'method_not_allowed'},405)
-   const result=(await env.DB.prepare('SELECT id,digest,created_at FROM bf_query_snapshots WHERE owner_id=? ORDER BY created_at DESC LIMIT 50').bind(ownerId).all()).results
+   const result=(await env.DB.prepare('SELECT id,digest,created_at,query_json FROM bf_query_snapshots WHERE owner_id=? ORDER BY created_at DESC LIMIT 50').bind(ownerId).all()).results
    await transact(env.DB,authority,[])
-   return json({queries:result})
+   return json({queries:result.map(row=>{const definition=JSON.parse(String(row.query_json));const {query_json,...metadata}=row;return {...metadata,label:definition.dataset+' · '+definition.measures.map((m:{id:string})=>m.id).join(', ')}})})
   }
   const query=/^\/api\/operator\/queries\/([^/]+)(\/rerun)?$/.exec(path)
   if (query) {
@@ -64,6 +65,7 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
    if(!artifact[2]) {
     if(request.method!=='POST') return json({error:'method_not_allowed'},405)
     const input=await body(request)
+    if(input.queryIds !== undefined)return json(boardDocument(await saveBoard(env,authority,ownerId,kind,input)),201)
     if(Object.keys(input).some(k=>!['queryId','title'].includes(k)) || typeof input.queryId!=='string' || !resourceId.test(input.queryId) || typeof input.title!=='string' || !input.title.trim() || input.title.length>160) fail('artifact_query_and_title_required',400)
     const {snapshot,guard}=await readQuery(env,authority,ownerId,input.queryId),id=randomUUID(),createdAt=new Date().toISOString()
     await transact(env.DB,authority,[assertion(guard),sql('INSERT INTO bf_query_artifacts(id,kind,snapshot_id,title,owner_id,created_at) VALUES(?,?,?,?,?,?)',id,kind,snapshot.snapshotId,input.title,ownerId,createdAt)])
@@ -71,6 +73,8 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
    }
    if(request.method!=='GET')return json({error:'method_not_allowed'},405)
    if(!resourceId.test(artifact[2]))fail('artifact_not_found',404)
+   const board=await readBoard(env,authority,ownerId,artifact[2],kind)
+   if(board)return json(boardDocument(board))
    const row=await env.DB.prepare('SELECT * FROM bf_query_artifacts WHERE id=? AND kind=? AND owner_id=?').bind(artifact[2],kind,ownerId).first<{id:string;kind:string;snapshot_id:string;title:string;created_at:string}>()
    if(!row)fail('artifact_not_found',404)
    const {snapshot,guard}=await readQuery(env,authority,ownerId,row.snapshot_id)

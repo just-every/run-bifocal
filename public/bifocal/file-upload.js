@@ -26,6 +26,7 @@ export async function envelope(form) {
   separator = separator === 'auto' ? delimiter(data) : separator === 'tab' ? '\t' : separator
  }
  const result = { version: 1, datasetId, filename: file.name, encoding, delimiter: separator, nullValue: form.elements.null.value, mode: form.elements.mode.value, formulaTreatment: workbook ? 'cached-values-preserve-formulas' : 'literal-text', data }
+ if (form.elements.sourceKind?.value) result.lineage = {kind:form.elements.sourceKind.value,link:form.elements.sourceLink.value,description:form.elements.sourceDescription.value,from:form.elements.sourceFrom.value,to:form.elements.sourceTo.value,timezone:form.elements.sourceTimezone.value,observedAt:new Date().toISOString(),schema:form.elements.sourceKind.value === 'vane-export' ? 'run-vane report CSV v1 @ 8549e6e129e1725d8e85d8d25ca3814831f204da' : 'owner-supplied business table export'}
  if (form.elements.key.value) result.key = form.elements.key.value
  if (form.elements.columns.value.trim()) { try { result.columns = JSON.parse(form.elements.columns.value) } catch { throw Error('Column mapping must be a JSON object mapping every column.') } }
  if (workbook) { if (!form.elements.sheet.value) throw Error('Enter the exact XLSX sheet name.'); result.sheet = form.elements.sheet.value }

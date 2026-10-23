@@ -1,3 +1,4 @@
+import {renderBoard,boardChoices} from './board.js'
 import { element, table } from './file-view.js'
 import { figure, label, stamp, when } from './format.js'
 const $ = id => document.getElementById(id), zone = document.body.dataset.zone
@@ -8,13 +9,14 @@ async function request(path,data) {
  const response=await fetch('/api/operator/'+path,{method:data===undefined?'GET':'POST',headers:data===undefined?{}:{'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})})
  const result=await response.json(); if(response.status===404)throw Error('Saved answer is unavailable. Recheck its id and retained source custody.');if(!response.ok)throw Error(result.reason ?? result.error);return result
 }
-async function action(work) { if(pending)return; pending=true; status('Working…'); document.querySelectorAll('button').forEach(button=>button.disabled=true);try{await work()}catch(error){status(error.message,true)}finally{pending=false;document.querySelectorAll('button').forEach(button=>button.disabled=false)} }
+async function action(work) { if(pending)return; pending=true; status('Working…'); document.querySelectorAll('button').forEach(button=>{button.dataset.previousDisabled=String(button.disabled);button.disabled=true});try{await work()}catch(error){status(error.message,true)}finally{pending=false;document.querySelectorAll('button').forEach(button=>button.disabled=button.dataset.previousDisabled==='true')} }
 // A figure as a US reader expects it; any state other than a value reads as its own word.
 const shown = (item,currency) => item.state === 'value' ? figure(item.value,item.unit,currency) : item.state.toUpperCase()
 const KIND = {reports:'Saved report',dashboards:'Saved dashboard',queries:'Immutable snapshot'}
 // Parts joined by "·" never leave a dot at a line's end: each dot travels with the part after it, and a stamp stays whole.
 const dotted = (parts,whole=-1) => parts.flatMap((text,i)=>[...(i?[' ']:[]),element('span',(i?'·\u00a0':'')+text,i===whole?'nowrap':undefined)])
 function render(result) {
+ if(renderBoard(result,request,action,status)){snapshot=result;return}
  snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';$('answer-title').textContent=result.title ?? 'Exact answer'
  const currency=result.context.currency, measures=Object.keys(result.answer.totals), columns=[...result.definition.groupBy,...measures]
  $('snapshot-note').replaceChildren(...dotted([KIND[document.body.dataset.kind],stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
@@ -28,7 +30,7 @@ function render(result) {
 // The retained answer on screen is the current row of the list, for a saved dashboard or report too.
 function current() { for(const link of $('saved-list').querySelectorAll('a'))link.getAttribute('href')==='/app/queries/'+snapshot?.queryId?link.setAttribute('aria-current','true'):link.removeAttribute('aria-current') }
 async function history() {
- const result=await request('queries');$('saved-list').replaceChildren()
+ const result=await request('queries');boardChoices(result.queries);$('saved-list').replaceChildren()
  for(const item of result.queries){const link=element('a'),time=element('time',when(item.created_at,zone));time.dateTime=item.created_at;link.href='/app/queries/'+item.id;link.append(time,element('span','sha '+String(item.digest).slice(0,8),'digest'));$('saved-list').append(link)}
  if(!result.queries.length)$('saved-list').append(element('p','No saved answers yet.','side-note'))
  $('empty-answers').hidden=result.queries.length>0||!!document.body.dataset.id
@@ -47,3 +49,5 @@ $('rerun').onclick=()=>action(async()=>{
  status('Snapshot reproduced exactly from retained source and convention versions.')
 })
 action(async()=>{await history();if(document.body.dataset.id)render(await request(document.body.dataset.kind+'/'+document.body.dataset.id));else status('Paste a definition for your real imported data and saved calendar.')})
+
+if($('compose-form').tagName==='FORM')$('compose-form').onsubmit=event=>{event.preventDefault();action(async()=>{const form=event.currentTarget,queryIds=[...form.querySelectorAll('input[name=queryIds]:checked')].map(input=>input.value);const result=await request('dashboards',{title:form.elements.title.value,queryIds}),link=element('a','Open cross-system dashboard');link.href='/app/dashboards/'+result.id;$('board-created').replaceChildren(link);status('Dashboard saved with the exact selected answers.')})}

@@ -1,3 +1,4 @@
+import { lineage, type Lineage } from '../../sources/analytics/lineage'
 import { Buffer } from 'node:buffer'
 import { csvOriginal, candidateKeys, spreadsheetMetadata, type Spreadsheet, type RowErrors } from './interpretation'
 import { readWorkbook, WorkbookError } from './xlsx'
@@ -6,7 +7,7 @@ import type { Json, ParsedRecord, ImportMapping, TargetRow } from '../../../modu
 
 export const FILE_LIMITS = { bytes: 524288, rows: 2000, columns: 64, cell: 4096, tableBytes: 786432 } as const
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
-export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
+export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
 function refuse(message: string): never { throw new InvalidFile(message) }
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -64,10 +65,12 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
   let review: Json = null
   const invalid = (reason: string): ParsedRecord => ({ kind: 'invalid-file', sourceId: datasetId, payload: { reason, review } })
   try {
-   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet'].includes(key))
+   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet','lineage'].includes(key))
      || input.version !== 1 || input.datasetId !== datasetId) refuse('FILE_SCHEMA: Supply the documented version-1 file envelope for this dataset.')
    if (typeof input.filename !== 'string' || !/^[^/\\\x00-\x1f]{1,120}\.(csv|xlsx)$/i.test(input.filename)) refuse('FILE_TYPE: Choose CSV or XLSX; macro-enabled workbooks, templates and archives are refused.')
    if (![',',';','\t','|'].includes(String(input.delimiter)) || typeof input.nullValue !== 'string' || input.nullValue.length > 32) refuse('INTERPRETATION: Choose a supported delimiter and an explicit null marker.')
+   let sourceLineage: Lineage | undefined
+   try { sourceLineage = lineage(input.lineage) } catch { refuse('SOURCE_LINEAGE: Supply a credential-free source link, explicit date window, timezone and description.') }
    const isWorkbook = String(input.filename).toLowerCase().endsWith('.xlsx')
    let spreadsheet: Spreadsheet | undefined
    try { spreadsheet = spreadsheetMetadata(input.spreadsheet) } catch (error) { refuse((error as Error).message) }
@@ -97,6 +100,7 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    } else columns = headers.map((name, i) => ({ name, type: infer(records.map(row => row[i] ?? String(input.nullValue)).filter(value => value !== input.nullValue)) }))
    if (columns.length !== headers.length || columns.some((column, i) => column.name !== headers[i])) refuse('SCHEMA_CHANGED: Review and explicitly map the changed headers before replacing the dataset.')
    if (previous && input.mode !== 'replace' && canonicalJson(columns as unknown as Json) !== canonicalJson(previous.columns as unknown as Json)) refuse('SCHEMA_CHANGED: Append and keyed-update require the current schema. Use an explicitly mapped replace to change types.')
+   if (sourceLineage?.kind === 'vane-export' && !['label','visitors','visits','conversions','conversionRate','revenue','currency'].every(name => headers.includes(name))) refuse('VANE_EXPORT_SCHEMA: Use the Vane UTM campaigns report CSV, including conversion counts, rates and currency.')
    const errors: string[] = [], rowErrors: RowErrors = []
    const rows = records.map((row, rowIndex) => columns.map((column, colIndex) => {
     const value = row[colIndex]
@@ -111,7 +115,7 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    if (key !== null && (typeof key !== 'string' || !headers.includes(key))) refuse('KEY: Choose one existing column, or null.')
    if (previous && input.mode !== 'replace' && key !== previous.key) refuse('KEY_CHANGED: Changing the key requires an explicitly reviewed replace.')
    if (input.mode === 'keyed-update' && !key) refuse('KEY_REQUIRED: Keyed update needs an explicit unique key.')
-   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
+   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(sourceLineage ? {lineage:sourceLineage} : {}), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
    return { kind: 'file-table', sourceId: datasetId, payload: { table: table as unknown as Json, mode: input.mode, contentHash: sha256(canonicalJson(input)) } }
   } catch (error) { if (error instanceof InvalidFile || error instanceof WorkbookError) return invalid(error.message); throw error }
  }

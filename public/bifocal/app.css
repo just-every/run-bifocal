@@ -247,3 +247,14 @@ ul{padding-left:20px}
 .guide p{max-width:68ch;color:var(--app-text-2)}
 .guide-links ul{display:flex;flex-wrap:wrap;gap:8px 24px;margin:32px 0 0;padding:20px 0 0;list-style:none;border-top:1px solid var(--app-line)}
 .guide-links a{font-weight:600}
+
+/* Cross-system cards use the existing frame and panel vocabulary. */
+.business-chart{margin:20px 0;max-width:100%;overflow:hidden}
+.business-chart svg{display:block;width:100%;height:auto;stroke:none;fill:var(--app-text);font:14px var(--font-ui)}
+.business-chart rect{fill:var(--app-mark)}
+#board-cards>.panel{margin-top:24px}
+#board-cards details{margin-top:16px}
+#business-board>h2{font-size:28px}
+#business-board>.actions{margin:24px 0}
+fieldset{min-width:0;border:1px solid var(--app-line);margin:16px 0;padding:12px}
+#board-choices .checkbox{align-items:flex-start}

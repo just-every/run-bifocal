@@ -60,7 +60,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     UNION ALL SELECT 'bf_file_reviews',count(*) FROM bf_file_reviews WHERE dataset_id=?
     UNION ALL SELECT 'bf_query_snapshots',count(*) FROM bf_query_snapshots WHERE id IN (${derived})
     UNION ALL SELECT 'bf_query_sources',count(*) FROM bf_query_sources WHERE snapshot_id IN (${derived})
-    UNION ALL SELECT 'bf_query_artifacts',count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived})`, dataset, dataset, dataset, dataset, dataset)
+    UNION ALL SELECT 'bf_query_artifacts',count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived})
+    UNION ALL SELECT 'bf_analytics_boards',count(*) FROM bf_analytics_boards WHERE id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived}))
+    UNION ALL SELECT 'bf_analytics_cards',count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived}))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset)
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
     sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM ik_d1_assertions'),

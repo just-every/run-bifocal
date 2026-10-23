@@ -101,3 +101,21 @@ $('range-form').onsubmit = event => { event.preventDefault(); const rangeForm = 
  if (form.elements.columns.value.trim()) input.columns=JSON.parse(form.elements.columns.value)
  renderPlan(await request('/api/operator/spreadsheets/preview',input,datasetId),datasetId)
  }) }
+
+for(const [name,path] of [['vane','vane'],['product','product-table']]) {
+ const sourceForm=$(name+'-form')
+ sourceForm.onsubmit=event=>{event.preventDefault();action(async()=>{
+  const dataset=form.elements.dataset.value
+  if(!/^[a-z][a-z0-9-]{0,63}$/.test(dataset))throw Error('Enter the dataset id above before reading a source.')
+  const values=Object.fromEntries(new FormData(sourceForm));delete values.consent
+  if(name==='product')values.fields=values.fields.split(',').map(value=>value.trim())
+  const accessToken=sourceForm.elements.accessToken.value;sourceForm.elements.accessToken.value=''
+  await load(dataset)
+  const history=await call('history',undefined,dataset)
+  const result=await request('/api/operator/analytics/'+path+'/preview',{...values,accessToken,datasetId:dataset,confirmRead:sourceForm.elements.consent.checked,catchup:history.history.length>0},dataset)
+  sourceForm.elements.consent.checked=false;renderPlan(result,dataset)
+ })}
+}
+request('/api/operator/analytics/config',undefined,'').then(config=>{$('vane-configuration').textContent=config.vaneConfigured?'Configured Vane installation: '+config.vaneOrigin:'Vane is not connected. Configure your independent Vane installation before the API read. The Vane CSV export remains available above.'}).catch(error=>{$('vane-configuration').textContent=error.message})
+const initialDataset=new URL(location.href).searchParams.get('dataset')
+if(initialDataset){form.elements.dataset.value=initialDataset;action(()=>load(initialDataset))}

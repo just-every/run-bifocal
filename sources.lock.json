@@ -479,11 +479,11 @@
       "executable": false
     },
     "public/bifocal/answers.js": {
-      "sha256": "e09f9ca91c1310f4ac4688c9c292e65fc62b831c34ac0161306a8371c41792ce",
+      "sha256": "ea283aa86d46043ca061b948fa05a2a1c8265da97fe8e0ea72201ef920d80785",
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "4f8e86136fe5426f47086aefd4bdf07090b4ffba6e6c3400a62b72974e4cd0e5",
+      "sha256": "4a1015ae8907f531e625595417a468b4154d295985de79b9b1258285e43f02e5",
       "executable": false
     },
     "public/bifocal/chevron-dark.svg": {
@@ -499,15 +499,15 @@
       "executable": false
     },
     "public/bifocal/file-upload.js": {
-      "sha256": "bbe1517aacbbd5d18307061c5094844e0b679ca45569e45ed4e1f0af70b37efa",
+      "sha256": "248ee69bd33246f3f7d2f47a0b1494f1837fa8778c3f701615cbe8ecf3f27149",
       "executable": false
     },
     "public/bifocal/file-view.js": {
-      "sha256": "79db1b5bd669c02c5b7212e918b96ac44163376d52252b36cf9365e351b10afe",
+      "sha256": "bd2603a50617e0ce60d871fef5698217dd82e8ff2a8995fd81418b2bed505e02",
       "executable": false
     },
     "public/bifocal/files.js": {
-      "sha256": "afccb94d4b49fdf831c734e0ba1d3920a411261c8310c68bbbb97f49a749f268",
+      "sha256": "40012db15eb3389e8ec98a4357f892a0e13fab79061d64169460adf2fbb426f8",
       "executable": false
     },
     "public/bifocal/format.js": {
@@ -643,7 +643,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "3754254e5b1fb481ffb1344fb9e6a5b61049d6d717dcd5b1cc4a6288425e6e86",
+      "sha256": "cd0279f011970aea43c0273b1c5a583acfd47ecbbda49ffe860f9697ddd691a2",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -707,7 +707,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "1bc3ac21bdf9154e8327c331226cb4934f65492fa93f1a22517cbd929a8eee97",
+      "sha256": "6d0fe18980b799b0cb5a8d31833b88d2441832cca3cc998078951fe687d8acd9",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -891,7 +891,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
-      "sha256": "6d30913ae1330a76b421acf99e9b9eb9d5bd70a5e20a25bc085a519a5c00a7b8",
+      "sha256": "554a3e127a42d879c58c4c94349da57007b7d3300f251ffaf08985be806e54e4",
       "executable": false
     },
     "src/bifocal/imports/files/interpretation.ts": {
@@ -903,7 +903,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/page.server.ts": {
-      "sha256": "0138847bc5f0457f7f9b587f71380e1491aacbd938d1e4de1c09c2d25333262e",
+      "sha256": "beb9abeeb204bf8c4a0fea8da1c563a8b0de0766fc4b14fd73b1898f92fbae8c",
       "executable": false
     },
     "src/bifocal/imports/files/reviews.server.ts": {
@@ -911,7 +911,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "2b4be9ce4ebf87795b6d7883da43dfcc94b8b689a35b2f4a72b7bc63ab18ee44",
+      "sha256": "c986e0bf77ca160b44e6ed743900e73c7631d530ba613d9ca4d7e821c3849140",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -931,11 +931,11 @@
       "executable": false
     },
     "src/bifocal/query/page.server.ts": {
-      "sha256": "fb35a8adf39b2c27ae524a3e2070b70a96640f1c79cf8261a72177eacb1e2028",
+      "sha256": "74a5419f56b0b888286bdd64dc5cd93f6fef6130c2c0da0c0364f8f95205290d",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
-      "sha256": "f31fa641f55556db6b75c68cc2b4c4d36bef54798e51da2502343fe64cfa4fde",
+      "sha256": "cbed6cc902836db952092ace37aee10f863e458ca6be1e2a49a34a83bcced8d7",
       "executable": false
     },
     "src/bifocal/query/types.ts": {
@@ -2695,7 +2695,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "17530c73d8c90c6ccb6a79b22af962c4d02848c672f8bdd8d92f0caa22f28b70",
+      "sha256": "7dad4d599bde9d9608ceaf9fbc83e37bb348289416520db02ee53661b0a61565",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -2915,7 +2915,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "eac2051fdf2c762ab59724d0a3ecea9f1a4e7b687d9270c1b93c882ceedfc327",
+      "sha256": "23a836502673a1249ec8c7861653ce8b28c3737d7f576136cc48e38c88287fab",
       "executable": false
     },
     "tests/site/site.test.mjs": {

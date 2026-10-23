@@ -16,6 +16,8 @@ import { companyPage } from './bifocal/company/page.server'
 import { conventionsResponse } from './bifocal/company/server'
 import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
+import { warehouseResponse } from './bifocal/exports/warehouse/server'
+import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -44,6 +46,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (answer) return answer
     const query = await exactQueryResponse(request, env)
     if (query) return query
+    const warehouse = await warehouseResponse(request, env)
+    if (warehouse) return warehouse
+    const analyticsSource = await analyticsSourceResponse(request, env)
+    if (analyticsSource) return analyticsSource
     const range = await spreadsheetRangeResponse(request, env)
     if (range) return range
     const page = await fileImportPage(request, env)
