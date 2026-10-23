@@ -90,11 +90,19 @@ test('native chart families retain exact scoped values, missing states and acces
  const filtered=await call('/queries/run',{...query,filters:[{column:'region',op:'eq',value:'West'}]},201)
  const scoped=await call('/charts/'+filtered.queryId+'/line.json?scale=log')
  assert.deepEqual(scoped.rows.map(row=>row.value.value),['100.10']);assert.deepEqual(scoped.filters,filtered.definition.filters)
- const positive=await context.request.get(origin+'/api/operator/charts/'+filtered.queryId+'/line.svg?scale=log&width=390');assert.equal(positive.status(),200);assert.ok(!(await positive.text()).match(/NaN|Infinity/))
  const empty=await call('/queries/run',{...query,filters:[{column:'region',op:'eq',value:'No matching region'}]},201)
- await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/api/operator/charts/'+empty.queryId+'/line.svg?width=390')
- assert.match(await page.locator('svg').textContent(),/No groups match/);assert.equal(await page.getByRole('row').count(),0)
- if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'chart-empty-390.png')})
+ for(const width of [1440,390]) {
+  await page.setViewportSize({width,height:1000})
+  for(const [name,id,type,suffix] of [['positive-log',filtered.queryId,'line','&scale=log'],['numeric-kpi',filtered.queryId,'kpi',''],['empty',empty.queryId,'line','']]) {
+   const address=origin+'/api/operator/charts/'+id+'/'+type+'.svg?width='+width+suffix
+   const response=await context.request.get(address);assert.equal(response.status(),200);assert.ok(!(await response.text()).match(/NaN|Infinity/))
+   await page.goto(address)
+   if(name==='empty'){assert.match(await page.locator('svg').textContent(),/No groups match/);assert.equal(await page.getByRole('row').count(),0)}
+   else {assert.match(await page.locator('svg').textContent(),/USD 100\.10/);assert.equal(await page.getByRole('row').count(),1)}
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,`chart-${name}-${width}.png`)})
+  }
+ }
  const line=await(await context.request.get(origin+chartUrl+'/line.svg')).text()
  assert.equal((line.match(/<path /g)||[]).length,2,'non-numeric states split the two numeric runs')
 })
@@ -108,6 +116,8 @@ test('chart door refuses unsupported semantics and unauthorized access without r
  assert.equal((await context.request.get(origin+chartUrl+'/line.svg',{headers:{'sec-fetch-site':'cross-site'}})).status(),401)
  assert.equal((await context.request.post(origin+chartUrl+'/line.svg',{headers:headers(),data:{}})).status(),405)
  const head=await context.request.head(origin+chartUrl+'/line.svg');assert.equal(head.status(),200);assert.equal((await head.body()).length,0)
+ const distinct=await call('/queries/run',{...query,measures:[{id:'regions',op:'count-distinct',column:'region',unit:'count',scale:0}]},201)
+ const nonadditive=await context.request.get(origin+'/api/operator/charts/'+distinct.queryId+'/pie.svg');assert.equal(nonadditive.status(),422);assert.equal((await nonadditive.json()).error,'chart_part_to_whole_requires_additive_measure')
  // No silent truncation of large results.
  const many='id,region,amount,quality\n'+Array.from({length:41},(_,i)=>`${i},Region ${i},1.00,value`).join('\n')+'\n'
  await importData(many,true);const large=await call('/queries/run',query,201)

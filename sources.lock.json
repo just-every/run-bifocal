@@ -283,7 +283,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d4a9c370d820df82761c26701f76f0cb295b90247c7e9b021fb7877d1724a160",
+      "sha256": "00b239b431a1911c6fa321fea0a1ab5428cada4f3934255c3d41ad2ac0a70e17",
       "executable": false
     },
     "deploy-demo.json": {
@@ -2959,7 +2959,7 @@
       "executable": false
     },
     "tests/bifocal-charts.mjs": {
-      "sha256": "aa521312714e78f8bf8f7d6f245f29b2e643ae25696b60abd966ab3c71c14df8",
+      "sha256": "134923dc2dc27104c3bacd0ec4affb3a58654103f3c31ae7478a95139b64ff1e",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
