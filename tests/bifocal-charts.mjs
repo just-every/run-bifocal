@@ -67,7 +67,7 @@ test('native chart families retain exact scoped values, missing states and acces
   assert.equal(metadata.rows.find(row=>row.label==='West').formatted,'USD 100.10')
   assert.equal(metadata.rows.find(row=>row.label==='East').formatted,'USD -20.02')
   for(const [region,state] of [['South','null'],['North','value'],['Unknown','unknown'],['Restricted','suppressed'],['Pending','incomplete']])assert.equal(metadata.rows.find(row=>row.label===region).value.state,state)
-  assert.match(await page.locator('svg').innerText(),/USD 100\.10/)
+  assert.match(await page.locator('svg').textContent(),/USD 100\.10/)
   assert.equal(await page.locator('a, image, foreignObject').count(),0)
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'chart overflows viewport')
   assert.ok(await page.locator('g[tabindex="0"]').count()>0)
