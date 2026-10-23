@@ -2999,7 +2999,7 @@
       "executable": false
     },
     "tests/local-membership.mjs": {
-      "sha256": "c8522e2ad32a050549df5aa5a0ce9519db5ea75de54da1fdbec5fa8188afeb82",
+      "sha256": "f2d484c57c80bc486a735727b99d3fabf41aa954e214087f07824d70de5d3f9b",
       "executable": false
     },
     "tests/runtime.mjs": {

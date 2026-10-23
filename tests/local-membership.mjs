@@ -27,7 +27,7 @@ try {
  worker.stdout.on('data', chunk => { output += chunk }); worker.stderr.on('data', chunk => { output += chunk })
  let ready = false
  for (let attempt = 0; attempt < 180; attempt++) {
-  if (worker.exitCode !== null) throw Error('Local Vite entry stopped before readiness')
+  if (worker.exitCode !== null) throw Error('Local Vite entry stopped before readiness\n' + output.slice(-6000))
   try { ready = (await fetch(origin + '/health')).ok } catch {}
   if (ready) break
   await new Promise(resolve => setTimeout(resolve, 500))
