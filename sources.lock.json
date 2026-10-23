@@ -2999,7 +2999,7 @@
       "executable": false
     },
     "tests/local-membership.mjs": {
-      "sha256": "f2d484c57c80bc486a735727b99d3fabf41aa954e214087f07824d70de5d3f9b",
+      "sha256": "c1930a18dd4c6765a190f5b6e2c85e598c2fdb826d3e62c58ed21775d69a31ab",
       "executable": false
     },
     "tests/runtime.mjs": {
@@ -3027,7 +3027,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "8d53bfdfb5e8b4b4005e81ee1447eaec322f495f5a255c464b775b2f1fe92e8f",
+      "sha256": "4476bb2d4ae122e856ae4c5096897becd17fa600b32661875378b6ff20e308fa",
       "executable": false
     },
     "vite.site.config.ts": {

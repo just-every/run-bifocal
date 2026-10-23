@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:net'
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdtemp, writeFile, rm, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from '@playwright/test'
@@ -33,6 +33,18 @@ try {
   await new Promise(resolve => setTimeout(resolve, 500))
  }
  assert.ok(ready, 'Local Vite entry becomes ready')
+ // Archive custody stays private while source modules whose responsibility is
+ // exports remain loadable. No private installation is copied into this fixture.
+ for (const relative of ['exports/private.json', '.rer/private.json', 'src/private.rer']) {
+  const path = join(scratch, relative)
+  await mkdir(join(path, '..'), { recursive: true })
+  await writeFile(path, 'synthetic-bifocal-99')
+  for (const route of ['/' + relative, '/@fs/' + path]) {
+   const response = await fetch(origin + route)
+   assert.ok([403, 404].includes(response.status), 'private development file is refused')
+   assert.ok(!(await response.text()).includes('synthetic-bifocal-99'))
+  }
+ }
  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
  const context = await browser.newContext()
  const page = await context.newPage()
