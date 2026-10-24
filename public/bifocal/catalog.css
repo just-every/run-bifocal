@@ -1,0 +1,28 @@
+#library-workspace{min-width:0}
+#library-workspace>h1{margin-bottom:8px}
+#library-workspace .library-searchbar{display:flex;align-items:flex-end;gap:12px;margin-top:20px}
+#library-workspace .library-searchbar label{flex:1}
+#library-workspace .library-list{list-style:none;padding:0;margin:16px 0;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius);overflow:hidden}
+#library-workspace .library-row{padding:14px 20px;min-width:0}
+#library-workspace .library-row+.library-row{border-top:1px solid var(--app-line)}
+#library-workspace .library-row p{margin:4px 0 0}
+#library-workspace .library-name{font-size:17px;font-weight:600}
+#library-workspace .library-badge{display:inline-flex;align-items:center;margin:0 0 0 10px;padding:2px 8px;border:1px solid var(--app-line);border-radius:var(--app-control);background:var(--app-select);color:var(--app-text);font-size:13px;font-weight:600}
+#library-workspace .library-chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#library-workspace .library-chips span{padding:4px 10px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-control);font-size:14px}
+#library-workspace .library-empty{margin-top:20px;padding:24px;background:var(--app-surface);border:1px dashed var(--app-field);border-radius:var(--app-radius)}
+#library-workspace .library-empty p{margin:8px 0 12px}
+#library-workspace .library-links{margin:0;padding-left:20px}
+#library-workspace .library-links li{padding:4px 0;overflow-wrap:anywhere}
+#library-workspace .library-form>label,#library-workspace .library-form>.fields{margin-bottom:16px}
+#library-workspace fieldset{padding:0;border:0;margin:0;min-width:0}
+#library-workspace form>button{margin-top:16px}
+#library-workspace pre{max-height:32rem;overflow:auto}
+#library-workspace .tablewrap{margin:16px 0;max-width:100%}
+#library-workspace .tablewrap td{overflow-wrap:anywhere}
+#library-workspace #library-owner-controls .tablewrap{margin-left:0;margin-right:0}
+#library-workspace #library-grant-form{margin-top:20px}
+#library-workspace #library-hygiene-filter{margin-top:4px}
+#library-workspace #library-hygiene-report{margin-top:20px}
+#library-workspace #library-item-description:empty{display:none}
+@media(max-width:600px){#library-workspace .library-searchbar{align-items:stretch;flex-direction:column}#library-workspace .library-badge{margin:6px 0 0 8px}#library-workspace .library-row{padding:12px 16px}#library-workspace .library-row details>:not(summary){margin-left:0;margin-right:0}#library-workspace .pagehead>button{width:100%}}

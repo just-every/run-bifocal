@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { usagePrivacy } from './privacy'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
@@ -70,19 +71,19 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
   }
   if(path==='/privacy'){
    owner()
-   const current=await env.DB.prepare('SELECT * FROM bf_catalog_policy WHERE owner_id=?').bind(actor.id).first<{version:number;usage_enabled:number}>()
-   if(request.method==='GET'){await commit([]);return json({version:current?.version??0,usageEnabled:!!current?.usage_enabled,detail:'owner-only',automaticErasure:false})}
+   const current=await env.DB.prepare('SELECT * FROM bf_catalog_policy WHERE owner_id=?').bind(actor.id).first<{version:number;usage_enabled:number;disclosure_version:number}>()
+   if(request.method==='GET'){await commit([]);return json({...usagePrivacy,version:current?.version??0,usageEnabled:!!current?.usage_enabled&&current.disclosure_version===usagePrivacy.disclosureVersion})}
    if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
-   const input=await jsonBody(request);exactKeys(input,['previousVersion','usageEnabled','consent','detail'])
-   if(input.previousVersion!==(current?.version??0)||typeof input.usageEnabled!=='boolean'||input.consent!==true||input.detail!=='owner-only')fail('exact_owner_privacy_consent_required',409)
+   const input=await jsonBody(request);exactKeys(input,['previousVersion','usageEnabled','consent','detail','disclosureVersion'])
+   if(input.previousVersion!==(current?.version??0)||typeof input.usageEnabled!=='boolean'||input.consent!==true||input.detail!=='owner-only'||input.disclosureVersion!==usagePrivacy.disclosureVersion)fail('exact_owner_privacy_consent_required',409)
    const version=(current?.version??0)+1,guard=current?sql('EXISTS(SELECT 1 FROM bf_catalog_policy WHERE owner_id=? AND version=?)',actor.id,current.version):sql('NOT EXISTS(SELECT 1 FROM bf_catalog_policy WHERE owner_id=?)',actor.id)
-   await commit([assertion(guard),sql('INSERT INTO bf_catalog_policy(owner_id,version,usage_enabled,consented_at) VALUES(?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET version=excluded.version,usage_enabled=excluded.usage_enabled,consented_at=excluded.consented_at',actor.id,version,Number(input.usageEnabled),new Date().toISOString()),audit(actor,actor.id,'privacy-consented',null,version,digest(input))])
-   return json({version,usageEnabled:input.usageEnabled,detail:'owner-only',automaticErasure:false})
+   await commit([assertion(guard),sql('INSERT INTO bf_catalog_policy(owner_id,version,usage_enabled,consented_at,disclosure_version) VALUES(?,?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET version=excluded.version,usage_enabled=excluded.usage_enabled,consented_at=excluded.consented_at,disclosure_version=excluded.disclosure_version',actor.id,version,Number(input.usageEnabled),new Date().toISOString(),usagePrivacy.disclosureVersion),audit(actor,actor.id,'privacy-consented',null,version,digest({...input,disclosure:usagePrivacy}))])
+   return json({...usagePrivacy,version,usageEnabled:input.usageEnabled})
   }
   if(path==='/usage/import'||path==='/hygiene'){
-   owner();const policy=await env.DB.prepare('SELECT version FROM bf_catalog_policy WHERE owner_id=? AND usage_enabled=1').bind(actor.id).first<{version:number}>()
+   owner();const policy=await env.DB.prepare('SELECT version FROM bf_catalog_policy WHERE owner_id=? AND usage_enabled=1 AND disclosure_version=?').bind(actor.id,usagePrivacy.disclosureVersion).first<{version:number}>()
    if(!policy)fail('usage_privacy_consent_required',409)
-   const policyGuard=sql('EXISTS(SELECT 1 FROM bf_catalog_policy WHERE owner_id=? AND version=? AND usage_enabled=1)',actor.id,policy.version)
+   const policyGuard=sql('EXISTS(SELECT 1 FROM bf_catalog_policy WHERE owner_id=? AND version=? AND usage_enabled=1 AND disclosure_version=?)',actor.id,policy.version,usagePrivacy.disclosureVersion)
    if(path==='/usage/import'){
     if(request.method!=='POST')return json({error:'method_not_allowed'},405)
     const input=await jsonBody(request);exactKeys(input,['events','policyVersion']);if(input.policyVersion!==policy.version||!Array.isArray(input.events)||input.events.length>200)fail('bounded_authorized_events_required',400)
@@ -100,12 +101,12 @@ export async function catalogResponse(request:Request,original:Bindings):Promise
    }
    if(request.method!=='GET')return json({error:'method_not_allowed'},405)
    const since=new Date(Date.now()-90*86400000).toISOString()
-   const items=(await env.DB.prepare(`SELECT i.id,i.title,i.owner_id,i.fingerprint,i.archived,i.updated_at,count(u.id) AS opens,max(u.opened_at) AS lastOpen FROM bf_catalog_items i LEFT JOIN bf_catalog_usage u ON u.item_id=i.id AND u.opened_at>=? WHERE i.owner_id=? GROUP BY i.id ORDER BY i.id`).bind(since,actor.id).all()).results
+   const items=(await env.DB.prepare(`SELECT i.id,i.title,i.kind,i.owner_id,i.fingerprint,i.archived,i.updated_at,count(u.id) AS opens,count(DISTINCT u.reader_id) AS readers,max(u.opened_at) AS lastOpen FROM bf_catalog_items i LEFT JOIN bf_catalog_usage u ON u.item_id=i.id AND u.opened_at>=? WHERE i.owner_id=? GROUP BY i.id ORDER BY i.id`).bind(since,actor.id).all()).results
    const usage=(await env.DB.prepare('SELECT u.item_id,u.reader_id,u.tenant,count(*) AS opens,max(u.opened_at) AS lastOpen FROM bf_catalog_usage u JOIN bf_catalog_items i ON i.id=u.item_id WHERE i.owner_id=? AND u.opened_at>=? GROUP BY u.item_id,u.reader_id,u.tenant ORDER BY u.item_id,u.reader_id,u.tenant').bind(actor.id,since).all()).results
    const dependencies=(await env.DB.prepare('SELECT d.item_id,d.depends_on FROM bf_catalog_dependencies d JOIN bf_catalog_items i ON i.id=d.item_id WHERE i.owner_id=? ORDER BY d.item_id,d.depends_on').bind(actor.id).all()).results
    const historicalTotal=Number((await env.DB.prepare('SELECT count(*) AS n FROM bf_catalog_usage u JOIN bf_catalog_items i ON i.id=u.item_id WHERE i.owner_id=?').bind(actor.id).first<{n:number}>())?.n??0)
    await commit([assertion(policyGuard)])
-   return json({windowDays:90,denominator:{items:items.length,historicalOpens:historicalTotal,archivedItems:items.filter(i=>i.archived).length},items:items.map(item=>({...item,unused:item.opens===0,stale:Date.parse(String(item.lastOpen??item.updated_at))<Date.now()-30*86400000,duplicates:items.filter(other=>other.id!==item.id&&other.fingerprint===item.fingerprint).map(other=>other.id)})),usage,dependencies,detail:'owner-only'})
+   return json({aggregate:{minimumGroupSize:usagePrivacy.minimumGroupSize,items:items.map(item=>Number(item.readers)>=usagePrivacy.minimumGroupSize?{id:item.id,state:'available',opens:item.opens,lastOpen:item.lastOpen}:{id:item.id,state:'suppressed'})},windowDays:90,denominator:{items:items.length,historicalOpens:historicalTotal,archivedItems:items.filter(i=>i.archived).length},items:items.map(item=>({...item,unused:item.opens===0,stale:Date.parse(String(item.lastOpen??item.updated_at))<Date.now()-30*86400000,duplicates:items.filter(other=>other.id!==item.id&&other.fingerprint===item.fingerprint).map(other=>other.id)})),usage,dependencies,detail:'owner-only'})
   }
   if(path==='/audit'){
    owner();if(request.method!=='GET')return json({error:'method_not_allowed'},405)

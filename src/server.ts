@@ -23,6 +23,7 @@ import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
 import { catalogResponse } from './bifocal/catalog/server'
+import { catalogPage } from './bifocal/catalog/page.server'
 import { modelPage } from './bifocal/models/page.server'
 import { modelAuthoringResponse } from './bifocal/models/authoring.server'
 import { semanticResponse } from './bifocal/models/validation/server'
@@ -67,6 +68,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (answer) return answer
     const custody = await reportCustodyResponse(request, env)
     if (custody) return custody
+    const libraryDocument = await catalogPage(request,env)
+    if(libraryDocument)return libraryDocument
     const catalog = await catalogResponse(request, env)
     if (catalog) return catalog
     const questionDocument = await questionPage(request,env)
