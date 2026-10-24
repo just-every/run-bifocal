@@ -20,7 +20,7 @@ export async function proveScorecards({call,today,proveScreen,page,origin}) {
  await call('/goals/'+id+'/revise',{...changed,previousVersion:1,from:year+'-01-01',to:(Number(year)+1)+'-01-01',target:'1200.00'},409)
  goal=await call('/goals/'+id);assert.equal(goal.versions.length,2);assert.equal(goal.definition.target,'1200.00');assert.equal(goal.versions[1].definition.target,'1000.00')
  await proveScreen('/app/goals','goals');await proveScreen('/app/goals/'+id,'goal-checkins')
- console.log('Scorecards: certified source-query parity, exact USD target versions, dated attributed observations, stale revision refusal and phone workflow passed; Easel remains unresolved')
+ console.log('Scorecards: certified source-query parity, exact USD target versions, dated attributed observations, stale revision refusal and phone workflow passed for owner-entered targets')
 }
 
 export async function proveEaselTargets({call,today,proveScreen,page,origin,upload:actualUpload,good}) {
