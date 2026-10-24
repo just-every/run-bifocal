@@ -9,7 +9,7 @@ import { easelTarget } from './easel'
 import { goalPeriod } from './period'
 import { randomUUID } from 'node:crypto'
 import { escapeHtml } from '../../app/shell'
-import { details, document, exact, field, hidden, ident, input, json, result, text } from '../metrics/transport'
+import { discardBody, details, document, exact, field, hidden, ident, input, json, result, text } from '../metrics/transport'
 type Goal={id:string;owner_id:string;metric_id:string;version:number}
 type GoalDefinition={title:string;from:string;to:string;dateColumn:string;target:string;currency:'USD';maxAgeSeconds:number;easel?:NonNullable<Awaited<ReturnType<typeof easelTarget>>>['provenance']}
 function date(v:unknown):string {const s=text(v,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s))||new Date(s).toISOString().slice(0,10)!==s)fail('valid_date_required',400);return s}
@@ -23,7 +23,7 @@ export async function goalResponse(request:Request,original:Bindings):Promise<Re
  const url=new URL(request.url),page=url.pathname.startsWith('/app/goals'),match=/^\/(?:api\/operator|app)\/goals(?:\/([a-z][a-z0-9-]{0,63}))?(?:\/(revise|checkins))?$/.exec(url.pathname)
  if(!match)return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
- if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
+ if(!owner){await discardBody(request);return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)}
  const ownerId=await ownerIdentity(env,owner),viewer=(await operatorAuth(env).getSession(request))!.operator
  try {
   if(url.search)fail('query_parameters_not_supported',400)
@@ -84,7 +84,7 @@ export async function goalResponse(request:Request,original:Bindings):Promise<Re
   const value={goal,definition:def,versions:versions.map(v=>({...v,definition:JSON.parse(v.document_json),document_json:undefined})),checkins,actual,easel:def.easel?{state:'imported-export',...def.easel}:{state:'unresolved',reason:'No Easel export is attached to this target version.'}}
   if(!page)return json(value)
   return document(def.title,viewer,`<p>Target ${escapeHtml(def.target)} USD · ${def.from} to ${def.to} (exclusive) · Target version ${goal.version}</p><p class="status">Actuals: ${escapeHtml(String(actual.state))} · ${escapeHtml(String(actual.status))}</p>${details('Actual query, source freshness and pace',actual)}<p>${def.easel?`<a href="${escapeHtml(def.easel.link)}" rel="noreferrer">Easel plan dataset</a> · ${escapeHtml(def.easel.series)}.`:'Easel plan: not attached to this target version.'} Target history is preserved when actuals are unavailable. Check-ins are observations; they do not change actuals.</p>${def.easel?details('Easel export provenance',def.easel):''}<h2>Owner check-in</h2><form method="post" action="/api/operator/goals/${goal.id}/checkins">${hidden('previousVersion',goal.version)}${field('observedOn','Observation date','','date')}${field('observation','Observation')}<button type="submit">Add check-in</button></form>${details('Attributed check-ins',checkins)}<h2>Change target or period</h2><form method="post" action="/api/operator/goals/${goal.id}/revise">${hidden('previousVersion',goal.version)}${goalFields(def)}<button type="submit">Save target revision</button></form>${details('Target versions',value.versions)}`)
- }catch(e){const error=e instanceof QueryError?e:new QueryError('goal_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Goal unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/goals">Return to goals</a>`,error.status):json({error:error.code},error.status)}
+ }catch(e){const error=e instanceof QueryError?e:new QueryError('goal_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Goal unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/goals">Return to goals</a>`,error.status):json({error:error.code},error.status)}finally{await discardBody(request)}
 }
 function goalFields(v?:GoalDefinition){return field('title','Title',v?.title)+field('from','Period start',v?.from,'date')+field('to','Period end (exclusive)',v?.to,'date')+field('dateColumn','Actuals date column',v?.dateColumn)+field('target','Target (USD, two decimal places)',v?.target)+hidden('currency','USD')+field('maxAgeSeconds','Maximum source age in seconds',String(v?.maxAgeSeconds??86400),'number')+easelFields()}
 function easelFields(){return `<details><summary>Use an Easel target export</summary><p>First review and apply the original Easel dataset CSV at <a href="/app/import">Files</a>, selecting its source kind and dataset URL. Enter its current dataset revision, exact row ID and plan series. Enter the reviewed sum in Target. Only complete USD month periods are accepted. Changing this target manually creates a separate version without Easel provenance.</p>${[['easelDataset','Easel dataset ID'],['easelRevision','Reviewed dataset revision'],['easelRow','Easel row ID'],['easelSeries','Easel plan series']].map(([name,label])=>`<label>${label}<input name="${name}"></label>`).join('')}</details>`}

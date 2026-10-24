@@ -1204,7 +1204,7 @@
       "executable": false
     },
     "src/bifocal/goals/server.ts": {
-      "sha256": "4c12dc1195e76e72c44e5b1f8995f131320c14d94c2c0e4feb8c545ee250fc62",
+      "sha256": "9ae57a07df94ecd0ee053e0af92b0acfe640308fc74f0d26bde5d4b013283472",
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
@@ -1240,11 +1240,11 @@
       "executable": false
     },
     "src/bifocal/metrics/store.server.ts": {
-      "sha256": "1389cf63cd85bdecccac0b344fc008e48067be431b615369a143e1bc913b5178",
+      "sha256": "4134fad7819befe189be7ee37b212ed14d26e947e73d1a10ddf3c8948b7f0b10",
       "executable": false
     },
     "src/bifocal/metrics/transport.ts": {
-      "sha256": "8442299603ce2d872c893ae964ea58ffd254acf3724b1a64c8e73d9373e82f4d",
+      "sha256": "44ee2e0f1bae7251e5a1c91e19eb2b4b7b19297ff7c98ddb0dc478e2be0f2d66",
       "executable": false
     },
     "src/bifocal/models/authoring.server.ts": {
@@ -1288,7 +1288,7 @@
       "executable": false
     },
     "src/bifocal/quality/server.ts": {
-      "sha256": "a4d65fdef450a2758cc158846d17f738c6afa3eeda117531e5d9e27645be2b93",
+      "sha256": "7e222d2655091cbdc92cd3d618bee7e1197c6d9265f661fcafaa65dac4b1e9cb",
       "executable": false
     },
     "src/bifocal/query/context.ts": {
