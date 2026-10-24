@@ -78,7 +78,7 @@ try {
  const goalImpact=(await call('/metrics/synthetic-bifocal-revenue/impact')).impact.dependencies.find(d=>d.kind==='goal')
  assert.equal(goalImpact.paired.before.value,'30.00');assert.equal(goalImpact.paired.after.value,'30.03');assert.equal(goalImpact.paired.asOf,today)
  const retirement={revision:2,publishedRevision:1,digest:retirementRevision.digest,reason:'Replaced after owner review',confirm:'deprecate'}
- assert.equal((await fetch(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(retirement)})).status,401)
+ assert.equal((await fetch(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{method:'POST',headers:{Origin:origin},body:JSON.stringify(retirement)})).status,401)
  assert.equal((await context.request.post(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{headers:{Origin:'https://foreign.example.test'},data:retirement})).status(),401)
  await call('/metrics/synthetic-bifocal-revenue/deprecate',{...retirement,digest:'stale'},409)
  await call('/metrics/synthetic-bifocal-revenue/deprecate',retirement,403,{Authorization:'Bearer synthetic-bifocal-1'})
@@ -92,6 +92,7 @@ try {
  assert.equal(await page.getByRole('button',{name:'Save proposed revision',exact:true}).count(),0)
  assert.equal(await page.getByRole('button',{name:'Deprecate metric',exact:true}).count(),0)
  assert.ok(retired.metric.deprecated_at);assert.ok(retired.metric.deprecated_by);assert.equal(retired.metric.deprecated_reason,retirement.reason)
+ assert.ok(retired.impact.dependencies.some(d=>d.kind==='goal'&&d.artifact_id==='synthetic-bifocal-revenue-goal'&&d.paired.state==='unknown'))
  assert.deepEqual(retired.revisions[0].definition,retirementDraft);assert.deepEqual(retired.revisions[1].definition,revenue)
  await call('/metrics/synthetic-bifocal-revenue/run',{},409)
  await call('/metrics/synthetic-bifocal-revenue/propose',{previousRevision:1,definition:revenue},409)

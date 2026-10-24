@@ -1232,7 +1232,7 @@
       "executable": false
     },
     "src/bifocal/metrics/store.server.ts": {
-      "sha256": "76b1be9351d2a75ab61b06ecbad9e82bd77eccf5103c287d41349269f53a2e70",
+      "sha256": "1389cf63cd85bdecccac0b344fc008e48067be431b615369a143e1bc913b5178",
       "executable": false
     },
     "src/bifocal/metrics/transport.ts": {
@@ -3288,7 +3288,7 @@
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
-      "sha256": "60a93b6d192c4c8ab70c1056eb3164826d5c2ca22bb72eedc40573e8fbc81afd",
+      "sha256": "3a95793d3170b886430ba8a671400653ac9657b4fc861757116f1834676b92d6",
       "executable": false
     },
     "tests/bifocal-exploration.mjs": {
@@ -3296,7 +3296,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "c1ce07398b47c938f4526f392208f7f9f7255bbec6c095273b2a39e86d1c94bf",
+      "sha256": "dfb01fec51c04e64d7a20902a7f2186429965eb5f80e4aab9021936fff59e91a",
       "executable": false
     },
     "tests/bifocal-scorecards.mjs": {

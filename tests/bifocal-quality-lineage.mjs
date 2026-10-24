@@ -9,6 +9,9 @@ export async function proveQualityLineage({origin,context,page,call,upload,datas
  await upload(failedData,true,{kind:'revenue-table',link:'https://warehouse.example.com/source',description:'Synthetic dated source extract',from:'2026-01-01',to:'2027-01-01',timezone:'America/New_York',observedAt:'2000-01-01T00:00:00.000Z',schema:'Synthetic source schema'})
  assert.equal((await call('/reports/'+report.id)).quality.state,'unknown')
  const stale=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(stale.actual.state,'stale');assert.equal(stale.actual.status,'unknown');assert.equal(stale.actual.forecast,null);assert.equal(stale.definition.target,'1200.00');await proveScreen('/app/goals/synthetic-bifocal-revenue-goal','goal-stale')
+ const staleImpact=await call('/metrics/synthetic-bifocal-revenue/impact')
+ const staleGoal=staleImpact.impact.dependencies.find(d=>d.kind==='goal')
+ assert.equal(staleGoal.paired.state,'stale');assert.equal(staleGoal.paired.before,null);assert.equal(staleGoal.paired.after,null)
  const key=await call('/quality/rules/synthetic-bifocal-key/run',{});assert.equal(key.result.state,'failed');assert.deepEqual(key.result.failingRowNumbers,[2])
  const fresh=await call('/quality/rules/synthetic-bifocal-fresh/run',{});assert.equal(fresh.result.state,'failed')
  for(const path of ['/reports/'+report.id,'/dashboards/'+dashboard.id]){const a=await call(path);assert.equal(a.quality.state,'at risk');assert.equal(a.answer.totals.customers.value,'1');assert.ok(a.quality.tests.some(t=>t.ruleId==='synthetic-bifocal-key'&&t.runId===key.id))}

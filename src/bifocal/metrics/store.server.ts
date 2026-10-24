@@ -103,6 +103,8 @@ export async function metricResponse(request:Request,original:Bindings):Promise<
   const row=await metric(env,ownerId,id),revisions=(await env.DB.prepare('SELECT * FROM bf_metric_revisions WHERE metric_id=? ORDER BY revision DESC').bind(id).all<Revision>()).results
   const dependencies=(await env.DB.prepare(`SELECT u.snapshot_id,u.revision,a.id AS artifact_id,a.kind,a.title FROM bf_metric_uses u LEFT JOIN bf_query_artifacts a ON a.snapshot_id=u.snapshot_id WHERE u.metric_id=? UNION ALL SELECT u.snapshot_id,u.revision,b.id,b.kind,b.title FROM bf_metric_uses u JOIN bf_analytics_cards c ON c.snapshot_id=u.snapshot_id JOIN bf_analytics_boards b ON b.id=c.board_id WHERE u.metric_id=?`).bind(id,id).all()).results
   const goals=(await env.DB.prepare('SELECT g.id,g.version,v.document_json FROM bf_goals g JOIN bf_goal_versions v ON v.goal_id=g.id AND v.version=g.version WHERE g.metric_id=? AND g.owner_id=? ORDER BY g.id').bind(id,ownerId).all<{id:string;version:number;document_json:string}>()).results
+  const goalDependencies=goals.map(g=>({artifact_id:g.id,kind:'goal',version:g.version,paired:{state:'unknown',reason:'metric_value_unavailable'} as unknown}))
+  dependencies.push(...goalDependencies)
   const head=revisions[0],doc=JSON.parse(head.document_json) as MetricDocument
   let impact:unknown
   const previewGuards=[metricGuard(row)]
@@ -118,9 +120,13 @@ export async function metricResponse(request:Request,original:Bindings):Promise<
     const def=JSON.parse(goal.document_json),asOf=new Date().toISOString().slice(0,10)
     previewGuards.push(sql('EXISTS(SELECT 1 FROM bf_goals WHERE id=? AND version=?)',goal.id,goal.version))
     let paired:unknown
-    try{paired={before:certified?(await evaluate(goalPeriod(certified,def,asOf).revision)).value:null,after:(await evaluate(goalPeriod(head,def,asOf).revision)).value,asOf,from:def.from,to:def.to}}
+    try{
+     const previous=certified?await evaluate(goalPeriod(certified,def,asOf).revision):null,next=await evaluate(goalPeriod(head,def,asOf).revision)
+     const stale=[...(previous?.sources??[]),...next.sources].some(source=>{const at=Date.parse(source.table.source.lineage?.observedAt??source.table.updatedAt);return !Number.isFinite(at)||at>Date.now()||Date.now()-at>def.maxAgeSeconds*1000})
+     paired=stale?{state:'stale',before:null,after:null,reason:'source_freshness'}:{before:previous?.value??null,after:next.value,asOf,from:def.from,to:def.to}
+    }
     catch(error){if(!(error instanceof QueryError))throw error;paired={state:'unknown',reason:error.code}}
-    dependencies.push({artifact_id:goal.id,kind:'goal',version:goal.version,paired})
+    goalDependencies.find(d=>d.artifact_id===goal.id)!.paired=paired
    }
    impact={before:old?.value??null,after:next.value,sourceWatermarks:next.answer.sourceWatermarks,lineage:next.sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source})),dependencies}
   }
