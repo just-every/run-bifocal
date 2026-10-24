@@ -72,7 +72,10 @@ try {
  const retained=await call('/reports',{queryId:retiredBefore.queryId,title:'Revenue before deprecation'})
  const affected=await call('/metrics/synthetic-bifocal-revenue/impact')
  assert.ok(affected.impact.dependencies.some(d=>d.kind==='goal'&&d.artifact_id==='synthetic-bifocal-revenue-goal'))
- const retirement={revision:1,publishedRevision:1,digest:rev.digest,reason:'Replaced after owner review',confirm:'deprecate'}
+ const retirementDraft=structuredClone(revenue);retirementDraft.description='Proposed revised revenue definition'
+ const retirementRevision=await call('/metrics/synthetic-bifocal-revenue/propose',{previousRevision:1,definition:retirementDraft})
+ await call('/metrics/synthetic-bifocal-revenue/deprecate',{revision:1,publishedRevision:1,digest:rev.digest,reason:'Stale owner review',confirm:'deprecate'},409)
+ const retirement={revision:2,publishedRevision:1,digest:retirementRevision.digest,reason:'Replaced after owner review',confirm:'deprecate'}
  await call('/metrics/synthetic-bifocal-revenue/deprecate',{...retirement,digest:'stale'},409)
  await call('/metrics/synthetic-bifocal-revenue/deprecate',retirement,403,{Authorization:'Bearer synthetic-bifocal-1'})
  await page.goto(origin+'/app/metrics/synthetic-bifocal-revenue')
@@ -83,7 +86,7 @@ try {
  assert.equal(deprecated.status(),303);await page.waitForURL(origin+'/app/metrics/synthetic-bifocal-revenue')
  const retired=await call('/metrics/synthetic-bifocal-revenue')
  assert.ok(retired.metric.deprecated_at);assert.ok(retired.metric.deprecated_by);assert.equal(retired.metric.deprecated_reason,retirement.reason)
- assert.deepEqual(retired.revisions[0].definition,revenue)
+ assert.deepEqual(retired.revisions[0].definition,retirementDraft);assert.deepEqual(retired.revisions[1].definition,revenue)
  await call('/metrics/synthetic-bifocal-revenue/run',{},409)
  await call('/metrics/synthetic-bifocal-revenue/propose',{previousRevision:1,definition:revenue},409)
  await call('/metrics/synthetic-bifocal-revenue/approve',{revision:1,digest:rev.digest,confirm:'approve',annotation:'Cannot reactivate'},409)
