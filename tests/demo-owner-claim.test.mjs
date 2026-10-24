@@ -93,7 +93,8 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const port = socket.address().port
   await new Promise(resolve => socket.close(resolve))
   const origin = `http://127.0.0.1:${port}`
-  await writeFile(join(scratch, '.dev.vars'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nINSTALLATION_KEY=${syntheticInstallationKey}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`, { mode: 0o600 })
+  const privateSettings = `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=${originalOwner}\nSESSION_SECRET=${syntheticSecret}\nINSTALLATION_KEY=${syntheticInstallationKey}\nSETUP_TOKEN=${syntheticSetup}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`
+  await writeFile(join(scratch, '.dev.vars'), privateSettings, { mode: 0o600 })
   const wrangler = ['node_modules/wrangler/bin/wrangler.js']
   const normalization = join(scratch, 'migrations/core/0024_company_defaults_restore.sql')
   await rename(normalization, join(scratch, 'pending-company-defaults.sql'))
@@ -157,16 +158,33 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const company = () => JSON.parse(run(process.execPath, [...wrangler, 'd1', 'execute', 'foundation', '--local', '--config', 'wrangler.jsonc', '--command', 'SELECT revision,value_json,updated_at,updated_by FROM bf_company_settings', '--json']))[0].results
   const expectedCompany = [{ revision: savedCompany.revision, value_json: JSON.stringify(savedCompany.settings), updated_at: savedCompany.updatedAt, updated_by: originalOwner }]
   assert.deepEqual(company(), expectedCompany, 'owner-saved values and time survive restore exactly')
-  worker = startWorker({ AUTH_LOCAL: 'false', RER_DEMO: '1' })
+  await writeFile(join(scratch, '.dev.vars'), privateSettings, { mode: 0o600 })
+  const devKey = 'synthetic-bifocal-4'.repeat(3)
+  worker = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { cwd: scratch, env: { ...environment, RER_STATE_DIR: join(scratch, '.wrangler/state'), RER_DEV_ORIGIN: origin, RER_DEV_KEY: devKey }, stdio: ['ignore', 'ignore', 'ignore'] })
   await waitReady()
-  const signIn = await fetch(origin + '/auth/one-click?as=' + encodeURIComponent(originalOwner), { headers: { Origin: origin }, redirect: 'manual' })
-  assert.equal(signIn.status, 303)
-  const restoredCookie = signIn.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
-  await signIn.body?.cancel()
-  await search(restoredCookie)
+  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  const restoredContext = await browser.newContext(), restoredPage = await restoredContext.newPage()
+  assert.equal((await restoredContext.request.post(origin + '/__dev/key', { headers: { Origin: origin }, data: { key: devKey } })).status(), 204)
+  await restoredPage.goto(origin + '/auth/dev/enter?as=owner')
+  const restoredSearch = await restoredContext.request.get(origin + '/api/operator/library/search?q=quarterly')
+  assert.equal(restoredSearch.status(), 200)
+  const restoredResults = await restoredSearch.json()
+  assert.equal(restoredResults.total, 1)
+  assert.deepEqual(restoredResults.items.map(item => item.id), [catalogItem.id])
+  for (const width of [1440, 390]) {
+   await restoredPage.setViewportSize({ width, height: 1000 })
+   await restoredPage.goto(origin + '/app/library?q=quarterly')
+   await restoredPage.getByRole('link', { name: 'Retained quarterly analysis', exact: true }).waitFor()
+   assert.ok(await restoredPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+   if (process.env.BIFOCAL_PROOF_DIR) await restoredPage.screenshot({ path: `${process.env.BIFOCAL_PROOF_DIR}/restored-search-${width}.png`, fullPage: true })
+  }
+  await restoredContext.close()
+  await browser.close()
+  browser = undefined
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
+  await rm(join(scratch, '.dev.vars'))
   rer('export', '--output', 'exports/restored-owner.rer')
   const nonempty = spawnSync(process.execPath, [join(scratch, 'node_modules/@runeditrun/rer/bin/rer.mjs'), 'import', '--input', 'exports/owner.rer', '--yes', '--non-interactive', '--json'], { cwd: scratch, env: environment, encoding: 'utf8' })
   assert.equal(nonempty.status, 4, 'a populated destination still refuses restore')
