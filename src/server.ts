@@ -28,6 +28,9 @@ import { modelAuthoringResponse } from './bifocal/models/authoring.server'
 import { semanticResponse } from './bifocal/models/validation/server'
 import { explorationResponse } from './bifocal/explore/server'
 import { explorationPage } from './bifocal/explore/page.server'
+import { calculationPage } from './bifocal/calculations/page.server'
+import { calculationResponse } from './bifocal/calculations/server'
+import { calculationImportResponse } from './bifocal/calculations/library/import.server'
 import { fileImportResponse } from './bifocal/imports/files/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -64,6 +67,12 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (custody) return custody
     const catalog = await catalogResponse(request, env)
     if (catalog) return catalog
+    const calculationsDocument = await calculationPage(request,env)
+    if(calculationsDocument)return calculationsDocument
+    const calculations = await calculationResponse(request,env)
+    if(calculations)return calculations
+    const calculationImports = await calculationImportResponse(request,env)
+    if(calculationImports)return calculationImports
     const modelsPage = await modelPage(request, env)
     if (modelsPage) return modelsPage
     const authoring = await modelAuthoringResponse(request, env)
