@@ -336,11 +336,11 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "44a6afc767c61c732c06feac288b9e7f88289362fd75c04edd0c32d84beb9c98",
+      "sha256": "9abffd60ad2fe6756981601e20127f86e4337ec033cf745331a0d22117275540",
       "executable": false
     },
     "composition.lock.json": {
-      "sha256": "90ae9ef2838288412fd5c6e985968e0206f189d64c58d059c6745ccb7b1a6687",
+      "sha256": "dbb3a7d5503efea50d0a0f2a8f342f960e60ccdaee3b6dc97ca0c81bed179708",
       "executable": false
     },
     "CONTRACT.md": {
