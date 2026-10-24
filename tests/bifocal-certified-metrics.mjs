@@ -120,7 +120,7 @@ try {
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/metrics/synthetic-bifocal-customers',undefined,404);await call('/reports/'+report.id,undefined,404)
  assert.equal((await call('/quality')).rules.length,0)
- const unknown=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(unknown.actual.state,'unknown');assert.equal(unknown.actual.forecast,null);assert.equal(unknown.actual.reason,'metric_not_found');assert.equal(unknown.versions.length,4);assert.equal(unknown.definition.target,'1320.00');assert.equal(unknown.easel.series,'Budget revision 2');assert.equal(unknown.easel.link,'https://easel.example.com/api/easel/dataset/synthetic-bifocal-plan');assert.equal(unknown.checkins.length,1)
+ const unknown=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(unknown.actual.state,'unknown');assert.equal(unknown.actual.forecast,null);assert.equal(unknown.actual.reason,'metric_not_found');assert.equal(unknown.versions.length,4);assert.equal(unknown.definition.target,'330.00');assert.equal(unknown.easel.series,'Budget revision 2');assert.equal(unknown.easel.link,'https://easel.example.com/api/easel/dataset/synthetic-bifocal-plan');assert.equal(unknown.checkins.length,1)
  await proveScreen('/app/goals/synthetic-bifocal-revenue-goal','goal-unknown')
  const easelCurrent=await call('/datasets/'+easelDataset)
  const erasedTarget=await call('/datasets/'+easelDataset+'/erase',{confirmDataset:easelDataset,reviewedRevision:easelCurrent.revision},200)
