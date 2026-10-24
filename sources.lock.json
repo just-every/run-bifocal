@@ -316,7 +316,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "43ed42c1eae96afa62ea5f1669e3c2f321cd2547f6411aa56917126936f3b501",
+      "sha256": "fb415b0abdc5f2397b2b5d9ae65f444c0a8c9adbe6c4b15bcaa6584370133efc",
       "executable": false
     },
     ".gitignore": {
@@ -336,7 +336,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "9abffd60ad2fe6756981601e20127f86e4337ec033cf745331a0d22117275540",
+      "sha256": "7165149f4c390f61d8c415b49f83f13e26dc755dd719e4f2ab0691913f1e7fd3",
       "executable": false
     },
     "composition.lock.json": {
