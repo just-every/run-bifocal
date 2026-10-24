@@ -616,7 +616,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "ed24f5bd0d4881e046e11f04d98bdc3321dff783185c616fd84ba2a3190489c9",
+      "sha256": "ff1000e15f33395e0e6db91938cf8595073520a6c6a11163a16de9358d50312d",
       "executable": false
     },
     "packaging.json": {
@@ -816,11 +816,11 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "93e4294716d5c3823d382f3cc3169b3ea8c03ed955d26016126eb4a3f10fef7f",
+      "sha256": "36e00d75ebf03d528ea227bbdd7c2400db5fe75ac267d3bb2601d6af81e77e43",
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "e104b1a5fd2314f89ddf5547751be82787c35e302ad3c1c700865e9623a14e70",
+      "sha256": "bada0a1abc47acfefedecb528cc4e682bc23f299967a04f9ad1ed69815e4c9aa",
       "executable": false
     },
     "rer-project.json": {
@@ -1052,7 +1052,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "92f86b2a904f7bb0497c35964ac377fadf937727e7047f89d3ba1382b809fcd8",
+      "sha256": "1ec5558e698ab2b2f71ce77ef468f24b81d34d6a401aa84bb9e9d7308d7daca9",
       "executable": false
     },
     "src/app/docs.ts": {

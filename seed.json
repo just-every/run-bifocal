@@ -1,7 +1,7 @@
 {
   "id": "bifocal",
   "name": "Bifocal",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "maturity": "technical-foundation-not-product",
   "category": "business-intelligence",
   "spine": {
@@ -75,5 +75,6 @@
       "owner-claim"
     ]
   },
-  "replaces": []
+  "replaces": [],
+  "storesFiles": true
 }
