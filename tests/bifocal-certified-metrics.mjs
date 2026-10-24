@@ -76,6 +76,8 @@ try {
  const retirementRevision=await call('/metrics/synthetic-bifocal-revenue/propose',{previousRevision:1,definition:retirementDraft})
  await call('/metrics/synthetic-bifocal-revenue/deprecate',{revision:1,publishedRevision:1,digest:rev.digest,reason:'Stale owner review',confirm:'deprecate'},409)
  const retirement={revision:2,publishedRevision:1,digest:retirementRevision.digest,reason:'Replaced after owner review',confirm:'deprecate'}
+ assert.equal((await fetch(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(retirement)})).status,401)
+ assert.equal((await context.request.post(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{headers:{Origin:'https://foreign.example.test'},data:retirement})).status(),401)
  await call('/metrics/synthetic-bifocal-revenue/deprecate',{...retirement,digest:'stale'},409)
  await call('/metrics/synthetic-bifocal-revenue/deprecate',retirement,403,{Authorization:'Bearer synthetic-bifocal-1'})
  await page.goto(origin+'/app/metrics/synthetic-bifocal-revenue')
@@ -85,6 +87,8 @@ try {
  const [deprecated]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/deprecate')&&r.request().method()==='POST'),page.getByRole('button',{name:'Deprecate metric',exact:true}).click()])
  assert.equal(deprecated.status(),303);await page.waitForURL(origin+'/app/metrics/synthetic-bifocal-revenue')
  const retired=await call('/metrics/synthetic-bifocal-revenue')
+ assert.equal(await page.getByRole('button',{name:'Save proposed revision',exact:true}).count(),0)
+ assert.equal(await page.getByRole('button',{name:'Deprecate metric',exact:true}).count(),0)
  assert.ok(retired.metric.deprecated_at);assert.ok(retired.metric.deprecated_by);assert.equal(retired.metric.deprecated_reason,retirement.reason)
  assert.deepEqual(retired.revisions[0].definition,retirementDraft);assert.deepEqual(retired.revisions[1].definition,revenue)
  await call('/metrics/synthetic-bifocal-revenue/run',{},409)
