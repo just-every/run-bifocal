@@ -53,6 +53,8 @@ export async function proveEaselTargets({call,today,proveScreen,page,origin,uplo
  const input=(source,series,target,previousVersion)=>({...def,previousVersion,target,easelDataset:dataset,easelRevision:source.revision,easelRow:'revenue',easelSeries:series})
  async function importTarget(source,series,target) {
   await page.goto(origin+'/app/goals/'+id)
+  await page.getByLabel('Period start',{exact:true}).fill(from)
+  await page.getByLabel('Period end (exclusive)',{exact:true}).fill(to)
   await page.getByLabel('Target (USD, two decimal places)',{exact:true}).fill(target)
   const summary=page.getByText('Use an Easel target export',{exact:true});await summary.focus();await page.keyboard.press('Enter')
   for(const [label,value] of [['Easel dataset ID',dataset],['Reviewed dataset revision',source.revision],['Easel row ID','revenue'],['Easel plan series',series]])await page.getByLabel(label,{exact:true}).fill(value)
