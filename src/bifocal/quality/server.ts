@@ -1,3 +1,4 @@
+import { rejectedResponse } from '../../base/rejected-response'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity } from '../data/snapshots/store'
@@ -8,7 +9,7 @@ import type { Table } from '../imports/files/csv'
 import { fail, QueryError } from '../query/types'
 import { randomUUID } from 'node:crypto'
 import { escapeHtml } from '../../app/shell'
-import { discardBody, details, document, exact, field, hidden, ident, input, json, object, result, text } from '../metrics/transport'
+import { details, document, exact, field, hidden, ident, input, json, object, result, text } from '../metrics/transport'
 import { sourceImpact } from '../models/lineage/server'
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
 type RuleDefinition={name:string;kind:'freshness'|'not-null'|'unique'|'accepted-values'|'count'|'money';column?:string;maxAgeSeconds?:number;values?:unknown[];expected?:string}
@@ -66,11 +67,11 @@ export async function qualityState(env:Bindings,datasets:string[]) {
  }
  return {state:tests.some(t=>t.state==='failed')?'at risk':!tests.length||tests.some(t=>t.state==='unknown')?'unknown':'healthy',tests}
 }
-export async function qualityResponse(request:Request,original:Bindings):Promise<Response|null> {
+async function handleQualityResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),page=url.pathname==='/app/quality',match=/^\/api\/operator\/quality(?:\/rules(?:\/([a-z][a-z0-9-]{0,63})(?:\/(run))?)?|\/runs\/([a-f0-9-]{36})\/waive|\/impact\/([a-z][a-z0-9-]{0,63}))?$/.exec(url.pathname)
  if(!page&&!match)return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
- if(!owner){await discardBody(request);return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)}
+ if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),viewer=(await operatorAuth(env).getSession(request))!.operator
  try {
   if(request.method==='POST') {
@@ -112,5 +113,10 @@ export async function qualityResponse(request:Request,original:Bindings):Promise
   await transact(env.DB,owner,[])
   if(!page)return json({rules:rules.map(r=>({...r,definition:JSON.parse(r.rule_json),rule_json:undefined})),histories,quality})
   return document('Data quality',viewer,`<p>Run bounded source checks synchronously. A waiver records an exception; it never turns a failure into healthy data. No background analytical job is claimed.</p><p class="status">${escapeHtml(quality.state)}</p>${details('Current tests and expiry',quality)}${rules.map(r=>`<section class="panel"><h2>${escapeHtml((JSON.parse(r.rule_json) as RuleDefinition).name)}</h2><p>${r.dataset_id} · ${r.id}</p><form method="post" action="/api/operator/quality/rules/${r.id}/run"><button type="submit">Run ${escapeHtml(r.id)}</button></form></section>`).join('')}<h2>Add a quality rule</h2><form method="post" action="/api/operator/quality/rules">${field('id','Rule ID')}${field('dataset','Dataset ID')}<label>Rule definition (JSON)<textarea name="definition" rows="6" required></textarea></label><p class="hint">Kinds: freshness, not-null, unique, accepted-values, count, money. Supply a name and the relevant column, expected value, accepted values or maximum age in seconds.</p><button type="submit">Save rule</button></form>${details('Run history with source revision and failing row numbers',histories)}${histories.filter(r=>r.result.state==='failed').map(r=>`<form class="panel" method="post" action="/api/operator/quality/runs/${r.id}/waive"><h2>Review waiver for ${r.id}</h2>${field('reason','Exception reason')}${field('expiresAt','Expiry (ISO timestamp)')}${hidden('confirm','waive')}<button type="submit">Record expiring waiver</button></form>`).join('')}`)
- }catch(e){const error=e instanceof QueryError?e:new QueryError('quality_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Quality check unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/quality">Return to data quality</a>`,error.status):json({error:error.code},error.status)}finally{await discardBody(request)}
+ }catch(e){const error=e instanceof QueryError?e:new QueryError('quality_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Quality check unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/quality">Return to data quality</a>`,error.status):json({error:error.code},error.status)}
+}
+
+export async function qualityResponse(request:Request,env:Bindings):Promise<Response|null> {
+ const response=await handleQualityResponse(request,env)
+ return response?rejectedResponse(request,response):null
 }

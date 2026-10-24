@@ -1,3 +1,4 @@
+import { rejectedResponse } from '../../base/rejected-response'
 import { runtimeBindings, operatorAuth, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity, readSources, saveQuery, sourceMatch } from '../data/snapshots/store'
@@ -7,7 +8,7 @@ import { execute } from '../query/execute'
 import { fail, QueryError, type Query } from '../query/types'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
-import { discardBody, details, document, exact, field, hidden, ident, input, json, object, result, text } from './transport'
+import { details, document, exact, field, hidden, ident, input, json, object, result, text } from './transport'
 import { goalPeriod } from '../goals/period'
 import { escapeHtml } from '../../app/shell'
 export type MetricDocument={name:string;description:string;grain:string;unit:string;timezone:string;accountingBasis:string;query:Query}
@@ -47,11 +48,11 @@ export async function runMetric(env:Bindings,owner:NonNullable<Awaited<ReturnTyp
  if(evaluation.value.state!=='value')fail('metric_value_unavailable',409)
  return saveQuery(env,owner,evaluation.query,{...evaluation.context,metric:{id,revision:rev.revision,digest:rev.digest},guards:[...evaluation.context.guards??[],metricGuard(row),sql('EXISTS(SELECT 1 FROM bf_metric_revisions WHERE metric_id=? AND revision=? AND digest=? AND approved_at IS NOT NULL)',id,rev.revision,rev.digest)]},evaluation.sources)
 }
-export async function metricResponse(request:Request,original:Bindings):Promise<Response|null> {
+async function handleMetricResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),page=url.pathname.startsWith('/app/metrics'),match=/^\/(?:api\/operator|app)\/metrics(?:\/([a-z][a-z0-9-]{0,63}))?(?:\/(propose|approve|run|impact|deprecate))?$/.exec(url.pathname)
  if(!match)return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
- if(!owner){await discardBody(request);return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)}
+ if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),viewer=(await operatorAuth(env).getSession(request))!.operator
  try {
   if(url.search)fail('query_parameters_not_supported',400)
@@ -134,5 +135,10 @@ export async function metricResponse(request:Request,original:Bindings):Promise<
   await transact(env.DB,owner,previewGuards.map(assertion))
   if(!page)return json({metric:row,revisions:revisions.map(r=>({...r,definition:JSON.parse(r.document_json),document_json:undefined})),impact})
   return document(doc.name,viewer,`<p>${escapeHtml(doc.description)}</p><p class="status">${row.deprecated_at?'Deprecated — unavailable for new use':row.published_revision?'Certified revision '+row.published_revision:'Draft — not certified'} · ${row.head_revision!==row.published_revision?'Draft revision ':'Latest revision '}${row.head_revision}</p><p>Owner: ${escapeHtml(owner.email)}. ${escapeHtml(doc.grain)} · ${escapeHtml(doc.unit)} · ${escapeHtml(doc.timezone)} · ${escapeHtml(doc.accountingBasis)}</p>${details('Change impact and dependent content',impact)}${row.deprecated_at?`<p role="status">Deprecated on ${escapeHtml(row.deprecated_at)}. ${escapeHtml(row.deprecated_reason??'')}</p>`:''}${!row.deprecated_at&&!head.approved_at?`<form method="post" action="/api/operator/metrics/${id}/approve"><h2>Review exact definition</h2>${hidden('revision',head.revision)}${hidden('digest',head.digest)}${details('Definition to approve',doc)}${field('annotation','Dated change annotation')}<label><input type="checkbox" name="confirm" value="approve" required> I approve this exact metric definition</label><button type="submit">Certify revision ${head.revision}</button></form>`:''}${!row.deprecated_at?`<form method="post" action="/api/operator/metrics/${id}/propose"><h2>Propose a change</h2>${hidden('previousRevision',row.head_revision)}<label>Revised metric definition (JSON)<textarea name="definition" rows="10" required>${escapeHtml(head.document_json)}</textarea></label><button type="submit">Save proposed revision</button></form>`:''}${!row.deprecated_at&&row.published_revision?`<form method="post" action="/api/operator/metrics/${id}/deprecate"><h2>Deprecate metric</h2><p>New runs and goal actuals will be unavailable. Retained reports keep their original definitions and values.</p>${hidden('revision',row.head_revision)}${hidden('digest',head.digest)}${hidden('publishedRevision',row.published_revision)}${field('reason','Deprecation reason')}<label><input type="checkbox" name="confirm" value="deprecate" required> I reviewed this definition and its dependent content</label><button type="submit">Deprecate metric</button></form>`:''}${details('Immutable revision history',revisions.map(r=>({revision:r.revision,definition:JSON.parse(r.document_json),digest:r.digest,createdAt:r.created_at,approvedAt:r.approved_at,annotation:r.annotation})))}`)
- }catch(e){const error=e instanceof QueryError?e:new QueryError('metric_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Metric unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/metrics">Return to metrics</a>`,error.status):json({error:error.code},error.status)}finally{await discardBody(request)}
+ }catch(e){const error=e instanceof QueryError?e:new QueryError('metric_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Metric unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/metrics">Return to metrics</a>`,error.status):json({error:error.code},error.status)}
+}
+
+export async function metricResponse(request:Request,env:Bindings):Promise<Response|null> {
+ const response=await handleMetricResponse(request,env)
+ return response?rejectedResponse(request,response):null
 }
