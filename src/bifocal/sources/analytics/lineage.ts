@@ -1,11 +1,11 @@
 import { object, publicOrigin, requireValue } from './protocol'
-export type Lineage = { kind:'vane-api'|'vane-export'|'product-table'|'revenue-table'; link:string; description:string; from:string; to:string; timezone:string; observedAt:string; schema:string }
+export type Lineage = { kind:'vane-api'|'vane-export'|'product-table'|'revenue-table'|'easel-export'; link:string; description:string; from:string; to:string; timezone:string; observedAt:string; schema:string }
 /** Source references are inert, explicitly supplied provenance, never authority
  * or certification. Only a credential-free public HTTPS link can be rendered. */
 export function lineage(value: unknown): Lineage | undefined {
  if (value === undefined) return undefined
  requireValue(object(value) && Object.keys(value).every(k => ['kind','link','description','from','to','timezone','observedAt','schema'].includes(k)), 'invalid_source_lineage')
- requireValue(['vane-api','vane-export','product-table','revenue-table'].includes(String(value.kind)), 'invalid_source_kind')
+ requireValue(['vane-api','vane-export','product-table','revenue-table','easel-export'].includes(String(value.kind)), 'invalid_source_kind')
  requireValue(typeof value.link === 'string' && value.link.length <= 1024, 'source_link_required')
  const url = new URL(value.link)
  publicOrigin(url.origin)

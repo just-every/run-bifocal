@@ -6,7 +6,7 @@ import {mkdtemp,mkdir,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {chromium} from '@playwright/test'
-import {proveScorecards} from './bifocal-scorecards.mjs'
+import {proveScorecards,proveEaselTargets} from './bifocal-scorecards.mjs'
 import {proveQualityLineage} from './bifocal-quality-lineage.mjs'
 
 export async function proveCertifiedMetrics() {
@@ -68,6 +68,7 @@ try {
  const tools={origin,context,page,call,upload,dataset,good,us,today,proveScreen,report,dashboard}
  await proveScorecards(tools)
  await proveQualityLineage(tools)
+ const easelDataset=await proveEaselTargets(tools)
  const retiredBefore=await call('/metrics/synthetic-bifocal-revenue/run',{})
  const retained=await call('/reports',{queryId:retiredBefore.queryId,title:'Revenue before deprecation'})
  const affected=await call('/metrics/synthetic-bifocal-revenue/impact')
@@ -100,7 +101,7 @@ try {
  await call('/metrics/synthetic-bifocal-revenue/deprecate',retirement,409)
  const retiredGoal=await call('/goals/synthetic-bifocal-revenue-goal')
  assert.equal(retiredGoal.actual.state,'unknown');assert.equal(retiredGoal.actual.forecast,null);assert.equal(retiredGoal.actual.reason,'metric_deprecated')
- assert.equal(retiredGoal.definition.target,'1200.00');assert.equal(retiredGoal.checkins.length,1)
+ assert.equal(retiredGoal.definition.target,'1320.00');assert.equal(retiredGoal.easel.state,'imported-export');assert.equal(retiredGoal.easel.series,'Budget revision 2');assert.equal(retiredGoal.checkins.length,1)
  const retainedAfter=await call('/reports/'+retained.id)
  assert.deepEqual(retainedAfter.answer,retiredBefore.answer);assert.deepEqual(retainedAfter.context.metric,retiredBefore.context.metric)
  assert.equal((await call('/queries/'+retiredBefore.queryId+'/rerun',{},200)).reproduced,true)
@@ -113,8 +114,12 @@ try {
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/metrics/synthetic-bifocal-customers',undefined,404);await call('/reports/'+report.id,undefined,404)
  assert.equal((await call('/quality')).rules.length,0)
- const unknown=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(unknown.actual.state,'unknown');assert.equal(unknown.actual.forecast,null);assert.equal(unknown.versions.length,2);assert.equal(unknown.checkins.length,1)
+ const unknown=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(unknown.actual.state,'unknown');assert.equal(unknown.actual.forecast,null);assert.equal(unknown.versions.length,4);assert.equal(unknown.definition.target,'1320.00');assert.equal(unknown.easel.series,'Budget revision 2');assert.equal(unknown.easel.link,'https://easel.example.com/api/easel/dataset/synthetic-bifocal-plan');assert.equal(unknown.checkins.length,1)
  await proveScreen('/app/goals/synthetic-bifocal-revenue-goal','goal-unknown')
+ const easelCurrent=await call('/datasets/'+easelDataset)
+ const erasedTarget=await call('/datasets/'+easelDataset+'/erase',{confirmDataset:easelDataset,reviewedRevision:easelCurrent.revision},200)
+ assert.ok(erasedTarget.stores.some(s=>s.store==='bf_goals'&&s.rows===1))
+ await call('/goals/synthetic-bifocal-revenue-goal',undefined,404)
  await context.request.post(origin+'/auth/signout',{headers,form:{}})
  assert.equal((await context.request.get(origin+'/api/operator/quality')).status(),401)
  assert.equal((await context.request.get(origin+'/api/operator/goals')).status(),401)
