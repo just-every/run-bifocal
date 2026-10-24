@@ -3308,7 +3308,7 @@
       "executable": false
     },
     "tests/bifocal-scorecards.mjs": {
-      "sha256": "e6f8868e06792dec993acbab2bc829ea49514a3e63c541f8a74c55af343f6d65",
+      "sha256": "35f9c17784c5135193c4c2cfd09c9f733169ad51bee37b5b6511b9ed20a0ed1a",
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {

@@ -11,7 +11,7 @@ export async function proveScorecards({call,today,proveScreen,page,origin}) {
  assert.equal(goal.actual.state,'value');assert.equal(goal.actual.value.value,'30.00');assert.equal(goal.actual.metric.revision,1);assert.equal(goal.actual.forecast.kind,'linear pace, not a financial forecast');assert.equal(goal.easel.state,'unresolved')
  const source=await call('/queries/run',goal.actual.query);assert.deepEqual(goal.actual.value,source.answer.totals.revenue)
  const days=(Date.parse(to)-Date.parse(from))/86400000,elapsed=(Math.min(Date.parse(to),Date.parse(today)+86400000)-Date.parse(from))/86400000
- assert.equal(goal.actual.forecast.value,(Math.trunc(3000*days/elapsed)/100).toFixed(2))
+ assert.equal(goal.actual.forecast.value,(Math.trunc(3000 * days / elapsed)/100).toFixed(2))
  await page.getByLabel('Observation date',{exact:true}).fill(today);await page.getByLabel('Observation',{exact:true}).fill('Owner observation, without changing actuals')
  const [noted]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/checkins')&&r.request().method()==='POST'),page.getByRole('button',{name:'Add check-in',exact:true}).click()]);assert.equal(noted.status(),303)
  goal=await call('/goals/'+definition.id);assert.equal(goal.checkins.length,1);assert.equal(goal.checkins[0].observed_on,today);assert.equal(goal.checkins[0].owner_id,goal.goal.owner_id);assert.equal(goal.actual.value.value,'30.00')
@@ -64,7 +64,7 @@ export async function proveEaselTargets({call,today,proveScreen,page,origin,uplo
   assert.equal(goal.definition.target,target);assert.equal(goal.easel.series,series);assert.equal(goal.easel.link,link);assert.equal(goal.easel.exportSha256,source.table.source.sha256)
   const actual=await call('/queries/run',goal.actual.query);assert.deepEqual(goal.actual.value,actual.answer.totals.revenue)
   const days=(Date.parse(to)-Date.parse(from))/86400000,elapsed=(Math.min(Date.parse(to),Date.parse(today)+86400000)-Date.parse(from))/86400000
-  assert.equal(goal.actual.forecast.value,(Math.trunc(3000*days/elapsed)/100).toFixed(2))
+  assert.equal(goal.actual.forecast.value,(Math.trunc(3000 * days / elapsed)/100).toFixed(2))
   return goal
  }
  await importTarget(one,'Budget revision 1','300.00')
