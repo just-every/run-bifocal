@@ -1,0 +1,9 @@
+#report-workspace .tablewrap{margin:12px 0 16px}
+#report-workspace .metadata{margin:12px 0;padding:16px}
+#report-workspace pre{max-height:520px;overflow:auto}
+#report-workspace #report-grant-preview{margin-top:20px}
+#report-workspace #report-grant-save{margin-top:16px}
+#report-workspace #report-grants button{white-space:normal}
+#report-workspace .report-grant-row{margin:16px 0;padding-bottom:16px}
+#report-workspace #report-grants h4{margin:0 0 4px;font-size:15px}
+#report-workspace #report-artifact>p:last-child{margin-top:16px}

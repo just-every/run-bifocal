@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveReportReviewers} from './report-reviewers.mjs'
 import { createHash } from 'node:crypto'
 export async function proveReportCustody(origin,owner,reader,fixtures,page,expectedOutcome='development',edgeState=null){
  const call=async(path,data,expected=data===undefined?200:201,method=data===undefined?'GET':'POST')=>{
@@ -34,7 +35,7 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  const download=async(link)=>{const response=await owner.request.get(origin+link.url);assert.equal(response.status(),200,await response.text());assert.match(response.headers()['content-disposition'],/attachment/);return response.text()}
  const originalBytes=await download(firstLink)
  assert.equal(createHash('sha256').update(originalBytes).digest('hex'),rendered.digest)
- if(reader)assert.equal((await reader.request.get(origin+firstLink.url)).status(),403)
+ if(reader)assert.equal((await reader.request.get(origin+firstLink.url)).status(),404)
  const denied=await owner.request.get(origin+firstLink.url,{headers:{Cookie:''}});assert.equal(denied.status(),401)
  const expiring=await call('/report-runs/'+first.id+'/download-link',{expiresAt:new Date(Date.now()+1300).toISOString()})
  await new Promise(resolve=>setTimeout(resolve,1500));assert.equal((await owner.request.get(origin+expiring.url)).status(),410)
@@ -50,9 +51,10 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  assert.equal((await call('/report-runs/'+second.id+'/send',{digest:corrected.digest,previousVersion:correctedApproval.version},200)).outcome,expectedOutcome)
  assert.equal(await download(firstLink),originalBytes,'correction never rewrites the original received artifact')
  const secondLink=await call('/report-runs/'+second.id+'/download-link',{expiresAt:new Date(Date.now()+60000).toISOString()})
- assert.notEqual(await download(secondLink),originalBytes)
+ const correctedBytes=await download(secondLink);assert.notEqual(correctedBytes,originalBytes)
  const originalFacts=(await call('/report-runs/'+first.id)).dispatches
  assert.equal(originalFacts.length,1);assert.equal(originalFacts[0].artifact_digest,rendered.digest)
+ const reviewers=reader?await proveReportReviewers(origin,owner,reader,{first,second,firstLink,originalBytes,correctedBytes,originalFacts,queryId:v2.queryId,metricRef:references.get(v2.queryId),policyVersion:policy.version,ownerId,dataset:fixtures.dataset},call):null
  if(edgeState){assert.equal(edgeState.messages.length,2);assert.equal(Buffer.from(edgeState.messages[0].attachments[0].content,'base64').toString(),originalBytes);assert.equal(edgeState.messages[1].subject,'Correction: Weekly business review')}
  if(page)for(const width of [1440,390]){
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+v1.queryId)
@@ -71,6 +73,7 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  assert.equal(staleArtifact.freshness,'stale');assert.match(staleArtifact.staleLabel,/Stale snapshot/)
  const queued=await create(v2.queryId,stale.id,true)
  return {firstId:first.id,queuedId:queued.id,originalFacts,firstLink,async erased(){
+  await reviewers?.erased()
   const historical=await call('/report-runs/'+first.id)
   assert.equal(historical.artifact,null);assert.deepEqual(historical.dispatches,originalFacts)
   assert.equal((await call('/report-runs/'+queued.id)).state,'cancelled')

@@ -22,6 +22,7 @@ import { metricResponse } from './bifocal/metrics/store.server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
+import { reportRunPage } from './bifocal/reports/page.server'
 import { catalogResponse } from './bifocal/catalog/server'
 import { catalogPage } from './bifocal/catalog/page.server'
 import { modelPage } from './bifocal/models/page.server'
@@ -66,6 +67,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (metrics) return metrics
     const answer = await exactAnswerPage(request, env)
     if (answer) return answer
+    const reportDocument = await reportRunPage(request,env)
+    if(reportDocument)return reportDocument
     const custody = await reportCustodyResponse(request, env)
     if (custody) return custody
     const libraryDocument = await catalogPage(request,env)
