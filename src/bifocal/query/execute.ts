@@ -133,7 +133,7 @@ export function execute(query: Query, sources: Source[], context: Context, captu
   const result = (s: Value['state'], exact: Rational | null, reason?: string): Value => ({ state:s, value:exact && s === 'value' ? rounded(exact,m.scale,query.context.rounding) : null, exact:exact && s === 'value' ? {numerator:exact.numerator.toString(),denominator:exact.denominator.toString()} : null,unit:m.unit,nulls,excluded,...(reason ? {reason} : {}) })
   if (state !== 'value') return result(state,null,'Source value state prevents a complete numerical answer.')
   if (m.op === 'count-distinct') n = rational(BigInt(seen.size))
-  if (!nonnull && !['count','count-distinct'].includes(m.op)) return result('null',null)
+  if (!nonnull && !['count','count-distinct'].includes(m.op)) return m.empty==='zero'?result('value',rational(0n)):result('null',null)
   if (m.op === 'ratio' || m.op === 'weighted-average') { if (!d.numerator) return result('unknown',null,'zero_denominator'); n = divide(n,d) }
   if (m.unit === 'percent') n = multiply(n,rational(100n))
   return result('value',n)

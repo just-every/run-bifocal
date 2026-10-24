@@ -1,3 +1,5 @@
+import { modelImportResponse } from '../models/door.server'
+import { eraseSourceModelProjects } from '../models/store.server'
 import { goalErasure, goalErasureCounts } from '../../goals/erasure'
 import { reportErasureCounts } from '../../reports/store.server'
 import { catalogErasure, catalogErasureCounts } from '../../catalog/erasure'
@@ -24,6 +26,8 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
  * grants stay closed; no request can turn source data into access or execution. */
 export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
+ const modelImport=await modelImportResponse(request,original)
+ if(modelImport)return modelImport
  if (path.startsWith('/api/rer/import/')) return refuseRequest(request, { error: 'not_found' }, 404)
  if (!path.startsWith('/api/operator/import/') && !path.startsWith('/api/operator/datasets/')) return null
  const env = runtimeBindings(original), owner = await fileOwner(request, env)
@@ -69,12 +73,13 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     json_object('store','bf_query_artifacts','rows',(SELECT count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_analytics_boards','rows',(SELECT count(*) FROM bf_analytics_boards WHERE id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),
     json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),${extraCounts.map(entry=>`json_object('store','${entry.store}','rows',(${entry.query.sql}))`).join(',')}))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset,...extraCounts.flatMap(entry=>entry.query.params??[]))
+   const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match)
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
     sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, semanticErasure(dataset),catalogErasure(dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, modelProjects, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
   if (path === '/api/operator/import/history') {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)

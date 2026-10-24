@@ -33,8 +33,8 @@ export async function envelope(form) {
  else result.originalBase64 = base64(bytes)
  return result
 }
-export async function upload(input, call, progress) {
- const bytes = new TextEncoder().encode(JSON.stringify(input)), hash = await sha256(bytes), key = 'bifocal-upload:' + input.datasetId
+export async function upload(input, call, progress, datasetId = input.datasetId) {
+ const bytes = new TextEncoder().encode(JSON.stringify(input)), hash = await sha256(bytes), key = 'bifocal-upload:' + datasetId
  if (bytes.length > 1048576) throw Error('The reviewed envelope exceeds 1 MiB. Split this file before uploading.')
  let saved; try { saved = JSON.parse(sessionStorage.getItem(key)) } catch {}
  let uploadId = saved?.hash === hash ? saved.id : undefined
@@ -42,7 +42,7 @@ export async function upload(input, call, progress) {
  for (let index = 0; index < totalChunks; index++) {
   const chunk = bytes.slice(index * 65536, (index + 1) * 65536)
   progress(`Uploading chunk ${index + 1} of ${totalChunks}…`)
-  const response = await call('uploads', { ...(uploadId ? { uploadId } : {}), name: 'file-envelope.json', bundleSha256: hash, totalBytes: bytes.length, totalChunks, index, chunkSha256: await sha256(chunk), base64: base64(chunk) }, input.datasetId)
+  const response = await call('uploads', { ...(uploadId ? { uploadId } : {}), name: 'file-envelope.json', bundleSha256: hash, totalBytes: bytes.length, totalChunks, index, chunkSha256: await sha256(chunk), base64: base64(chunk) }, datasetId)
   uploadId = response.uploadId; sessionStorage.setItem(key, JSON.stringify({ hash, id: uploadId }))
  }
  return uploadId

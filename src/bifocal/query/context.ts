@@ -16,5 +16,7 @@ export async function queryContext(env: Bindings, query: Query, ownerId: string)
  }
  const calendar = {...query.context.calendar,definition:await load('bf_calendars',query.context.calendar)}
  const rateSource = query.context.rateSource ? {...query.context.rateSource,definition:await load('bf_rate_sources',query.context.rateSource)} : null
- return {ownerId,securityScope:{kind:'installation-owner',ownerId},company:{revision:company.revision,settings},calendar,rateSource,timezone:settings.timezone,currency:settings.currency,guards}
+ const imported=await env.DB.prepare('SELECT i.* FROM bf_model_revision_imports i JOIN bf_semantic_revisions r ON r.id=i.revision_id JOIN bf_semantic_models m ON m.id=r.model_id WHERE i.revision_id=? AND m.owner_id=?').bind(query.context.modelVersion,ownerId).first<{revision_id:string;project_id:string;project_revision:string;format:string;digest:string}>()
+ if(imported)guards.push(sql('EXISTS(SELECT 1 FROM bf_model_revision_imports WHERE revision_id=? AND project_id=? AND project_revision=? AND digest=?)',imported.revision_id,imported.project_id,imported.project_revision,imported.digest))
+ return {...(imported?{modelImport:{projectId:imported.project_id,revision:imported.project_revision,format:imported.format,digest:imported.digest}}:{}),ownerId,securityScope:{kind:'installation-owner',ownerId},company:{revision:company.revision,settings},calendar,rateSource,timezone:settings.timezone,currency:settings.currency,guards}
 }

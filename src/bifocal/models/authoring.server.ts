@@ -1,3 +1,4 @@
+import { projectGuard, readImportedProject } from '../imports/models/store.server'
 import { randomUUID } from 'node:crypto'
 import { load, dump, JSON_SCHEMA } from 'js-yaml'
 import { runtimeBindings, type Bindings } from '../../auth.server'
@@ -44,9 +45,14 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   }
   if(!['/api/operator/model-authoring/review','/api/operator/model-authoring/create','/api/operator/model-authoring/format'].includes(path))fail('not_found',404)
   if(request.method!=='POST')fail('method_not_allowed',405)
-  const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion'])
+  const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion','importProject','importRevision'])
   const definition=nativeDocument(input.document), guards=[], impacts:{view:string;state:string;answer?:Answer;error?:string}[]=[]
   if(path.endsWith('/format')){await transact(env.DB,owner,[]);return json({document:dump(definition,{schema:JSON_SCHEMA,noRefs:true,lineWidth:100})})}
+  const imported=input.importProject===undefined?null:await readImportedProject(env,ownerId,String(input.importProject))
+  if(imported){
+   if(input.importRevision!==imported.revision||!imported.value.report.compatible||canonicalJson(definition)!==canonicalJson(imported.value.definition))fail('exact_compatible_project_required',409)
+   guards.push(projectGuard(imported))
+  }else if(input.importRevision!==undefined)fail('import_project_required',400)
   const model=input.modelId===undefined?null:await readModel(env,ownerId,String(input.modelId))
   const branch=model?await readBranch(env,model,String(input.branchId)):null
   if(branch){if(input.previousVersion!==branch.version)fail('stale_branch_version',409);guards.push(modelGuard(model!),branchGuard(branch))}
@@ -60,17 +66,19 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   }
   const quality=definition.quality.map(q=>({...q,passed:impacts.find(i=>i.view===q.view)?.answer?.totals[q.measure]?.value===q.expected}))
   const compatible=impacts.every(i=>i.state==='compiled')&&quality.every(q=>q.passed)
-  const report={definition,impacts,quality,compatible,scope:'Owner-only native model. Source language translators are not available. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
+  const report={definition,impacts,quality,compatible,imported:imported?{id:imported.id,revision:imported.revision,digest:imported.value.digest,format:imported.value.input.format,report:imported.value.report}:null,scope:'Owner-only native model. Imported source definitions retain explicit compatibility and provenance. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
   const digest=sha256(canonicalJson({ownerId,report,guards}))
   if(path.endsWith('/review')){await transact(env.DB,owner,guards.map(assertion));return json({...report,digest})}
   if(!compatible||input.reviewedDigest!==digest)fail('exact_current_model_review_required',409)
+  const origin=imported?{project_id:imported.id,project_revision:imported.revision,format:imported.value.input.format,digest:imported.value.digest}:branch?await env.DB.prepare('SELECT project_id,project_revision,format,digest FROM bf_model_revision_imports WHERE revision_id=?').bind(branch.revision_id).first<{project_id:string;project_revision:string;format:string;digest:string}>():null
+  const provenance=(revisionId:string)=>origin?[sql('INSERT INTO bf_model_revision_imports(revision_id,project_id,project_revision,format,digest) VALUES(?,?,?,?,?)',revisionId,origin.project_id,origin.project_revision,origin.format,origin.digest)]:[]
   if(model&&branch){
    const revision=revisionStatement(model.id,definition)
-   await transact(env.DB,owner,[...guards.map(assertion),revision.statement,sql('UPDATE bf_semantic_branches SET revision_id=?,version=version+1,base_generation=?,approval_json=NULL WHERE id=?',revision.id,model.generation,branch.id)])
+   await transact(env.DB,owner,[...guards.map(assertion),revision.statement,...provenance(revision.id),sql('UPDATE bf_semantic_branches SET revision_id=?,version=version+1,base_generation=?,approval_json=NULL WHERE id=?',revision.id,model.generation,branch.id)])
    return json({modelId:model.id,branchId:branch.id,revision:revision.id,version:branch.version+1},201)
   }
   const modelId=randomUUID(),branchId=randomUUID(),revision=revisionStatement(modelId,definition)
-  await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT INTO bf_semantic_models(id,owner_id) VALUES(?,?)',modelId,ownerId),revision.statement,sql('INSERT INTO bf_semantic_branches(id,model_id,base_generation,revision_id) VALUES(?,?,0,?)',branchId,modelId,revision.id)])
+  await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT INTO bf_semantic_models(id,owner_id) VALUES(?,?)',modelId,ownerId),revision.statement,...provenance(revision.id),sql('INSERT INTO bf_semantic_branches(id,model_id,base_generation,revision_id) VALUES(?,?,0,?)',branchId,modelId,revision.id)])
   return json({modelId,branchId,revision:revision.id,version:1},201)
  }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'model_authoring_conflict',reason:'Reload current source data and review again. Nothing was published.'},409)}finally{await discardBody(request)}
 }

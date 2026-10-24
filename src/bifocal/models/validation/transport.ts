@@ -1,7 +1,7 @@
 import { fail } from '../../query/types'
 export const privateHeaders={'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}
 export const json=(body:unknown,status=200)=>Response.json(body,{status,headers:privateHeaders})
-export async function jsonBody(request:Request):Promise<Record<string,unknown>> {
+export async function jsonBody(request:Pick<Request,'headers'|'body'>):Promise<Record<string,unknown>> {
  if(!request.headers.get('content-type')?.startsWith('application/json') || !request.body)fail('json_body_required',400)
  const reader=request.body.getReader(),decoder=new TextDecoder('utf-8',{fatal:true});let size=0,text=''
  try {

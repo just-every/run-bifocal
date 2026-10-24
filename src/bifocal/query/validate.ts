@@ -30,8 +30,9 @@ export function queryInput(v: unknown): Query {
  const names = new Set<string>()
  for (const m of v.measures) {
   if (!obj(m)) fail('invalid_measure', 400)
-  keys(m,['id','op','column','numerator','denominator','weight','unit','scale','stateColumn','sourceCurrency','currencyColumn','rateDateColumn'])
+  keys(m,['empty','id','op','column','numerator','denominator','weight','unit','scale','stateColumn','sourceCurrency','currencyColumn','rateDateColumn'])
   if (!id(m.id) || names.has(m.id) || !['sum','count','count-distinct','ratio','weighted-average'].includes(String(m.op)) || !['money','number','count','percent'].includes(String(m.unit)) || !Number.isInteger(m.scale) || Number(m.scale) < 0 || Number(m.scale) > 12) fail('invalid_measure',400)
+  if(m.empty!==undefined&&(!['null','zero'].includes(String(m.empty))||m.op!=='sum'))fail('invalid_empty_aggregate_semantics',400)
   names.add(m.id)
   for (const field of ['column','numerator','denominator','weight','stateColumn','currencyColumn','rateDateColumn']) if (m[field] !== undefined && !ref(m[field])) fail('invalid_measure_column',400)
   if ((['sum','count-distinct','weighted-average'].includes(String(m.op)) && !m.column) || (m.op === 'ratio' && (!m.numerator || !m.denominator)) || (m.op === 'weighted-average' && !m.weight) || (m.sourceCurrency !== undefined && (typeof m.sourceCurrency !== 'string' || !/^[A-Z]{3}$/.test(m.sourceCurrency)))) fail('incomplete_measure',400)

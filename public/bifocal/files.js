@@ -1,3 +1,4 @@
+import './model-import.js'
 import { element, table, metadata, sourceView } from './file-view.js'
 import { envelope, upload, originalFile } from './file-upload.js'
 import { stamp } from './format.js'

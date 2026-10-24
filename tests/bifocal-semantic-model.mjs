@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveModelImports} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
@@ -122,6 +123,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:1,definition:{name:'New retail revision',kind:'445',startMonth:3,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
  await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:/Open model/}).first().click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
  await proveExploration({origin,context,page,call,upload,proveScreen,definition})
+ await proveModelImports({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
  assert.equal((await context.request.get(origin+'/api/operator/model-authoring/'+saved.modelId+'/'+saved.branchId+'/document')).status(),404)
