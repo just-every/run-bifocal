@@ -1208,7 +1208,7 @@
       "executable": false
     },
     "src/bifocal/http/rejected.ts": {
-      "sha256": "16f64829333e5d30ffc59a5bed260392e4074fe8b5d88a3c17e6608fbbfafba0",
+      "sha256": "5930e4d43a2c9d09bd820ced90df0256297769e4b5c4ed63da3a621be21a5aac",
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
