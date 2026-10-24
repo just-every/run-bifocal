@@ -98,15 +98,19 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const normalization = join(scratch, 'migrations/core/0024_company_defaults_restore.sql')
   await rename(normalization, join(scratch, 'pending-company-defaults.sql'))
   run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
-  worker = spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
-  let ready = false
-  for (let attempt = 0; attempt < 120; attempt++) {
-   assert.equal(worker.exitCode, null)
-   try { ready = (await fetch(origin + '/health')).ok } catch {}
-   if (ready) break
-   await new Promise(resolve => setTimeout(resolve, 250))
+  const startWorker = (mode = {}) => spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup, ...mode }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
+  const waitReady = async () => {
+   let ready = false
+   for (let attempt = 0; attempt < 120; attempt++) {
+    assert.equal(worker.exitCode, null)
+    try { ready = (await fetch(origin + '/health')).ok } catch {}
+    if (ready) break
+    await new Promise(resolve => setTimeout(resolve, 250))
+   }
+   assert.ok(ready)
   }
-  assert.ok(ready)
+  worker = startWorker()
+  await waitReady()
   const claim = await fetch(origin + '/auth/bootstrap', { method: 'POST', redirect: 'manual', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ token: syntheticSetup, displayName: 'Synthetic retained owner', returnTo: '/app' }) })
   assert.equal(claim.status, 303)
   const cookie = claim.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
@@ -117,6 +121,17 @@ test('restored owner definitions survive archives and browser setup refuses a di
   assert.equal(changedCompany.status, 200)
   const savedCompany = await changedCompany.json()
   assert.ok(savedCompany.updatedAt)
+  const content = await fetch(origin + '/api/operator/library/items', { method: 'POST', headers: { cookie, Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'notebook', title: 'Retained quarterly analysis', description: 'Owner catalog record', tags: ['quarterly'], definition: {}, sourceLinks: [], verified: false, collectionId: null, sourceDatasets: [] }) })
+  assert.equal(content.status, 201)
+  const catalogItem = await content.json()
+  const search = async sessionCookie => {
+   const response = await fetch(origin + '/api/operator/library/search?q=quarterly', { headers: { cookie: sessionCookie } })
+   assert.equal(response.status, 200)
+   const result = await response.json()
+   assert.equal(result.total, 1)
+   assert.deepEqual(result.items.map(item => item.id), [catalogItem.id])
+  }
+  await search(cookie)
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
@@ -129,6 +144,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   let manifest
   for await (const record of fileRecords(join(scratch, 'exports/owner.rer'))) if (record.kind === 'manifest') manifest = record
   assert.ok(manifest.tables.some(table => table.name === 'oa_operators'), 'archive includes original owner definitions')
+  assert.ok(!manifest.tables.some(table => table.name.startsWith('bf_catalog_search')), 'derived search and shadow tables never travel')
   for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
   assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup) && !archive.includes(syntheticInstallationKey), 'private settings do not travel')
   await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
@@ -141,6 +157,17 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const company = () => JSON.parse(run(process.execPath, [...wrangler, 'd1', 'execute', 'foundation', '--local', '--config', 'wrangler.jsonc', '--command', 'SELECT revision,value_json,updated_at,updated_by FROM bf_company_settings', '--json']))[0].results
   const expectedCompany = [{ revision: savedCompany.revision, value_json: JSON.stringify(savedCompany.settings), updated_at: savedCompany.updatedAt, updated_by: originalOwner }]
   assert.deepEqual(company(), expectedCompany, 'owner-saved values and time survive restore exactly')
+  worker = startWorker({ AUTH_LOCAL: 'false', RER_DEMO: '1' })
+  await waitReady()
+  const signIn = await fetch(origin + '/auth/one-click?as=' + encodeURIComponent(originalOwner), { headers: { Origin: origin }, redirect: 'manual' })
+  assert.equal(signIn.status, 303)
+  const restoredCookie = signIn.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
+  await signIn.body?.cancel()
+  await search(restoredCookie)
+  worker.kill('SIGTERM')
+  await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
+  worker = undefined
+  rer('export', '--output', 'exports/restored-owner.rer')
   const nonempty = spawnSync(process.execPath, [join(scratch, 'node_modules/@runeditrun/rer/bin/rer.mjs'), 'import', '--input', 'exports/owner.rer', '--yes', '--non-interactive', '--json'], { cwd: scratch, env: environment, encoding: 'utf8' })
   assert.equal(nonempty.status, 4, 'a populated destination still refuses restore')
   assert.match(nonempty.stdout, /target_not_empty/)

@@ -210,6 +210,42 @@
       "name": "0034_quality.sql",
       "sha256": "74c04f7ef83525ecba9844a4e98b2dd13d4f2ec1dbd9073d0ea2ebf8d4e1dbfb",
       "sql": "CREATE TABLE bf_quality_rules (id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,dataset_id TEXT NOT NULL,rule_json TEXT NOT NULL);\nCREATE INDEX bf_quality_dataset ON bf_quality_rules(dataset_id);\nCREATE TABLE bf_quality_runs (\n id TEXT PRIMARY KEY,rule_id TEXT NOT NULL REFERENCES bf_quality_rules(id) ON DELETE CASCADE,\n source_revision TEXT,result_json TEXT NOT NULL,created_at TEXT NOT NULL\n);\nCREATE TABLE bf_quality_waivers (\n run_id TEXT PRIMARY KEY REFERENCES bf_quality_runs(id) ON DELETE CASCADE,\n owner_id TEXT NOT NULL,reason TEXT NOT NULL,expires_at TEXT NOT NULL,created_at TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0035_metric_deprecation.sql",
+      "sha256": "aa57836a0ef6be9ce6334a599f16b98445e2cd9db97f24dc873f33246ee40682",
+      "sql": "ALTER TABLE bf_metrics ADD COLUMN deprecated_at TEXT;\nALTER TABLE bf_metrics ADD COLUMN deprecated_by TEXT;\nALTER TABLE bf_metrics ADD COLUMN deprecated_reason TEXT;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0036_model_imports.sql",
+      "sha256": "c36bd15d6e2b29ccb31d39740451c1485698f4f9ba7be4f10099b8f190ec052e",
+      "sql": "CREATE TABLE bf_model_imports (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n value_json TEXT NOT NULL,\n revision TEXT NOT NULL\n);\nCREATE TABLE bf_model_revision_imports (\n revision_id TEXT PRIMARY KEY REFERENCES bf_semantic_revisions(id) ON DELETE CASCADE,\n project_id TEXT NOT NULL,\n project_revision TEXT NOT NULL,\n format TEXT NOT NULL,\n digest TEXT NOT NULL\n);\nCREATE TABLE bf_model_import_uses (\n snapshot_id TEXT NOT NULL REFERENCES bf_query_snapshots(id) ON DELETE CASCADE,\n project_id TEXT NOT NULL,\n PRIMARY KEY(snapshot_id,project_id)\n);\nCREATE TABLE bf_model_import_sources (\n project_id TEXT NOT NULL,\n dataset_id TEXT NOT NULL,\n PRIMARY KEY(project_id,dataset_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0037_calculation_libraries.sql",
+      "sha256": "a72b0dfa67fb54a1e57db3fe7bc084839a287c76a6285109346d93e54d69d87d",
+      "sql": "CREATE TABLE bf_calculation_libraries (\n id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,value_json TEXT NOT NULL,revision TEXT NOT NULL\n);\nCREATE TABLE bf_calculation_sources (\n library_id TEXT NOT NULL,dataset_id TEXT NOT NULL,PRIMARY KEY(library_id,dataset_id)\n);\nCREATE TABLE bf_calculation_runs (\n id TEXT PRIMARY KEY,library_id TEXT NOT NULL,owner_id TEXT NOT NULL,value_json TEXT NOT NULL,digest TEXT NOT NULL\n);\nCREATE TABLE bf_calculation_models (\n library_id TEXT NOT NULL,model_id TEXT NOT NULL,PRIMARY KEY(library_id,model_id)\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0038_questions.sql",
+      "sha256": "347236caab5e41f213ec7aa23f4f4d96ee85f549d94b82cdf951742a9ca90654",
+      "sql": "CREATE TABLE bf_questions (\n id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,model_id TEXT NOT NULL REFERENCES bf_semantic_models(id) ON DELETE CASCADE,\n snapshot_id TEXT REFERENCES bf_query_snapshots(id) ON DELETE CASCADE,\n question TEXT NOT NULL,result_json TEXT NOT NULL,digest TEXT NOT NULL,created_at TEXT NOT NULL\n);\nCREATE TABLE bf_question_sources (\n question_id TEXT NOT NULL REFERENCES bf_questions(id) ON DELETE CASCADE,dataset_id TEXT NOT NULL,\n PRIMARY KEY(question_id,dataset_id)\n);\nCREATE TABLE bf_question_consents (\n id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,prompt_digest TEXT NOT NULL,policy_version TEXT NOT NULL,\n outcome TEXT NOT NULL,created_at TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0039_catalog_consent.sql",
+      "sha256": "2b0091bd6d9a8501c38657aae2eeee2f5cc6a6e8670ae58891c2f6f498fe7cc7",
+      "sql": "-- Retained consent must be renewed against the named-data disclosure.\nALTER TABLE bf_catalog_policy ADD COLUMN disclosure_version INTEGER NOT NULL DEFAULT 0;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0040_report_reviewers.sql",
+      "sha256": "398e3ab2294e65606ca809498a71da59c523318a1d5c6237acb27ffc46a7f454",
+      "sql": "CREATE TABLE bf_report_reviewer_grants (\n id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES bf_report_runs(id) ON DELETE CASCADE,\n owner_id TEXT NOT NULL, reviewer_id TEXT NOT NULL,\n artifact_digest TEXT NOT NULL, owner_version INTEGER NOT NULL, reviewer_version INTEGER NOT NULL,\n expires_at TEXT NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT\n);\nCREATE INDEX bf_report_reviewer_lookup ON bf_report_reviewer_grants(run_id,reviewer_id,artifact_digest);\n-- Definitions retain lineage; activation never travels in an installation export.\nCREATE TABLE bf_report_reviewer_activation (\n grant_id TEXT PRIMARY KEY REFERENCES bf_report_reviewer_grants(id) ON DELETE CASCADE,\n owner_version INTEGER NOT NULL, reviewer_version INTEGER NOT NULL, activated_at TEXT NOT NULL\n);\nCREATE TABLE bf_report_grant_audit (\n id TEXT PRIMARY KEY, run_id TEXT NOT NULL, grant_id TEXT, owner_id TEXT NOT NULL,\n actor_id TEXT, reviewer_id TEXT NOT NULL, artifact_digest TEXT,\n action TEXT NOT NULL, recorded_at TEXT NOT NULL\n);\nCREATE TABLE bf_report_pending_recipients (\n run_id TEXT NOT NULL REFERENCES bf_report_runs(id) ON DELETE CASCADE,\n reviewer_id TEXT NOT NULL, reviewer_version INTEGER NOT NULL,\n PRIMARY KEY(run_id,reviewer_id)\n);\nCREATE TRIGGER bf_report_grant_identity_immutable BEFORE UPDATE ON bf_report_reviewer_grants\n WHEN old.id<>new.id OR old.run_id<>new.run_id OR old.owner_id<>new.owner_id OR old.reviewer_id<>new.reviewer_id OR old.artifact_digest<>new.artifact_digest OR old.owner_version<>new.owner_version OR old.reviewer_version<>new.reviewer_version OR old.expires_at<>new.expires_at OR old.created_at<>new.created_at OR old.revoked_at IS NOT NULL AND new.revoked_at IS NOT old.revoked_at\n BEGIN SELECT RAISE(ABORT,'immutable_report_reviewer_grant'); END;\nCREATE TRIGGER bf_report_grant_audit_immutable BEFORE UPDATE ON bf_report_grant_audit BEGIN SELECT RAISE(ABORT,'immutable_report_grant_audit'); END;\nCREATE TRIGGER bf_report_grant_audit_no_delete BEFORE DELETE ON bf_report_grant_audit BEGIN SELECT RAISE(ABORT,'immutable_report_grant_audit'); END;\n-- Native membership changes fence existing sessions and artifact grants at once.\nCREATE TRIGGER bf_report_reviewer_membership AFTER UPDATE ON oa_operators WHEN new.version<>old.version OR new.status<>old.status OR new.role<>old.role BEGIN\n INSERT INTO bf_report_grant_audit(id,run_id,grant_id,owner_id,actor_id,reviewer_id,artifact_digest,action,recorded_at)\n SELECT lower(hex(randomblob(16))),run_id,id,owner_id,NULL,reviewer_id,artifact_digest,'membership-revoked',strftime('%Y-%m-%dT%H:%M:%fZ','now') FROM bf_report_reviewer_grants WHERE revoked_at IS NULL AND (reviewer_id=new.id OR owner_id=new.id);\n UPDATE bf_report_reviewer_grants SET revoked_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE revoked_at IS NULL AND (reviewer_id=new.id OR owner_id=new.id);\n DELETE FROM bf_report_reviewer_activation WHERE grant_id IN (SELECT id FROM bf_report_reviewer_grants WHERE reviewer_id=new.id OR owner_id=new.id);\n UPDATE bf_report_runs SET state='cancelled',request_json=NULL,artifact_json=NULL,artifact_digest=NULL,approval_json=NULL,version=version+1\n WHERE state IN ('queued','rendered','approved') AND (id IN (SELECT run_id FROM bf_report_pending_recipients WHERE reviewer_id=new.id AND (reviewer_version<>new.version OR new.status<>'active')) OR owner_id=new.id AND (new.status<>'active' OR new.role<>'owner'));\nEND;\n-- Source erasure and explicit cancellation and purge remove controlled authority,\n-- while immutable dispatch and minimal audit facts survive unchanged.\nCREATE TRIGGER bf_report_reviewer_bytes_withdrawn AFTER UPDATE ON bf_report_runs\n WHEN new.artifact_json IS NULL AND (old.artifact_json IS NOT NULL OR new.request_json IS NULL AND old.request_json IS NOT NULL) BEGIN\n DELETE FROM bf_report_reviewer_grants WHERE run_id=new.id;\n DELETE FROM bf_report_pending_recipients WHERE run_id=new.id;\n DELETE FROM bf_report_downloads WHERE run_id=new.id;\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
