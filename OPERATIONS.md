@@ -125,3 +125,23 @@ The installed `/docs` guide is static edition documentation available signed out
 Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.79. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
 
 The forward-only company-default normalization (0024) gives untouched built-in defaults no owner-authored update time (`updatedAt: null` at the company API). Owner-saved revisions and timestamps are preserved. This makes a fresh destination’s migration row reproducible for Base’s exact empty-state restore check; populated destinations remain refused. Backward restore of archives preceding this migration remains unqualified; Base migration-data refusals remain enforced.
+
+## Hosted delivery preparation
+
+`packaging.json` owns Bifocal's delivery commands, D1 migration directory,
+resource and secret names, recovery policy and mail declarations. Build with
+`pnpm run build`, then run `pnpm delivery:spec` to update the committed import
+projection. `pnpm check:deployment-spec` refuses a stale projection and is part
+of the hosted verification operation. Package with
+`node scripts/delivery/base/cli.mjs package --config packaging.json --output rer-package`;
+the artifact command in the descriptor emits the same schema-2 Worker payload.
+These operations prepare source and artifacts; they do not deploy or release.
+
+The app surface assigns `AUTH_ORIGIN`. Managed hosting supplies `MAIL_PROVIDER`
+with value `rer`, `MAIL_FROM`, `MAIL_RELAY_URL` and the private `MAIL_API_KEY`.
+The existing sender passes the relay URL to Base's mail adapter. Assisted setup
+also offers Resend, SendGrid and Cloudflare with their provider key, authorized
+sender and, for Cloudflare, account ID. Enter these privately in setup; no
+provider key or usable sender is included in this source. Local development
+continues to suppress mail. Provider acceptance and hosted qualification remain
+separate checks before offering an installable release.

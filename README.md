@@ -31,3 +31,5 @@ The installed `/` is Base's Lobby. The public [Run site](https://run-bifocal.com
 Read [RUN-LOCALLY.md](RUN-LOCALLY.md), [AGENTS.md](AGENTS.md), [OPERATIONS.md](OPERATIONS.md) and [SEED-COMMAND-CONTRACT.md](SEED-COMMAND-CONTRACT.md). The package pins Node 22.20.0, pnpm 10.12.4 and `@runeditrun/rer` 0.2.79. Base source origin is recorded in `edition.json` and `composition.lock.json`.
 
 MIT licensed. Research and private evidence live separately from this repository.
+
+The public installation page is https://run-bifocal.com/run.

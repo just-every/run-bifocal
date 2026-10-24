@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "projectId": "just-every/bifocal",
+  "name": "Bifocal",
+  "sourceRepository": "https://github.com/just-every/run-bifocal",
+  "license": "MIT",
+  "deployment": {
+    "target": "cloudflare-workers",
+    "artifactFile": "rer-worker-artifact.json"
+  },
+  "operations": {
+    "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+    "build": "pnpm run build",
+    "verify": "pnpm run verify && pnpm check:deployment-spec && pnpm exec rer check --profile first-party",
+    "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+    "recovery": "Follow OPERATIONS.md: stop writes, retain the exact source revision and private configuration, export this installation with rer export, restore into a fresh empty installation with rer import, and compare a new export before routing traffic. Preserve applied migration names and bytes; inactive grants and changed-owner recovery remain unqualified."
+  },
+  "verification": {
+    "migrationDirectories": [
+      "migrations/core"
+    ]
+  },
+  "setup": {
+    "path": "rer-setup.json",
+    "sha256": "9d5d39c0b00537b75fdb9562276a4eb1a72cf80380b3785d0c2cd682716096f7"
+  }
+}

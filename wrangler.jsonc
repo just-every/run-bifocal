@@ -13,5 +13,15 @@
       "database_id": "local-foundation-only",
       "migrations_dir": "migrations/core"
     }
-  ]
+  ],
+  "vars": {
+    "AUTH_ORIGIN": "",
+    "AUTH_LOCAL": "false",
+    "MAIL_PROVIDER": "",
+    "MAIL_FROM": "",
+    "MAIL_RELAY_URL": "",
+    "MAIL_ACCOUNT_ID": "",
+    "IDENTITY_PROVIDER": "",
+    "OWNER_EMAIL": ""
+  }
 }

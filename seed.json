@@ -8,7 +8,7 @@
     "id": "foundation",
     "record": "No domain record selected"
   },
-  "description": "Business intelligence and reporting; new seed with Base foundation only. All Bifocal target clauses remain missing.",
+  "description": "Business intelligence and reporting foundation with bounded file intake, exact saved answers and US company conventions. The full Bifocal product remains unfinished.",
   "capabilities": [],
   "nonGoals": [
     "Finished product functionality",
@@ -74,5 +74,6 @@
       "operator-auth",
       "owner-claim"
     ]
-  }
+  },
+  "replaces": []
 }
