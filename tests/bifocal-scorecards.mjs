@@ -55,7 +55,7 @@ export async function proveEaselTargets({call,today,proveScreen,page,origin}) {
   const summary=page.getByText('Use an Easel target export',{exact:true});await summary.focus();await page.keyboard.press('Enter')
   for(const [label,value] of [['Easel dataset ID',dataset],['Reviewed dataset revision',source.revision],['Easel row ID','revenue'],['Easel plan series',series]])await page.getByLabel(label,{exact:true}).fill(value)
   const [response]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/revise')&&r.request().method()==='POST'),page.getByRole('button',{name:'Save target revision',exact:true}).click()])
-  assert.equal(response.status(),303,await response.text());await page.waitForURL(origin+'/app/goals/'+id)
+  assert.equal(response.status(),303,response.status()===303?'':await response.text());await page.waitForURL(origin+'/app/goals/'+id)
   const goal=await call('/goals/'+id)
   assert.equal(goal.definition.target,target);assert.equal(goal.easel.series,series);assert.equal(goal.easel.link,link);assert.equal(goal.easel.exportSha256,source.table.source.sha256)
   const actual=await call('/queries/run',goal.actual.query);assert.deepEqual(goal.actual.value,actual.answer.totals.revenue)
