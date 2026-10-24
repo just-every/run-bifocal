@@ -328,7 +328,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1e8e1cdbe04435a744cba1c4eb951b1c70f89340824c70aac3d98da523548de1",
+      "sha256": "d94b603a70dbc72915fdd90659859dea58a772677aa74be072a1222bdfa78985",
       "executable": false
     },
     "AGENTS.md": {
@@ -344,7 +344,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "27d8f9361b8faecae80eee8ce13fd741620362abc0480527637f0b7bef6a6279",
+      "sha256": "76b18c40027f180849e6003e96653ad7e0a57489562956e8f7c5a281f8a86a1e",
       "executable": false
     },
     "deploy-demo.json": {
@@ -389,6 +389,10 @@
     },
     "docs/people.md": {
       "sha256": "1df1d4079b911c386c0a41e8bb812502072753563a2cdf4c9b6ad5aeb5d161b3",
+      "executable": false
+    },
+    "docs/QUESTIONS.md": {
+      "sha256": "066ce1f72dd9141d21ab169e78cc881ba2a752e42f4253f2d36db48f0a1194e2",
       "executable": false
     },
     "docs/SEMANTIC-MODELS.md": {
@@ -579,6 +583,10 @@
       "sha256": "a72b0dfa67fb54a1e57db3fe7bc084839a287c76a6285109346d93e54d69d87d",
       "executable": false
     },
+    "migrations/core/0038_questions.sql": {
+      "sha256": "347236caab5e41f213ec7aa23f4f4d96ee85f549d94b82cdf951742a9ca90654",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -617,6 +625,14 @@
     },
     "public/bifocal/app.css": {
       "sha256": "3d1eef0043790ad1ec004345cbc706021f37e4a20ddea9a41af45ecda6e8d23c",
+      "executable": false
+    },
+    "public/bifocal/ask.css": {
+      "sha256": "338be3cf8aee5b2b88906a335c813251d983b9d85398c090dbba8d3658c4a1a4",
+      "executable": false
+    },
+    "public/bifocal/ask.js": {
+      "sha256": "aa8915ba26cffe92a11c81852f5b69f67cf7c5208b0a0d47065bf1076eb017c2",
       "executable": false
     },
     "public/bifocal/board.js": {
@@ -920,7 +936,7 @@
       "executable": false
     },
     "scripts/installer/local.mjs": {
-      "sha256": "e0844f58e820bc166eb4963d7411cf564fef12398c56dc296a3157cdff7631c5",
+      "sha256": "c610de98b6725f5eeaf38391e2924fb48c9f363b65195f68b717b5eed1d77fdf",
       "executable": false
     },
     "scripts/installer/seed.mjs": {
@@ -984,7 +1000,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "6fe84a93b7f6799393f44a299db713b86599c9199f2a531a0b07e9ab26b1f5c5",
+      "sha256": "4e0ae4f483f6609b83cc13f6cbf0d7e837f3c6389f87a0f1d93c362bc28c3571",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -1408,7 +1424,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "cd75b9fe2e958c20f3965f8cd7d2a9c8729797123620a02649b7ec319bce9057",
+      "sha256": "8ee9b0cb07deac6f6d3be2224d9a1111426f7c914f3bbf71320d1a23d051ddee",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -1540,7 +1556,7 @@
       "executable": false
     },
     "src/bifocal/query/page.server.ts": {
-      "sha256": "b556a9d4a06fc68c88fe15ac857d4f6854071d538b465856ba5086789a425ebe",
+      "sha256": "1b0e614976a0fdde638f9e9511a5104a06047bb301b8aad0cf88281521363b23",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
@@ -1553,6 +1569,66 @@
     },
     "src/bifocal/query/validate.ts": {
       "sha256": "5dce727108a0413ffeb8d324bc5c3d0aa63550130f8d55af7323d72901fa6687",
+      "executable": false
+    },
+    "src/bifocal/questions/compile.ts": {
+      "sha256": "80465eda4093971180f4b30882d1c59b90cbc2b923ca814149b7f387df04ba12",
+      "executable": false
+    },
+    "src/bifocal/questions/drivers.ts": {
+      "sha256": "a802fbe727f00ef6f33570d51fff3e93dc5423d0cd7345a37b671427937c81ca",
+      "executable": false
+    },
+    "src/bifocal/questions/page.server.ts": {
+      "sha256": "dae246e268b6d31c3e40e3a84c83f2c7b89e2f87d15515021172e31e760a5f45",
+      "executable": false
+    },
+    "src/bifocal/questions/period.ts": {
+      "sha256": "709e75557b573c761d11ab788ab04067a48f4754027929e46811403c1e06fa74",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/client.ts": {
+      "sha256": "c3283df7fbc1e9aaffdee3d87c355d6f09ce459d078a19508a4d5a751ec89db5",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/index.ts": {
+      "sha256": "02d712ebb8fb28f1ce265ceef822c769a8406424450ecbc19d0ff5c2d1ce1207",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/outbound.ts": {
+      "sha256": "45ddeda5a68b6cc7352d22dc5aa89deb7e76b71c052c4089919de9ece6d705b9",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/prompt.ts": {
+      "sha256": "bd3cb8d99310cfc1daa1a1ed733330594e74cd80c4e5714c654c44c687c028aa",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/response.ts": {
+      "sha256": "e184985bedb91748678960cc50c3b8c359073e38588ae8c1239c675512192767",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/schema.ts": {
+      "sha256": "2b9c57290a09fa12cf454a0b2d90a5e4d9cb966a1314bf2c22b66bf81a94773e",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/types.ts": {
+      "sha256": "ca6bc1c2d4bc299f9b3b597d6d0b7209453b91980b936057d8b516b39c23ba51",
+      "executable": false
+    },
+    "src/bifocal/questions/planning/validate.ts": {
+      "sha256": "c59892a8a8eedbb80ffa10ede3df656e0cbd39bdeb7eb924ca294304d3de1518",
+      "executable": false
+    },
+    "src/bifocal/questions/request.ts": {
+      "sha256": "b031725a2ef2819ca5207e828a1cad6af3114d29a554585ffa87c0759ad10175",
+      "executable": false
+    },
+    "src/bifocal/questions/scope.server.ts": {
+      "sha256": "e48e683ec93a86bd795e345e7c8deca984ba18088c5c840958fcca8aa86dfae5",
+      "executable": false
+    },
+    "src/bifocal/questions/server.ts": {
+      "sha256": "f66a7007335c8c1f072df8608536075923b78abce8ae8e38aec9c95553db59b6",
       "executable": false
     },
     "src/bifocal/reconciliation/compare.ts": {
@@ -3352,7 +3428,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "857ee822cf8919fee1e32df5dd880530ca1c48fac08e66f182bba799527fb1fd",
+      "sha256": "4b1c70643be07bde0d26b3ab910f30834695d74ee7c9a8b751fc21fda41d643f",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -3547,6 +3623,10 @@
       "sha256": "dfb01fec51c04e64d7a20902a7f2186429965eb5f80e4aab9021936fff59e91a",
       "executable": false
     },
+    "tests/bifocal-questions.mjs": {
+      "sha256": "c82684fad5afea297360f69e0c00d1d2ebd5dbf4b73996fa50413fdb702175ea",
+      "executable": false
+    },
     "tests/bifocal-scorecards.mjs": {
       "sha256": "35f9c17784c5135193c4c2cfd09c9f733169ad51bee37b5b6511b9ed20a0ed1a",
       "executable": false
@@ -3627,6 +3707,26 @@
       "sha256": "84a0b2f825a946a9ee39f3753add6606fa614b223d969a61190afdc9aa00dc04",
       "executable": false
     },
+    "tests/journeys/question-cases.mjs": {
+      "sha256": "1183d6826db3cf572e69347638f506a1dbc897db1869d83a631c5be437ff8588",
+      "executable": false
+    },
+    "tests/journeys/question-context.mjs": {
+      "sha256": "89c69a384311fc94001ff670fbe59917c10002a3544feb478fb3cfb28738bf6b",
+      "executable": false
+    },
+    "tests/journeys/question-edge.mjs": {
+      "sha256": "d0ea8578a4b381a138c2feb0d5b0a62ab7f54fd18247ce8d9ca90ae01a3aee3f",
+      "executable": false
+    },
+    "tests/journeys/question-reference.mjs": {
+      "sha256": "00ec45cbdc8a13570b0d42735eb61b820b346838cb1179ba6e121fd1052d3a89",
+      "executable": false
+    },
+    "tests/journeys/question-runtime.mjs": {
+      "sha256": "b3ee59a46a12d7e6d1cf922ee9fd9fc7d040402ae36f87fcb4f0615f063c6d10",
+      "executable": false
+    },
     "tests/journeys/report-custody.mjs": {
       "sha256": "e759392b3308bce7375a73873ca2ac73f2d9cd51355b0aa97cc999f3fdd3414c",
       "executable": false
@@ -3656,7 +3756,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "59b4e53d4565033abe6b3d0b6f5ac830df672da73d3d5e5a1ed4931cc5c1821a",
+      "sha256": "cc19fecbcfc345f2887e6f0c86ef36b9ae183ec19774b37ef7fb78521c9750b8",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

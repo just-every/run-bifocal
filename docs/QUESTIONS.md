@@ -1,0 +1,17 @@
+# Governed questions
+
+Open **Ask a question** from Exact answers. Choose a published semantic view, enter an explicit as-of date and ask about its permitted definitions. Review the exact outbound payload and approve that one request. Editing the question, view, date or conversation context invalidates approval. AI remains unavailable until the owner configures AI_ENABLED, AI_MODEL and its provider credentials through Base.
+
+The provider receives the question, editable context, permitted dimensions and measures and native calendar metadata. It receives no source rows, result values, hidden field names or row-rule literals. User-entered question text and context are included exactly as reviewed. The default requires owner access and explicit audited consent for every call; this new outbound policy awaits ct approval, so BIF-008 remains partial. Consent audit contains fingerprints, owner, timestamp, policy version and outcome, without question contents. Retained question and answer contents follow source erasure.
+
+One production Base AI request returns a strict structured plan. Bifocal validates its permitted identifiers and compiles the plan into the existing exact read-only query engine. Row rules and source filters are applied independently of the AI. Fiscal boundaries come from the selected native calendar. The provider cannot supply SQL, result values, mutations or source authority. Invalid output, missing configuration, timeouts and unknown outcomes fail explicitly without a retry or substitute answer.
+
+Every answer retains its native query, measure definitions, interpreted dates and filters, exact values and source watermarks. Chart bars link to exact cells. A chart displays at most twenty groups with an explicit notice; the table retains every returned group. Follow-up context is visible, editable and resettable. Every follow-up needs a new preview and approval. Missing fields and unresolved definitions are refused or clarified.
+
+Why answers read current quality evidence before native arithmetic. Allowed region, product, channel and customer contributions are recomputed under the same immutable scope. Symmetric price and volume decomposition uses permitted revenue and quantity with an explicit residual for groups lacking comparable prices. Arithmetic and descriptive correlation do not establish causation. No causal evidence or hypotheses are invented.
+
+## Qualification
+
+The ordinary runtime journey uses an explicit fake only at the paid provider edge; it proves the real app, query, consent, custody and browser flows and makes no live planning-accuracy claim. The committed live journey sends all 200 fixed questions for each of two realistic companies through the same governed route and actual configured provider. Handwritten SQLite references precede the requests and never derive from provider plans. The report records the exact commit, model, response identifiers, per-company exact outcomes and failures.
+
+Run the live journey through heavy-slot with BIFOCAL_QUESTIONS_LIVE=1, an explicit BIFOCAL_QUESTIONS_MODEL and a held provider key injected only through the authorized environment helper. Provider credentials stay at the paid network edge and never enter the application worker. No hidden retries, fixture routing or application substitutes are used. The provider protocol is the official [Responses structured-output schema](https://developers.openai.com/api/docs/guides/structured-outputs).

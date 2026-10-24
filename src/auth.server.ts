@@ -39,6 +39,12 @@ export interface Bindings {
  RER_DEV_IDENTITY?: string
  RER_INSTALLATION_ID?: string
  RER_MANAGEMENT_ORIGIN?: string
+ AI_ENABLED?: string
+ AI_MODEL?: string
+ AI_API_KEY?: string
+ AI_BASE_URL?: string
+ MODELS_SERVICE?: string
+ MODELS_KEY?: string
  OWNER_EMAIL: string
  SESSION_SECRET: string
  INSTALLATION_KEY?: string

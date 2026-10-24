@@ -28,6 +28,8 @@ import { modelAuthoringResponse } from './bifocal/models/authoring.server'
 import { semanticResponse } from './bifocal/models/validation/server'
 import { explorationResponse } from './bifocal/explore/server'
 import { explorationPage } from './bifocal/explore/page.server'
+import { questionPage } from './bifocal/questions/page.server'
+import { questionResponse } from './bifocal/questions/server'
 import { calculationPage } from './bifocal/calculations/page.server'
 import { calculationResponse } from './bifocal/calculations/server'
 import { calculationImportResponse } from './bifocal/calculations/library/import.server'
@@ -67,6 +69,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (custody) return custody
     const catalog = await catalogResponse(request, env)
     if (catalog) return catalog
+    const questionDocument = await questionPage(request,env)
+    if(questionDocument)return questionDocument
+    const naturalQuestion = await questionResponse(request,env)
+    if(naturalQuestion)return naturalQuestion
     const calculationsDocument = await calculationPage(request,env)
     if(calculationsDocument)return calculationsDocument
     const calculations = await calculationResponse(request,env)
