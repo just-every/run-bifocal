@@ -5,6 +5,7 @@ import { metric, revision, metricGuard, metricValue, type MetricDocument } from 
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
 import { fail, QueryError } from '../query/types'
+import { goalPeriod } from './period'
 import { randomUUID } from 'node:crypto'
 import { escapeHtml } from '../../app/shell'
 import { details, document, exact, field, hidden, ident, input, json, result, text } from '../metrics/transport'
@@ -65,11 +66,8 @@ export async function goalResponse(request:Request,original:Bindings):Promise<Re
    const m=await metric(env,ownerId,goal.metric_id);if(!m.published_revision)fail('metric_not_certified',409)
    const rev=(await revision(env,m.id,m.published_revision))!,doc=JSON.parse(rev.document_json) as MetricDocument,now=Date.now(),asOf=new Date(now).toISOString().slice(0,10)
    if(doc.unit!=='money'||doc.query.measures[0].sourceCurrency!=='USD'||doc.query.measures[0].scale!==2)fail('metric_unit_changed',409)
-   const cutoff=asOf<def.to?new Date(Date.parse(asOf)+86400000).toISOString().slice(0,10):def.to
-   if(cutoff<=def.from)fail('period_not_started',409)
-   const through=new Date(Date.parse(cutoff)-86400000).toISOString().slice(0,10)
-   doc.query.filters.push({column:def.dateColumn,op:'gte',value:def.from},{column:def.dateColumn,op:'lte',value:through})
-   const evaluation=await metricValue(env,ownerId,m,{...rev,document_json:canonicalJson(doc)})
+   const period=goalPeriod(rev,def,asOf),cutoff=period.cutoff
+   const evaluation=await metricValue(env,ownerId,m,period.revision)
    const observedAt=evaluation.sources[0].table.source.lineage?.observedAt??evaluation.sources[0].table.updatedAt
    if(!Number.isFinite(Date.parse(observedAt))||Date.parse(observedAt)>now||now-Date.parse(observedAt)>def.maxAgeSeconds*1000)actual={state:'stale',status:'unknown',forecast:null,reason:'The source exceeds this goal’s freshness limit.',lastObservedAt:observedAt}
    else if(evaluation.value.state==='value') {

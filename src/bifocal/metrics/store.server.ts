@@ -8,6 +8,7 @@ import { fail, QueryError, type Query } from '../query/types'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { details, document, exact, field, hidden, ident, input, json, object, result, text } from './transport'
+import { goalPeriod } from '../goals/period'
 import { escapeHtml } from '../../app/shell'
 export type MetricDocument={name:string;description:string;grain:string;unit:string;timezone:string;accountingBasis:string;query:Query}
 export type MetricRow={id:string;owner_id:string;head_revision:number;published_revision:number|null;deprecated_at:string|null;deprecated_by:string|null;deprecated_reason:string|null}
@@ -101,13 +102,30 @@ export async function metricResponse(request:Request,original:Bindings):Promise<
   }
   const row=await metric(env,ownerId,id),revisions=(await env.DB.prepare('SELECT * FROM bf_metric_revisions WHERE metric_id=? ORDER BY revision DESC').bind(id).all<Revision>()).results
   const dependencies=(await env.DB.prepare(`SELECT u.snapshot_id,u.revision,a.id AS artifact_id,a.kind,a.title FROM bf_metric_uses u LEFT JOIN bf_query_artifacts a ON a.snapshot_id=u.snapshot_id WHERE u.metric_id=? UNION ALL SELECT u.snapshot_id,u.revision,b.id,b.kind,b.title FROM bf_metric_uses u JOIN bf_analytics_cards c ON c.snapshot_id=u.snapshot_id JOIN bf_analytics_boards b ON b.id=c.board_id WHERE u.metric_id=?`).bind(id,id).all()).results
-  const goals=(await env.DB.prepare('SELECT id,version FROM bf_goals WHERE metric_id=? AND owner_id=? ORDER BY id').bind(id,ownerId).all()).results
-  dependencies.push(...goals.map(g=>({artifact_id:g.id,kind:'goal',version:g.version})))
+  const goals=(await env.DB.prepare('SELECT g.id,g.version,v.document_json FROM bf_goals g JOIN bf_goal_versions v ON v.goal_id=g.id AND v.version=g.version WHERE g.metric_id=? AND g.owner_id=? ORDER BY g.id').bind(id,ownerId).all<{id:string;version:number;document_json:string}>()).results
   const head=revisions[0],doc=JSON.parse(head.document_json) as MetricDocument
   let impact:unknown
-  try{const next=await metricValue(env,ownerId,row,head),old=row.published_revision?await metricValue(env,ownerId,row,(await revision(env,id,row.published_revision))!):null;impact={before:old?.value??null,after:next.value,sourceWatermarks:next.answer.sourceWatermarks,dependencies}}
+  const previewGuards=[metricGuard(row)]
+  const evaluate=async(rev:Revision)=>{
+   const value=await metricValue(env,ownerId,row,rev)
+   previewGuards.push(...value.sources.map(sourceMatch),...value.context.guards??[])
+   return value
+  }
+  try{
+   const certified=row.published_revision?(await revision(env,id,row.published_revision))!:null
+   const next=await evaluate(head),old=certified?await evaluate(certified):null
+   for(const goal of goals) {
+    const def=JSON.parse(goal.document_json),asOf=new Date().toISOString().slice(0,10)
+    previewGuards.push(sql('EXISTS(SELECT 1 FROM bf_goals WHERE id=? AND version=?)',goal.id,goal.version))
+    let paired:unknown
+    try{paired={before:certified?(await evaluate(goalPeriod(certified,def,asOf).revision)).value:null,after:(await evaluate(goalPeriod(head,def,asOf).revision)).value,asOf,from:def.from,to:def.to}}
+    catch(error){if(!(error instanceof QueryError))throw error;paired={state:'unknown',reason:error.code}}
+    dependencies.push({artifact_id:goal.id,kind:'goal',version:goal.version,paired})
+   }
+   impact={before:old?.value??null,after:next.value,sourceWatermarks:next.answer.sourceWatermarks,lineage:next.sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source})),dependencies}
+  }
   catch(e){if(!(e instanceof QueryError))throw e;impact={state:'unknown',reason:e.code,dependencies}}
-  await transact(env.DB,owner,[assertion(metricGuard(row))])
+  await transact(env.DB,owner,previewGuards.map(assertion))
   if(!page)return json({metric:row,revisions:revisions.map(r=>({...r,definition:JSON.parse(r.document_json),document_json:undefined})),impact})
   return document(doc.name,viewer,`<p>${escapeHtml(doc.description)}</p><p class="status">${row.deprecated_at?'Deprecated — unavailable for new use':row.published_revision?'Certified revision '+row.published_revision:'Draft — not certified'} · ${row.head_revision!==row.published_revision?'Draft revision ':'Latest revision '}${row.head_revision}</p><p>Owner: ${escapeHtml(owner.email)}. ${escapeHtml(doc.grain)} · ${escapeHtml(doc.unit)} · ${escapeHtml(doc.timezone)} · ${escapeHtml(doc.accountingBasis)}</p>${details('Change impact and dependent content',impact)}${row.deprecated_at?`<p role="status">Deprecated on ${escapeHtml(row.deprecated_at)}. ${escapeHtml(row.deprecated_reason??'')}</p>`:''}${!row.deprecated_at&&!head.approved_at?`<form method="post" action="/api/operator/metrics/${id}/approve"><h2>Review exact definition</h2>${hidden('revision',head.revision)}${hidden('digest',head.digest)}${details('Definition to approve',doc)}${field('annotation','Dated change annotation')}<label><input type="checkbox" name="confirm" value="approve" required> I approve this exact metric definition</label><button type="submit">Certify revision ${head.revision}</button></form>`:''}${!row.deprecated_at?`<form method="post" action="/api/operator/metrics/${id}/propose"><h2>Propose a change</h2>${hidden('previousRevision',row.head_revision)}<label>Revised metric definition (JSON)<textarea name="definition" rows="10" required>${escapeHtml(head.document_json)}</textarea></label><button type="submit">Save proposed revision</button></form>`:''}${!row.deprecated_at&&row.published_revision?`<form method="post" action="/api/operator/metrics/${id}/deprecate"><h2>Deprecate metric</h2><p>New runs and goal actuals will be unavailable. Retained reports keep their original definitions and values.</p>${hidden('revision',row.head_revision)}${hidden('digest',head.digest)}${hidden('publishedRevision',row.published_revision)}${field('reason','Deprecation reason')}<label><input type="checkbox" name="confirm" value="deprecate" required> I reviewed this definition and its dependent content</label><button type="submit">Deprecate metric</button></form>`:''}${details('Immutable revision history',revisions.map(r=>({revision:r.revision,definition:JSON.parse(r.document_json),digest:r.digest,createdAt:r.created_at,approvedAt:r.approved_at,annotation:r.annotation})))}`)
  }catch(e){const error=e instanceof QueryError?e:new QueryError('metric_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Metric unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/metrics">Return to metrics</a>`,error.status):json({error:error.code},error.status)}

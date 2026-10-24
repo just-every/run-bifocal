@@ -72,9 +72,11 @@ try {
  const retained=await call('/reports',{queryId:retiredBefore.queryId,title:'Revenue before deprecation'})
  const affected=await call('/metrics/synthetic-bifocal-revenue/impact')
  assert.ok(affected.impact.dependencies.some(d=>d.kind==='goal'&&d.artifact_id==='synthetic-bifocal-revenue-goal'))
- const retirementDraft=structuredClone(revenue);retirementDraft.description='Proposed revised revenue definition'
+ const retirementDraft=structuredClone(revenue);retirementDraft.description='Proposed revised revenue definition';retirementDraft.query.filters=[{column:'state',op:'eq',value:'active'}]
  const retirementRevision=await call('/metrics/synthetic-bifocal-revenue/propose',{previousRevision:1,definition:retirementDraft})
  await call('/metrics/synthetic-bifocal-revenue/deprecate',{revision:1,publishedRevision:1,digest:rev.digest,reason:'Stale owner review',confirm:'deprecate'},409)
+ const goalImpact=(await call('/metrics/synthetic-bifocal-revenue/impact')).impact.dependencies.find(d=>d.kind==='goal')
+ assert.equal(goalImpact.paired.before.value,'30.00');assert.equal(goalImpact.paired.after.value,'30.03');assert.equal(goalImpact.paired.asOf,today)
  const retirement={revision:2,publishedRevision:1,digest:retirementRevision.digest,reason:'Replaced after owner review',confirm:'deprecate'}
  assert.equal((await fetch(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(retirement)})).status,401)
  assert.equal((await context.request.post(origin+'/api/operator/metrics/synthetic-bifocal-revenue/deprecate',{headers:{Origin:'https://foreign.example.test'},data:retirement})).status(),401)
