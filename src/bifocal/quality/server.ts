@@ -1,4 +1,4 @@
-import { rejectedResponse } from '../../base/rejected-response'
+import { rejectedUpload } from '../http/rejected'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity } from '../data/snapshots/store'
@@ -118,5 +118,5 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
 
 export async function qualityResponse(request:Request,env:Bindings):Promise<Response|null> {
  const response=await handleQualityResponse(request,env)
- return response?rejectedResponse(request,response):null
+ return response?rejectedUpload(request,response):null
 }

@@ -1,4 +1,4 @@
-import { rejectedResponse } from '../../base/rejected-response'
+import { rejectedUpload } from '../http/rejected'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity, sourceMatch } from '../data/snapshots/store'
@@ -92,5 +92,5 @@ function easelFields(){return `<details><summary>Use an Easel target export</sum
 
 export async function goalResponse(request:Request,env:Bindings):Promise<Response|null> {
  const response=await handleGoalResponse(request,env)
- return response?rejectedResponse(request,response):null
+ return response?rejectedUpload(request,response):null
 }

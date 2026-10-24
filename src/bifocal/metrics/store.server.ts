@@ -1,4 +1,4 @@
-import { rejectedResponse } from '../../base/rejected-response'
+import { rejectedUpload } from '../http/rejected'
 import { runtimeBindings, operatorAuth, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity, readSources, saveQuery, sourceMatch } from '../data/snapshots/store'
@@ -140,5 +140,5 @@ async function handleMetricResponse(request:Request,original:Bindings):Promise<R
 
 export async function metricResponse(request:Request,env:Bindings):Promise<Response|null> {
  const response=await handleMetricResponse(request,env)
- return response?rejectedResponse(request,response):null
+ return response?rejectedUpload(request,response):null
 }
