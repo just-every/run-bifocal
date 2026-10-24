@@ -166,6 +166,10 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const restoredContext = await browser.newContext(), restoredPage = await restoredContext.newPage()
   assert.equal((await restoredContext.request.post(origin + '/__dev/key', { headers: { Origin: origin }, data: { key: devKey } })).status(), 204)
   await restoredPage.goto(origin + '/auth/dev/enter?as=owner')
+  if (new URL(restoredPage.url()).pathname === '/setup') {
+   await restoredPage.getByRole('checkbox').check()
+   await Promise.all([restoredPage.waitForURL(origin + '/app'), restoredPage.getByRole('button', { name: 'Finish setup', exact: true }).click()])
+  }
   const restoredSearch = await restoredContext.request.get(origin + '/api/operator/library/search?q=quarterly')
   assert.equal(restoredSearch.status(), 200)
   const restoredResults = await restoredSearch.json()
