@@ -4213,7 +4213,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "993dbed405808c7ab9604c31263c8ffd28998ead05527e0f14e4096f89107cb3",
+      "sha256": "eb3caadb8961859cfb88d610db503d06498bb7d7e47d0e9d283573158be93fc5",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {

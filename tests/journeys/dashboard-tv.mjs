@@ -26,6 +26,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  assert.equal((await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['revenue']},200)).cards[0].error,'dashboard_field_selection_unavailable')
  const fieldExport=await call('/dashboards/'+fieldDashboard.id+'/tiles/'+fieldQuery.queryId+'/export-snapshot',{maxAgeSeconds:3600,fields:['region'],definitionHash:selectedField.answer.definitionHash,watermarks:selectedField.answer.sourceWatermarks})
  await proveRetainedExports({origin,context,snapshotId:fieldExport.queryId,summary:[['East','30.03'],['West','15.01']],underlying:[['1','West','10.01'],['2','East','30.03'],['3','West','5.00']]})
+ await call('/dashboards/'+fieldDashboard.id+'/tiles/'+fieldQuery.queryId+'/export-snapshot',{maxAgeSeconds:3600,fields:null,definitionHash:selectedField.answer.definitionHash,watermarks:selectedField.answer.sourceWatermarks},409)
  const beforeFilters=await call('/queries')
  const filtered=await call(filterEndpoint,{maxAgeSeconds:3600,filters:east},200)
  assert.equal(filtered.cards[0].answer.totals.revenue.value,'30.03');assert.equal(filtered.cards[1].answer.filteredRows,0,'Reader filters never remove saved restrictions')
@@ -77,7 +78,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await page.getByRole('button',{name:'Open bookmark revision',exact:true}).click();await page.locator('section[data-state="empty"]').waitFor()
  await page.getByRole('status').filter({hasText:'Opened Regional review revision 1'}).waitFor();await proveScreen('dashboard-tv-personal-bookmark-reopened')
  await page.getByLabel('Bookmark name',{exact:true}).fill('Regional review');await page.getByRole('button',{name:'Save personal bookmark',exact:true}).click();await page.getByRole('status').filter({hasText:'Personal bookmark saved as revision 3'}).waitFor();await proveScreen('dashboard-tv-personal-bookmark-versioned')
- await page.reload();await page.locator('section[data-state="fresh"]').nth(1).waitFor();assert.match(await page.locator('section[data-tile-id="'+regional[0].queryId+'"]').innerText(),/40\.04/);await proveScreen('dashboard-tv-default-after-personal-bookmark')
+ await page.reload();await page.locator('section[data-state="fresh"]').nth(1).waitFor();assert.match(await page.locator('section[data-tile-id="'+regional[0].queryId+'"]').innerText(),/45\.04/);await proveScreen('dashboard-tv-default-after-personal-bookmark')
  assert.deepEqual(await call('/queries'),afterExport,'Filtering never saves answers')
  assert.equal((await call('/dashboards/'+interactive.id)).cards[0].answer.totals.revenue.value,'45.04','Reader filters never mutate saved dashboards')
  const empty={...query(fresh),filters:[{column:'region',op:'eq',value:'North'}]}
