@@ -20,6 +20,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  const fieldDashboard=await call('/dashboards',{queryId:fieldQuery.queryId,title:'Authored field parameter'})
  const fieldEndpoint='/dashboards/'+fieldDashboard.id+'/refresh'
  assert.equal((await call(fieldEndpoint,{maxAgeSeconds:3600},200)).cards[0].answer.rows.length,3)
+ await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['region','invoice']},400)
  const selectedField=(await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['region']},200)).cards[0]
  assert.equal(selectedField.answer.rows.length,2);assert.equal(selectedField.answer.rows.find(row=>row.dimensions[0]==='West').values.revenue.value,'15.01');assert.equal(selectedField.answer.totals.revenue.value,'45.04')
  assert.deepEqual(selectedField.availableDimensions,['region','invoice'])

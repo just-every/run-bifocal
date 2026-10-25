@@ -17,7 +17,7 @@ export function dashboardFilters(value:unknown):Filter[] {
 }
 export function dashboardFields(value:unknown):string[]|null {
  if(value===undefined||value===null)return null
- if(!Array.isArray(value)||!value.length||value.length>4||!value.every(field=>typeof field==='string'&&field.length>0&&field.length<=200)||new Set(value).size!==value.length)fail('dashboard_field_selection_required',400)
+ if(!Array.isArray(value)||value.length!==1||!value.every(field=>typeof field==='string'&&field.length>0&&field.length<=200)||new Set(value).size!==value.length)fail('dashboard_field_selection_required',400)
  return value as string[]
 }
 export function filteredDashboardQuery(definition:Query,filters:Filter[],fields:string[]|null=null):Query {
