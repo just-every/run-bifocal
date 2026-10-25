@@ -1549,7 +1549,7 @@
       "executable": false
     },
     "src/bifocal/explore/composition-form.ts": {
-      "sha256": "ba26cb3822859093b9296829fd0a7785c5451002df7729d08ca87120ffb4ddd8",
+      "sha256": "a6538f1900e6c3bd65c19a8247ecb58ed74a35cf550d2dbfd17d15fe91f10eff",
       "executable": false
     },
     "src/bifocal/explore/composition/execute.ts": {
