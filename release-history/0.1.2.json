@@ -1,0 +1,8 @@
+{
+  "version": "0.1.2",
+  "publicReleaseNotes": "Ship an isolated fictional retail demo imported through the reviewed file door, with a retained monthly-sales dashboard and a real app capture for release intake.",
+  "migrations": [],
+  "breaking": false,
+  "agentUpdateInstructions": "Use the pinned rer 0.2.80 package and the documented installation commands. Preserve the existing project identity and migration history.",
+  "previousVersion": "0.1.1"
+}

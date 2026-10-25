@@ -629,7 +629,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "ca07e8094c9096446928224ac76fd0073e3f0116ccc24eb776c7f0218304d717",
+      "sha256": "c177025c759249d2791b6eb79395e52f2a298e822fe56e4fee5094901935ddec",
       "executable": false
     },
     "packaging.json": {
@@ -840,8 +840,12 @@
       "sha256": "bada0a1abc47acfefedecb528cc4e682bc23f299967a04f9ad1ed69815e4c9aa",
       "executable": false
     },
-    "RELEASE.json": {
+    "release-history/0.1.2.json": {
       "sha256": "3fc3af0bbaf48c5bab9acd646f6afdc4b8a1b4254fa2e45efe9f4e3bb0261bde",
+      "executable": false
+    },
+    "RELEASE.json": {
+      "sha256": "0ac2de4eb8e6ec39ad6fb5ff9a2d7506d77052cc2a88ec5611b5b633166b6974",
       "executable": false
     },
     "rer-project.json": {
@@ -1073,7 +1077,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "5d3438dcc00197187406695e175e69a1ef00c5f0a89d12e524db6729b22466dd",
+      "sha256": "3dbe41f5c2743defa1f78b5e6d926ca601a51e79ef926f44588718c3c0eb6074",
       "executable": false
     },
     "src/app/docs.ts": {
@@ -3953,7 +3957,7 @@
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
-      "sha256": "10e25f6778d63afc8f19477dbf7ad9f63565e90935383e9d3bc446e507566523",
+      "sha256": "e454d37bb0672dfc862a9acc11fe2fc6cf8106b4f7f6f90d5a14075a250d0bfe",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {
