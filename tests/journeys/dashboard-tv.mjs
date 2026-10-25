@@ -49,7 +49,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  assert.equal((await call(filterEndpoint,{maxAgeSeconds:3600},200)).cards[0].answer.totals.revenue.value,'45.04','Personal bookmarks never silently change the default')
  assert.equal((await fetch(origin+'/api/operator'+bookmarksEndpoint)).status,401)
  await call(bookmarksEndpoint,{name:'Regional review',previousRevision:2,filters:[]},401,{Origin:'https://synthetic-bifocal.invalid'})
- const afterExport=await call('/queries');assert.equal(afterExport.queries?.length??afterExport.length,(beforeFilters.queries?.length??beforeFilters.length)+1)
+ const afterExport=await call('/queries'),previousIds=new Set(beforeFilters.queries.map(row=>row.id));assert.deepEqual(afterExport.queries.filter(row=>!previousIds.has(row.id)).map(row=>row.id),[exact.queryId],'Only the explicitly requested export adds an answer to bounded discovery')
  await page.goto(origin+'/app/dashboards/'+fieldDashboard.id+'/tv');await page.locator('section[data-state="fresh"]').waitFor()
  await Promise.all([page.waitForResponse(response=>response.url().endsWith(fieldEndpoint)&&response.status()===200),page.getByLabel('Displayed field',{exact:true}).selectOption('region')])
  await page.waitForFunction(()=>document.querySelector('#tv-field')?.value==='region'&&document.querySelector('section[data-state="fresh"]'))
