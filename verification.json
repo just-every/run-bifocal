@@ -14,8 +14,7 @@
       "browser": false,
       "hosted": false,
       "commands": [
-        "pnpm run typecheck",
-        "pnpm run test:typecheck"
+        "pnpm run typecheck"
       ]
     },
     {

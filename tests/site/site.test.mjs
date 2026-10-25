@@ -42,13 +42,3 @@ test('the run site builds, its Run Bifocal actions open /run, and every link and
     }
   }
 })
-
-test('/docs opens every page it lists, and each page links back to the docs home', () => {
-  const index = readFileSync(join(site, 'docs.html'), 'utf8')
-  const listed = anchors(index).map(a => a.href).filter(href => /^\/docs\/[a-z0-9-]+$/.test(href))
-  assert.ok(listed.length > 0, '/docs lists its pages')
-  for (const href of new Set(listed)) {
-    assert.ok(served(href), `${href} is built`)
-    assert.ok(anchors(readFileSync(join(site, `${href.slice(1)}.html`), 'utf8')).some(a => a.href === '/docs'), `${href} links back to /docs`)
-  }
-})

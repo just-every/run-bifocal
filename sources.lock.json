@@ -629,7 +629,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "c177025c759249d2791b6eb79395e52f2a298e822fe56e4fee5094901935ddec",
+      "sha256": "151668e05a25a1507675a9bbf861cc8c7ef06b5ba4894abda426cb24fda53730",
       "executable": false
     },
     "packaging.json": {
@@ -3856,10 +3856,6 @@
       "sha256": "0dd1d05addbf04e1c214e4b3f838c1b5cc14e4eb12db183e12e62306fd05164d",
       "executable": false
     },
-    "tests/incremental-typecheck.test.mjs": {
-      "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
-      "executable": false
-    },
     "tests/journeys/analytics-boundaries.mjs": {
       "sha256": "457e8d035cd26673c972c934cb039cd14e554f1ac073da24f746d259c29f9bf7",
       "executable": false
@@ -3969,11 +3965,7 @@
       "executable": false
     },
     "tests/site/site.test.mjs": {
-      "sha256": "e354ed471d7a920ae2412f9b9ac72624f418b6a5dc2f576cd5ecaab511ac1dbb",
-      "executable": false
-    },
-    "tests/typecheck-checks.mjs": {
-      "sha256": "8bb5355750d1743fd97860ebe6a2b0f47a2b9f695bc6fb122289a09d28b17ba1",
+      "sha256": "b0f71f75bb49cd2bf3693db6e9b0e04cd8803588db5db069e30a2169d25e15a9",
       "executable": false
     },
     "tsconfig.json": {
@@ -3981,7 +3973,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "cc19fecbcfc345f2887e6f0c86ef36b9ae183ec19774b37ef7fb78521c9750b8",
+      "sha256": "1366e1ae24e6e186004ab3bd8ed510b3ddea13fa0cac6f30834fe6528b9cd736",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
