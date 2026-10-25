@@ -38,3 +38,7 @@ Release intake: listing id `bifocal` (seed.json); Run URL source: this README.
 `storesFiles: true`: reviewed CSV and XLSX originals persist in D1 through the
 file import door (migrations/core/0016_file_import_kit.sql and
 migrations/core/0017_file_import_door.sql); this seed declares no R2 bucket.
+
+Try the fictional Cedar & Finch retail dataset with `rer dev --demo`, then open
+Library and its monthly-sales dashboard. See [DEMO.md](DEMO.md) for data provenance.
+The release app capture is `.github/assets/release/bifocal-retail-1440.png`.

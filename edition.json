@@ -23,7 +23,12 @@
           "src/site",
           "scripts/installer",
           "src/bifocal",
-          "src/demo.ts"
+          "src/demo.ts",
+          "src/demo/answers.ts",
+          "src/demo/data.ts",
+          "src/demo/door.ts",
+          "src/demo/session.d.mts",
+          "src/demo/session.mjs"
         ]
       }
     },

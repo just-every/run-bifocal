@@ -1,8 +1,17 @@
-import type { Bindings } from './auth.server'
+import { runtimeBindings, type Bindings } from './auth.server'
+import { retailDatasets } from './demo/data'
+import { demoSession } from './demo/session.mjs'
+import { demoDoor, importDemoDataset } from './demo/door'
+import { seedRetailAnswers } from './demo/answers'
 
-/** The visitor imports their own data; only the owner's first run is complete. */
-export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail: string; now: Date }) {
- const owner = await env.DB.prepare("SELECT id FROM oa_operators WHERE email=? AND role='owner' AND status='active'").bind(ownerEmail).first<{ id: string }>()
- if (!owner) throw new Error('Demo owner is missing')
- await env.DB.prepare('INSERT INTO oa_first_run(singleton, completed_by, completed_at) VALUES(1, ?, ?) ON CONFLICT DO NOTHING').bind(owner.id, now.getTime()).run()
+/** Authored fictional retail data, only in the demo wrapper's throwaway database. */
+export async function seedDemo(original: Bindings, { ownerEmail, now }: { ownerEmail: string; now: Date }) {
+ if (original.RER_DEMO !== '1') throw new Error('Demo data requires demo mode')
+ const env = runtimeBindings(original), session = await demoSession(env, ownerEmail)
+ try {
+  const call = demoDoor(env, session.cookie)
+  for (const dataset of retailDatasets) await importDemoDataset(call, dataset)
+  await seedRetailAnswers(call)
+  await env.DB.prepare('INSERT INTO oa_first_run(singleton, completed_by, completed_at) VALUES(1, ?, ?) ON CONFLICT DO NOTHING').bind(session.ownerId, now.getTime()).run()
+ } finally { await session.close() }
 }

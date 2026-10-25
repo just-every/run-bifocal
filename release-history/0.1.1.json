@@ -1,0 +1,8 @@
+{
+  "version": "0.1.1",
+  "publicReleaseNotes": "Record the Bifocal listing identity, public Run page and persisted-file storage flag for release intake. The application and its pinned rer version are unchanged.",
+  "migrations": [],
+  "breaking": false,
+  "agentUpdateInstructions": "Use the pinned rer 0.2.80 package and the documented installation commands. Preserve the existing project identity and migration history.",
+  "previousVersion": "0.1.0"
+}

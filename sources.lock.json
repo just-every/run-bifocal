@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "parent": null,
   "edition": "just-every/bifocal",
-  "manifest": "2c6d8a71d03ebc7b93d856b1ff919d1a92a8633a61729620fbad3c2706a90c36",
+  "manifest": "026ce434bc2d19c266fecc65baadc529c4e3983e06c4c43fce398232e5b77f5e",
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
@@ -24,7 +24,12 @@
           "src/site",
           "scripts/installer",
           "src/bifocal",
-          "src/demo.ts"
+          "src/demo.ts",
+          "src/demo/answers.ts",
+          "src/demo/data.ts",
+          "src/demo/door.ts",
+          "src/demo/session.d.mts",
+          "src/demo/session.mjs"
         ]
       },
       "baseline": null
@@ -299,6 +304,10 @@
     }
   ],
   "files": {
+    ".github/assets/release/bifocal-retail-1440.png": {
+      "sha256": "1d850bb8d3bf699508c99d57c7ac51d938b679625c5e006f3c36ea8d1d9ceee8",
+      "executable": false
+    },
     ".github/workflows/rer-managed.yml": {
       "sha256": "aa2861c9983f2ab90dadcc6f455b0b5c3e1bbeae0b9d9fec9bd27e9de591cb9a",
       "executable": false
@@ -332,7 +341,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "58ea01a2a306832c862eebeffbc012246eb2b85dd03deab922836dce21e769a0",
+      "sha256": "469124d48eaafc2262f879f3685d5f2050c2b1958ab2a09d39a85bce5846249c",
       "executable": false
     },
     "base-copies.json": {
@@ -345,6 +354,10 @@
     },
     "CONTRACT.md": {
       "sha256": "7975a2d9bd60bd222710c0b629ad415fa3f4eb9667af00ca28b6cd4f19034567",
+      "executable": false
+    },
+    "DEMO.md": {
+      "sha256": "4b1194b6b1c4825cd4fa88238c8a462648111c63dd2f82f3ddf1d327e07b4a61",
       "executable": false
     },
     "deploy-demo.json": {
@@ -428,7 +441,7 @@
       "executable": false
     },
     "edition.json": {
-      "sha256": "2c6d8a71d03ebc7b93d856b1ff919d1a92a8633a61729620fbad3c2706a90c36",
+      "sha256": "026ce434bc2d19c266fecc65baadc529c4e3983e06c4c43fce398232e5b77f5e",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -616,7 +629,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "ff1000e15f33395e0e6db91938cf8595073520a6c6a11163a16de9358d50312d",
+      "sha256": "ca07e8094c9096446928224ac76fd0073e3f0116ccc24eb776c7f0218304d717",
       "executable": false
     },
     "packaging.json": {
@@ -816,15 +829,19 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "36e00d75ebf03d528ea227bbdd7c2400db5fe75ac267d3bb2601d6af81e77e43",
+      "sha256": "7d79104e630f11dd2ff2f29af31778a082758d76b5e1ab32f1141c0242df3fe7",
       "executable": false
     },
     "release-history/0.1.0.json": {
       "sha256": "e104b1a5fd2314f89ddf5547751be82787c35e302ad3c1c700865e9623a14e70",
       "executable": false
     },
-    "RELEASE.json": {
+    "release-history/0.1.1.json": {
       "sha256": "bada0a1abc47acfefedecb528cc4e682bc23f299967a04f9ad1ed69815e4c9aa",
+      "executable": false
+    },
+    "RELEASE.json": {
+      "sha256": "3fc3af0bbaf48c5bab9acd646f6afdc4b8a1b4254fa2e45efe9f4e3bb0261bde",
       "executable": false
     },
     "rer-project.json": {
@@ -1056,7 +1073,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "1ec5558e698ab2b2f71ce77ef468f24b81d34d6a401aa84bb9e9d7308d7daca9",
+      "sha256": "5d3438dcc00197187406695e175e69a1ef00c5f0a89d12e524db6729b22466dd",
       "executable": false
     },
     "src/app/docs.ts": {
@@ -1836,7 +1853,27 @@
       "executable": false
     },
     "src/demo.ts": {
-      "sha256": "5c534df9033d367bb28ab5672186e8450fd2d8dc01cca4506754ab5d2280b9ce",
+      "sha256": "d35d3d88a1a2242f0e4aa535bfca715bd5597befc5ae8a320043aec83e5d22c2",
+      "executable": false
+    },
+    "src/demo/answers.ts": {
+      "sha256": "6a082c18ad536f3f88190d6c28453df27f04ce02827cdd60bf97d4904be9627c",
+      "executable": false
+    },
+    "src/demo/data.ts": {
+      "sha256": "a5a95d1e81805339d929d6e291975b9ba7284c7da25ad637eba95da0fd50a577",
+      "executable": false
+    },
+    "src/demo/door.ts": {
+      "sha256": "ea5f1f79237821c4e012f7fa408c612bab8c1506dd41632aed7c9c3f88172aa5",
+      "executable": false
+    },
+    "src/demo/session.d.mts": {
+      "sha256": "69b81665dd3bc837ae1034aba1a509e157b8bf9fa11d461cff8f6b2d518ddbb6",
+      "executable": false
+    },
+    "src/demo/session.mjs": {
+      "sha256": "27534d1a49aa6580493337a2cf5047f4c07c21783bd224ca09b3125bdf4971d3",
       "executable": false
     },
     "src/dev-personas.ts": {
@@ -3808,7 +3845,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "87b37493d3ec5d07117bfb34b74539095d4bb069ce912e392258d96c608f8d02",
+      "sha256": "d4d1f579afc37fc0accdf33f33ab83395eb978c352fc0040467c166fc457d5c8",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
