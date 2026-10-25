@@ -84,6 +84,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  assert.equal(answer.answer.totals.revenue.value,'69.06');assert.equal(answer.definition.fiscal.asOf,'2026-08-15');assert.equal(answer.context.calendar.id,'synthetic-bifocal-july')
  await proveModelLifecycle({origin,context,page,definition,proveScreen,upload})
  await proveDashboardTv({origin,context,page,call,upload,proveScreen})
+ await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor()
  const report=await call('/reports',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(report.answer,answer.answer)
  const dashboard=await call('/dashboards',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(dashboard.answer,answer.answer)
  assert.equal((await call('/dashboards/'+dashboard.id+'/refresh',{maxAgeSeconds:31536000},200)).cards[0].status,'fresh')
