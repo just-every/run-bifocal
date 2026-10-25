@@ -162,3 +162,34 @@ security grants, delivery or certification are implemented by these APIs.
 `/app/queries` runs a definition against real imported datasets and saved native calendars/rates. It renders exact grouped values and recomputed totals, exposes source/security/convention context and permits explicit saved tabular dashboard/report results. `/app/queries/<snapshotId>`, `/app/dashboards/<id>` and `/app/reports/<id>` show that same immutable answer; they never silently rerun live data. Reproduce explicitly recalculates retained input bytes. Source erasure withdraws these reads. The browser shares the approved desk app layout with the file workflow; no homepage or global theme is replaced.
 
 The model and metric labels are paired with server-derived content revisions of the exact typed model/grain/join definition and measure definitions. These revisions, the full query and actual native convention versions are frozen together, not caller-supplied version labels alone. Later BIF-006/007/019/032/035 extend authoring, certification and grants on these same query/snapshot doors; current authority inherits BIF-003/057's ruled owner-only floor and never exposes a saved result to a new owner identity.
+
+
+## Dashboard reader filters and personal bookmarks
+
+Open a retained dashboard's **Open dashboard TV** link. **Filter dimension**
+contains only grouped dimensions shared by every tile. Enter an exact equality
+value and choose **Apply filter**, or expand **Cross-filter from this tile** and
+choose a displayed dimension value. Choices intersect each tile's retained
+filters; contradictory choices produce an empty tile, never broader source
+access. Up to eight distinct reader dimensions are supported. **Clear filters**
+restores the retained definitions. Automatic refresh keeps the active choices.
+Changing choices clears last-good values from the previous selection.
+
+**Prepare current exports** retains the exact displayed filtered answer, checked
+against its definition fingerprint and source watermarks. Changing sources or
+filter context refuses a mismatched export before saving. Summary and underlying
+CSV and typed XLSX use that same retained answer.
+
+Expand **Personal bookmarks** to name and save the current filter choices.
+Saving an existing name creates a new immutable revision and refuses a stale
+concurrent edit. Select a saved bookmark and an exact revision, then choose
+**Open bookmark revision**. Historical choices remain available. Each dashboard
+supports twenty names and one hundred revisions per name. Reload the page to
+inspect a concurrent revision before saving again.
+
+These controls require the current installation owner. Bookmarks never grant
+source access, alter publication pointers or silently change a shared default;
+a newly opened dashboard starts from its retained definitions. Withdrawing its
+source custody withdraws bookmark reads and removes bookmark copies with the
+dashboard. Authored published-reader and delegated-viewer interactions remain
+unfinished, as do shared bookmarks and the other open BIF-012 interactions.

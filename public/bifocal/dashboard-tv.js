@@ -66,10 +66,10 @@ function renderTile(tile){
   section.append(watermarks,currentExports(tile,data))
   if(['fresh','stale'].includes(tile.status)){
    const controls=element('details'),summary=element('summary','Cross-filter from this tile');controls.append(summary)
-   const dimensions=commonDimensions()
+   const dimensions=commonDimensions(),choices=new Set()
    for(const row of data.answer.rows)for(let index=0;index<data.definition.groupBy.length;index++){
     const column=data.definition.groupBy[index],value=row.dimensions[index]
-    if(!dimensions.includes(column))continue
+    const choice=JSON.stringify([column,value]);if(!dimensions.includes(column)||choices.has(choice))continue;choices.add(choice)
     const button=element('button','Filter '+label(column)+' to '+String(value??'empty'));button.type='button'
     button.onclick=()=>applyFilters([...activeFilters.filter(filter=>filter.column!==column),{column,op:'eq',value}]);controls.append(button)
    }
@@ -87,7 +87,7 @@ function filterControls(){
  const select=$('tv-filter-column'),previous=select.value
  select.replaceChildren(...commonDimensions().map(column=>{const option=element('option',label(column));option.value=column;return option}))
  if([...select.options].some(option=>option.value===previous))select.value=previous
- $('tv-filter-apply').disabled=!select.options.length
+ $('tv-filter-apply').disabled=busy||!select.options.length;$('tv-filter-clear').disabled=busy;$('tv-bookmark-save').disabled=busy;$('tv-bookmark-open').disabled=busy||!bookmarks.length
  $('tv-filter-state').textContent=activeFilters.length?'Reader filters: '+activeFilters.map(filter=>label(filter.column)+' = '+String(filter.value??'empty')).join('; ')+'. Saved tile restrictions remain in force.':'No reader filters. Saved tile restrictions remain in force.'
 }
 function applyFilters(filters){
@@ -151,7 +151,7 @@ async function refresh(){
   const counts=result.cards.reduce((all,card)=>(all[card.status]=(all[card.status]??0)+1,all),{})
   message('Dashboard refreshed: '+Object.entries(counts).map(([state,count])=>count+' '+state).join(', ')+'.',!!counts.failed)
  }catch(error){failedTiles(error.name==='AbortError'?'Refresh timed out':error.message);message('Dashboard refresh failed. Any retained last-good values are dated and marked failed.',true)}
- finally{clearTimeout(timeout);requestController=null;busy=false;$('tv-refresh').disabled=false;timerState();schedule()}
+ finally{clearTimeout(timeout);requestController=null;busy=false;$('tv-refresh').disabled=false;filterControls();timerState();schedule()}
 }
 async function bookmarkRequest(path='',data){
  const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/bookmarks'+path,{method:data?'POST':'GET',redirect:'error',headers:{'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})})
@@ -162,7 +162,7 @@ async function loadBookmarks(){
  const generation=authorityGeneration,result=await bookmarkRequest();if(generation!==authorityGeneration)return;const selected=$('tv-bookmarks').value;bookmarks=result.bookmarks
  $('tv-bookmarks').replaceChildren(...bookmarks.map(bookmark=>{const option=element('option',bookmark.name+' · revision '+bookmark.revision);option.value=bookmark.name;return option}))
  if(bookmarks.some(bookmark=>bookmark.name===selected))$('tv-bookmarks').value=selected
- $('tv-bookmark-open').disabled=!bookmarks.length
+ $('tv-bookmark-open').disabled=busy||!bookmarks.length
 }
 $('tv-bookmarks').onchange=()=>{const bookmark=bookmarks.find(bookmark=>bookmark.name===$('tv-bookmarks').value);if(bookmark){$('tv-bookmark-name').value=bookmark.name;$('tv-bookmark-revision').value=bookmark.revision}}
 $('tv-bookmark-save').onclick=async()=>{

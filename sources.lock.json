@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2836163583b9a6d90d140304150a0ba10edab606c1f01caee3debd0c289435f8",
+      "sha256": "72b1c0b5bda05b240b5d025f1d30045f349987a694d317d9f4e71e1f2c3c82ad",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "68ec3ffd135c196b7c2aaa05c00d7986af23916bd22316aced1035bd4cf86276",
+      "sha256": "30e596a9e2c676d62794d2dea336a660e593ca7820b70e76280e4540fd026feb",
       "executable": false
     },
     "DEMO.md": {
@@ -389,7 +389,7 @@
       "executable": false
     },
     "docs/EXACT-QUERIES.md": {
-      "sha256": "cb03003b4b35ebb7a36cc2139e65da79dbeb2497fb1316949f9fb5bec76cf5d6",
+      "sha256": "2b53d728ed4a94cfef6742d330c715a7de24bf834124739ed31a7297766b9bd9",
       "executable": false
     },
     "docs/EXPLORATION-ACCESS.md": {
@@ -660,6 +660,10 @@
       "sha256": "6b54124a7580934fb1afb2b693a128fac18637ad607839b03834f8e0db9b33af",
       "executable": false
     },
+    "migrations/core/0050_dashboard_bookmarks.sql": {
+      "sha256": "2f75bbc17883d53f2bd39d3a5247d494b94b4f31128e22afeedd06d453f2b86c",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -777,7 +781,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
-      "sha256": "85d8b19e3ce88187eaad027b5baa2a275b89d0b5da79416c529b4dcebdc553f6",
+      "sha256": "4c787755789c059a2e1fb667f109b538478e5fa88fa8eb6a7530b196cfd56197",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -1534,6 +1538,10 @@
     },
     "src/bifocal/dashboards/authoring.store.server.ts": {
       "sha256": "667ab4de11f1e397ee95b3fd933f8a3ef9890c804f527d45ab17a6fed0c58b2a",
+      "executable": false
+    },
+    "src/bifocal/dashboards/bookmarks.server.ts": {
+      "sha256": "6720b9813aa18f127cf9e0451928f98acbd8c9fb927e404924006d175b914bd2",
       "executable": false
     },
     "src/bifocal/dashboards/definitions.server.ts": {
