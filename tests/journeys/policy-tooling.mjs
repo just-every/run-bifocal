@@ -59,5 +59,5 @@ export async function provePolicyTooling({origin,context,page,call,upload,proveS
  await publish('/models/'+own.modelId+'/branches/'+next.branchId)
  await cli('policy-apply',['--plan-file',modelPlan.plan,'--approve',modelPlan.result.digest],false);assert.equal((await call('/policy-definitions/'+driftDocument.id)).document,null)
  assert.deepEqual((await call('/explore/access')).grants,accessBefore.grants)
- console.log('Inactive role policies: actual CLI and Terraform creation, import, edits and restoration, semantic history, concurrent/source and model drift refusal and no analytical activation passed at 1440 and 390')
+ console.log('Inactive role policies: actual CLI and Terraform creation, import, edits and restoration, semantic history, concurrent edits and source and model drift refusal and no analytical activation passed at 1440 and 390')
 }

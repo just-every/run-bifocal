@@ -78,5 +78,5 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const foreign=await context.request.post(origin+'/api/operator/environments/'+document.id+'/approve',{headers:{Origin:'https://foreign.example.test'},data:{version:1,digest:rollback.digest}});assert.equal(foreign.status(),401)
  const erased=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:erased.revision})
  assert.equal((await call('/environment-definitions/'+document.id)).document,null);assert.equal((await call('/policy-definitions/'+policy.id)).document,null);assert.equal((await context.request.get(origin+'/api/operator/charts/'+chart.id)).status(),404)
- console.log('Environment estates: actual CLI and Terraform imports, semantic review, authorized development preview, staging-first atomic promotion, stale edits and source refusal, coherent native model/metric rollback and inactive policies passed')
+ console.log('Environment estates: actual CLI and Terraform imports, semantic review, authorized development preview, staging-first atomic promotion, stale edits and source refusal, coherent native model and metric rollback and inactive policies passed')
 }

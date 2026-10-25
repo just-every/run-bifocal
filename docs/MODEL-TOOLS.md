@@ -1,10 +1,11 @@
 # Native model tools
 
-Bifocal's current native tools manage owner-only model drafts. They also create
-and export tabular dashboards and reports with one to four answers, and manage
-finite civil-time schedule definitions. This is partial BIF-022 support:
-full resource serialization and environment
-configuration and all downstream application parity remain unfinished.
+Bifocal's native tools manage owner-only model and metric drafts, inactive role
+policy definitions, retained charts, dashboards and reports with one to four
+answers, finite schedule definitions and environment estates. Exact review,
+approval, promotion and rollback cover these supported native resources.
+Subscription dispatch under Base BIF-058 and full report applications remain
+unfinished; this is bounded BIF-022 support.
 
 Use the current owner's native session, obtained through supported sign-in on
 this installation. Put its Cookie header in a file owned by your account with
@@ -131,16 +132,18 @@ any answer or dashboard. Destroy releases Terraform tracking after a current
 authority check and explicitly reports that the dashboard is retained. Erasure
 and retention remain installation-owner actions. No automatic deletion is added.
 
-Terraform manages model drafts, retained dashboard and report snapshots and finite schedule definitions. Publication and rollback remain separate exact
-human CLI actions. Destruction removes only the draft branch pointer; immutable
-revision and approval history remain. A branch currently published to staging
-or production cannot be destroyed. A changed draft version also refuses an old
-destroy plan.
+Terraform manages native draft definitions and retained artifacts. Publication
+and rollback remain separate exact human CLI actions. Destroying a model branch
+removes only its draft pointer; immutable revision and approval history remain.
+A branch published to staging or production cannot be destroyed, and a changed
+branch version refuses an old destroy plan. Other supported resource destruction
+releases Terraform tracking while retaining native history.
 
 CI compiles this provider and runs real Terraform commands against the emitted
 Worker in the existing semantic-model journey. `node scripts/prepare-model-tools.mjs`
 prepares checksum-verified Terraform 1.13.4 and the provider in the ignored local
-cache on Linux amd64; other hosts can use their supported Terraform binary.
+cache on Linux and macOS with x64 or arm64 processors. Other hosts can use their
+supported Terraform binary.
 
 ## Schedule definitions
 
@@ -150,13 +153,23 @@ cache on Linux amd64; other hosts can use their supported Terraform binary.
 [civil-time semantics](./US-CONVENTIONS.md). Resolved instants, author identity,
 installation authority and provider credentials are excluded from this file.
 
-Version 2 documents describe recurring schedules with an explicit finite bound
-and model environment binding. When the native schedule contains its normalized
-portable `document`, both CLI export and Terraform refresh preserve that object
-as version 2. The same plan and apply commands review and save it as immutable
-native versions. Exports contain no credentials or portable source grants.
-Saving a recurring definition activates no delivery and connects no dispatcher;
-reviewed environment bindings confer no installation or source authority.
+Version 2 uses `{version: 2, id, definition}`. Its definition replaces
+`localDate` with inclusive `startDate` and `endDate`, plus `recurrence` and
+`target`. Daily intervals, weekly intervals with explicit weekdays, and monthly
+intervals with a day and a missing-day policy of `skip` or `last-day` are
+supported. The range must fit within one year, with at most 400 declared
+occurrences and 400 resolved instants. Existing skipped-time and repeated-time
+policies apply to every occurrence.
+
+The target names `modelId`, `viewId` and `environment`; development also requires
+`branchId`. Review binds the current model revision, source watermarks and
+conventions, and displays exact preview values, occurrence resolution and the
+semantic difference. Changed bindings or sources invalidate the review.
+CLI export and Terraform refresh retain the normalized portable version 2
+document while excluding local binding metadata, credentials and source grants.
+Open `/app/schedules/ID` for the inactive definition, resolved occurrences,
+binding and immutable version history. Saving a recurring definition activates
+no delivery and connects no dispatcher.
 
 `schedule-plan --file schedule.native.json --plan-file schedule.plan.json`
 reviews the exact definition, current version and native owner. It prints DST
@@ -175,8 +188,9 @@ refuses a concurrent native change atomically. Keep configuration aligned with
 the current reviewed definition before releasing its Terraform tracking.
 Destroy releases tracking while retaining all immutable history; it does not
 cancel, activate or execute a subscription. No schedule dispatcher is connected.
-Subscription delivery, environment source bindings and atomic estate promotion
-remain unfinished under BIF-022; execution belongs to BIF-015 and BIF-058.
+Environment estates can promote supported resource references atomically as
+described below. Subscription execution and delivery remain unfinished under
+BIF-015 and Base BIF-058; a retained schedule definition cannot send a report.
 
 Exploration grants remain installation-local. Model production changes and
 source revision or content changes permanently retire affected activations,
@@ -273,7 +287,7 @@ drift. A saved plan with changed source inputs refuses before creating a chart
 or answer. Updating only `review_digest` creates no artifact. Destroy rechecks
 current owner authority and releases tracking with a warning that the chart
 and immutable answer remain retained. These tools support native bar charts;
-other visual kinds and complete environment promotion remain unfinished.
+other visual kinds and full BI application parity remain unfinished.
 
 ## Inactive role policy definitions
 
@@ -308,9 +322,9 @@ submit the prior revision and fingerprint; stale plans refuse atomically.
 Changing only `review_digest` creates no revision. Destroy rechecks current
 owner authority and releases tracking with a retained-history warning. All
 policy revisions remain retained and inactive. Complete role configuration,
-member binding, source-grant transfer and environment promotion remain
-unfinished under BIF-022; these tools confer no grant activation authority.
-
+member binding and source-grant transfer remain unfinished. An environment
+estate can reference an exact inactive policy revision; promotion grants no
+access and these tools confer no grant activation authority.
 
 ## Dashboard and report answer collections
 
@@ -391,3 +405,22 @@ selecting a model view. Every command also requires the common origin and
 private session file. These tools implement a bounded native estate workflow;
 full BI resource parity, portable source authority and subscription dispatch
 remain outside this support.
+
+
+## Source and exploration bounds
+
+Native resource definitions refer to admitted sources; they do not raise file
+or query limits. CSV intake permits up to 1 MiB of original and decoded text,
+200,000 data rows and 1,900,000 bytes of normalized table JSON, with all bounds
+applying together. XLSX originals retain their separate 512 KiB compressed and
+ZIP expansion bounds. See [file import](./FILE-IMPORT.md).
+
+The owner configures interactive CSV and XLSX row caps at
+`/app/settings/export`, up to 30,000 and 150,000 rows respectively. Saved
+questions support stable pivots and explicit complete exports in named parts
+above those caps, with current authority and caps checked on every part.
+Owner-only subject compositions preserve separate row rules and provenance;
+their downloads currently refuse above the interactive cap. Definition exports
+from the CLI contain no result rows and do not grant either download scope.
+These exploration capabilities do not activate schedule dispatch or complete
+the full report application.

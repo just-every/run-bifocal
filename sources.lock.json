@@ -397,7 +397,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "b91719c5f679c5e37797374097633e989a91a9d209e6ba4f11730b51eb7fedd1",
+      "sha256": "3d9721de092117744aafe0f79db0e3d584bec46922f8a7dfdda44ffb96cfe171",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -409,7 +409,7 @@
       "executable": false
     },
     "docs/MODEL-TOOLS.md": {
-      "sha256": "9929bb8f17ea5bd2277dc1d86629cf748910b5694841ae00288675f106d6041a",
+      "sha256": "df85816557c0322b71a1fe4da47e2f0b5329e60dd1c040db0425ff99c82ffa9e",
       "executable": false
     },
     "docs/people.md": {
@@ -757,7 +757,7 @@
       "executable": false
     },
     "public/bifocal/composition.js": {
-      "sha256": "9289f55c2a195edde94d226869d5b44f03c3ad42267b472653d74ba446303b53",
+      "sha256": "f236e670313fe70ed616d6b0d46fb56e92509093491e4931db200467ce433bea",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -1525,7 +1525,7 @@
       "executable": false
     },
     "src/bifocal/environments/resources.server.ts": {
-      "sha256": "a425ecc87a31a4dcde3f20779b242ba5a01d04a3c491723b6e3b46cafaf9e970",
+      "sha256": "7351cc6155022d7327243a263bdf2de362b726cf6b345aff8e49caf592f0f82a",
       "executable": false
     },
     "src/bifocal/environments/run.server.ts": {
@@ -1545,7 +1545,7 @@
       "executable": false
     },
     "src/bifocal/explore/composition-form.ts": {
-      "sha256": "edcd7e51640ea3c3738da0ac7e835596fefde1f52e6551b24138b43969343de1",
+      "sha256": "ba26cb3822859093b9296829fd0a7785c5451002df7729d08ca87120ffb4ddd8",
       "executable": false
     },
     "src/bifocal/explore/composition/execute.ts": {
@@ -1553,7 +1553,7 @@
       "executable": false
     },
     "src/bifocal/explore/composition/server.ts": {
-      "sha256": "b9bcdb357941974c292f4079cc8fca27195ff03eebfea366e00d497bb46806e6",
+      "sha256": "6e569c17040096fbc76b028874bb1992e37ce291595c40167035020ae1cd16bc",
       "executable": false
     },
     "src/bifocal/explore/composition/store.server.ts": {
@@ -1565,7 +1565,7 @@
       "executable": false
     },
     "src/bifocal/explore/export-policy.server.ts": {
-      "sha256": "1dc1716718e91991865ae12cb5af4b3a1fac59ad0525281deeffe2e076ab56c5",
+      "sha256": "5182fcd429b709f408ab617f635999870e3626fd6311e0deac08e3cd1806d7d1",
       "executable": false
     },
     "src/bifocal/explore/full-export.ts": {
@@ -1577,7 +1577,7 @@
       "executable": false
     },
     "src/bifocal/explore/pivot.ts": {
-      "sha256": "dc92650e16437c55de21f958fc33ad3433a76d55f2f89ea7836fe529c2647f32",
+      "sha256": "e6509e7e0681702f005277744cd764135c019543e22e6b2c51cefdd0bbe4866e",
       "executable": false
     },
     "src/bifocal/explore/server.ts": {
@@ -4101,7 +4101,7 @@
       "executable": false
     },
     "tests/journeys/composition-tooling.mjs": {
-      "sha256": "21f41a77bd46816bbe4868dec3c8d4ed4089472526fd3f00bd160fe12ec8562a",
+      "sha256": "703c94d3566358c2f76e50e419782c68cdae48d55f54527320a6fe92cf5124dd",
       "executable": false
     },
     "tests/journeys/content-browser.mjs": {
@@ -4121,7 +4121,7 @@
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
-      "sha256": "dc8f6c1a2ad583fc08d7225813102545d051925565db1313b58e99032b125d95",
+      "sha256": "1da281aca66e0382e8aa990e4217c717af52ac6a1ad689b41fcc9adbb793aead",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {
@@ -4133,7 +4133,7 @@
       "executable": false
     },
     "tests/journeys/export-policy.mjs": {
-      "sha256": "12985f8168ee3d39aaf8e4658263c1d507d3d206a1e6dd69223d016b8f42678b",
+      "sha256": "7e44b9330a1e9b06422c4ed55250059cfdd7568f643430e9bd25366675711dcb",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
@@ -4145,7 +4145,7 @@
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {
-      "sha256": "383b368ae21dabc7d6df0b83042f4ba150bfcdf75ef2c700d02cacf7e9008f92",
+      "sha256": "ef09329dcd08e22c46213f16a2727906defcf0d4910a9848232048279d61315e",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
@@ -4165,7 +4165,7 @@
       "executable": false
     },
     "tests/journeys/policy-tooling.mjs": {
-      "sha256": "5cf2b9e62e27d9f9a01b27d4c57db35b8a604d34d9b3fd945f2ba2c4bdd57835",
+      "sha256": "683a161847dcc07f0b08c699a2477c9daf06401319b2fd57b7a43450cfa0ddfe",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {

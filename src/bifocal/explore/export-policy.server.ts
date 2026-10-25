@@ -16,7 +16,7 @@ export const exportPolicyGuard=(policy:ExportPolicy)=>policy.revision===0
  ?sql('NOT EXISTS(SELECT 1 FROM bf_explore_export_policy WHERE singleton=1)')
  :sql('EXISTS(SELECT 1 FROM bf_explore_export_policy WHERE singleton=1 AND revision=? AND csv=? AND xlsx=?)',policy.revision,policy.csv,policy.xlsx)
 
-/** Called inside exploration's existing native session/origin admission. */
+/** Called inside exploration's existing native session and origin admission. */
 export async function exportPolicyResponse(request:Request,env:Bindings,actor:Authority,path:string):Promise<Response|null> {
  if(path!=='/api/operator/explore/export-policy')return null
  if(actor.role!=='owner')fail('owner_required',403)

@@ -71,5 +71,5 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
   const current=await setting();await setting({previousRevision:current.revision,csv:original.csv,xlsx:original.xlsx})
   await call('/explore/access/'+summaryGrant.id+'/revoke',{});await call('/explore/access/'+underlyingGrant.id+'/revoke',{})
  }
- console.log('Interactive export policy: owner autosave, stale/failure input retention, invited-member denial, effective catalog caps, complete-or-refused files and independent download permissions passed at 1440 and 390')
+ console.log('Interactive export policy: owner autosave, stale and failed input retention, invited-member denial, effective catalog caps, complete-or-refused files and independent download permissions passed at 1440 and 390')
 }

@@ -50,7 +50,7 @@ export function pivotTable(snapshot:Snapshot,pivot:string) {
   return 0
  })
  // Rows are materialized on access, so paging a sparse domain never allocates
- // its entire Cartesian grid. Array slice/map still give the common page and
+ // its entire Cartesian grid. Array slice and map still give the common page and
  // export paths the same typed matrix, with stable complete headers.
  const rows:Cell[][]=new Array(ordered.length)
  ordered.forEach((group,index)=>Object.defineProperty(rows,index,{enumerable:true,configurable:false,get:()=>[...group.dimensions,...domain.flatMap(value=>{

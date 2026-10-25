@@ -69,7 +69,7 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
    guards.push(...checked.guards,...rollback?[]:[branchGuard(branch)],sql('EXISTS(SELECT 1 FROM bf_semantic_revisions WHERE id=? AND model_id=? AND definition_json=?)',ref.revisionId,model.id,retained.definition_json))
    models.push({model,branch,review:checked.review})
    add(ref,definition,{revision:ref.revisionId,production:model.production,generation:model.generation,reviewDigest:checked.review.digest})
-   // Validation includes old/new numerical answers; only safe context hashes and
+   // Validation includes old and new numerical answers; only safe context hashes and
    // watermarks become estate fingerprints, never those answer rows.
    for(const view of definition.views)await inspectQuery(ref.key+'.candidate.'+view.id,scopedQuery(view,ref.revisionId))
    if(model.production)for(const view of (await readDefinition(env,model.production)).views)await inspectQuery(ref.key+'.production.'+view.id,scopedQuery(view,model.production))

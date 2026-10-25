@@ -71,11 +71,15 @@ without execution. Import each wanted sheet through its own reviewed plan. Data 
 HTML/script document. BIF-043/057/073/081 and future query/notebook/embed/export
 implementations inherit the same untrusted-data boundary.
 
-Bounds are explicit admission limits: 512 KiB CSV text, 1 MiB envelope, 2,000 data
-rows, 64 columns, 4,096 characters per cell, and 768 KiB final table. The whole
-result is one atomic native effect. Interrupted uploads and failed validation
-leave the last committed dataset intact. These are not a large-file scale claim;
-large production ingestion, real Excel-saved workbook/client and live-grant qualification remain open.
+Admission limits apply together: 1 MiB of original CSV bytes and decoded text,
+an 8 MiB JSON envelope, 200,000 data rows, 64 columns, 4,096 characters per cell,
+and 1,900,000 bytes of normalized final table JSON. The row allowance does not
+override the byte or cell limits; a wide table can reach them much earlier.
+Append and keyed updates must fit the complete resulting table within those
+same limits. The whole result remains one atomic native effect. Interrupted
+uploads and failed validation leave the last committed dataset intact.
+Production large-file qualification, broader Excel client qualification and
+live-grant qualification remain open.
 
 GET `/api/operator/datasets/<id>` returns the current revision, typed table,
 original filename/digest, interpretation and update time. GET
@@ -109,10 +113,10 @@ outbound action. Retention rules remain open under BIF-034/057. Source bytes and
 import custody are included in installer archives; sessions and dependency
 secrets remain excluded.
 
-Full live Google Sheets/Excel Online grant qualification and durable OAuth refresh custody, production large-file qualification, broader workbook/client qualification, isolated
-SQL/Python/extensions and all
-other BI workflows remain unfinished. No provider sandbox or cross-platform
-qualification is claimed by the CSV journey.
+Full live Google Sheets and Excel Online grant qualification, durable OAuth
+refresh custody, production large-file qualification, broader workbook client
+qualification and isolated SQL, Python and extension execution remain unfinished.
+The CSV workflow establishes no provider sandbox or cross-platform qualification.
 
 ## XLSX sheets and formulas
 
@@ -139,8 +143,8 @@ structure, documented by [Microsoft Open XML](https://learn.microsoft.com/en-us/
 It establishes synthetic file-format proof, not qualification in a live Excel host.
 
 Workbook admission is bounded to 512 KiB compressed, 128 ZIP entries, 1 MiB per
-expanded part, 4 MiB expanded total, 50,000 XML markup boundaries, 64 XML nesting
-levels and 32 named sheets. The ordinary row/column/cell/final-table bounds also
+expanded part, 4 MiB expanded total, 100,000 XML nodes, 50,000 XML markup
+boundaries, 64 XML nesting levels and 32 named sheets. The ordinary row/column/cell/final-table bounds also
 apply. Central/local offsets, paths, names, sizes, CRC32 and nonoverlap are checked;
 ZIP64/encryption and unsafe/duplicate paths are refused before use. DTDs and
 entity declarations, external relationships, VBA/macros, active controls and
@@ -155,3 +159,39 @@ that is an explicit limitation and does not close large-file acceptance.
 The browser downloads original CSV/XLSX bytes under the original filename; a live range downloads its derived JSON snapshot with formulas and lineage. Erasure clears the page preview and selected file buffer as well as withdrawing native custody.
 
 Native exact queries retain source rows in immutable snapshots. Explicit dataset erasure also withdraws dependent query snapshots and saved tabular dashboard/report results in the same retirement transaction, including after Undo leaves no published table. Undo unpublishes data while retaining historical owner-held answers until explicit erasure. The erasure receipt includes those affected native stores and counts. Archive inventory includes convention versions, error reviews and query custody; transient guards, sessions and provider tokens are excluded.
+
+
+## Questions, pivots and complete exports
+
+Imported tables remain subject to their admission limits when used by native
+queries and published semantic views. `/app/questions` saves governed questions
+with explicit parameters and immutable model revisions. The selected summary
+or separately permitted underlying scope applies to every page and download;
+additional filters never remove model row rules.
+
+A pivot rotates the final grouped dimension into columns across the complete
+saved result. Paging preserves the same column domain. Missing intersections
+remain null, and native measure totals, units and currency are retained rather
+than recomputed by adding displayed cells. Incomplete or suppressed summaries
+cannot be exported.
+
+The owner sets interactive export limits at `/app/settings/export`: at most
+30,000 CSV rows and 150,000 XLSX rows, with either cap lowerable to one row.
+Changing a cap grants no access. Saved questions above the current cap offer an
+explicit complete-export plan and named parts instead of a truncated file.
+Each part contains at most the lower of that format's cap and 10,000 rows. The
+plan fixes the saved question, scope, layout, total row count and policy revision.
+Each part rechecks current authority, source and model state, grant scope and
+export caps; a changed plan or revoked access refuses further downloads.
+Original-source and normalized-table bounds still apply. Downloads already
+saved to a device remain outside native erasure and revocation controls.
+
+The owner can also combine two permitted published subjects at
+`/app/questions`: join unique summarized keys with left, inner or full matching,
+or append compatible subjects. Each subject keeps its own row rules and
+provenance. Typed keys and conventions must agree; incompatible append schemas
+are refused. Matching and excluded counts remain visible, totals are computed
+for the selected scope, and underlying rows retain their subject identity.
+This does not multiply raw facts or establish a shared snapshot or certification.
+Combined downloads currently require the complete selected result to fit the
+interactive cap; larger combined exports are explicitly unavailable.
