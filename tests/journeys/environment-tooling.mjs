@@ -51,6 +51,9 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const concurrent=await cli('environment-apply',['--plan-file',edit.path,'--approve',edit.review.digest]);assert.equal(concurrent.revision,2)
  const stateBefore=await status(),modelBefore=await call('/models/'+model.modelId),metricBefore=await call('/metric-definitions/'+metric.id)
  await terraform(['apply','-input=false','-no-color','environment-stale.tfplan'],false);assert.deepEqual(await status(),stateBefore);assert.deepEqual(await call('/models/'+model.modelId),modelBefore);assert.deepEqual(await call('/metric-definitions/'+metric.id),metricBefore)
+ // The concurrent draft already has the desired resources. Give the fresh
+ // Terraform update a real document change instead of expecting a no-op to append.
+ document.name='Reviewed West reporting release'
  const current=await plan();await writeFile(tf,JSON.stringify(config(current.review.digest)));await terraform(['plan','-input=false','-no-color','-out=environment-current.tfplan']);await terraform(['apply','-input=false','-no-color','environment-current.tfplan']);assert.equal((await status()).revision,3)
  const review=await cli('environment-review',[...envFlags,'--version','3']);assert.ok(review.diff.some(d=>d.key==='sales-model'));assert.ok(review.diff.some(d=>d.key==='revenue'))
  await cli('environment-approve',[...envFlags,'--version','3','--digest',review.digest]);await cli('environment-promote',[...envFlags,'--version','3','--digest',review.digest,'--environment','staging'])

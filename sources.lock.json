@@ -4121,7 +4121,7 @@
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
-      "sha256": "1da281aca66e0382e8aa990e4217c717af52ac6a1ad689b41fcc9adbb793aead",
+      "sha256": "82ae8224213687ad7f20ce53b6d69f2f56b113199450e1ee224b4be83144b0ac",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {
