@@ -20,6 +20,10 @@ import { dashboardDefinitionResponse } from './bifocal/dashboards/definitions.se
 import { goalResponse } from './bifocal/goals/server'
 import { qualityResponse } from './bifocal/quality/server'
 import { metricResponse } from './bifocal/metrics/store.server'
+import { metricDefinitionResponse } from './bifocal/metrics/definitions.server'
+import { chartResponse } from './bifocal/charts/server'
+import { policyDefinitionResponse } from './bifocal/policies/server'
+import { policyDefinitionPage } from './bifocal/policies/page.server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
@@ -64,6 +68,14 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (goal) return goal
     const quality = await qualityResponse(request, env)
     if (quality) return quality
+    const policyPage = await policyDefinitionPage(request, env)
+    if (policyPage) return policyPage
+    const policy = await policyDefinitionResponse(request, env)
+    if (policy) return policy
+    const chart = await chartResponse(request, env)
+    if (chart) return chart
+    const metricDefinition = await metricDefinitionResponse(request, env)
+    if (metricDefinition) return metricDefinition
     const metrics = await metricResponse(request, env)
     if (metrics) return metrics
     const answer = await exactAnswerPage(request, env)

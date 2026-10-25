@@ -1,7 +1,8 @@
 # Native model tools
 
 Bifocal's current native tools manage owner-only model drafts. They also create
-and export single-answer tabular dashboards and reports, and manage one-time civil-time schedule definitions. This is partial BIF-022 support:
+and export tabular dashboards and reports with one to four answers, and manage
+one-time civil-time schedule definitions. This is partial BIF-022 support:
 full resource serialization and environment
 configuration and all downstream application parity remain unfinished.
 
@@ -61,11 +62,14 @@ model to staging and production together. Existing saved answers and dashboard
 snapshots keep their historical revision; they are not silently republished.
 
 `dashboard-export --id --output` writes `{version: 1, title, definition}` for a
-single-answer native dashboard. `dashboard-import --file --plan-file` reviews that definition under current
-owner authority. `dashboard-import --file --approve` requires the returned exact
-fingerprint and atomically creates the answer and a new pinned dashboard. It does not
-update an existing dashboard or import access grants. Multi-card dashboards,
-certified metric resources and schedules remain outside these commands.
+single-answer native dashboard, or `{version: 1, title, cards}` for a dashboard
+with two to four ordered answers. Each `cards` entry is a typed native query.
+`dashboard-import --file --plan-file` reviews that complete definition under
+current owner authority. `dashboard-import --file --approve` requires the exact
+returned fingerprint and atomically creates all answers and a new pinned
+dashboard. Existing dashboards remain retained. Exported files omit saved
+results, source guards and access grants. Metric certification and schedule
+activation remain separate actions.
 
 ## Terraform provider
 
@@ -179,9 +183,10 @@ reveals labels only for the recipient's currently validated exact grants.
 
 `report-export --id UUID --output report.native.json` and
 `report-import --file report.native.json --plan-file report.plan.json` use the
-same `{version: 1, title, definition}` format as single-answer dashboards.
+same document formats as dashboards: `{version: 1, title, definition}` for one
+answer or `{version: 1, title, cards}` for two to four ordered native queries.
 `report-import --file report.native.json --approve DIGEST` requires the exact
-current native review and atomically retains a new report and its answer.
+current native review and atomically retains a new report and all its answers.
 `bifocal_report_snapshot` supports the same Terraform fields and lifecycle as
 `bifocal_dashboard_snapshot`, including actual UUID import and source-bound
 creation. The resulting artifact opens on the native report page. Replacing a
@@ -189,3 +194,132 @@ definition creates a new retained artifact; releasing Terraform tracking keeps
 its immutable history. These tools do not import report-recipient grants,
 activate delivery, or implement paginated report layouts. No saved answer is
 silently updated after a model or source change.
+
+## Metric draft definitions
+
+`metric-export --metric ID --output metric.native.json` writes the latest draft
+as `{version: 1, id, definition}`. It contains the stable metric ID and the native
+scalar query definition, including source identifiers and explicit semantics.
+Source rows, review values, source credentials and installation authority are
+excluded. The exported draft may differ from the separately certified revision.
+
+`metric-plan --file metric.native.json --plan-file metric.plan.json` reads the
+current head revision and reviews the definition against authorized production
+data. A new ID uses a null previous revision. Review prints the before and after
+definitions, exact scalar values and revisions, with zero production sends and
+zero source writes. The private plan stores only the normalized definition,
+origin, previous revision and review fingerprint. Review its printed result;
+`metric-apply --plan-file metric.plan.json --approve DIGEST` requires that exact
+fingerprint and origin. Apply saves one new immutable draft revision. A stale
+head, changed source or replay refuses atomically. Earlier retained definitions
+can be reviewed against the current head and restored as new draft revisions.
+Certification remains a separate exact human action in the native metric page.
+
+`bifocal_metric_definition` accepts the normalized JSON as `document`, exposes
+the latest head as computed `revision`, and requires the exact CLI `metric-plan`
+fingerprint in `review_digest` for creation or a definition change. Keep the
+same stable ID when editing an existing resource. Import uses its actual ID:
+
+```sh
+terraform import bifocal_metric_definition.revenue METRIC_ID
+```
+
+Import needs no review fingerprint and reads the current native definition.
+Refresh exposes drift in the definition and revision. A saved Terraform plan
+submits its prior revision and exact fingerprint, so concurrent native edits
+and source changes refuse without saving a partial revision. Changing only
+`review_digest` saves no metric revision. Destroy checks current owner authority
+and releases Terraform tracking with a warning that immutable metric and
+certification history remains retained. It does not deprecate a metric or erase
+history. These commands provide metric draft management within partial BIF-022
+support; they do not promote a complete resource estate across environments.
+
+## Retained chart definitions
+
+`chart-export --id UUID --output chart.native.json` writes
+`{version: 1, title, definition, visual}` for a retained native chart. The
+`definition` is the typed native query. The `visual` object has `kind: "bar"`,
+a `dimension` naming one query grouping column, and a `measure` naming one
+query measure ID. Both the query and visual configuration remain in the
+exported file; answer rows, installation authority and source grants do not.
+
+`chart-import --file chart.native.json --plan-file chart.plan.json` reviews the
+query and visual under current owner authority, prints the exact answer and
+writes a private plan containing the normalized document, origin and review
+fingerprint. `chart-import --file chart.native.json --approve DIGEST` requires
+that exact current fingerprint and creates a new retained chart and answer.
+Source changes after review refuse atomically. Existing charts retain their
+historical definition and answer.
+
+`bifocal_chart_snapshot` accepts the same normalized JSON as `document`,
+requires `review_digest` from CLI chart review for creation, and exposes the
+retained answer as computed `query_id`. A changed query, title or visual
+configuration replaces the Terraform resource with a new immutable chart.
+Import uses its actual native UUID and requires no review fingerprint:
+
+```sh
+terraform import bifocal_chart_snapshot.revenue CHART_UUID
+```
+
+Refresh reads the actual retained query and visual configuration to expose
+drift. A saved plan with changed source inputs refuses before creating a chart
+or answer. Updating only `review_digest` creates no artifact. Destroy rechecks
+current owner authority and releases tracking with a warning that the chart
+and immutable answer remain retained. These tools support native bar charts;
+other visual kinds and complete environment promotion remain unfinished.
+
+## Inactive role policy definitions
+
+`policy-export --policy ID --output policy.native.json` writes a portable
+`{version: 1, id, name, modelId, viewId, filters, dimensions, underlying,
+summaryExport, underlyingExport, maxAgeSeconds}` document. It describes an
+inactive policy against a native model view. It contains no member IDs,
+source grants, result rows, installation authority or credentials.
+
+`policy-plan --file policy.native.json --plan-file policy.plan.json` reads the
+current head revision and reviews the exact document against the current
+model and source scope. New IDs use a null previous revision. Review shows
+before and after definitions with `active: false`, zero production sends and
+zero source writes. The private plan stores only the normalized document,
+origin, previous revision and exact review fingerprint.
+`policy-apply --plan-file policy.plan.json --approve DIGEST` saves one new
+immutable inactive revision only while that fingerprint and previous revision
+remain current. Concurrent edits and changed review inputs refuse atomically.
+No grant is activated and no recipient gains access by applying a definition.
+
+`bifocal_role_policy_definition` accepts the normalized `document`, exposes a
+computed head `revision` and requires CLI `policy-plan`'s exact `review_digest`
+for a definition mutation. The stable policy ID is immutable. Import uses its
+actual native ID and requires no review fingerprint:
+
+```sh
+terraform import bifocal_role_policy_definition.regional POLICY_ID
+```
+
+Refresh exposes drift in the actual document and head revision. Saved plans
+submit the prior revision and fingerprint; stale plans refuse atomically.
+Changing only `review_digest` creates no revision. Destroy rechecks current
+owner authority and releases tracking with a retained-history warning. All
+policy revisions remain retained and inactive. Complete role configuration,
+member binding, source-grant transfer and environment promotion remain
+unfinished under BIF-022; these tools confer no grant activation authority.
+
+
+## Dashboard and report answer collections
+
+Dashboard and report exports preserve the ordered query definitions for each
+card. Single-answer documents retain their `definition` field. Multi-answer
+documents use `cards`, an ordered array of two to four native queries, without
+saved snapshots, source guards, result rows or installation authority. Review
+prints the exact answer for each card and binds the complete ordered document
+to current authorized source inputs. Apply creates all answers and the retained
+board atomically; a changed source refuses the whole operation.
+
+`bifocal_dashboard_snapshot` and `bifocal_report_snapshot` accept both document
+forms, support actual UUID import, and refresh the complete retained definition.
+Computed `query_ids` lists answer IDs in card order, including a one-element list
+for single-answer artifacts. Computed `query_id` retains the existing single
+answer ID and is empty for multi-answer artifacts. Replacing either document
+form creates a new retained artifact; releasing tracking retains the board and
+all its answer history. Chart resources retain their separate single-answer
+shape and computed `query_id`.

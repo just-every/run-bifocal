@@ -5,8 +5,9 @@ import {resolve,join} from 'node:path'
 import {createHash} from 'node:crypto'
 import {unzipSync} from 'fflate'
 const directory=resolve('.cache/bifocal-tools');await mkdir(directory,{recursive:true})
-if(process.platform!=='linux'||process.arch!=='x64')throw Error('Automated Terraform tool preparation currently supports Linux amd64. See docs/MODEL-TOOLS.md for other hosts.')
-const version='1.13.4',name=`terraform_${version}_linux_amd64.zip`,base=`https://releases.hashicorp.com/terraform/${version}/`
+const targetPlatform=({linux:'linux',darwin:'darwin'})[process.platform],targetArch=({x64:'amd64',arm64:'arm64'})[process.arch]
+if(!targetPlatform||!targetArch)throw Error('Automated Terraform tool preparation supports Linux and macOS on x64 and arm64. See docs/MODEL-TOOLS.md for other hosts.')
+const version='1.13.4',name=`terraform_${version}_${targetPlatform}_${targetArch}.zip`,base=`https://releases.hashicorp.com/terraform/${version}/`
 const download=async name=>{const result=spawnSync('curl',['--fail','--silent','--show-error','--max-time','60',base+name],{maxBuffer:64<<20});if(result.error||result.status!==0)throw Error('Terraform download failed');return result.stdout}
 const sums=await download(`terraform_${version}_SHA256SUMS`),expected=sums.toString().split('\n').find(line=>line.endsWith('  '+name))?.split(' ')[0]
 const archive=await download(name)

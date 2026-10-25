@@ -21,7 +21,7 @@ export async function metric(env:Bindings,ownerId:string,id:string) {
 }
 export const revision=(env:Bindings,id:string,n:number)=>env.DB.prepare('SELECT * FROM bf_metric_revisions WHERE metric_id=? AND revision=?').bind(id,n).first<Revision>()
 export const metricGuard=(row:MetricRow)=>sql('EXISTS(SELECT 1 FROM bf_metrics WHERE id=? AND owner_id=? AND head_revision=? AND published_revision IS ? AND deprecated_at IS ?)',row.id,row.owner_id,row.head_revision,row.published_revision,row.deprecated_at)
-function definition(v:unknown):MetricDocument {
+export function metricDefinition(v:unknown):MetricDocument {
  if(typeof v==='string'){try{v=JSON.parse(v)}catch{fail('invalid_metric_definition',400)}}
  if(!object(v))fail('metric_definition_required',400)
  exact(v,['name','description','grain','unit','timezone','accountingBasis','query'])
@@ -61,13 +61,10 @@ async function handleMetricResponse(request:Request,original:Bindings):Promise<R
    const data=await input(request)
    if(!id||action==='propose') {
     exact(data,!id?['id','definition']:['previousRevision','definition'])
-    const key=id??ident(data.id),old=id?await metric(env,ownerId,id):null
-    if(old?.deprecated_at)fail('metric_deprecated',409)
-    if(old&&Number(data.previousRevision)!==old.head_revision)fail('stale_metric_revision',409)
-    const doc=definition(data.definition),n=(old?.head_revision??0)+1,encoded=canonicalJson(doc),digest=sha256(encoded),now=new Date().toISOString()
-    const evaluation=await metricValue(env,ownerId,{id:key,owner_id:ownerId,head_revision:n,published_revision:null,deprecated_at:null,deprecated_by:null,deprecated_reason:null},{metric_id:key,revision:n,dataset_id:doc.query.dataset,document_json:encoded,digest,created_at:now,approved_at:null,annotation:null})
-    await transact(env.DB,owner,[...(old?[assertion(metricGuard(old))]:[]),...evaluation.sources.map(sourceMatch).map(assertion),...(evaluation.context.guards??[]).map(assertion),old?sql('UPDATE bf_metrics SET head_revision=? WHERE id=?',n,key):sql('INSERT INTO bf_metrics(id,owner_id,head_revision) VALUES(?,?,?)',key,ownerId,n),sql('INSERT INTO bf_metric_revisions(metric_id,revision,dataset_id,document_json,digest,created_at) VALUES(?,?,?,?,?,?)',key,n,doc.query.dataset,encoded,digest,now)])
-    return result(request,{id:key,revision:n,digest,state:'draft'},'/app/metrics/'+key)
+    const {prepareMetricDraft,saveMetricDraft}=await import('./drafts.server')
+    const key=id??ident(data.id),prepared=await prepareMetricDraft(env,ownerId,key,data.definition,id?Number(data.previousRevision):null)
+    const saved=await saveMetricDraft(env,owner,prepared)
+    return result(request,saved,'/app/metrics/'+key)
    }
    if(action==='run'){exact(data,[]);return result(request,await runMetric(env,owner,ownerId,id),'/app/metrics/'+id)}
    if(action==='deprecate') {

@@ -7,6 +7,10 @@ import {join} from 'node:path'
 import {dump} from 'js-yaml'
 import {unzipSync,strFromU8} from 'fflate'
 import {modelProjectFixtures} from './model-project-fixtures.mjs'
+import {proveMetricTooling} from './metric-tooling.mjs'
+import {proveChartTooling} from './chart-tooling.mjs'
+import {provePolicyTooling} from './policy-tooling.mjs'
+import {proveBoardTooling} from './board-tooling.mjs'
 
 export async function proveModelImports({origin,context,page,call,upload,proveScreen}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
@@ -200,6 +204,10 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const portableSchedule=await readFile(scheduleExport,'utf8'),scheduleState=await readFile(join(directory,'schedule.tfstate.backup'),'utf8')
   for(const content of [portableSchedule,scheduleState]){assert.ok(!content.includes(cookie));assert.ok(!content.includes('createdBy'));assert.ok(!content.includes('explore_activation'))}
   const stateText=await readFile(join(directory,'terraform.tfstate'),'utf8');assert.ok(!stateText.includes(cookie));assert.ok(!stateText.includes('SESSION_SECRET'));assert.ok(!stateText.includes('answer_json'));assert.ok(!stateText.includes('explore_activation'))
+  await proveMetricTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
+  await proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
+  await proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
+  await provePolicyTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf,model:created.modelId,revision:created.revision,viewId:native.views[0].id})
   console.log('Native model tools: real CLI and Terraform create, import, semantic edit, stale saved-plan atomic refusal, explicit staging and production, source preservation, published deletion refusal and coherent rollback passed')
  }finally{await page.close();await rm(directory,{recursive:true,force:true})}
 }
