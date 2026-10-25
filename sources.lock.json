@@ -777,7 +777,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
-      "sha256": "7cb8e86d34c049073b421d3b338c5a63069bb4dd31443ef99136a6b62f6d804b",
+      "sha256": "85d8b19e3ce88187eaad027b5baa2a275b89d0b5da79416c529b4dcebdc553f6",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -1544,6 +1544,10 @@
       "sha256": "c8295dbaaa066311fa52b8ae0e8bc956752e040bdb42599473c974100eeef75d",
       "executable": false
     },
+    "src/bifocal/dashboards/filters.ts": {
+      "sha256": "5d243ac1aa521761190b03df1a0d52b71f9f7813e5dca17929d2abcb7d5ff896",
+      "executable": false
+    },
     "src/bifocal/dashboards/page.ts": {
       "sha256": "89d9a0aa2108f4caaec19dc52f93071c4798fd1eb5bbd0abe64e62a053e742d5",
       "executable": false
@@ -1557,11 +1561,11 @@
       "executable": false
     },
     "src/bifocal/dashboards/tv-export.server.ts": {
-      "sha256": "6cd66e08f30d08a549e79970ccedef64dd818e40efa278f2880889fa5bd43997",
+      "sha256": "80c29dae0ea196e08227a8c29489a2e5c668203baeab53a3deb038c02068fd80",
       "executable": false
     },
     "src/bifocal/dashboards/tv.page.server.ts": {
-      "sha256": "336b61d1a9bc10a51f3c3ead1b668abe88d83c253bb18d47f707b2def1794189",
+      "sha256": "df050e18f576caea879f5a396be2b3ed379dcfdf22ee8b71b7c7bdbf7c275b2d",
       "executable": false
     },
     "src/bifocal/dashboards/tv.server.ts": {
@@ -1941,7 +1945,7 @@
       "executable": false
     },
     "src/bifocal/query/server.ts": {
-      "sha256": "9ba99032d129d22cbe29a676e35c0acfe56253257acaa6eb722651d08f1aa663",
+      "sha256": "60c70010174a19dbaaa4b06839d779f6eb00e9b6b55a48253ddd8ca06cea1eea",
       "executable": false
     },
     "src/bifocal/query/types.ts": {
@@ -4201,7 +4205,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "70149f1d409d52604c3b4a9712848f1bde47d4c93526d6866a344a35963bf6b0",
+      "sha256": "176b5a591e562fa6a4b3bd670fd5d6ad46f2bb2412a50c01ffadb7b39d15cf08",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {

@@ -4,8 +4,8 @@ import {retainedExport} from './retained-export.js'
 
 const $=id=>document.getElementById(id),root=$('dashboard-tv'),zone=document.body.dataset.zone
 const tiles=new Map(),names={fresh:'Fresh',stale:'Stale',empty:'Empty',failed:'Failed',loading:'Loading'}
-let activeFilters=[]
-let running=false,busy=false,timer=null,requestController=null,viewGeneration=0
+let activeFilters=[],bookmarks=[]
+let running=false,busy=false,timer=null,requestController=null,viewGeneration=0,authorityGeneration=0
 const message=(text,error=false)=>{const node=$('tv-status');node.textContent=text;node.setAttribute('role',error?'alert':'status')}
 const shown=(value,currency)=>value?.state==='value'?figure(value.value,value.unit,currency):String(value?.state??'unavailable').toUpperCase()
 function currentExports(tile,data){
@@ -92,7 +92,7 @@ function filterControls(){
 }
 function applyFilters(filters){
  if(busy)return
- activeFilters=filters
+ activeFilters=filters;viewGeneration++
  // Never show last-good values or exports under a different reader context.
  tiles.clear();$('tv-cards').replaceChildren();filterControls();refresh()
 }
@@ -110,7 +110,7 @@ function schedule(){
  timer=setTimeout(()=>refresh(),current.interval*1000)
 }
 function clearValues(){
- viewGeneration++;requestController?.abort();pause();tiles.clear();$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
+ viewGeneration++;authorityGeneration++;requestController?.abort();pause();tiles.clear();activeFilters=[];bookmarks=[];$('tv-filter-value').value='';$('tv-bookmark-name').value='';$('tv-bookmarks').replaceChildren();$('tv-filter-column').replaceChildren();$('tv-filter-state').textContent='Reader filters cleared.';$('tv-bookmark-status').textContent='Bookmark access unavailable.';$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
 }
 function failedTiles(error){
  for(const tile of tiles.values()){tile.status='failed';tile.error=error;tile.withdraw=false}
@@ -153,6 +153,33 @@ async function refresh(){
  }catch(error){failedTiles(error.name==='AbortError'?'Refresh timed out':error.message);message('Dashboard refresh failed. Any retained last-good values are dated and marked failed.',true)}
  finally{clearTimeout(timeout);requestController=null;busy=false;$('tv-refresh').disabled=false;timerState();schedule()}
 }
+async function bookmarkRequest(path='',data){
+ const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/bookmarks'+path,{method:data?'POST':'GET',redirect:'error',headers:{'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})})
+ if([401,403,404].includes(response.status)){clearValues();bookmarks=[];$('tv-bookmarks').replaceChildren();throw Error('Bookmark access unavailable')}
+ const result=await response.json();if(!response.ok)throw Error(result.error??'Bookmark unavailable');return result
+}
+async function loadBookmarks(){
+ const generation=authorityGeneration,result=await bookmarkRequest();if(generation!==authorityGeneration)return;const selected=$('tv-bookmarks').value;bookmarks=result.bookmarks
+ $('tv-bookmarks').replaceChildren(...bookmarks.map(bookmark=>{const option=element('option',bookmark.name+' · revision '+bookmark.revision);option.value=bookmark.name;return option}))
+ if(bookmarks.some(bookmark=>bookmark.name===selected))$('tv-bookmarks').value=selected
+ $('tv-bookmark-open').disabled=!bookmarks.length
+}
+$('tv-bookmarks').onchange=()=>{const bookmark=bookmarks.find(bookmark=>bookmark.name===$('tv-bookmarks').value);if(bookmark){$('tv-bookmark-name').value=bookmark.name;$('tv-bookmark-revision').value=bookmark.revision}}
+$('tv-bookmark-save').onclick=async()=>{
+ if(busy)return
+ const name=$('tv-bookmark-name').value.trim(),previous=bookmarks.find(bookmark=>bookmark.name===name)
+ $('tv-bookmark-save').disabled=true
+ try{const saved=await bookmarkRequest('',{name,previousRevision:previous?.revision??null,filters:activeFilters});await loadBookmarks();$('tv-bookmarks').value=saved.name;$('tv-bookmark-revision').value=saved.revision;$('tv-bookmark-status').textContent='Personal bookmark saved as revision '+saved.revision+'. Saved dashboard unchanged.'}
+ catch(error){$('tv-bookmark-status').textContent='Bookmark save failed: '+error.message+'. Reload the page to inspect concurrent changes.'}
+ finally{$('tv-bookmark-save').disabled=false}
+}
+$('tv-bookmark-open').onclick=async()=>{
+ if(busy||!$('tv-bookmarks').value||!$('tv-bookmark-revision').reportValidity())return
+ const generation=viewGeneration
+ try{const saved=await bookmarkRequest('/'+encodeURIComponent($('tv-bookmarks').value)+'/'+Number($('tv-bookmark-revision').value));if(generation!==viewGeneration||busy)return;applyFilters(saved.filters);$('tv-bookmark-status').textContent='Opened '+saved.name+' revision '+saved.revision+'. Saved dashboard unchanged.'}
+ catch(error){$('tv-bookmark-status').textContent='Bookmark open failed: '+error.message}
+}
+loadBookmarks().catch(error=>{$('tv-bookmark-status').textContent=error.message})
 $('tv-filter-apply').onclick=()=>{const column=$('tv-filter-column').value;if(column)applyFilters([...activeFilters.filter(filter=>filter.column!==column),{column,op:'eq',value:$('tv-filter-value').value}])}
 $('tv-filter-clear').onclick=()=>applyFilters([])
 $('tv-start').onclick=()=>{if(!settings())return;running=true;timerState();refresh()}

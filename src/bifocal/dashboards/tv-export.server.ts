@@ -46,7 +46,7 @@ export async function dashboardTvExportResponse(request:Request,env:Bindings,own
   if(snapshot.context.exploration) {
    context.exploration={...snapshot.context.exploration}
    const previous=context.exploration.comparison
-   if(previous)context.exploration.comparison={definition:previous.definition,answer:execute(previous.definition,sources,context)}
+   if(previous){const comparison=filteredDashboardQuery(previous.definition,dashboardFilters(input.filters));context.exploration.comparison={definition:comparison,answer:execute(comparison,sources,context)}}
   }
   return json(await saveQuery(env,owner,definition,context,sources),201)
  }catch(error) {

@@ -12,6 +12,7 @@ import { queryContext } from './context'
 import { execute } from './execute'
 import { fail, QueryError } from './types'
 import { retainedExportResponse } from './exports.server'
+import { dashboardBookmarkResponse } from '../dashboards/bookmarks.server'
 import { dashboardRefreshResponse } from '../dashboards/tv.server'
 import { dashboardTvExportResponse } from '../dashboards/tv-export.server'
 import { dashboardAuthoringResponse } from '../dashboards/authoring.server'
@@ -43,6 +44,8 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if(authored)return authored
   const liveExport=await dashboardTvExportResponse(request,env,authority,ownerId)
   if(liveExport)return liveExport
+  const bookmark=await dashboardBookmarkResponse(request,env,authority,ownerId)
+  if(bookmark)return bookmark
   const refreshed=await dashboardRefreshResponse(request,env,authority,ownerId)
   if(refreshed)return refreshed
   const exported=await retainedExportResponse(request,env,authority,ownerId)
