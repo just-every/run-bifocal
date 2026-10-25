@@ -148,7 +148,9 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   // Reports use the actual native report surface, not a representative kind.
   const reportFile=join(directory,'report.native.json'),reportPlan=join(directory,'report.plan.json')
   const reportDocument={version:1,title:'Reviewed git report',definition:native.views[0].query};await writeFile(reportFile,JSON.stringify(reportDocument))
-  const reportReview=await cli('report-import',['--file',reportFile,'--plan-file',reportPlan]),report=await cli('report-import',['--file',reportFile,'--approve',reportReview.digest])
+  const reportReview=await cli('report-import',['--file',reportFile,'--plan-file',reportPlan])
+  const wrongKind=await context.request.post(origin+'/api/operator/dashboard-definitions/create',{headers:{Origin:origin},data:{document:reportDocument,reviewedDigest:reportReview.digest}});assert.equal(wrongKind.status(),409,'A reviewed report fingerprint cannot approve a dashboard')
+  const report=await cli('report-import',['--file',reportFile,'--approve',reportReview.digest])
   const reportExport=join(directory,'report-export.native.json');await cli('report-export',['--id',report.id,'--output',reportExport]);assert.deepEqual(JSON.parse(await readFile(reportExport,'utf8')),reportDocument)
   await writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_report_snapshot:{main:{document:JSON.stringify(reportDocument),review_digest:reportReview.digest}}}}))
   await tfRun(['import','-input=false','-no-color','-state=report.tfstate','bifocal_report_snapshot.main',report.id])

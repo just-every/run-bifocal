@@ -25,7 +25,7 @@ export async function dashboardDefinitionResponse(request:Request,original:Bindi
   const document=input.document as Record<string,unknown>;exactKeys(document,['version','title','definition'])
   if(document.version!==1||typeof document.title!=='string'||!document.title.trim()||document.title.length>160)fail('dashboard_title_required',400)
   const definition=queryInput(document.definition),normalized={version:1,title:document.title,definition},context=await queryContext(env,definition,ownerId),sources=await readSources(env,definition)
-  const guards=[...context.guards??[],...sources.map(sourceMatch)],digest=sha256(canonicalJson({ownerId,document:normalized,guards}))
+  const guards=[...context.guards??[],...sources.map(sourceMatch)],digest=sha256(canonicalJson({ownerId,kind,document:normalized,guards}))
   if(url.pathname.endsWith('/review')){
    const answer=execute(definition,sources,context)
    await transact(env.DB,owner,guards.map(assertion))
