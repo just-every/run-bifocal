@@ -43,10 +43,17 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
    await transact(env.DB,owner,[assertion(modelGuard(model)),revision.statement,sql('INSERT INTO bf_semantic_branches(id,model_id,base_generation,revision_id) VALUES(?,?,?,?)',branchId,id,model.generation,revision.id)])
    return json({modelId:id,branchId,revision:revision.id,version:1},201)
   }
-  const branchMatch=/^branches\/([a-f0-9-]{36})(?:\/(validate|approve|promote))?$/.exec(action)
+  const branchMatch=/^branches\/([a-f0-9-]{36})(?:\/(validate|approve|promote|preview))?$/.exec(action)
   if(branchMatch){
    const branch=await readBranch(env,model,branchMatch[1]),operation=branchMatch[2]
    if(!operation){
+    if(request.method==='DELETE'){
+     const input=await jsonBody(request);exactKeys(input,['previousVersion'])
+     if(input.previousVersion!==branch.version)fail('stale_branch_version',409)
+     if(model.production===branch.revision_id || model.staging===branch.revision_id)fail('published_branch_cannot_be_deleted',409)
+     await transact(env.DB,owner,[assertion(modelGuard(model)),assertion(branchGuard(branch)),sql('DELETE FROM bf_semantic_branches WHERE id=?',branch.id)])
+     return json({deleted:true})
+    }
     if(request.method==='GET'){
      const definition=await readDefinition(env,branch.revision_id)
      await transact(env.DB,owner,[assertion(modelGuard(model)),assertion(branchGuard(branch))])
@@ -61,6 +68,17 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
    }
    if(request.method!=='POST')return json({error:'method_not_allowed'},405)
    const input=await jsonBody(request)
+   if(operation==='preview'){
+    exactKeys(input,['viewId','digest'])
+    const {review,guards}=await validateBranch(env,model,branch)
+    if(!review.compatible || input.digest!==review.digest)fail('exact_current_review_required',409)
+    const definition=await readDefinition(env,branch.revision_id),view=definition.views.find(v=>v.id===input.viewId)
+    if(!view)fail('view_not_found',404)
+    const query=scopedQuery(view,branch.revision_id),context=await queryContext(env,query,ownerId),sources=await readSources(env,query)
+    context.guards=[...context.guards??[],...guards]
+    const snapshot=await saveQuery(env,owner,query,context,sources)
+    return json({...snapshot,modelId:id,branchId:branch.id,environment:'development',revision:branch.revision_id,productionSends:0,sourceWrites:0},201)
+   }
    if(operation==='promote'){
     exactKeys(input,['environment','digest']);if(input.environment!=='staging'&&input.environment!=='production')fail('invalid_environment',400)
     return json(await promote(env,owner,model,branch,input.environment,input.digest))

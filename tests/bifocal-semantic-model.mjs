@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {proveCalculations} from './journeys/calculations.mjs'
-import {proveModelImports} from './journeys/model-import.mjs'
+import {proveModelImports,proveModelLifecycle} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
@@ -73,6 +73,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await page.getByRole('button',{name:'Run published model'}).click();await page.getByRole('status').filter({hasText:'Published answers saved'}).waitFor()
  const href=await page.getByRole('link',{name:'Open revenue answer'}).getAttribute('href'),answer=await call(href.replace('/app',''))
  assert.equal(answer.answer.totals.revenue.value,'69.06');assert.equal(answer.definition.fiscal.asOf,'2026-08-15');assert.equal(answer.context.calendar.id,'synthetic-bifocal-july')
+ await proveModelLifecycle({origin,context,page,definition,proveScreen,upload})
  const report=await call('/reports',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(report.answer,answer.answer)
  const dashboard=await call('/dashboards',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(dashboard.answer,answer.answer)
  const retail=structuredClone(definition);retail.views[0].query.context.calendar={id:'synthetic-bifocal-retail',version:1}
@@ -122,7 +123,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  assert.equal((await call('/models/'+saved.modelId+'/production/run',{viewId:'revenue'})).answer.totals.revenue.value,'35.03')
  assert.equal((await call('/queries/'+answer.queryId)).answer.totals.revenue.value,'69.06')
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:1,definition:{name:'New retail revision',kind:'445',startMonth:3,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
- await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:/Open model/}).first().click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
+ await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:'Open model '+saved.modelId.slice(0,8)+' · revision '+revised.version+' · branch '+saved.branchId.slice(0,8),exact:true}).click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
  await proveExploration({origin,context,page,call,upload,proveScreen,definition})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveModelImports({origin,context,page,call,upload,proveScreen})

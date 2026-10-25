@@ -27,9 +27,18 @@
         "node --test tests/demo-owner-claim.test.mjs",
         "pnpm run test:runtime",
         "node tests/bifocal-certified-metrics.mjs",
-        "node tests/bifocal-semantic-model.mjs",
         "node tests/bifocal-questions.mjs",
         "pnpm run test:site"
+      ]
+    },
+    {
+      "name": "models",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm run build",
+        "node scripts/prepare-model-tools.mjs",
+        "node tests/bifocal-semantic-model.mjs"
       ]
     }
   ],

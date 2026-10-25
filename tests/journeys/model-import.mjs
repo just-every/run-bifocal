@@ -62,3 +62,90 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  for(const [input,plan] of [[unsupported,blocked],[cancelled,cancelledPlan],[stale,stalePlan]]){await call('/model-imports/'+input.projectId,undefined,404);await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)}
  console.log('Source model imports: original LookML, dbt, MetricFlow, TMDL and Cube shared review, exact source SQL parity, native publication, governed exploration and exports, git YAML, explicit gaps, stale refusal and full source withdrawal passed')
 }
+
+/** Real CLI and Terraform model changes share exact native review and fences. */
+export async function proveModelLifecycle({origin,context,definition,upload}){
+ const page=await context.newPage()
+ const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow');assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0,'Every control has text');if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}
+ const {execFile}=await import('node:child_process'),{promisify}=await import('node:util'),{resolve}=await import('node:path')
+ const run=promisify(execFile),directory=await mkdtemp(join(tmpdir(),'bifocal-model-tools-')),session=join(directory,'session'),document=join(directory,'model.native.json'),plan=join(directory,'create.plan.json')
+ const cookie=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')
+ const toolDirectory=resolve('.cache/bifocal-tools'),terraform=join(toolDirectory,'terraform'),provider=join(toolDirectory,'terraform-provider-run-bifocal')
+ const cli=async(command,args=[],ok=true)=>{
+  try{const result=await run(process.execPath,['src/bifocal/models/validation/cli.mjs',command,'--origin',origin,'--session-file',session,...args],{maxBuffer:8<<20});assert.equal(ok,true,'Expected CLI refusal');return JSON.parse(result.stdout)}catch(error){if(ok)throw error;assert.match(error.stderr??'',/refused|reviewed plan|required/);return null}
+ }
+ const call=async(path,data,method=data===undefined?'GET':'POST')=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...(data===undefined?{}:{data})});assert.ok(response.ok(),await response.text());return response.json()}
+ try{
+  await writeFile(session,cookie,{mode:0o600});await writeFile(document,JSON.stringify(definition))
+  const review=await cli('plan',['--file',document,'--plan-file',plan]);assert.equal(review.compatible,true)
+  const savedPlan=await readFile(plan,'utf8');assert.ok(!savedPlan.includes(cookie));assert.ok(!savedPlan.includes('answer'));assert.ok(!savedPlan.includes('securityScope'))
+  await cli('apply',['--plan-file',plan,'--approve','0'.repeat(64)],false)
+  const created=await cli('apply',['--plan-file',plan,'--approve',review.digest]),flags=['--model',created.modelId,'--branch',created.branchId]
+  const exported=join(directory,'export.native.json');await cli('export',[...flags,'--output',exported]);const native=JSON.parse(await readFile(exported,'utf8'));assert.deepEqual(native,review.definition)
+  // A real single-answer dashboard round trip serializes definitions, never row bytes or grants.
+  const draft=join(directory,'dashboard.native.json');await writeFile(draft,JSON.stringify({version:1,title:'Fiscal revenue from git',definition:native.views[0].query}))
+  const dashboardReview=await cli('dashboard-import',['--file',draft,'--plan-file',join(directory,'dashboard.plan.json')]),dashboard=await cli('dashboard-import',['--file',draft,'--approve',dashboardReview.digest]),dashboardExport=join(directory,'dashboard-export.native.json');await cli('dashboard-export',['--id',dashboard.id,'--output',dashboardExport])
+  assert.deepEqual(JSON.parse(await readFile(dashboardExport,'utf8')),{version:1,title:'Fiscal revenue from git',definition:dashboard.definition})
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboards/'+dashboard.id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#totals').innerText(),/69\.06/);await proveScreen('model-cli-dashboard')}
+  const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
+  await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
+  const tfDefinition=structuredClone(native);let resource,reviewSequence=0
+  const writeConfig=async()=>{const source=join(directory,'tf-document.json');await writeFile(source,JSON.stringify(tfDefinition));const reviewed=await cli('plan',['--file',source,'--plan-file',join(directory,'tf-review-'+reviewSequence+++'.json'),...(resource?['--model',resource.model_id,'--branch',resource.branch_id]:[])]);return writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_model_branch:{main:{document:JSON.stringify(tfDefinition),review_digest:reviewed.digest}}}}))}
+  const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
+  await readFile(provider);await writeConfig()
+  await tfRun(['plan','-input=false','-no-color','-out=create.tfplan']);await tfRun(['apply','-input=false','-no-color','create.tfplan'])
+  let state=JSON.parse(await readFile(join(directory,'terraform.tfstate'),'utf8'));resource=state.resources[0].instances[0].attributes
+  assert.ok(resource.model_id&&resource.branch_id);assert.equal(resource.branch_version,1)
+  const tfPath='/models/'+resource.model_id+'/branches/'+resource.branch_id,old=await call(tfPath)
+  tfDefinition.views[0].query.filters.push({column:'region',op:'eq',value:'West'});await writeConfig()
+  await tfRun(['plan','-input=false','-no-color','-out=change.tfplan'])
+  // An independent CLI editor invalidates the saved Terraform plan atomically.
+  const conflictPlan=join(directory,'conflict.plan.json'),conflict=await cli('plan',['--file',exported,'--plan-file',conflictPlan,'--model',resource.model_id,'--branch',resource.branch_id])
+  await cli('apply',['--plan-file',conflictPlan,'--approve',conflict.digest]);const concurrent=await call(tfPath)
+  await tfRun(['apply','-input=false','-no-color','change.tfplan'],false);assert.deepEqual(await call(tfPath),concurrent)
+  await writeConfig();await tfRun(['plan','-input=false','-no-color','-out=current.tfplan']);await tfRun(['apply','-input=false','-no-color','current.tfplan'])
+  const updated=await call(tfPath);assert.equal(updated.version,3);assert.notEqual(updated.revision_id,old.revision_id);assert.deepEqual(updated.definition.views[0].query.filters,tfDefinition.views[0].query.filters)
+  // Terraform import discovers an actual CLI-created native resource.
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color'])
+  const ownSource='synthetic-bifocal-dashboard-tools',ownCSV='invoice,date,region,revenue\n1,07/01/2026,West,$10.01\n2,07/02/2026,East,$20.02\n'
+  await upload(ownSource,ownCSV)
+  const ownDocument=JSON.parse(await readFile(dashboardExport,'utf8'));ownDocument.definition.dataset=ownSource
+  const unauthenticated=await fetch(origin+'/api/operator/dashboard-definitions/review',{method:'POST',headers:{'content-type':'application/json',Origin:origin},body:JSON.stringify({document:ownDocument})});assert.equal(unauthenticated.status,401)
+  assert.equal((await context.request.post(origin+'/api/operator/dashboard-definitions/review',{headers:{Origin:'https://foreign.example.test'},data:{document:ownDocument}})).status(),401)
+  const ownFile=join(directory,'own-dashboard.json');await writeFile(ownFile,JSON.stringify(ownDocument));const ownReview=await cli('dashboard-import',['--file',ownFile,'--plan-file',join(directory,'own-dashboard-review.json')]);const dashboardDocument=JSON.stringify(ownDocument),dashboardConfig={terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_dashboard_snapshot:{main:{document:dashboardDocument,review_digest:ownReview.digest}}}}
+  await writeFile(tf,JSON.stringify(dashboardConfig));await tfRun(['plan','-input=false','-no-color','-out=dashboard.tfplan'])
+  await upload(ownSource,ownCSV.replace('$10.01','$11.01'),true)
+  const queriesBefore=await call('/queries');await tfRun(['apply','-input=false','-no-color','dashboard.tfplan'],false);assert.deepEqual(await call('/queries'),queriesBefore,'Stale dashboard plans create neither an answer nor an artifact')
+  const freshDashboard=await cli('dashboard-import',['--file',ownFile,'--plan-file',join(directory,'own-dashboard-fresh.json')]);dashboardConfig.resource.bifocal_dashboard_snapshot.main.review_digest=freshDashboard.digest;await writeFile(tf,JSON.stringify(dashboardConfig));await tfRun(['plan','-input=false','-no-color','-out=dashboard-current.tfplan']);await tfRun(['apply','-input=false','-no-color','dashboard-current.tfplan'])
+  const dashboardState=JSON.parse(await readFile(join(directory,'terraform.tfstate'),'utf8')).resources[0].instances[0].attributes
+  assert.equal((await call('/dashboards/'+dashboardState.id)).answer.totals.revenue.value,'31.03')
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color']);assert.equal((await call('/dashboards/'+dashboardState.id)).id,dashboardState.id,'Terraform release preserves immutable history')
+  dashboardConfig.resource.bifocal_dashboard_snapshot.main.document=await readFile(dashboardExport,'utf8');delete dashboardConfig.resource.bifocal_dashboard_snapshot.main.review_digest;await writeFile(tf,JSON.stringify(dashboardConfig));await tfRun(['import','-input=false','-no-color','bifocal_dashboard_snapshot.main',dashboard.id]);await tfRun(['plan','-input=false','-no-color','-detailed-exitcode'])
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color'])
+  await writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_model_branch:{main:{document:JSON.stringify(native)}}}}))
+  await tfRun(['import','-input=false','-no-color','bifocal_model_branch.main',created.modelId+':'+created.branchId])
+  const publication=await cli('validate',flags);assert.equal(publication.compatible,true)
+  await cli('approve',[...flags,'--digest',publication.digest]);await cli('promote',[...flags,'--digest',publication.digest,'--environment','production'],false)
+  await cli('promote',[...flags,'--digest',publication.digest,'--environment','staging']);await cli('promote',[...flags,'--digest',publication.digest,'--environment','production'])
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color'],false)
+  const beforeSource=await call('/datasets/'+native.views[0].query.dataset),branchFile=join(directory,'branch.native.json'),changed=structuredClone(native)
+  changed.views[0].query.filters.push({column:'region',op:'eq',value:'West'});await writeFile(branchFile,JSON.stringify(changed))
+  const branched=await cli('branch',['--model',created.modelId,'--file',branchFile]),branchFlags=['--model',created.modelId,'--branch',branched.branchId],diff=await cli('validate',branchFlags)
+  assert.equal(diff.definitionDiff.length,1);assert.deepEqual(diff.definitionDiff[0].before,native.views[0]);assert.notDeepEqual(diff.definitionDiff[0].after,native.views[0])
+  await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:'Open model '+created.modelId.slice(0,8)+' · revision 1 · branch '+branched.branchId.slice(0,8),exact:true}).click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();await page.getByRole('button',{name:'Review publication'}).click();await page.getByRole('status').filter({hasText:'Publication review complete'}).waitFor();assert.match(await page.locator('#publication-results').innerText(),/definitionDiff/);await proveScreen('model-tools-semantic-review')
+  const productionBefore=await cli('status',['--model',created.modelId]),development=await cli('preview',[...branchFlags,'--view',native.views[0].id,'--digest',diff.digest]);assert.equal(development.environment,'development');assert.equal(development.revision,branched.revision);assert.equal(development.productionSends,0);assert.equal(development.sourceWrites,0);assert.deepEqual(await cli('status',['--model',created.modelId]),productionBefore)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+development.queryId);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();await proveScreen('model-tools-development-preview')}
+  await cli('approve',[...branchFlags,'--digest',diff.digest]);await cli('promote',[...branchFlags,'--digest',diff.digest,'--environment','staging'])
+  const staged=await cli('run',['--model',created.modelId,'--environment','staging','--view',native.views[0].id]);assert.equal(staged.productionSends,0);assert.equal(staged.sourceWrites,0);assert.deepEqual(await call('/datasets/'+native.views[0].query.dataset),beforeSource)
+  await cli('promote',[...branchFlags,'--digest',diff.digest,'--environment','production'])
+  const current=await cli('status',['--model',created.modelId]),rollback=await cli('rollback-plan',['--model',created.modelId,'--revision',created.revision])
+  await cli('rollback',['--model',created.modelId,'--revision',created.revision,'--generation',String(current.generation),'--digest',rollback.digest,'--security-resolution','Restore the reviewed original scoped definition.'])
+  const restored=await cli('status',['--model',created.modelId]);assert.equal(restored.production,created.revision);assert.equal(restored.staging,created.revision)
+  const answer=await cli('run',['--model',created.modelId,'--environment','production','--view',native.views[0].id]);assert.equal(answer.answer.totals.revenue.value,'69.06');assert.equal(answer.revision,created.revision)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+answer.queryId);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();await proveScreen('model-cli-rollback')}
+  const editPlan=join(directory,'edit.plan.json'),editReview=await cli('plan',[...branchFlags,'--file',branchFile,'--plan-file',editPlan]);await cli('apply',['--plan-file',editPlan,'--approve',editReview.digest]);const editState=await call('/models/'+created.modelId+'/branches/'+branched.branchId)
+  await cli('apply',['--plan-file',editPlan,'--approve',editReview.digest],false);assert.deepEqual(await call('/models/'+created.modelId+'/branches/'+branched.branchId),editState)
+  const stateText=await readFile(join(directory,'terraform.tfstate'),'utf8');assert.ok(!stateText.includes(cookie));assert.ok(!stateText.includes('SESSION_SECRET'));assert.ok(!stateText.includes('answer_json'));assert.ok(!stateText.includes('explore_activation'))
+  console.log('Native model tools: real CLI and Terraform create, import, semantic edit, stale saved-plan atomic refusal, explicit staging and production, source preservation, published deletion refusal and coherent rollback passed')
+ }finally{await page.close();await rm(directory,{recursive:true,force:true})}
+}

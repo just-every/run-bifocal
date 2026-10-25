@@ -24,23 +24,27 @@ export async function readSources(env: Bindings, query: Query): Promise<Source[]
  }
  return sources
 }
-export async function saveQuery(env: Bindings, authority: Authority, definition: Query, context: Context, sources: Source[]): Promise<Snapshot> {
+export function prepareQuery(definition: Query, context: Context, sources: Source[]) {
  context = {...context, definitionVersions: {model: {label: definition.context.modelVersion, revision: sha256(canonicalJson({tables: sources.map(source => ({id: source.id, columns: source.table.columns})), joins: definition.joins, dimensions: definition.groupBy}))}, metrics: {label: definition.context.metricVersion, revision: sha256(canonicalJson(definition.measures))}}}
  const answer = execute(definition,sources,context), snapshotId = randomUUID(), createdAt = new Date().toISOString()
  if(context.exploration?.grantId){answer.inputRows=answer.filteredRows;answer.joinDiagnostics=[]}
  const {guards = [],...frozenContext} = context
  const snapshot: Snapshot = {queryId:snapshotId,snapshotId,definition,context:frozenContext,answer,digest:'',createdAt}
- return persist(env,authority,snapshot,sources,guards)
+ return {snapshot,changes:snapshotStatements(snapshot,sources,guards)}
+}
+export async function saveQuery(env: Bindings, authority: Authority, definition: Query, context: Context, sources: Source[]): Promise<Snapshot> {
+ const {snapshot,changes}=prepareQuery(definition,context,sources)
+ await transact(env.DB,authority,changes)
+ return snapshot
 }
 function digest(snapshot: Omit<Snapshot,'digest'>): string { return sha256(canonicalJson(snapshot)) }
-async function persist(env: Bindings, authority: Authority, snapshot: Snapshot, sources: Source[], guards: D1Sql[]): Promise<Snapshot> {
+function snapshotStatements(snapshot: Snapshot, sources: Source[], guards: D1Sql[]): D1Sql[] {
  const {digest:ignored,...content} = snapshot; snapshot.digest = digest(content)
- await transact(env.DB,authority,[...sources.map(sourceMatch).map(assertion),...guards.map(assertion),
+ return [...sources.map(sourceMatch).map(assertion),...guards.map(assertion),
   sql('INSERT INTO bf_query_snapshots(id,owner_id,query_json,context_json,answer_json,digest,created_at) VALUES(?,?,?,?,?,?,?)',snapshot.snapshotId,snapshot.context.ownerId,canonicalJson(snapshot.definition),canonicalJson(snapshot.context),canonicalJson(snapshot.answer),snapshot.digest,snapshot.createdAt),
   ...(snapshot.context.modelImport?[sql('INSERT INTO bf_model_import_uses(snapshot_id,project_id) VALUES(?,?)',snapshot.snapshotId,snapshot.context.modelImport.projectId)]:[]),
   ...(snapshot.context.metric?[sql('INSERT INTO bf_metric_uses(snapshot_id,metric_id,revision) VALUES(?,?,?)',snapshot.snapshotId,snapshot.context.metric.id,snapshot.context.metric.revision)]:[]),
-  ...sources.map(s=>sql('INSERT INTO bf_query_sources(snapshot_id,dataset_id,revision,value_json) VALUES(?,?,?,?)',snapshot.snapshotId,s.id,s.revision,s.value_json))])
- return snapshot
+  ...sources.map(s=>sql('INSERT INTO bf_query_sources(snapshot_id,dataset_id,revision,value_json) VALUES(?,?,?,?)',snapshot.snapshotId,s.id,s.revision,s.value_json))]
 }
 export async function readQuery(env: Bindings, authority: Authority, ownerId: string, id: string): Promise<{snapshot:Snapshot;sources:Source[];guard:D1Sql}> {
  const row = await env.DB.prepare('SELECT * FROM bf_query_snapshots WHERE id=? AND owner_id=?').bind(id,ownerId).first<Stored>()

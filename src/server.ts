@@ -16,6 +16,7 @@ import { companyPage } from './bifocal/company/page.server'
 import { conventionsResponse } from './bifocal/company/server'
 import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
+import { dashboardDefinitionResponse } from './bifocal/dashboards/definitions.server'
 import { goalResponse } from './bifocal/goals/server'
 import { qualityResponse } from './bifocal/quality/server'
 import { metricResponse } from './bifocal/metrics/store.server'
@@ -95,6 +96,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (explorationDocument) return explorationDocument
     const exploration = await explorationResponse(request, env)
     if (exploration) return exploration
+    const dashboardDefinition = await dashboardDefinitionResponse(request, env)
+    if (dashboardDefinition) return dashboardDefinition
     const query = await exactQueryResponse(request, env)
     if (query) return query
     const warehouse = await warehouseResponse(request, env)
