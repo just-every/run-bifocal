@@ -48,8 +48,8 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await page.clock.runFor(5000);await scheduled
  await page.waitForFunction(()=>document.querySelector('[data-state="fresh"]')?.textContent.includes('12.01'))
  await page.getByRole('button',{name:'Pause',exact:true}).click();await proveScreen('dashboard-tv-auto-refresh-paused')
- await page.getByRole('button',{name:'Enter fullscreen',exact:true}).click();assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true)
- await proveScreen('dashboard-tv-fullscreen');await page.getByRole('button',{name:'Exit fullscreen',exact:true}).click()
+ await page.getByRole('button',{name:'Enter fullscreen',exact:true}).click();await page.waitForFunction(()=>!!document.fullscreenElement,{},{polling:100});assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true)
+ await proveScreen('dashboard-tv-fullscreen');await page.getByRole('button',{name:'Exit fullscreen',exact:true}).click();await page.waitForFunction(()=>!document.fullscreenElement,{},{polling:100})
  assert.deepEqual(await call('/queries'),initialQueries,'Refresh never saves answers or changes board membership')
  assert.equal((await call('/dashboards/'+dashboard.id)).cards[0].answer.totals.revenue.value,'10.01','Retained dashboard remains immutable')
  const cookies=await context.cookies();await context.clearCookies();await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#tv-cards')?.textContent.includes('12.01'));assert.equal(await page.locator('[data-tile-id]').count(),0);await proveScreen('dashboard-tv-authority-withdrawn');await context.addCookies(cookies)

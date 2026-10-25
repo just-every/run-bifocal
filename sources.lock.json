@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4790088510238b08078f3350d9bd71153524641bf9a28607f2a1c48bfa546a87",
+      "sha256": "53fdd37e3a90a832c226b52e57784d3875e9daec8cb91fde795f36a747081ddb",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cf103c325cf4daa521c9c0f1e79a01466f2f94839e5466c13bd133f793673f27",
+      "sha256": "c7347c217d105f6b457bdad0f6ca76962789b859914e11e07789af0db4d5e9d9",
       "executable": false
     },
     "DEMO.md": {
@@ -4157,7 +4157,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "23ed73f268b7da5425c2bb5615060cc5ede4821b6572a9e6b9b5fa804e42a08c",
+      "sha256": "cd07e28705c7431ca787b6f4c07767ef95591d5b6e6b129b99be9ff14014c828",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
