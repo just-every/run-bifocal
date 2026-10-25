@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { readdir } from 'node:fs/promises'
+import { readdir, rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { execFileSync } from 'node:child_process'
@@ -13,7 +13,12 @@ import { proveReportCustody } from './report-custody.mjs'
 export async function proveReportProvider(persist){
  const directory=join(persist,'report-provider'),socket=createServer()
  await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
- execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+ try {
+  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',directory,'--config','dist/server/wrangler.json'],{stdio:'pipe',env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+ } finally {
+  // Wrangler migrations can leave scratch beside the emitted config too.
+  await rm('dist/server/.wrangler', { recursive: true, force: true })
+ }
  const require=createRequire(import.meta.url),wrangler=createRequire(require.resolve('wrangler')),{Miniflare,convertV4MiniflareOptions}=wrangler('miniflare')
  const origin='https://127.0.0.1:'+port,state={messages:[],calls:[]}
  const modules=[{type:'ESModule',path:resolve('dist/server/index.js')},...(await readdir('dist/server/assets')).filter(name=>name.endsWith('.js')).map(name=>({type:'ESModule',path:resolve('dist/server/assets',name)}))]

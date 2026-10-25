@@ -22,7 +22,6 @@ await new Promise(resolve => socket.close(resolve))
 // The installed homepage reads the claim state from D1: run the emitted Worker
 // on its own migrated store, never the checkout's local data.
 const persist = await mkdtemp(join(tmpdir(), 'foundation-runtime-'))
-execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
 const origin = `http://127.0.0.1:${port}`
 const syntheticSetup = 'synthetic-bifocal-1'.repeat(3)
 const syntheticInstallationKey = createHash('sha256').update('synthetic-bifocal-6').digest('hex')
@@ -32,7 +31,7 @@ function startWorker() {
  child.stderr.on('data', chunk => { output += chunk })
  return child
 }
-let output = '', worker = startWorker()
+let output = '', worker
 async function restartWorker() {
  worker.kill('SIGTERM')
  await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
@@ -45,6 +44,8 @@ async function restartWorker() {
  throw new Error('Restart did not become ready')
 }
 try {
+  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
+  worker = startWorker()
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {
     if (worker.exitCode !== null) throw new Error(output)
@@ -309,9 +310,11 @@ try {
   console.error(output.split('\n').filter(line=>/error|exception|body|promise|reset/i.test(line)).join('\n'))
   throw error
 } finally {
-  worker.kill('SIGTERM')
-  await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
+  worker?.kill('SIGTERM')
+  if (worker) await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   await rm(persist, { recursive: true, force: true })
+  // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
+  await rm('dist/server/.wrangler', { recursive: true, force: true })
 }
 
 await proveContentGovernance()

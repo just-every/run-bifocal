@@ -69,7 +69,11 @@ test('signed owner claims require both demo mode and trusted runtime keys', asyn
     await new Promise(resolve => child.exitCode !== null || child.signalCode !== null ? resolve() : child.once('exit', resolve))
    }
   }
- } finally { await rm(persist, { recursive: true, force: true }) }
+ } finally {
+  await rm(persist, { recursive: true, force: true })
+  // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
+  await rm('dist/server/.wrangler', { recursive: true, force: true })
+ }
 })
 
 // Installer/archive qualification is intentionally outside push Verify. Run this

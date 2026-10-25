@@ -13,12 +13,19 @@ export async function questionRuntime(edge,model){
  // Actual provider credentials stay only in the test edge. The Worker receives
  // a synthetic, ephemeral edge credential, never a live provider key.
  delete env.C21_LIVE_AI_KEY
- execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe'})
- let output='',browser
- const worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-1@example.test','--var','MAIL_FROM:synthetic-bifocal-2@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`,'--var','AI_ENABLED:true','--var',`AI_MODEL:${model}`,'--var',`AI_BASE_URL:${edge.origin}/v1`,'--var',`AI_API_KEY:${edge.key}`],{env,stdio:['ignore','pipe','pipe']})
- worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
- const close=async()=>{await browser?.close();worker.kill('SIGTERM');await new Promise(resolve=>worker.exitCode!==null?resolve():worker.once('exit',resolve));await rm(persist,{recursive:true,force:true})}
+ let output='',browser,worker
+ const close=async()=>{
+  await browser?.close()
+  worker?.kill('SIGTERM')
+  if(worker)await new Promise(resolve=>worker.exitCode!==null||worker.signalCode!==null?resolve():worker.once('exit',resolve))
+  await rm(persist,{recursive:true,force:true})
+  // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
+  await rm('dist/server/.wrangler',{recursive:true,force:true})
+ }
  try{
+  execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe'})
+  worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-1@example.test','--var','MAIL_FROM:synthetic-bifocal-2@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`,'--var','AI_ENABLED:true','--var',`AI_MODEL:${model}`,'--var',`AI_BASE_URL:${edge.origin}/v1`,'--var',`AI_API_KEY:${edge.key}`],{env,stdio:['ignore','pipe','pipe']})
+  worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
   for(let i=0;i<120;i++){if(worker.exitCode!==null)throw Error('Question Worker exited');try{if((await fetch(origin+'/health')).ok)break}catch{}await new Promise(r=>setTimeout(r,250))}
   assert.equal((await fetch(origin+'/health')).status,200,output)
   browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
