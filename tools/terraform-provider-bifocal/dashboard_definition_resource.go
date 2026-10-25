@@ -42,6 +42,10 @@ func dashboardDefinitionResource() *schema.Resource {
 			"generation":         {Type: schema.TypeInt, Computed: true},
 		},
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta any) error {
+			// Destroy releases tracking; DeleteContext still checks current owner authority.
+			if d.GetRawPlan().IsNull() {
+				return nil
+			}
 			if !d.NewValueKnown("document") {
 				return errors.New("Dashboard document must be known during planning")
 			}

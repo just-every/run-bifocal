@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "53fdd37e3a90a832c226b52e57784d3875e9daec8cb91fde795f36a747081ddb",
+      "sha256": "5698d613a2d80daaa05995729f5a5a0630587bce2e3940611c613a661a7dcb53",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c7347c217d105f6b457bdad0f6ca76962789b859914e11e07789af0db4d5e9d9",
+      "sha256": "2f6c024596f6838fc26d5277957b059323093a262250a81b28d5dc67e55130ad",
       "executable": false
     },
     "DEMO.md": {
@@ -409,7 +409,7 @@
       "executable": false
     },
     "docs/MODEL-TOOLS.md": {
-      "sha256": "16b47c74a9adbd1c129357c15f90a103bd147c47bba0d969412658bb71493714",
+      "sha256": "47e760a386f213942d3f0aa309e225ab0e85bfffee9b4fef9f5ff57d9ea6e408",
       "executable": false
     },
     "docs/people.md": {
@@ -4309,7 +4309,7 @@
       "executable": false
     },
     "tools/terraform-provider-bifocal/dashboard_definition_resource.go": {
-      "sha256": "3b8258b4cde426b158860fc9fa0b34e9ff0b166a4402ab683baed91de6184554",
+      "sha256": "b39b674a6506e19b02531d7f0fb2149918e6097e29cd5a4937a9711b564a4eec",
       "executable": false
     },
     "tools/terraform-provider-bifocal/environment_resource.go": {
