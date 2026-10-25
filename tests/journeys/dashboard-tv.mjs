@@ -57,7 +57,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  assert.deepEqual(await call('/queries'),initialQueries,'Refresh never saves answers or changes board membership')
  assert.equal((await call('/dashboards/'+dashboard.id)).cards[0].answer.totals.revenue.value,'10.01','Retained dashboard remains immutable')
  const cookies=await context.cookies();await context.clearCookies();await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#tv-cards')?.textContent.includes('12.01'));assert.equal(await page.locator('[data-tile-id]').count(),0);await proveScreen('dashboard-tv-authority-withdrawn');await context.addCookies(cookies)
- await page.goto(origin+'/app/dashboards/'+dashboard.id+'/tv');await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.locator('[data-state="fresh"]').waitFor()
+ await page.goto(origin+'/app/dashboards/'+dashboard.id+'/tv');await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.locator('section[data-state="fresh"]').waitFor()
  const source=await call('/datasets/'+fresh);await call('/datasets/'+fresh+'/erase',{confirmDataset:fresh,reviewedRevision:source.revision},200)
  await call(endpoint,{maxAgeSeconds:3600},404)
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('[data-tile-id]').length===0);await proveScreen('dashboard-tv-source-withdrawn')

@@ -4157,7 +4157,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "259a6fac366768b24da59c374d08788860732260f7e150e412c6f4a2c83e85ec",
+      "sha256": "935675706003fa39ad891317d39f7f2d0b1ddb6f0214e9064e9a9c4aa81015cb",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
