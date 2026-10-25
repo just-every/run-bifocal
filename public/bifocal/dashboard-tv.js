@@ -4,7 +4,7 @@ import {retainedExport} from './retained-export.js'
 
 const $=id=>document.getElementById(id),root=$('dashboard-tv'),zone=document.body.dataset.zone
 const tiles=new Map(),names={fresh:'Fresh',stale:'Stale',empty:'Empty',failed:'Failed',loading:'Loading'}
-let activeFilters=[],bookmarks=[]
+let activeFilters=[],activeFields=null,bookmarks=[]
 let running=false,busy=false,timer=null,requestController=null,viewGeneration=0,authorityGeneration=0
 const message=(text,error=false)=>{const node=$('tv-status');node.textContent=text;node.setAttribute('role',error?'alert':'status')}
 const shown=(value,currency)=>value?.state==='value'?figure(value.value,value.unit,currency):String(value?.state??'unavailable').toUpperCase()
@@ -20,7 +20,7 @@ function currentExports(tile,data){
   const current=settings();if(!current)return
   prepare.disabled=true;status.textContent='Retaining the exact displayed answer for exports…'
   try{
-   const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/tiles/'+encodeURIComponent(tile.id)+'/export-snapshot',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({definitionHash:data.answer.definitionHash,watermarks:data.answer.sourceWatermarks,maxAgeSeconds:current.maxAgeSeconds,filters:data.interactionFilters??[]})})
+   const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/tiles/'+encodeURIComponent(tile.id)+'/export-snapshot',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({definitionHash:data.answer.definitionHash,watermarks:data.answer.sourceWatermarks,maxAgeSeconds:current.maxAgeSeconds,filters:data.interactionFilters??[],fields:data.interactionFields??null})})
    if([401,403,404].includes(response.status)){
     clearValues();message('Dashboard export access unavailable. Previously displayed values were cleared.',true);return
    }
@@ -79,20 +79,22 @@ function renderTile(tile){
  return section
 }
 function commonDimensions(){
- const definitions=[...tiles.values()].map(tile=>tile.data?.definition)
+ const definitions=[...tiles.values()].map(tile=>tile.data?{groupBy:tile.data.availableDimensions??tile.data.definition.groupBy}:null)
  if(!definitions.length||definitions.some(definition=>!definition))return []
  return definitions[0].groupBy.filter(column=>definitions.every(definition=>definition.groupBy.includes(column)))
 }
 function filterControls(){
- const select=$('tv-filter-column'),previous=select.value
+ const select=$('tv-filter-column'),previous=select.value,field=$('tv-field')
+ field.replaceChildren(element('option','All authored fields'),...commonDimensions().map(column=>{const option=element('option',label(column));option.value=column;return option}))
+ field.options[0].value='';field.value=activeFields?.[0]??'';field.disabled=busy
  select.replaceChildren(...commonDimensions().map(column=>{const option=element('option',label(column));option.value=column;return option}))
  if([...select.options].some(option=>option.value===previous))select.value=previous
  $('tv-filter-apply').disabled=busy||!select.options.length;$('tv-filter-clear').disabled=busy;$('tv-bookmark-save').disabled=busy;$('tv-bookmark-open').disabled=busy||!bookmarks.length
  $('tv-filter-state').textContent=activeFilters.length?'Reader filters: '+activeFilters.map(filter=>label(filter.column)+' = '+String(filter.value??'empty')).join('; ')+'. Saved tile restrictions remain in force.':'No reader filters. Saved tile restrictions remain in force.'
 }
-function applyFilters(filters){
+function applyFilters(filters,fields=activeFields){
  if(busy)return
- activeFilters=filters;viewGeneration++
+ activeFilters=filters;activeFields=fields;viewGeneration++
  // Never show last-good values or exports under a different reader context.
  tiles.clear();$('tv-cards').replaceChildren();filterControls();refresh()
 }
@@ -110,7 +112,7 @@ function schedule(){
  timer=setTimeout(()=>refresh(),current.interval*1000)
 }
 function clearValues(){
- viewGeneration++;authorityGeneration++;requestController?.abort();pause();tiles.clear();activeFilters=[];bookmarks=[];$('tv-filter-value').value='';$('tv-bookmark-name').value='';$('tv-bookmarks').replaceChildren();$('tv-filter-column').replaceChildren();$('tv-filter-state').textContent='Reader filters cleared.';$('tv-bookmark-status').textContent='Bookmark access unavailable.';$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
+ viewGeneration++;authorityGeneration++;requestController?.abort();pause();tiles.clear();activeFilters=[];activeFields=null;bookmarks=[];$('tv-filter-value').value='';$('tv-bookmark-name').value='';$('tv-bookmarks').replaceChildren();$('tv-filter-column').replaceChildren();$('tv-field').replaceChildren();$('tv-filter-state').textContent='Reader filters cleared.';$('tv-bookmark-status').textContent='Bookmark access unavailable.';$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
 }
 function failedTiles(error){
  for(const tile of tiles.values()){tile.status='failed';tile.error=error;tile.withdraw=false}
@@ -119,14 +121,14 @@ function failedTiles(error){
 async function refresh(){
  if(busy)return
  const current=settings();if(!current){pause();return}
- const generation=viewGeneration,requestedFilters=structuredClone(activeFilters)
+ const generation=viewGeneration,requestedFilters=structuredClone(activeFilters),requestedFields=structuredClone(activeFields)
  clearTimeout(timer);timer=null;busy=true;$('tv-refresh').disabled=true
  for(const tile of tiles.values()){tile.status='loading';tile.error=null;tile.withdraw=false}
  render();message('Refreshing dashboard tiles…')
  requestController=new AbortController()
  const timeout=setTimeout(()=>requestController?.abort(),30000)
  try{
-  const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/refresh',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxAgeSeconds:current.maxAgeSeconds,filters:activeFilters}),signal:requestController.signal})
+  const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/refresh',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxAgeSeconds:current.maxAgeSeconds,filters:activeFilters,fields:activeFields}),signal:requestController.signal})
   if([401,403,404].includes(response.status)){
    clearValues();message('Dashboard access unavailable. Previously displayed values were cleared.',true);return
   }
@@ -142,7 +144,7 @@ async function refresh(){
    if(tile.withdraw){tile.data=null;tile.successAt=null}
    else if(card.status!=='failed'){
     if(!card.answer||!card.context||!card.definition)throw Error('Dashboard tile answer could not be read')
-    card.interactionFilters=requestedFilters;tile.data=card;tile.successAt=result.refreshedAt
+    card.interactionFilters=requestedFilters;card.interactionFields=requestedFields;tile.data=card;tile.successAt=result.refreshedAt
    }
    next.set(card.id,tile)
   }
@@ -169,19 +171,20 @@ $('tv-bookmark-save').onclick=async()=>{
  if(busy)return
  const name=$('tv-bookmark-name').value.trim(),previous=bookmarks.find(bookmark=>bookmark.name===name)
  $('tv-bookmark-save').disabled=true
- try{const saved=await bookmarkRequest('',{name,previousRevision:previous?.revision??null,filters:activeFilters});await loadBookmarks();$('tv-bookmarks').value=saved.name;$('tv-bookmark-revision').value=saved.revision;$('tv-bookmark-status').textContent='Personal bookmark saved as revision '+saved.revision+'. Saved dashboard unchanged.'}
+ try{const saved=await bookmarkRequest('',{name,previousRevision:previous?.revision??null,filters:activeFilters,fields:activeFields});await loadBookmarks();$('tv-bookmarks').value=saved.name;$('tv-bookmark-revision').value=saved.revision;$('tv-bookmark-status').textContent='Personal bookmark saved as revision '+saved.revision+'. Saved dashboard unchanged.'}
  catch(error){$('tv-bookmark-status').textContent='Bookmark save failed: '+error.message+'. Reload the page to inspect concurrent changes.'}
  finally{$('tv-bookmark-save').disabled=false}
 }
 $('tv-bookmark-open').onclick=async()=>{
  if(busy||!$('tv-bookmarks').value||!$('tv-bookmark-revision').reportValidity())return
  const generation=viewGeneration
- try{const saved=await bookmarkRequest('/'+encodeURIComponent($('tv-bookmarks').value)+'/'+Number($('tv-bookmark-revision').value));if(generation!==viewGeneration||busy)return;applyFilters(saved.filters);$('tv-bookmark-status').textContent='Opened '+saved.name+' revision '+saved.revision+'. Saved dashboard unchanged.'}
+ try{const saved=await bookmarkRequest('/'+encodeURIComponent($('tv-bookmarks').value)+'/'+Number($('tv-bookmark-revision').value));if(generation!==viewGeneration||busy)return;applyFilters(saved.filters,saved.fields);$('tv-bookmark-status').textContent='Opened '+saved.name+' revision '+saved.revision+'. Saved dashboard unchanged.'}
  catch(error){$('tv-bookmark-status').textContent='Bookmark open failed: '+error.message}
 }
 loadBookmarks().catch(error=>{$('tv-bookmark-status').textContent=error.message})
+$('tv-field').onchange=()=>applyFilters(activeFilters,$('tv-field').value?[$('tv-field').value]:null)
 $('tv-filter-apply').onclick=()=>{const column=$('tv-filter-column').value;if(column)applyFilters([...activeFilters.filter(filter=>filter.column!==column),{column,op:'eq',value:$('tv-filter-value').value}])}
-$('tv-filter-clear').onclick=()=>applyFilters([])
+$('tv-filter-clear').onclick=()=>applyFilters([],null)
 $('tv-start').onclick=()=>{if(!settings())return;running=true;timerState();refresh()}
 $('tv-pause').onclick=()=>{pause();message('Automatic refresh paused. Refresh now remains available.')}
 $('tv-controls').onsubmit=event=>{event.preventDefault();refresh()}

@@ -5,13 +5,13 @@ import { discardBody, exactKeys, json, jsonBody } from '../models/validation/tra
 import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
 import { fail, QueryError } from '../query/types'
-import { dashboardFilters, filteredDashboardQuery } from './filters'
+import { dashboardFields, dashboardFilters, filteredDashboardQuery } from './filters'
 import { refreshBindings, sameRefreshConventions } from './tv-bindings.server'
 import { readManifest } from './tv.server'
 
 type Owner=Parameters<typeof readQuery>[1]
 function displayedInput(input:Record<string,unknown>) {
- exactKeys(input,['definitionHash','watermarks','maxAgeSeconds','filters'])
+ exactKeys(input,['definitionHash','watermarks','maxAgeSeconds','filters','fields'])
  if(typeof input.definitionHash!=='string'||!/^[a-f0-9]{64}$/.test(input.definitionHash))fail('displayed_definition_hash_required',400)
  if(!Number.isSafeInteger(input.maxAgeSeconds)||Number(input.maxAgeSeconds)<1||Number(input.maxAgeSeconds)>31536000)fail('dashboard_max_age_required',400)
  if(!Array.isArray(input.watermarks)||!input.watermarks.length||input.watermarks.length>16)fail('displayed_watermarks_required',400)
@@ -33,7 +33,7 @@ export async function dashboardTvExportResponse(request:Request,env:Bindings,own
   const manifest=await readManifest(env,ownerId,match[1])
   if(!manifest||!manifest.refs.some(ref=>ref.snapshot_id===match[2]))fail('dashboard_tile_not_found',404)
   const retained=await readQuery(env,owner,ownerId,match[2]),snapshot=retained.snapshot
-  const definition=filteredDashboardQuery(snapshot.definition,dashboardFilters(input.filters))
+  const definition=filteredDashboardQuery(snapshot.definition,dashboardFilters(input.filters),dashboardFields(input.fields))
   const bindings=await refreshBindings(env,ownerId,snapshot),context=await queryContext(env,definition,ownerId)
   if(!sameRefreshConventions(snapshot.context,context))fail('dashboard_conventions_changed',409)
   if(canonicalJson(snapshot.context.modelImport??null)!==canonicalJson(context.modelImport??null))fail('published_model_changed',409)
@@ -46,7 +46,7 @@ export async function dashboardTvExportResponse(request:Request,env:Bindings,own
   if(snapshot.context.exploration) {
    context.exploration={...snapshot.context.exploration}
    const previous=context.exploration.comparison
-   if(previous){const comparison=filteredDashboardQuery(previous.definition,dashboardFilters(input.filters));context.exploration.comparison={definition:comparison,answer:execute(comparison,sources,context)}}
+   if(previous){const comparison=filteredDashboardQuery(previous.definition,dashboardFilters(input.filters),dashboardFields(input.fields));context.exploration.comparison={definition:comparison,answer:execute(comparison,sources,context)}}
   }
   return json(await saveQuery(env,owner,definition,context,sources),201)
  }catch(error) {

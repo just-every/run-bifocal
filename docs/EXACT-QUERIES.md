@@ -175,6 +175,12 @@ access. Up to eight distinct reader dimensions are supported. **Clear filters**
 restores the retained definitions. Automatic refresh keeps the active choices.
 Changing choices clears last-good values from the previous selection.
 
+**Displayed field** selects one common authored grouping field, or restores all
+authored fields. Values and totals are recomputed by the exact query engine;
+source actuals and retained restrictions never change. Selection cannot add an
+unauthored field. Exports and personal bookmarks retain this selection. This is
+a bounded grouping selector, not full field and measure parameter authoring.
+
 **Prepare current exports** retains the exact displayed filtered answer, checked
 against its definition fingerprint and source watermarks. Changing sources or
 filter context refuses a mismatched export before saving. Summary and underlying

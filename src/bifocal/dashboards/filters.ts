@@ -15,7 +15,13 @@ export function dashboardFilters(value:unknown):Filter[] {
   return {column:input.column,op:'eq',value:input.value} as Filter
  })
 }
-export function filteredDashboardQuery(definition:Query,filters:Filter[]):Query {
+export function dashboardFields(value:unknown):string[]|null {
+ if(value===undefined||value===null)return null
+ if(!Array.isArray(value)||!value.length||value.length>4||!value.every(field=>typeof field==='string'&&field.length>0&&field.length<=200)||new Set(value).size!==value.length)fail('dashboard_field_selection_required',400)
+ return value as string[]
+}
+export function filteredDashboardQuery(definition:Query,filters:Filter[],fields:string[]|null=null):Query {
+ if(fields?.some(field=>!definition.groupBy.includes(field)))fail('dashboard_field_selection_unavailable',409)
  if(filters.some(filter=>!definition.groupBy.includes(filter.column)))fail('dashboard_filter_dimension_unavailable',409)
- return queryInput({...definition,filters:[...definition.filters,...filters]})
+ return queryInput({...definition,groupBy:fields??definition.groupBy,filters:[...definition.filters,...filters]})
 }

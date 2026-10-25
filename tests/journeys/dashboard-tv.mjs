@@ -11,11 +11,21 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  // Two real source regions and a retained West-only card prove that reader
  // choices intersect saved restrictions, and export the displayed selection.
  const regions='synthetic-bifocal-tv-regions'
- await upload(regions,'invoice,region,revenue\n1,West,$10.01\n2,East,$30.03\n')
+ await upload(regions,'invoice,region,revenue\n1,West,$10.01\n2,East,$30.03\n3,West,$5.00\n')
  const regional=[]
  for(const definition of [query(regions),{...query(regions),filters:[{column:'region',op:'eq',value:'West'}]}])regional.push(await call('/queries/run',definition))
  const interactive=await call('/dashboards',{queryIds:regional.map(item=>item.queryId),title:'Interactive regional dashboard'})
  const filterEndpoint='/dashboards/'+interactive.id+'/refresh',east=[{column:'region',op:'eq',value:'East'}]
+ const fieldQuery=await call('/queries/run',{...query(regions),groupBy:['region','invoice']})
+ const fieldDashboard=await call('/dashboards',{queryId:fieldQuery.queryId,title:'Authored field parameter'})
+ const fieldEndpoint='/dashboards/'+fieldDashboard.id+'/refresh'
+ assert.equal((await call(fieldEndpoint,{maxAgeSeconds:3600},200)).cards[0].answer.rows.length,3)
+ const selectedField=(await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['region']},200)).cards[0]
+ assert.equal(selectedField.answer.rows.length,2);assert.equal(selectedField.answer.rows.find(row=>row.dimensions[0]==='West').values.revenue.value,'15.01');assert.equal(selectedField.answer.totals.revenue.value,'45.04')
+ assert.deepEqual(selectedField.availableDimensions,['region','invoice'])
+ assert.equal((await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['revenue']},200)).cards[0].error,'dashboard_field_selection_unavailable')
+ const fieldExport=await call('/dashboards/'+fieldDashboard.id+'/tiles/'+fieldQuery.queryId+'/export-snapshot',{maxAgeSeconds:3600,fields:['region'],definitionHash:selectedField.answer.definitionHash,watermarks:selectedField.answer.sourceWatermarks})
+ await proveRetainedExports({origin,context,snapshotId:fieldExport.queryId,summary:[['West','15.01'],['East','30.03']],underlying:[['1','West','10.01'],['2','East','30.03'],['3','West','5.00']]})
  const beforeFilters=await call('/queries')
  const filtered=await call(filterEndpoint,{maxAgeSeconds:3600,filters:east},200)
  assert.equal(filtered.cards[0].answer.totals.revenue.value,'30.03');assert.equal(filtered.cards[1].answer.filteredRows,0,'Reader filters never remove saved restrictions')
@@ -34,10 +44,18 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  assert.equal(changedBookmark.revision,2)
  assert.deepEqual((await call(bookmarksEndpoint+'/Regional%20review/1')).filters,east,'Historical personal choices are immutable')
  assert.equal((await call(bookmarksEndpoint)).bookmarks[0].revision,2)
- assert.equal((await call(filterEndpoint,{maxAgeSeconds:3600},200)).cards[0].answer.totals.revenue.value,'40.04','Personal bookmarks never silently change the default')
+ assert.equal((await call(filterEndpoint,{maxAgeSeconds:3600},200)).cards[0].answer.totals.revenue.value,'45.04','Personal bookmarks never silently change the default')
  assert.equal((await fetch(origin+'/api/operator'+bookmarksEndpoint)).status,401)
  await call(bookmarksEndpoint,{name:'Regional review',previousRevision:2,filters:[]},401,{Origin:'https://synthetic-bifocal.invalid'})
  const afterExport=await call('/queries');assert.equal(afterExport.queries?.length??afterExport.length,(beforeFilters.queries?.length??beforeFilters.length)+1)
+ await page.goto(origin+'/app/dashboards/'+fieldDashboard.id+'/tv');await page.locator('section[data-state="fresh"]').waitFor()
+ await Promise.all([page.waitForResponse(response=>response.url().endsWith(fieldEndpoint)&&response.status()===200),page.getByLabel('Displayed field',{exact:true}).selectOption('region')])
+ await page.waitForFunction(()=>document.querySelector('#tv-field')?.value==='region'&&document.querySelector('section[data-state="fresh"]'))
+ assert.match(await page.locator('section[data-tile-id]').innerText(),/15\.01/);await proveScreen('dashboard-tv-selected-authored-field')
+ await page.getByText('Personal bookmarks',{exact:true}).click();await page.getByLabel('Bookmark name',{exact:true}).fill('Region totals');await page.getByRole('button',{name:'Save personal bookmark',exact:true}).click();await page.getByRole('status').filter({hasText:'Personal bookmark saved as revision 1'}).waitFor()
+ assert.deepEqual((await call('/dashboards/'+fieldDashboard.id+'/bookmarks')).bookmarks[0].fields,['region'])
+ await page.reload();await page.locator('section[data-state="fresh"]').waitFor();assert.equal(await page.getByLabel('Displayed field',{exact:true}).inputValue(),'')
+ await page.getByText('Personal bookmarks',{exact:true}).click();await page.getByLabel('Saved bookmark',{exact:true}).selectOption('Region totals');await page.getByRole('button',{name:'Open bookmark revision',exact:true}).click();await page.getByRole('status').filter({hasText:'Opened Region totals revision 1'}).waitFor();await page.locator('section[data-state="fresh"]').waitFor();assert.equal(await page.getByLabel('Displayed field',{exact:true}).inputValue(),'region');await proveScreen('dashboard-tv-bookmarked-authored-field')
  await page.goto(origin+'/app/dashboards/'+interactive.id+'/tv')
  await page.locator('section[data-state="fresh"]').first().waitFor()
  await page.getByLabel('Filter dimension',{exact:true}).selectOption('region');await page.getByLabel('Filter value',{exact:true}).fill('East')
@@ -51,7 +69,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await sourceTile.getByRole('button',{name:'Filter Region to West',exact:true}).click()
  await page.waitForFunction(()=>document.querySelector('#tv-filter-state')?.textContent.includes('West'))
  await page.locator('section[data-state="fresh"]').nth(1).waitFor()
- for(const tile of await page.locator('section[data-tile-id]').all()){assert.match(await tile.innerText(),/10\.01/);assert.doesNotMatch(await tile.innerText(),/30\.03/)}
+ for(const tile of await page.locator('section[data-tile-id]').all()){assert.match(await tile.innerText(),/15\.01/);assert.doesNotMatch(await tile.innerText(),/30\.03/)}
  await proveScreen('dashboard-tv-cross-filtered')
  await page.getByRole('button',{name:'Clear filters',exact:true}).click();await page.locator('section[data-state="fresh"]').nth(1).waitFor();await proveScreen('dashboard-tv-cleared-filters')
  await page.getByText('Personal bookmarks',{exact:true}).click()
@@ -61,7 +79,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await page.getByLabel('Bookmark name',{exact:true}).fill('Regional review');await page.getByRole('button',{name:'Save personal bookmark',exact:true}).click();await page.getByRole('status').filter({hasText:'Personal bookmark saved as revision 3'}).waitFor();await proveScreen('dashboard-tv-personal-bookmark-versioned')
  await page.reload();await page.locator('section[data-state="fresh"]').nth(1).waitFor();assert.match(await page.locator('section[data-tile-id="'+regional[0].queryId+'"]').innerText(),/40\.04/);await proveScreen('dashboard-tv-default-after-personal-bookmark')
  assert.deepEqual(await call('/queries'),afterExport,'Filtering never saves answers')
- assert.equal((await call('/dashboards/'+interactive.id)).cards[0].answer.totals.revenue.value,'40.04','Reader filters never mutate saved dashboards')
+ assert.equal((await call('/dashboards/'+interactive.id)).cards[0].answer.totals.revenue.value,'45.04','Reader filters never mutate saved dashboards')
  const empty={...query(fresh),filters:[{column:'region',op:'eq',value:'North'}]}
  const retained=[]
  for(const definition of [query(fresh),query(old),empty])retained.push(await call('/queries/run',definition))
@@ -136,5 +154,5 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  const regionalSource=await call('/datasets/'+regions);await call('/datasets/'+regions+'/erase',{confirmDataset:regions,reviewedRevision:regionalSource.revision},200)
  await call(bookmarksEndpoint,undefined,404);await call(bookmarksEndpoint+'/Regional%20review/1',undefined,404)
  const staleSource=await call('/datasets/'+old);await call('/datasets/'+old+'/erase',{confirmDataset:old,reviewedRevision:staleSource.revision},200)
- console.log('Dashboard TV: narrowing global and cross filters, exact filtered exports, immutable personal bookmarks, unchanged defaults, explicit timer, real freshness, independent failure and recovery, immutable history, fullscreen and current authority withdrawal passed')
+ console.log('Dashboard TV: narrowing global and cross filters, exact filtered exports, bounded authored field selection, immutable personal bookmarks, unchanged defaults, explicit timer, real freshness, independent failure and recovery, immutable history, fullscreen and current authority withdrawal passed')
 }
