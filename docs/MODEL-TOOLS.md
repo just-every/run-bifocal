@@ -2,7 +2,7 @@
 
 Bifocal's current native tools manage owner-only model drafts. They also create
 and export tabular dashboards and reports with one to four answers, and manage
-one-time civil-time schedule definitions. This is partial BIF-022 support:
+finite civil-time schedule definitions. This is partial BIF-022 support:
 full resource serialization and environment
 configuration and all downstream application parity remain unfinished.
 
@@ -131,7 +131,7 @@ any answer or dashboard. Destroy releases Terraform tracking after a current
 authority check and explicitly reports that the dashboard is retained. Erasure
 and retention remain installation-owner actions. No automatic deletion is added.
 
-Terraform manages model drafts, retained dashboard and report snapshots and one-time schedule definitions. Publication and rollback remain separate exact
+Terraform manages model drafts, retained dashboard and report snapshots and finite schedule definitions. Publication and rollback remain separate exact
 human CLI actions. Destruction removes only the draft branch pointer; immutable
 revision and approval history remain. A branch currently published to staging
 or production cannot be destroyed. A changed draft version also refuses an old
@@ -142,13 +142,21 @@ Worker in the existing semantic-model journey. `node scripts/prepare-model-tools
 prepares checksum-verified Terraform 1.13.4 and the provider in the ignored local
 cache on Linux amd64; other hosts can use their supported Terraform binary.
 
-## One-time schedule definitions
+## Schedule definitions
 
 `schedule-export --schedule ID --output schedule.native.json` writes
 `{version: 1, id, definition}`. The definition has `name`, `localDate`, `time`,
 `timezone`, `reportCutoff`, `skipped` and `repeated`, matching the native
 [civil-time semantics](./US-CONVENTIONS.md). Resolved instants, author identity,
 installation authority and provider credentials are excluded from this file.
+
+Version 2 documents describe recurring schedules with an explicit finite bound
+and model environment binding. When the native schedule contains its normalized
+portable `document`, both CLI export and Terraform refresh preserve that object
+as version 2. The same plan and apply commands review and save it as immutable
+native versions. Exports contain no credentials or portable source grants.
+Saving a recurring definition activates no delivery and connects no dispatcher;
+reviewed environment bindings confer no installation or source authority.
 
 `schedule-plan --file schedule.native.json --plan-file schedule.plan.json`
 reviews the exact definition, current version and native owner. It prints DST
@@ -167,9 +175,8 @@ refuses a concurrent native change atomically. Keep configuration aligned with
 the current reviewed definition before releasing its Terraform tracking.
 Destroy releases tracking while retaining all immutable history; it does not
 cancel, activate or execute a subscription. No schedule dispatcher is connected.
-Recurring subscription definitions, environment source bindings and atomic
-estate promotion remain unfinished under BIF-022; execution belongs to BIF-015
-and BIF-058.
+Subscription delivery, environment source bindings and atomic estate promotion
+remain unfinished under BIF-022; execution belongs to BIF-015 and BIF-058.
 
 Exploration grants remain installation-local. Model production changes and
 source revision or content changes permanently retire affected activations,
@@ -323,3 +330,64 @@ answer ID and is empty for multi-answer artifacts. Replacing either document
 form creates a new retained artifact; releasing tracking retains the board and
 all its answer history. Chart resources retain their separate single-answer
 shape and computed `query_id`.
+
+## Environment estates
+
+`environment-export --estate ID --output environment.native.json` writes a
+local reference manifest: `{version: 1, id, name, resources}`. Each resource
+has a stable `key`, its `kind` and native `id`. Supported kinds are `model`,
+`metric`, `chart`, `dashboard`, `report`, `policy` and `schedule`. Models also
+name `branchId` and exact `revisionId`; metrics and policies name a numeric
+`revision`, and schedules name a numeric `version`. Chart, dashboard and report
+IDs identify retained immutable artifacts. Manifest references contain no
+credentials, grants or embedded resource definitions. Export each full resource
+independently with its own command. A manifest alone cannot reconstruct a
+resource on another installation or confer access to its sources.
+
+`environment-plan --file environment.native.json --plan-file environment.plan.json`
+reviews the manifest against current local definitions and saves a private
+plan with origin, normalized document, previous head revision and fingerprint.
+`environment-apply --plan-file environment.plan.json --approve DIGEST` creates
+one immutable draft only while that exact review remains current. New estates
+use a null previous revision; concurrent head changes and changed review inputs
+refuse atomically. `bifocal_environment_definition` accepts the same `document`,
+exposes computed `revision`, and requires the CLI fingerprint as `review_digest`
+for mutations. It supports actual stable ID import and drift refresh:
+
+```sh
+terraform import bifocal_environment_definition.finance ESTATE_ID
+```
+
+Saved Terraform plans submit the previous revision and exact fingerprint.
+Changing only the fingerprint creates no revision. Destroy rechecks current
+owner authority and releases tracking while retaining immutable estate history.
+Terraform applies draft definitions; publication remains a separate exact human
+action through the following CLI commands:
+
+```sh
+node src/bifocal/models/validation/cli.mjs environment-status --origin "$BIFOCAL_ORIGIN" --session-file "$BIFOCAL_SESSION_FILE" --estate "$ESTATE_ID"
+node src/bifocal/models/validation/cli.mjs environment-review --origin "$BIFOCAL_ORIGIN" --session-file "$BIFOCAL_SESSION_FILE" --estate "$ESTATE_ID" --version "$ESTATE_VERSION"
+node src/bifocal/models/validation/cli.mjs environment-approve --origin "$BIFOCAL_ORIGIN" --session-file "$BIFOCAL_SESSION_FILE" --estate "$ESTATE_ID" --version "$ESTATE_VERSION" --digest "$REVIEW_DIGEST"
+node src/bifocal/models/validation/cli.mjs environment-promote --origin "$BIFOCAL_ORIGIN" --session-file "$BIFOCAL_SESSION_FILE" --estate "$ESTATE_ID" --version "$ESTATE_VERSION" --digest "$REVIEW_DIGEST" --environment staging
+node src/bifocal/models/validation/cli.mjs environment-promote --origin "$BIFOCAL_ORIGIN" --session-file "$BIFOCAL_SESSION_FILE" --estate "$ESTATE_ID" --version "$ESTATE_VERSION" --digest "$REVIEW_DIGEST" --environment production
+```
+
+Estate versions are positive integers. Native review returns compatibility,
+resource definitions, differences, metric and model impacts, current generation
+and whether access review is required. Inspect those results before approving.
+Use `--security-resolution TEXT` on approval when required. Promotion checks
+current owner authority and exact BIF-046 approval, moving the supported estate
+and its model and metric pointers atomically. Role policy definitions remain
+inactive; no source grant or member binding is activated.
+
+`environment-rollback-plan --estate ID --version INTEGER` reviews a retained
+estate version. `environment-rollback --estate ID --version INTEGER --generation INTEGER --digest DIGEST`
+requires that exact current review and generation, with `--security-resolution`
+when required, and restores the supported estate coherently. Historical saved
+answers and reports remain retained at their original versions.
+`environment-run --estate ID --environment development|staging|production --key KEY`
+runs the selected resource under current authority; supply `--view ID` when
+selecting a model view. Every command also requires the common origin and
+private session file. These tools implement a bounded native estate workflow;
+full BI resource parity, portable source authority and subscription dispatch
+remain outside this support.

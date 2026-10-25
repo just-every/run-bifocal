@@ -4,11 +4,13 @@ import type { Bindings } from '../../auth.server'
 import { resolveSchedule, scheduleDefinition, timeContext } from '../calendars/timezone'
 import { body, ConventionsError, identifier, integer, object } from './protocol'
 import { guarded, readVersion, saveVersion, versions, versionValue, type Authority } from './store'
+import { recurringSchedule } from '../schedules/store.server'
 export async function temporalRoute(request: Request, env: Bindings, owner: Authority, path: string): Promise<unknown> {
  if (path === '/api/operator/schedule-definitions/review' || path === '/api/operator/schedule-definitions/apply') {
   if (request.method !== 'POST') throw new ConventionsError('method_not_allowed', 405)
   const input = object(await body(request), ['document', 'previousVersion', 'reviewedDigest'])
   const document = object(input.document, ['version', 'id', 'definition'])
+  if (document.version === 2) return recurringSchedule(env, owner, input, path.endsWith('/apply'))
   if (document.version !== 1) throw new ConventionsError('schedule_document_required', 400)
   const id = identifier(document.id), definition = scheduleDefinition(document.definition)
   const current = (await versions(env, owner, 'bf_schedules', id))[0]?.version ?? null

@@ -34,14 +34,15 @@ export async function reviewPolicy(env:Bindings,actor:Authority,value:unknown,pr
  const review={document,previousRevision:previous,before:current?JSON.parse(current.document_json) as PolicyDocument:null,after:document,active:false as const,productionSends:0,sourceWrites:0}
  // Model generation and source revisions are review inputs, not document fields.
  const digest=sha256(canonicalJson({review,ownerId:actor.id,model:modelGuard(model),sources:sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)}))}))
- return {review:{...review,digest},guards}
+ return {review:{...review,digest},guards,sources}
 }
 export async function applyPolicy(env:Bindings,actor:Authority,value:unknown,previous:number|null,reviewedDigest:unknown) {
- const {review,guards}=await reviewPolicy(env,actor,value,previous)
+ const {review,guards,sources}=await reviewPolicy(env,actor,value,previous)
  if(reviewedDigest!==review.digest)fail('exact_policy_review_required',409)
  const revision=(previous??0)+1,now=new Date().toISOString()
  await transact(env.DB,actor,[...guards.map(assertion),
   sql('INSERT INTO bf_policy_definition_revisions(owner_id,policy_id,revision,document_json,digest,created_at) VALUES(?,?,?,?,?,?)',actor.id,review.document.id,revision,canonicalJson(review.document),review.digest,now),
+  ...sources.map(source=>sql('INSERT INTO bf_policy_definition_sources(owner_id,policy_id,revision,dataset_id) VALUES(?,?,?,?)',actor.id,review.document.id,revision,source.id)),
   sql('INSERT INTO bf_policy_definitions(owner_id,id,revision) VALUES(?,?,?) ON CONFLICT(owner_id,id) DO UPDATE SET revision=excluded.revision',actor.id,review.document.id,revision),
   policyAudit(actor,review.document.id,revision,review.digest,'apply')])
  return {id:review.document.id,revision,digest:review.digest,active:false as const}

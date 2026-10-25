@@ -11,6 +11,8 @@ import {proveMetricTooling} from './metric-tooling.mjs'
 import {proveChartTooling} from './chart-tooling.mjs'
 import {provePolicyTooling} from './policy-tooling.mjs'
 import {proveBoardTooling} from './board-tooling.mjs'
+import {proveRecurringTooling} from './recurring-tooling.mjs'
+import {proveEnvironmentTooling} from './environment-tooling.mjs'
 
 export async function proveModelImports({origin,context,page,call,upload,proveScreen}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
@@ -207,6 +209,8 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   await proveMetricTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
   await proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
   await proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
+  await proveRecurringTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
+  await proveEnvironmentTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf})
   await provePolicyTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf,model:created.modelId,revision:created.revision,viewId:native.views[0].id})
   console.log('Native model tools: real CLI and Terraform create, import, semantic edit, stale saved-plan atomic refusal, explicit staging and production, source preservation, published deletion refusal and coherent rollback passed')
  }finally{await page.close();await rm(directory,{recursive:true,force:true})}

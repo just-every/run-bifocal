@@ -109,7 +109,7 @@ func (v versionedDefinition) reviewDiff(ctx context.Context, d *schema.ResourceD
 		return errors.New("Use normalized native " + v.kind + " JSON from CLI export or the reviewed plan")
 	}
 	if d.Get("review_digest") != review["digest"] {
-		return errors.New("Stale " + v.kind + " review fingerprint; review the current exact definition with CLI " + v.kind + "-plan")
+		return errors.New("stale " + v.kind + " review fingerprint; review the current exact definition with CLI " + v.kind + "-plan")
 	}
 	if v.kind == "policy" && review["active"] != false {
 		return errors.New("Policy review must remain inactive")

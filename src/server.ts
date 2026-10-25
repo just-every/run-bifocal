@@ -24,6 +24,9 @@ import { metricDefinitionResponse } from './bifocal/metrics/definitions.server'
 import { chartResponse } from './bifocal/charts/server'
 import { policyDefinitionResponse } from './bifocal/policies/server'
 import { policyDefinitionPage } from './bifocal/policies/page.server'
+import { scheduleDefinitionPage } from './bifocal/schedules/page.server'
+import { environmentResponse } from './bifocal/environments/server'
+import { environmentPage } from './bifocal/environments/page.server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
@@ -35,6 +38,7 @@ import { modelAuthoringResponse } from './bifocal/models/authoring.server'
 import { semanticResponse } from './bifocal/models/validation/server'
 import { explorationResponse } from './bifocal/explore/server'
 import { explorationPage } from './bifocal/explore/page.server'
+import { exportPolicyPage } from './bifocal/explore/export-policy.server'
 import { questionPage } from './bifocal/questions/page.server'
 import { questionResponse } from './bifocal/questions/server'
 import { calculationPage } from './bifocal/calculations/page.server'
@@ -68,6 +72,14 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (goal) return goal
     const quality = await qualityResponse(request, env)
     if (quality) return quality
+    const exportSettings = await exportPolicyPage(request, env)
+    if (exportSettings) return exportSettings
+    const environmentsPage = await environmentPage(request, env)
+    if (environmentsPage) return environmentsPage
+    const environments = await environmentResponse(request, env)
+    if (environments) return environments
+    const schedulesPage = await scheduleDefinitionPage(request, env)
+    if (schedulesPage) return schedulesPage
     const policyPage = await policyDefinitionPage(request, env)
     if (policyPage) return policyPage
     const policy = await policyDefinitionResponse(request, env)

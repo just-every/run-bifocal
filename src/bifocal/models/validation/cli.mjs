@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import {open,readFile,writeFile} from 'node:fs/promises'
 import {constants} from 'node:fs'
+import {environmentOptions,environmentRequired,environmentUsage,environmentCommand,validateEnvironmentFlags} from './environment-cli.mjs'
 
 const usage=`Usage: node src/bifocal/models/validation/cli.mjs COMMAND --origin URL --session-file PATH [options]
 Commands:
+${environmentUsage}
  policy-export --policy ID --output PATH
  policy-plan --file PATH --plan-file PATH
  policy-apply --plan-file PATH --approve DIGEST
@@ -36,9 +38,9 @@ Only current native human owner sessions are accepted. Use your own mode-0600 se
 Plan files contain definitions and a review fingerprint, without rows, credentials or grants.
 Review the printed exact results before apply. Approve and promote are explicit separate commands.
 Exported JSON is the documented native model format; git branches hold edits to that file.
-The tools manage native models, draft metric definitions, inactive role policy definitions, retained charts, dashboards and reports with one to four answers, and one-time schedule definitions, with partial BIF-022 support.`
-const options={'policy-export':['policy','output'],'policy-plan':['file','plan-file'],'policy-apply':['plan-file','approve'],'chart-export':['id','output'],'chart-import':['file','approve','plan-file'],'metric-export':['metric','output'],'metric-plan':['file','plan-file'],'metric-apply':['plan-file','approve'],'report-export':['id','output'],'report-import':['file','approve','plan-file'],'schedule-export':['schedule','output'],'schedule-plan':['file','plan-file'],'schedule-apply':['plan-file','approve'],'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
-const required={...options,'chart-import':['file'],'report-import':['file'],'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
+The tools manage native models, draft metric definitions, inactive role policy definitions, retained charts, dashboards and reports with one to four answers, and finite schedule definitions, with partial BIF-022 support.`
+const options={...environmentOptions,'policy-export':['policy','output'],'policy-plan':['file','plan-file'],'policy-apply':['plan-file','approve'],'chart-export':['id','output'],'chart-import':['file','approve','plan-file'],'metric-export':['metric','output'],'metric-plan':['file','plan-file'],'metric-apply':['plan-file','approve'],'report-export':['id','output'],'report-import':['file','approve','plan-file'],'schedule-export':['schedule','output'],'schedule-plan':['file','plan-file'],'schedule-apply':['plan-file','approve'],'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
+const required={...options,...environmentRequired,'chart-import':['file'],'report-import':['file'],'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
 const stableId=value=>typeof value==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(value)
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value)
 export async function main(argv=process.argv.slice(2)) {
@@ -48,10 +50,11 @@ export async function main(argv=process.argv.slice(2)) {
  while(argv.length){const key=argv.shift()?.replace(/^--/,''),value=argv.shift();if(!['origin','session-file',...allowed].includes(key)||!value||flags[key])throw Error('Invalid arguments; see --help');flags[key]=value}
  for(const key of ['origin','session-file',...required[command]])if(!flags[key])throw Error('Missing '+key)
  for(const key of ['id','model','branch','revision'])if(flags[key]&&!uuid(flags[key]))throw Error('Invalid '+key)
- for(const kind of ['metric','policy'])if(flags[kind]&&!stableId(flags[kind]))throw Error('Invalid '+kind+' ID')
+ for(const kind of ['metric','policy','estate'])if(flags[kind]&&!stableId(flags[kind]))throw Error('Invalid '+kind+' ID')
  if(command==='plan'&&!!flags.model!==!!flags.branch)throw Error('Supply both model and branch for updates')
- if(flags.environment&&!['staging','production'].includes(flags.environment))throw Error('Invalid environment')
+ if(flags.environment&&!(command==='environment-run'?['development','staging','production']:['staging','production']).includes(flags.environment))throw Error('Invalid environment')
  if(flags.generation&&!/^(0|[1-9][0-9]*)$/.test(flags.generation))throw Error('Invalid generation')
+ if(command.startsWith('environment-'))validateEnvironmentFlags(flags)
  const url=new URL(flags.origin)
  if(url.username||url.password||url.pathname!=='/'||url.search||url.hash||url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))throw Error('Use an HTTPS app origin or loopback HTTP')
  const session=await open(flags['session-file'],constants.O_RDONLY|constants.O_NOFOLLOW)
@@ -97,7 +100,7 @@ export async function main(argv=process.argv.slice(2)) {
    const versions=await call('/schedules/'+encodeURIComponent(flags.schedule)),version=versions.versions[0]?.version
    if(!version)throw Error('Schedule not found')
    const saved=await call('/schedules/'+encodeURIComponent(flags.schedule)+'/'+version),{resolution,dispatcher,...definition}=saved.definition
-   await writeFile(flags.output,JSON.stringify({version:1,id:saved.id,definition},null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break
+   await writeFile(flags.output,JSON.stringify(saved.definition.document??{version:1,id:saved.id,definition},null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break
   }
   case 'schedule-plan':{
    const document=await definition(),versions=await call('/schedules/'+encodeURIComponent(document.id)),previousVersion=versions.versions[0]?.version??null
@@ -143,6 +146,7 @@ export async function main(argv=process.argv.slice(2)) {
   case 'rollback-plan':result=await call(model+'/rollback-preview',{revision:flags.revision});break
   case 'rollback':result=await call(model+'/rollback',{revision:flags.revision,previousGeneration:Number(flags.generation),digest:flags.digest,...(flags['security-resolution']?{securityResolution:flags['security-resolution']}:{})});break
   case 'delete-branch':result=await call(branch,{previousVersion:Number(flags.version)},'DELETE');break
+  default:result=await environmentCommand(command,flags,{call,origin:url.origin});break
  }
  console.log(JSON.stringify(result,null,2))
 }

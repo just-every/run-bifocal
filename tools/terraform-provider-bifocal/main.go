@@ -110,7 +110,7 @@ func main() {
 	plugin.Serve(&plugin.ServeOpts{ProviderFunc: func() *schema.Provider {
 		return &schema.Provider{
 			Schema:               map[string]*schema.Schema{"origin": {Type: schema.TypeString, Required: true, DefaultFunc: schema.EnvDefaultFunc("BIFOCAL_ORIGIN", nil), Description: "HTTPS app origin or loopback HTTP. Current native owner session comes only from BIFOCAL_SESSION_FILE."}},
-			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": snapshotResource("dashboard"), "bifocal_report_snapshot": snapshotResource("report"), "bifocal_schedule_definition": scheduleResource(), "bifocal_metric_definition": metricResource(), "bifocal_chart_snapshot": chartResource(), "bifocal_role_policy_definition": policyResource()},
+			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": snapshotResource("dashboard"), "bifocal_report_snapshot": snapshotResource("report"), "bifocal_schedule_definition": scheduleResource(), "bifocal_metric_definition": metricResource(), "bifocal_chart_snapshot": chartResource(), "bifocal_role_policy_definition": policyResource(), "bifocal_environment_definition": environmentResource()},
 		}
 	}})
 }
@@ -332,10 +332,20 @@ func readSchedule(ctx context.Context, d *schema.ResourceData, meta any) diag.Di
 	if e != nil {
 		return diag.FromErr(e)
 	}
-	definition := saved["definition"].(map[string]any)
-	delete(definition, "resolution")
-	delete(definition, "dispatcher")
-	document, _ := json.Marshal(map[string]any{"version": 1, "id": d.Id(), "definition": definition})
+	definition, ok := saved["definition"].(map[string]any)
+	if !ok {
+		return diag.Errorf("Invalid native schedule definition")
+	}
+	portable := definition["document"]
+	if portable == nil {
+		delete(definition, "resolution")
+		delete(definition, "dispatcher")
+		portable = map[string]any{"version": 1, "id": d.Id(), "definition": definition}
+	}
+	document, e := json.Marshal(portable)
+	if e != nil {
+		return diag.FromErr(e)
+	}
 	if e = d.Set("document", string(document)); e != nil {
 		return diag.FromErr(e)
 	}

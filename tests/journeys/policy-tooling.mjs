@@ -44,7 +44,7 @@ export async function provePolicyTooling({origin,context,page,call,upload,proveS
  assert.deepEqual((await call('/explore/access')).grants,accessBefore.grants,'Policy lifecycle issues no grant or activation')
  assert.deepEqual(await call('/datasets/synthetic-bifocal-invoices'),sourceBefore,'Policy lifecycle never writes the production source')
  await terraform(['destroy','-auto-approve','-input=false','-no-color'])
- // Isolated source/model proves both binding fences without changing production fixtures.
+ // Isolated source and model proves both binding fences without changing production fixtures.
  const dataset='synthetic-bifocal-policy-drift',csv='invoice,region,revenue\n1,West,$10.01\n'
  await upload(dataset,csv)
  const native=JSON.parse(await readFile(join(directory,'export.native.json'),'utf8')),query=structuredClone(native.views[0].query)
@@ -59,5 +59,5 @@ export async function provePolicyTooling({origin,context,page,call,upload,proveS
  await publish('/models/'+own.modelId+'/branches/'+next.branchId)
  await cli('policy-apply',['--plan-file',modelPlan.plan,'--approve',modelPlan.result.digest],false);assert.equal((await call('/policy-definitions/'+driftDocument.id)).document,null)
  assert.deepEqual((await call('/explore/access')).grants,accessBefore.grants)
- console.log('Inactive role policies: actual CLI and Terraform create/import/edit/restore, semantic history, concurrent/source/model drift refusal and no analytical activation passed at 1440 and 390')
+ console.log('Inactive role policies: actual CLI and Terraform creation, import, edits and restoration, semantic history, concurrent/source and model drift refusal and no analytical activation passed at 1440 and 390')
 }

@@ -11,6 +11,8 @@ import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
 import { fail, QueryError, type Cell } from '../query/types'
 import { exportTable, type ExportColumn } from './table-export'
+import {pivotTable} from './pivot'
+import { exportPolicyResponse, readExportPolicy, exportPolicyGuard } from './export-policy.server'
 const pageSize=25
 
 /** Published fields and current explicit grants are checked on every door. */
@@ -22,6 +24,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   const actor=await currentAuthority(request,env);if(!actor)return json({error:'owner_required'},401)
   if(url.search)fail('query_parameters_not_supported',400)
   const accessResult=await accessResponse(request,env,actor,path);if(accessResult)return accessResult
+  const policyResult=await exportPolicyResponse(request,env,actor,path);if(policyResult)return policyResult
   const isOwner=actor.role==='owner'
   if(path==='/api/operator/explore'&&request.method==='GET') {
    const grants:Grant[]=[],guards=[]
@@ -53,12 +56,13 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    const questions=(await env.DB.prepare(`SELECT q.id,q.created_at,json_extract(q.context_json,'$.exploration.viewId') AS view_id FROM bf_query_snapshots q
     WHERE json_extract(q.context_json,'$.exploration') IS NOT NULL AND (${questionScope}) ORDER BY q.created_at DESC,q.id LIMIT 51`)
     .bind(...(isOwner?[actor.id]:grants.map(g=>g.id))).all<{id:string;created_at:string;view_id:string}>()).results
-   await transact(env.DB,actor,[...guards.map(assertion),...grants.map(grant=>audit(actor,grant,'question-discovery'))])
-   return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:30000,xlsx:150000,sourceRows:2000},authority:isOwner?'installation-owner':'delegated-view'})
+   const exportPolicy=await readExportPolicy(env)
+   await transact(env.DB,actor,[...guards.map(assertion),assertion(exportPolicyGuard(exportPolicy)),...grants.map(grant=>audit(actor,grant,'question-discovery'))])
+   return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:exportPolicy.csv,xlsx:exportPolicy.xlsx,sourceRows:2000},authority:isOwner?'installation-owner':'delegated-view'})
   }
   if(path==='/api/operator/explore/run') {
    if(request.method!=='POST')fail('method_not_allowed',405)
-   const input=await jsonBody(request);exactKeys(input,['modelId','revision','viewId','groupBy','filters','fiscal','compareAsOf','grantId'])
+   const input=await jsonBody(request);exactKeys(input,['modelId','revision','viewId','groupBy','filters','fiscal','compareAsOf','grantId','pivot'])
    const access=isOwner?null:await readGrant(env,actor,input.grantId),grant=access?.grant,ownerId=grant?.owner_id??actor.id
    if(grant&&(grant.definition.modelId!==input.modelId||grant.definition.viewId!==input.viewId||grant.definition.revision!==input.revision))fail('exploration_access_required',403)
    const model=await readModel(env,ownerId,String(input.modelId));if(!model.production||input.revision!==model.production)fail('published_model_changed',409)
@@ -67,6 +71,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    const allowed=new Set(view.query.semantic.dimensions.filter(d=>!grant||grant.definition.underlying||grant.definition.dimensions.includes(d.column)).map(d=>d.column))
    const candidate=queryInput({...view.query,groupBy:input.groupBy,filters:input.filters,...(input.fiscal===undefined?{}:{fiscal:input.fiscal})})
    if(candidate.groupBy.some(c=>!allowed.has(c))||candidate.filters.some(f=>!allowed.has(f.column)))fail('dimension_not_permitted',403)
+   if(input.pivot!==undefined&&(typeof input.pivot!=='string'||candidate.groupBy.at(-1)!==input.pivot))fail('pivot_requires_final_grouped_dimension',400)
    if(input.fiscal!==undefined&&(!view.query.fiscal||candidate.fiscal?.column!==view.query.fiscal.column))fail('fiscal_dimension_not_permitted',403)
    const query=queryInput({...scopedQuery(view,model.production),groupBy:candidate.groupBy,filters:[...view.query.filters,...view.rowRules,...(grant?.definition.filters??[]),...candidate.filters],...(candidate.fiscal?{fiscal:candidate.fiscal}:{})})
    const context=await queryContext(env,query,ownerId),sources=await readSources(env,query)
@@ -99,23 +104,25 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   const modelFence=modelGuard(model),grant=access?.grant
   const fences=[assertion(guard),assertion(modelFence),...(access?.guards??[]).map(assertion),...(grant?[audit(actor,grant,match[2]??'question-read')]:[])]
   if(!match[2]){await transact(env.DB,actor,fences);return json(snapshot)}
-  const input=await jsonBody(request);exactKeys(input,match[2]==='export'?['scope','format']:['scope','offset'])
+  const input=await jsonBody(request);exactKeys(input,match[2]==='export'?['scope','format','layout']:['scope','offset','layout'])
   if(!['summary','underlying'].includes(String(input.scope)))fail('explicit_export_scope_required',400)
   if(grant&&(input.scope==='underlying'&&!grant.definition.underlying||match[2]==='export'&&(input.scope==='summary'?!grant.definition.summaryExport:!grant.definition.underlyingExport)))fail('exploration_scope_not_permitted',403)
-  const {columns,rows}=table(snapshot,sources,input.scope==='underlying')
+  if(input.layout!==undefined&&(input.layout!=='pivot'||input.scope!=='summary'||typeof exploration.parameters.pivot!=='string'))fail('saved_pivot_layout_required',400)
+  const pivot=input.scope==='summary'&&typeof exploration.parameters.pivot==='string'?pivotTable(snapshot,exploration.parameters.pivot):null
+  const {columns,rows}=pivot??table(snapshot,sources,input.scope==='underlying')
   if(match[2]==='export') {
    if(input.format!=='csv'&&input.format!=='xlsx')fail('export_format_required',400)
-   const cap=input.format==='csv'?30000:150000
+   const exportPolicy=await readExportPolicy(env),cap=exportPolicy[input.format]
    if(rows.length>cap)fail('full_export_unavailable',413)
    if(input.scope==='summary'&&snapshot.answer.rows.some(row=>Object.values(row.values).some(value=>!['value','null'].includes(value.state))))fail('incomplete_summary_export_refused',409)
    const output=exportTable(columns,rows,input.format)
-   await transact(env.DB,actor,fences)
+   await transact(env.DB,actor,[...fences,assertion(exportPolicyGuard(exportPolicy))])
    return new Response(output.body,{headers:{...privateHeaders,'content-type':output.type,'content-disposition':`attachment; filename="bifocal-${input.scope}.${input.format}"`,'x-bifocal-row-count':String(rows.length),'x-bifocal-scope':String(input.scope)}})
   }
   if(!Number.isSafeInteger(input.offset)||Number(input.offset)<0||Number(input.offset)>rows.length)fail('invalid_page_offset',400)
   await transact(env.DB,actor,fences)
   const offset=Number(input.offset)
-  return json({columns,rows:rows.slice(offset,offset+pageSize),offset,totalRows:rows.length,nextOffset:offset+pageSize<rows.length?offset+pageSize:null,scope:input.scope,snapshotId:snapshot.snapshotId,totals:snapshot.answer.totals,filteredRows:snapshot.answer.filteredRows})
+  return json({...pivot?{layout:pivot.layout,rowDimensions:pivot.rowDimensions,pivot:pivot.pivot}:{},columns,rows:rows.slice(offset,offset+pageSize),offset,totalRows:rows.length,nextOffset:offset+pageSize<rows.length?offset+pageSize:null,scope:input.scope,snapshotId:snapshot.snapshotId,totals:snapshot.answer.totals,filteredRows:snapshot.answer.filteredRows})
  }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'exploration_conflict',reason:'Reload the published model and run the question again.'},409)}finally{await discardBody(request)}
 }
 function table(snapshot:Snapshot,sources:Parameters<typeof execute>[1],underlying:boolean):{columns:ExportColumn[];rows:Cell[][]} {

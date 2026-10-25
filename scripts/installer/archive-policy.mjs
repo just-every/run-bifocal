@@ -12,7 +12,14 @@ export default {
     "oa_logout_events",
     "oc_owner_claims",
     "oc_idp_grants",
+    "bf_environment_sources",
+    "bf_environment_estates",
+    "bf_environment_revisions",
+    "bf_environment_history",
+    "bf_explore_export_policy",
+    "bf_explore_export_policy_audit",
     "bf_charts",
+    "bf_policy_definition_sources",
     "bf_policy_definitions",
     "bf_policy_definition_revisions",
     "bf_policy_definition_audit",
@@ -134,6 +141,7 @@ export default {
     "ik_targets"
   ],
   "excludeTables": [
+    "bf_environment_approval",
     "bf_report_reviewer_activation",
     "bf_explore_activation",
     "bf_catalog_grant_activation",
