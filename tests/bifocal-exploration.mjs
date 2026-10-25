@@ -138,6 +138,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
  assert.deepEqual((await call(reader,'/explore/'+run.snapshotId)).definition.filters,run.definition.filters)
  const discovered=async(id)=>(await call(reader,'/explore')).questions.some(q=>q.id===id)
  assert.equal(await discovered(run.snapshotId),true,'Current grant exposes its saved question metadata')
+ assert.ok((await call(owner,'/explore/access')).audit.some(a=>a.grant_id===grant.id&&a.action==='question-discovery'&&a.actor_id===readerId),'Discovery records grant use without source rows')
  const rows=[];let offset=0
  do{const result=await call(reader,'/explore/'+run.snapshotId+'/page',{scope:'underlying',offset},200);rows.push(...result.rows);offset=result.nextOffset}while(offset!==null)
  assert.deepEqual(rows.map(r=>r[0]).sort(),expected.map(r=>r.id).sort());assert.equal(rows.reduce((sum,r)=>sum+Math.round(Number(r[3])*100),0),money)

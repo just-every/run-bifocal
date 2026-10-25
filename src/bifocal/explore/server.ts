@@ -53,7 +53,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    const questions=(await env.DB.prepare(`SELECT q.id,q.created_at,json_extract(q.context_json,'$.exploration.viewId') AS view_id FROM bf_query_snapshots q
     WHERE json_extract(q.context_json,'$.exploration') IS NOT NULL AND (${questionScope}) ORDER BY q.created_at DESC,q.id LIMIT 51`)
     .bind(...(isOwner?[actor.id]:grants.map(g=>g.id))).all<{id:string;created_at:string;view_id:string}>()).results
-   await transact(env.DB,actor,guards.map(assertion))
+   await transact(env.DB,actor,[...guards.map(assertion),...grants.map(grant=>audit(actor,grant,'question-discovery'))])
    return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:30000,xlsx:150000,sourceRows:2000},authority:isOwner?'installation-owner':'delegated-view'})
   }
   if(path==='/api/operator/explore/run') {
