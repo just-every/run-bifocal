@@ -19,6 +19,13 @@ ${environmentUsage}
  schedule-apply --plan-file PATH --approve DIGEST
  report-export --id UUID --output PATH
  report-import --file PATH [--plan-file PATH | --approve DIGEST]
+ dashboard-definition-export --id UUID --output PATH
+ dashboard-definition-plan --file PATH --plan-file PATH [--id UUID]
+ dashboard-definition-apply --plan-file PATH --approve DIGEST
+ dashboard-definition-publish-plan --id UUID --revision INTEGER --plan-file PATH
+ dashboard-definition-publish --plan-file PATH --approve DIGEST
+ dashboard-definition-rollback-plan --id UUID --revision INTEGER --plan-file PATH
+ dashboard-definition-rollback --plan-file PATH --approve DIGEST
  dashboard-export --id UUID --output PATH
  dashboard-import --file PATH [--plan-file PATH | --approve DIGEST]
  export --model UUID --branch UUID --output PATH
@@ -39,8 +46,9 @@ Plan files contain definitions and a review fingerprint, without rows, credentia
 Review the printed exact results before apply. Approve and promote are explicit separate commands.
 Exported JSON is the documented native model format; git branches hold edits to that file.
 The tools manage native models, draft metric definitions, inactive role policy definitions, retained charts, dashboards and reports with one to four answers, and finite schedule definitions, with partial BIF-022 support.`
-const options={...environmentOptions,'policy-export':['policy','output'],'policy-plan':['file','plan-file'],'policy-apply':['plan-file','approve'],'chart-export':['id','output'],'chart-import':['file','approve','plan-file'],'metric-export':['metric','output'],'metric-plan':['file','plan-file'],'metric-apply':['plan-file','approve'],'report-export':['id','output'],'report-import':['file','approve','plan-file'],'schedule-export':['schedule','output'],'schedule-plan':['file','plan-file'],'schedule-apply':['plan-file','approve'],'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
-const required={...options,...environmentRequired,'chart-import':['file'],'report-import':['file'],'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
+const dashboardOptions={'dashboard-definition-export':['id','output'],'dashboard-definition-plan':['file','plan-file','id'],'dashboard-definition-apply':['plan-file','approve'],'dashboard-definition-publish-plan':['id','revision','plan-file'],'dashboard-definition-publish':['plan-file','approve'],'dashboard-definition-rollback-plan':['id','revision','plan-file'],'dashboard-definition-rollback':['plan-file','approve']}
+const options={...environmentOptions,...dashboardOptions,'policy-export':['policy','output'],'policy-plan':['file','plan-file'],'policy-apply':['plan-file','approve'],'chart-export':['id','output'],'chart-import':['file','approve','plan-file'],'metric-export':['metric','output'],'metric-plan':['file','plan-file'],'metric-apply':['plan-file','approve'],'report-export':['id','output'],'report-import':['file','approve','plan-file'],'schedule-export':['schedule','output'],'schedule-plan':['file','plan-file'],'schedule-apply':['plan-file','approve'],'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
+const required={...options,...environmentRequired,'dashboard-definition-plan':['file','plan-file'],'chart-import':['file'],'report-import':['file'],'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
 const stableId=value=>typeof value==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(value)
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value)
 export async function main(argv=process.argv.slice(2)) {
@@ -49,11 +57,12 @@ export async function main(argv=process.argv.slice(2)) {
  const flags={}
  while(argv.length){const key=argv.shift()?.replace(/^--/,''),value=argv.shift();if(!['origin','session-file',...allowed].includes(key)||!value||flags[key])throw Error('Invalid arguments; see --help');flags[key]=value}
  for(const key of ['origin','session-file',...required[command]])if(!flags[key])throw Error('Missing '+key)
- for(const key of ['id','model','branch','revision'])if(flags[key]&&!uuid(flags[key]))throw Error('Invalid '+key)
+ for(const key of ['id','model','branch',...(command.startsWith('dashboard-definition-')?[]:['revision'])])if(flags[key]&&!uuid(flags[key]))throw Error('Invalid '+key)
  for(const kind of ['metric','policy','estate'])if(flags[kind]&&!stableId(flags[kind]))throw Error('Invalid '+kind+' ID')
  if(command==='plan'&&!!flags.model!==!!flags.branch)throw Error('Supply both model and branch for updates')
  if(flags.environment&&!(command==='environment-run'?['development','staging','production']:['staging','production']).includes(flags.environment))throw Error('Invalid environment')
  if(flags.generation&&!/^(0|[1-9][0-9]*)$/.test(flags.generation))throw Error('Invalid generation')
+ if(command.startsWith('dashboard-definition-')&&flags.revision&&(!/^[1-9][0-9]*$/.test(flags.revision)||!Number.isSafeInteger(Number(flags.revision))))throw Error('Invalid dashboard revision')
  if(command.startsWith('environment-'))validateEnvironmentFlags(flags)
  const url=new URL(flags.origin)
  if(url.username||url.password||url.pathname!=='/'||url.search||url.hash||url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))throw Error('Use an HTTPS app origin or loopback HTTP')
@@ -70,6 +79,34 @@ export async function main(argv=process.argv.slice(2)) {
  const documentInput=async()=>({document:JSON.stringify(await definition()),...(flags.model?{modelId:flags.model,branchId:flags.branch}:{}),...(flags.model?{previousVersion:(await call(branch)).version}:{})})
  let result
  switch(command){
+  case 'dashboard-definition-export':{
+   const saved=await call('/dashboard-authoring/'+flags.id)
+   if(saved.definition?.version!==2)throw Error('Dashboard definition not found')
+   await writeFile(flags.output,JSON.stringify(saved.definition,null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break
+  }
+  case 'dashboard-definition-plan':{
+   const document=await definition(),current=flags.id?await call('/dashboard-authoring/'+flags.id):null
+   const input={document,...flags.id?{id:flags.id,previousRevision:current.revision}:{}}
+   const review=await call('/dashboard-authoring/review',input)
+   await writeFile(flags['plan-file'],JSON.stringify({version:1,kind:'dashboard-definition',origin:url.origin,...input,document:review.document,reviewedDigest:review.digest},null,2)+'\n',{flag:'wx',mode:0o600});result=review;break
+  }
+  case 'dashboard-definition-apply':{
+   const plan=JSON.parse(await readFile(flags['plan-file'],'utf8'))
+   if(plan.version!==1||plan.kind!=='dashboard-definition'||plan.origin!==url.origin||plan.reviewedDigest!==flags.approve||!/^[a-f0-9]{64}$/.test(flags.approve)||plan.document?.version!==2||plan.id!==undefined&&(!uuid(plan.id)||!Number.isSafeInteger(plan.previousRevision)||plan.previousRevision<1))throw Error('Exact reviewed dashboard plan required for this origin')
+   result=await call('/dashboard-authoring/apply',{document:plan.document,...plan.id?{id:plan.id,previousRevision:plan.previousRevision}:{},reviewedDigest:flags.approve});break
+  }
+  case 'dashboard-definition-publish-plan':
+  case 'dashboard-definition-rollback-plan':{
+   const action=command==='dashboard-definition-publish-plan'?'publish':'rollback',saved=await call('/dashboard-authoring/'+flags.id),input={revision:Number(flags.revision),previousGeneration:saved.generation,action}
+   const review=await call('/dashboard-authoring/'+flags.id+'/publication/review',input)
+   await writeFile(flags['plan-file'],JSON.stringify({version:1,kind:'dashboard-publication',origin:url.origin,id:flags.id,...input,reviewedDigest:review.digest},null,2)+'\n',{flag:'wx',mode:0o600});result=review;break
+  }
+  case 'dashboard-definition-publish':
+  case 'dashboard-definition-rollback':{
+   const plan=JSON.parse(await readFile(flags['plan-file'],'utf8')),action=command==='dashboard-definition-publish'?'publish':'rollback'
+   if(plan.version!==1||plan.kind!=='dashboard-publication'||plan.origin!==url.origin||plan.action!==action||!uuid(plan.id)||!Number.isSafeInteger(plan.revision)||plan.revision<1||!Number.isSafeInteger(plan.previousGeneration)||plan.previousGeneration<0||plan.reviewedDigest!==flags.approve||!/^[a-f0-9]{64}$/.test(flags.approve))throw Error('Exact reviewed dashboard publication plan required for this origin')
+   result=await call('/dashboard-authoring/'+plan.id+'/'+action,{revision:plan.revision,previousGeneration:plan.previousGeneration,reviewedDigest:flags.approve});break
+  }
   case 'policy-export':
   case 'metric-export':{
    const kind=command.split('-')[0],saved=await call('/'+kind+'-definitions/'+encodeURIComponent(flags[kind]))

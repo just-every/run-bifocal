@@ -4,6 +4,7 @@ import type {Authority} from '../catalog/authority.server'
 import {assertion,sql,transact} from '../../modules/import-kit/src/door/store.ts'
 import {fail} from '../query/types'
 import {history,publicationReview} from './store.server'
+import {dashboardPublicationChanges} from '../dashboards/authoring.publication.server'
 function securityResolution(value:unknown,required:boolean){
  if(required&&(typeof value!=='string'||!value.trim())||value!==undefined&&(typeof value!=='string'||value.length>1000||!value.trim()))fail('security_resolution_required',409)
  return typeof value==='string'?value:null
@@ -29,6 +30,7 @@ export async function promoteEstate(env:Bindings,actor:Authority,id:string,n:num
  if(environment==='production')for(const value of resources.metrics){
   changes.push(sql('UPDATE bf_metric_revisions SET approved_at=COALESCE(approved_at,?),annotation=COALESCE(annotation,?) WHERE metric_id=? AND revision=?',now,'Exact estate approval '+id+' revision '+n,value.row.id,value.revision.revision),sql('UPDATE bf_metrics SET published_revision=? WHERE id=? AND owner_id=?',value.revision.revision,value.row.id,actor.id))
  }
+ if(environment==='production')for(const value of resources.dashboards)changes.push(...dashboardPublicationChanges(actor,value.state,value.revision,'publish',review.digest,{estate:true}))
  changes.push(sql(`UPDATE bf_environment_estates SET ${environment}=?,generation=generation+? WHERE owner_id=? AND id=?`,n,environment==='production'?1:0,actor.id,id),history(actor,id,n,environment,'promote',review.digest))
  if(environment==='production')changes.push(sql('DELETE FROM bf_environment_approval WHERE owner_id=? AND estate_id=?',actor.id,id))
  await transact(env.DB,actor,changes)
@@ -43,6 +45,7 @@ export async function rollbackEstate(env:Bindings,actor:Authority,id:string,n:nu
   changes.push(sql('INSERT INTO bf_semantic_approvals(id,model_id,revision_id,digest,actor_id,security_resolution,recorded_at) VALUES(?,?,?,?,?,?,?)',randomUUID(),model.id,branch.revision_id,value.review.digest,actor.id,text,now),sql('UPDATE bf_semantic_models SET production=?,staging=?,generation=generation+1,cache_epoch=cache_epoch+1 WHERE id=?',branch.revision_id,branch.revision_id,model.id),sql('DELETE FROM bf_semantic_cache WHERE model_id=?',model.id),sql('INSERT INTO bf_semantic_history(id,model_id,environment,revision_id,action,actor_id,cache_epoch,recorded_at) VALUES(?,?,?,?,?,?,?,?)',randomUUID(),model.id,'production',branch.revision_id,'rollback',actor.id,model.cache_epoch+1,now))
  }
  for(const value of resources.metrics)changes.push(sql('UPDATE bf_metrics SET published_revision=? WHERE id=? AND owner_id=?',value.revision.revision,value.row.id,actor.id))
+ for(const value of resources.dashboards)changes.push(...dashboardPublicationChanges(actor,value.state,value.revision,'rollback',review.digest,{estate:true}))
  changes.push(sql('UPDATE bf_environment_estates SET development=?,staging=?,production=?,generation=generation+1 WHERE owner_id=? AND id=?',n,n,n,actor.id,id),sql('DELETE FROM bf_environment_approval WHERE owner_id=? AND estate_id=?',actor.id,id),history(actor,id,n,'production','rollback',review.digest))
  await transact(env.DB,actor,changes)
  return {id,version:n,generation:state.generation+1,productionSends:0,sourceWrites:0,policiesActive:false,scheduleDispatcher:'unavailable'}

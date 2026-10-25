@@ -656,6 +656,10 @@
       "sha256": "938ae03dcb27443d87fad8007ed8fef4e4a33aa77427253d716e2b58178e677c",
       "executable": false
     },
+    "migrations/core/0049_dashboard_authoring.sql": {
+      "sha256": "6b54124a7580934fb1afb2b693a128fac18637ad607839b03834f8e0db9b33af",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -758,6 +762,14 @@
     },
     "public/bifocal/composition.js": {
       "sha256": "f236e670313fe70ed616d6b0d46fb56e92509093491e4931db200467ce433bea",
+      "executable": false
+    },
+    "public/bifocal/dashboard-authoring.css": {
+      "sha256": "a9788c1f098cb4996404c5814fb4c502d716eb3c4239ae788cfa20038f3c7a5f",
+      "executable": false
+    },
+    "public/bifocal/dashboard-authoring.js": {
+      "sha256": "5b57c0afadf2c21f3f6c83ea9c9b875e8074140eb67e104c2b49e420480a03c7",
       "executable": false
     },
     "public/bifocal/dashboard-tv.css": {
@@ -1105,7 +1117,7 @@
       "executable": false
     },
     "scripts/installer/archive-policy.mjs": {
-      "sha256": "89e4e93bf916b2549433ade58e714d1ef3791de8dbb2ab5fa6509bbd7ae51bd0",
+      "sha256": "ed1514fabf38dbb14681b394be3f61fcf4ec23c6deaff3849f8f6a2ce558a230",
       "executable": false
     },
     "scripts/installer/local.mjs": {
@@ -1500,6 +1512,30 @@
       "sha256": "941a8a710c4577cf940d117709ae1aae2848e26355002c838557e73abb80b491",
       "executable": false
     },
+    "src/bifocal/dashboards/authoring.page.server.ts": {
+      "sha256": "ac61db9e61c2b11eb7abd2d4e0f6c3aed4f0f37b2c7766e87a4095ab1437bd98",
+      "executable": false
+    },
+    "src/bifocal/dashboards/authoring.prepare.server.ts": {
+      "sha256": "ebcbcc51517797105d0de936e468de97f156f2324baaafad6bb8ad4864923b07",
+      "executable": false
+    },
+    "src/bifocal/dashboards/authoring.protocol.ts": {
+      "sha256": "bf8176750c5b40e641dd04d6cb37e69f37d75ad8e89766c38d95de3c0a309284",
+      "executable": false
+    },
+    "src/bifocal/dashboards/authoring.publication.server.ts": {
+      "sha256": "b50399ea72f0c3c3fc0820405bae83110f2e7669320986784ab1f44e7ef74851",
+      "executable": false
+    },
+    "src/bifocal/dashboards/authoring.server.ts": {
+      "sha256": "55644cb105a814d741be87d3b440fede4849d13e64ba6ebaeab322cee01cfeb9",
+      "executable": false
+    },
+    "src/bifocal/dashboards/authoring.store.server.ts": {
+      "sha256": "667ab4de11f1e397ee95b3fd933f8a3ef9890c804f527d45ab17a6fed0c58b2a",
+      "executable": false
+    },
     "src/bifocal/dashboards/definitions.server.ts": {
       "sha256": "5075ed0284b6c9a976a04af489138e6553ece25b5e922d8863ac5d546053ebac",
       "executable": false
@@ -1545,15 +1581,15 @@
       "executable": false
     },
     "src/bifocal/environments/protocol.ts": {
-      "sha256": "2cb57ee16e2e618cfca8746e1fc10ba6edb6ac17e38f11ad26e8f3572ab1a78c",
+      "sha256": "f6e113cbf7fcaa5035e4f123b6d927893e89ee245a44da1187999b86778df579",
       "executable": false
     },
     "src/bifocal/environments/publish.server.ts": {
-      "sha256": "00503de7332263772991af3dfa7d72dd60b7592ebc5994a887c741a4dac4bc24",
+      "sha256": "79f3363b27ec04d75c818e028ca8e8873a3004fa09f2b8c859ec1cfad0f54838",
       "executable": false
     },
     "src/bifocal/environments/resources.server.ts": {
-      "sha256": "eb5efdafc4bac7abc6f479df2626369b92143d11579bd59987bb6c62c084f8c0",
+      "sha256": "e1f9606feca206dcb4e9ac67eb9e8bd54e2bacce7ac7169edc38005c445f9e88",
       "executable": false
     },
     "src/bifocal/environments/run.server.ts": {
@@ -1833,7 +1869,7 @@
       "executable": false
     },
     "src/bifocal/models/validation/cli.mjs": {
-      "sha256": "cd3d0a9634b174f79fde3bcffcdccb870292220f4ad29ec9c8b251644e038272",
+      "sha256": "c28c251879def1f70dc9b86bc94f66aabf7041b7ce848ece05dbeddb3bf52d50",
       "executable": false
     },
     "src/bifocal/models/validation/environment-cli.mjs": {
@@ -1897,11 +1933,11 @@
       "executable": false
     },
     "src/bifocal/query/page.server.ts": {
-      "sha256": "bb4cca9cdab2a8099086005fd82f38f5dddc1f0105415ae53106b89738f50ac2",
+      "sha256": "59f47f067f8418998c4aeb3e068ebfb79caf31ddb0569140a59e793f80751684",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
-      "sha256": "7ed12a0dfb52c87ce01351b1d99bff75714d731214a259c35be01cc94b30aa97",
+      "sha256": "c1f9d1af696ec7e1ee18a8ab56407b3bb889d17ebba645097a143edc889b766b",
       "executable": false
     },
     "src/bifocal/query/types.ts": {
@@ -4109,7 +4145,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "7fb9bf86afe6d0712fc183cc444caefa6279772c6380b4a2c560a06a5110d41a",
+      "sha256": "1d17067202201ed4f7b468202d658ac5dcde48be6c0e0db1fa84f81ca04516ec",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {
@@ -4154,6 +4190,10 @@
     },
     "tests/journeys/conventions.mjs": {
       "sha256": "0b69eb47787228c266873bd78205013bc74c1aa784ed240dfcb4f8be2da922d0",
+      "executable": false
+    },
+    "tests/journeys/dashboard-authoring.mjs": {
+      "sha256": "aa08262bfcf27a65feaa7714fbe5f879366a97356941e36fa78422748c5bd96f",
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
@@ -4268,6 +4308,10 @@
       "sha256": "3c8fba7f45f6ac95011ad70ffd3c4b4ab71125b48f3fdbbc45d84be448cd8bd2",
       "executable": false
     },
+    "tools/terraform-provider-bifocal/dashboard_definition_resource.go": {
+      "sha256": "3b8258b4cde426b158860fc9fa0b34e9ff0b166a4402ab683baed91de6184554",
+      "executable": false
+    },
     "tools/terraform-provider-bifocal/environment_resource.go": {
       "sha256": "3b0b2aff75e73ce6c6ddc3bf3ebc9b9baf94e1cf378aeb3c0f58c5c4767f6096",
       "executable": false
@@ -4281,7 +4325,7 @@
       "executable": false
     },
     "tools/terraform-provider-bifocal/main.go": {
-      "sha256": "b6538d46b3a19197d94cc2985110a2f57acdaa19da38b805b08b032b97ea2672",
+      "sha256": "194873370d88e9500a30187563b8c6ec7f1768ae60e7feb07e2966fcb8b78427",
       "executable": false
     },
     "tools/terraform-provider-bifocal/metric_resource.go": {

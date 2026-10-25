@@ -13,6 +13,7 @@ import { execute } from './execute'
 import { fail, QueryError } from './types'
 import { retainedExportResponse } from './exports.server'
 import { dashboardRefreshResponse } from '../dashboards/tv.server'
+import { dashboardAuthoringResponse } from '../dashboards/authoring.server'
 const headers = {'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}
 const json = (body: unknown,status=200) => Response.json(body,{status,headers})
 const resourceId = /^[a-f0-9-]{36}$/
@@ -30,13 +31,15 @@ async function body(request: Request): Promise<Record<string,unknown>> {
 /** Native owner-only transport; every answer and artifact is fenced by D1 auth. */
 export async function exactQueryResponse(request: Request, original: Bindings): Promise<Response|null> {
  const url = new URL(request.url), path = url.pathname
- if (!/^\/api\/operator\/(queries|dashboards|reports|reconciliations)(\/|$)/.test(path)) return null
+ if (!/^\/api\/operator\/(queries|dashboards|dashboard-authoring|reports|reconciliations)(\/|$)/.test(path)) return null
  const env=runtimeBindings(original)
  try {
   const authority=await fileOwner(request,env)
   if (!authority) { await discard(request); return json({error:'owner_required'},401) }
   const ownerId=await ownerIdentity(env,authority)
   if (url.search) fail('query_parameters_not_supported',400)
+  const authored=await dashboardAuthoringResponse(request,env,{...authority,id:ownerId,role:'owner'})
+  if(authored)return authored
   const refreshed=await dashboardRefreshResponse(request,env,authority,ownerId)
   if(refreshed)return refreshed
   const exported=await retainedExportResponse(request,env,authority,ownerId)

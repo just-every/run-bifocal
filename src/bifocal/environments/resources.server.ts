@@ -6,6 +6,7 @@ import type { Authority } from '../catalog/authority.server'
 import { readQuery, readSources, sourceMatch } from '../data/snapshots/store'
 import { readChart } from '../charts/store.server'
 import { readBoard } from '../dashboards/store.server'
+import { readDashboardDefinition,readDashboardDefinitionRevision,dashboardDefinitionGuard,dashboardRevisionGuard } from '../dashboards/authoring.store.server'
 import { metric, metricGuard, metricValue, revision, type MetricRow, type Revision } from '../metrics/store.server'
 import { branchGuard, modelGuard, readBranch, readDefinition, readModel, validateBranch, type Branch, type Model } from '../models/validation/store.server'
 import { scopedQuery } from '../models/validation/protocol'
@@ -32,7 +33,7 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
  if(actor.role!=='owner')fail('owner_required',403)
  const definitions:{key:string;kind:Resource['kind'];id:string;definition:unknown}[]=[],guards:D1Sql[]=[actor]
  const sourceIds=new Set<string>()
- const models:CheckedModel[]=[],metrics:{row:MetricRow;revision:Revision}[]=[],fingerprints:unknown[]=[]
+ const dashboards:{state:NonNullable<Awaited<ReturnType<typeof readDashboardDefinition>>>;revision:Awaited<ReturnType<typeof readDashboardDefinitionRevision>>}[]=[],models:CheckedModel[]=[],metrics:{row:MetricRow;revision:Revision}[]=[],fingerprints:unknown[]=[]
  const add=(ref:Resource,definition:unknown,binding:Record<string,unknown>={})=>{
   definitions.push({key:ref.key,kind:ref.kind,id:ref.id,definition})
   fingerprints.push({key:ref.key,kind:ref.kind,id:ref.id,definitionHash:hash(definition),...binding})
@@ -98,6 +99,19 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
    await inspectQuery(ref.key,chart.definition)
    continue
   }
+  if(ref.kind==='dashboard'&&ref.revision!==undefined) {
+   const state=await readDashboardDefinition(env,actor,ref.id)
+   if(!state)fail('estate_dashboard_definition_not_found',404)
+   const selected=await readDashboardDefinitionRevision(env,actor,ref.id,ref.revision)
+   if(rollback&&!selected.wasPublished)fail('estate_dashboard_revision_not_publishable',409)
+   const board=await readBoard(env,actor,actor.id,selected.boardId,'dashboard')
+   if(!board)fail('estate_dashboard_withdrawn',404)
+   guards.push(dashboardDefinitionGuard(actor,ref.id,state),dashboardRevisionGuard(actor,ref.id,selected),...board.guards)
+   dashboards.push({state,revision:selected})
+   add(ref,selected.document,{revision:selected.revision,headRevision:state.revision,publishedRevision:state.publishedRevision,generation:state.generation,snapshotDigest:board.digest})
+   for(const card of selected.document.cards)await inspectQuery(ref.key+'.'+card.key,card.definition)
+   continue
+  }
   if(ref.kind==='dashboard'||ref.kind==='report') {
    const board=await readBoard(env,actor,actor.id,ref.id,ref.kind)
    if(board) {
@@ -161,5 +175,5 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
   }
   fail('unsupported_estate_resource',400)
  }
- return {definitions,guards:[...new Map(guards.map(guard=>[canonicalJson(guard),guard])).values()],models,metrics,fingerprints,sourceIds:[...sourceIds]}
+ return {definitions,guards:[...new Map(guards.map(guard=>[canonicalJson(guard),guard])).values()],models,metrics,dashboards,fingerprints,sourceIds:[...sourceIds]}
 }

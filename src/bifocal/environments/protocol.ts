@@ -13,11 +13,12 @@ export function estateDocument(value:unknown):EstateDocument{
   if(!value||typeof value!=='object'||Array.isArray(value))fail('environment_resource_required',400)
   const r=value as Record<string,unknown>
   if(!ident(r.key)||!['model','metric','chart','dashboard','report','policy','schedule'].includes(String(r.kind)))fail('environment_resource_required',400)
-  const kind=r.kind as ResourceKind,allowed=['key','kind','id',...(kind==='model'?['branchId','revisionId']:kind==='metric'||kind==='policy'?['revision']:kind==='schedule'?['version']:[])]
+  const kind=r.kind as ResourceKind,allowed=['key','kind','id',...(kind==='model'?['branchId','revisionId']:kind==='metric'||kind==='policy'||kind==='dashboard'?['revision']:kind==='schedule'?['version']:[])]
   exactKeys(r,allowed)
   if(['model','chart','dashboard','report'].includes(kind)?!uuid(r.id):!ident(r.id))fail('environment_resource_id_required',400)
   if(kind==='model'&&(!uuid(r.branchId)||!uuid(r.revisionId)))fail('exact_model_branch_revision_required',400)
   if(['metric','policy'].includes(kind)&&(!Number.isSafeInteger(r.revision)||Number(r.revision)<1)||kind==='schedule'&&(!Number.isSafeInteger(r.version)||Number(r.version)<1))fail('exact_resource_revision_required',400)
+  if(kind==='dashboard'&&r.revision!==undefined&&(!Number.isSafeInteger(r.revision)||Number(r.revision)<1))fail('exact_dashboard_revision_required',400)
   return {...r} as ResourceRef
  })
  if(new Set(resources.map(r=>r.key)).size!==resources.length||new Set(resources.map(r=>r.kind+':'+r.id)).size!==resources.length)fail('duplicate_environment_resource',400)

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {readFile,writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
 import {proveRetainedExports} from './retained-export.mjs'
+import {proveDashboardAuthoring} from './dashboard-authoring.mjs'
 
 /** Ordered multi-answer definitions use the actual retained board surfaces. */
 export async function proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf}){
@@ -39,6 +40,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
   await terraform(['destroy','-auto-approve','-input=false','-no-color'])
   await upload(dataset,csv,true)
  }
+ await proveDashboardAuthoring({origin,context,page,upload,proveScreen,cli,tfRun,directory,tf})
  const source=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
  for(const id of retainedIds)assert.equal((await context.request.post(origin+'/api/operator/queries/'+id+'/export',{headers:{Origin:origin},data:{scope:'summary',format:'csv'}})).status(),404)
  console.log('Multi-answer native boards: real CLI and Terraform ordered definitions, atomic source drift refusal, exact values and retained history passed')

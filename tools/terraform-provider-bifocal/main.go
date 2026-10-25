@@ -110,7 +110,7 @@ func main() {
 	plugin.Serve(&plugin.ServeOpts{ProviderFunc: func() *schema.Provider {
 		return &schema.Provider{
 			Schema:               map[string]*schema.Schema{"origin": {Type: schema.TypeString, Required: true, DefaultFunc: schema.EnvDefaultFunc("BIFOCAL_ORIGIN", nil), Description: "HTTPS app origin or loopback HTTP. Current native owner session comes only from BIFOCAL_SESSION_FILE."}},
-			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": snapshotResource("dashboard"), "bifocal_report_snapshot": snapshotResource("report"), "bifocal_schedule_definition": scheduleResource(), "bifocal_metric_definition": metricResource(), "bifocal_chart_snapshot": chartResource(), "bifocal_role_policy_definition": policyResource(), "bifocal_environment_definition": environmentResource()},
+			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": snapshotResource("dashboard"), "bifocal_dashboard_definition": dashboardDefinitionResource(), "bifocal_report_snapshot": snapshotResource("report"), "bifocal_schedule_definition": scheduleResource(), "bifocal_metric_definition": metricResource(), "bifocal_chart_snapshot": chartResource(), "bifocal_role_policy_definition": policyResource(), "bifocal_environment_definition": environmentResource()},
 		}
 	}})
 }
