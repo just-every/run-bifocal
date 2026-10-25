@@ -1,6 +1,6 @@
 import './model-import.js'
 import { element, table, metadata, sourceView } from './file-view.js'
-import { envelope, upload, originalFile } from './file-upload.js'
+import { envelope, upload, originalFile, fileLimits } from './file-upload.js'
 import { stamp } from './format.js'
 const $ = id => document.getElementById(id), form = $('import-form'), zone = document.body.dataset.zone
 let plan, planDataset, current, reviewedDataset, nextErrors, activeInput, busy = false
@@ -65,7 +65,7 @@ async function load(id = form.elements.dataset.value) {
 }
 form.onsubmit = event => { event.preventDefault(); action(async () => {
  activeInput = await envelope(form); await load(activeInput.datasetId); $('resume').hidden = false
- const uploadId = await upload(activeInput, call, status)
+ const uploadId = await upload(activeInput, call, status, activeInput.datasetId, fileLimits(form))
  const history = await call('history', undefined, activeInput.datasetId)
  renderPlan(await call('plan', { uploadId, ...(history.history.length ? { catchup: true } : {}) }, activeInput.datasetId), activeInput.datasetId)
  $('resume').hidden = true

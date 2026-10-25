@@ -38,7 +38,10 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
   for(const client of [context,reader]){const catalog=await(await client.request.get(origin+'/api/operator/explore')).json();assert.equal(catalog.limits.csv,2);assert.equal(catalog.limits.xlsx,3);assert.ok(!('actor_id' in catalog.limits));assert.ok(!('audit' in catalog.limits))}
   for(const format of ['csv','xlsx']) {
    const summarized=await download(context,question.snapshotId,'summary',format,200);assert.equal(Number(summarized.headers()['x-bifocal-row-count']),2)
-   const refused=await download(context,question.snapshotId,'underlying',format,413);assert.equal((await refused.json()).error,'full_export_unavailable');assert.ok(!refused.headers()['content-disposition'])
+   const refused=await download(context,question.snapshotId,'underlying',format,413);const refusal=await refused.json();assert.equal(refusal.error,'interactive_export_cap_exceeded');assert.equal(refusal.fullExport.totalRows,4);assert.ok(!refused.headers()['content-disposition'])
+   const planResponse=await context.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/export-plan',{headers,data:{scope:'underlying',format}});assert.equal(planResponse.status(),200);const plan=await planResponse.json();let offset=0,count=0
+   do{const part=await context.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/full-export',{headers,data:{scope:'underlying',format,offset,planDigest:plan.planDigest}});assert.equal(part.status(),200,await part.text());count+=Number(part.headers()['x-bifocal-row-count']);const next=part.headers()['x-bifocal-next-offset'];offset=next===''?null:Number(next)}while(offset!==null)
+   assert.equal(count,4,'Named full-export parts cover every permitted row')
    await download(reader,summary.snapshotId,'summary',format,200);await download(reader,summary.snapshotId,'underlying',format,403)
    await download(reader,underlying.snapshotId,'summary',format,403)
    const permitted=await download(reader,underlying.snapshotId,'underlying',format,200);assert.equal(Number(permitted.headers()['x-bifocal-row-count']),2)
@@ -55,7 +58,8 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
   }
   // A concurrent native edit refuses this open page's stale revision and keeps
   // the entered value visible, without claiming that it was persisted.
-  const current=await setting();await setting({previousRevision:current.revision,csv:4,xlsx:4})
+  const current=await setting();const priorPlan=await(await context.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/export-plan',{headers,data:{scope:'underlying',format:'csv'}})).json();await setting({previousRevision:current.revision,csv:4,xlsx:4})
+  assert.equal((await context.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/full-export',{headers,data:{scope:'underlying',format:'csv',offset:0,planDigest:priorPlan.planDigest}})).status(),409,'A changed owner cap invalidates a saved full-export plan')
   await page.getByLabel('CSV row limit',{exact:true}).fill('1');await page.getByLabel('CSV row limit',{exact:true}).press('Tab')
   await page.getByRole('status').filter({hasText:'Not saved.'}).waitFor();assert.equal(await page.getByLabel('CSV row limit',{exact:true}).inputValue(),'1');assert.equal((await setting()).csv,4);await proveScreen('export-policy-stale-keeps-input')
   const complete=await download(context,question.snapshotId,'underlying','csv',200),text=await complete.text()

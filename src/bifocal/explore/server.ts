@@ -1,3 +1,6 @@
+import {FILE_LIMITS} from '../imports/files/limits'
+import {fullExportPlan,fullExportSlice} from './full-export'
+import {compositionResponse} from './composition/server'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, transact } from '../../modules/import-kit/src/door/store.ts'
 import { currentAuthority } from '../catalog/authority.server'
@@ -23,6 +26,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
  try {
   const actor=await currentAuthority(request,env);if(!actor)return json({error:'owner_required'},401)
   if(url.search)fail('query_parameters_not_supported',400)
+  const composed=await compositionResponse(request,env,actor,path);if(composed)return composed
   const accessResult=await accessResponse(request,env,actor,path);if(accessResult)return accessResult
   const policyResult=await exportPolicyResponse(request,env,actor,path);if(policyResult)return policyResult
   const isOwner=actor.role==='owner'
@@ -58,7 +62,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
     .bind(...(isOwner?[actor.id]:grants.map(g=>g.id))).all<{id:string;created_at:string;view_id:string}>()).results
    const exportPolicy=await readExportPolicy(env)
    await transact(env.DB,actor,[...guards.map(assertion),assertion(exportPolicyGuard(exportPolicy)),...grants.map(grant=>audit(actor,grant,'question-discovery'))])
-   return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:exportPolicy.csv,xlsx:exportPolicy.xlsx,sourceRows:2000},authority:isOwner?'installation-owner':'delegated-view'})
+   return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:exportPolicy.csv,xlsx:exportPolicy.xlsx,sourceRows:FILE_LIMITS.rows},authority:isOwner?'installation-owner':'delegated-view'})
   }
   if(path==='/api/operator/explore/run') {
    if(request.method!=='POST')fail('method_not_allowed',405)
@@ -88,7 +92,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    if(grant)await transact(env.DB,actor,[...access!.guards.map(assertion),audit(actor,grant,'question-run')])
    return json(snapshot,201)
   }
-  const match=/^\/api\/operator\/explore\/([a-f0-9-]{36})(?:\/(page|export))?$/.exec(path)
+  const match=/^\/api\/operator\/explore\/([a-f0-9-]{36})(?:\/(page|export|export-plan|full-export))?$/.exec(path)
   if(!match)fail('not_found',404)
   if(request.method!==(match[2]?'POST':'GET'))fail('method_not_allowed',405)
   let access=null,ownerId=actor.id
@@ -104,20 +108,27 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   const modelFence=modelGuard(model),grant=access?.grant
   const fences=[assertion(guard),assertion(modelFence),...(access?.guards??[]).map(assertion),...(grant?[audit(actor,grant,match[2]??'question-read')]:[])]
   if(!match[2]){await transact(env.DB,actor,fences);return json(snapshot)}
-  const input=await jsonBody(request);exactKeys(input,match[2]==='export'?['scope','format','layout']:['scope','offset','layout'])
+  const input=await jsonBody(request);exactKeys(input,match[2]==='page'?['scope','offset','layout']:['scope','format','layout',...(match[2]==='full-export'?['offset','planDigest']:[])])
   if(!['summary','underlying'].includes(String(input.scope)))fail('explicit_export_scope_required',400)
-  if(grant&&(input.scope==='underlying'&&!grant.definition.underlying||match[2]==='export'&&(input.scope==='summary'?!grant.definition.summaryExport:!grant.definition.underlyingExport)))fail('exploration_scope_not_permitted',403)
+  if(grant&&(input.scope==='underlying'&&!grant.definition.underlying||match[2]!=='page'&&(input.scope==='summary'?!grant.definition.summaryExport:!grant.definition.underlyingExport)))fail('exploration_scope_not_permitted',403)
   if(input.layout!==undefined&&(input.layout!=='pivot'||input.scope!=='summary'||typeof exploration.parameters.pivot!=='string'))fail('saved_pivot_layout_required',400)
   const pivot=input.scope==='summary'&&typeof exploration.parameters.pivot==='string'?pivotTable(snapshot,exploration.parameters.pivot):null
   const {columns,rows}=pivot??table(snapshot,sources,input.scope==='underlying')
-  if(match[2]==='export') {
+  if(match[2]!=='page') {
    if(input.format!=='csv'&&input.format!=='xlsx')fail('export_format_required',400)
    const exportPolicy=await readExportPolicy(env),cap=exportPolicy[input.format]
-   if(rows.length>cap)fail('full_export_unavailable',413)
    if(input.scope==='summary'&&snapshot.answer.rows.some(row=>Object.values(row.values).some(value=>!['value','null'].includes(value.state))))fail('incomplete_summary_export_refused',409)
-   const output=exportTable(columns,rows,input.format)
+   const plan=fullExportPlan(snapshot.snapshotId,snapshot.digest,String(input.scope),input.format,columns,rows,exportPolicy,pivot?'pivot':'flat')
+   if(match[2]==='export-plan'){
+    await transact(env.DB,actor,[...fences,assertion(exportPolicyGuard(exportPolicy))]);return json(plan)
+   }
+   if(match[2]==='export'&&rows.length>cap){
+    await transact(env.DB,actor,[...fences,assertion(exportPolicyGuard(exportPolicy))]);return json({error:'interactive_export_cap_exceeded',totalRows:rows.length,cap,fullExport:plan},413)
+   }
+   const part=match[2]==='full-export'?fullExportSlice(plan,rows,input.offset,input.planDigest):null
+   const output=exportTable(columns,part?part.rows:rows,input.format)
    await transact(env.DB,actor,[...fences,assertion(exportPolicyGuard(exportPolicy))])
-   return new Response(output.body,{headers:{...privateHeaders,'content-type':output.type,'content-disposition':`attachment; filename="bifocal-${input.scope}.${input.format}"`,'x-bifocal-row-count':String(rows.length),'x-bifocal-scope':String(input.scope)}})
+   return new Response(output.body,{headers:{...privateHeaders,'content-type':output.type,'content-disposition':`attachment; filename="bifocal-${input.scope}${part?'-part-'+part.partNumber:''}.${input.format}"`,'x-bifocal-row-count':String(part?part.rows.length:rows.length),'x-bifocal-scope':String(input.scope),...(part?{'x-bifocal-total-rows':String(part.totalRows),'x-bifocal-offset':String(part.offset),'x-bifocal-next-offset':part.nextOffset===null?'':String(part.nextOffset),'x-bifocal-plan-digest':plan.planDigest}:{})}})
   }
   if(!Number.isSafeInteger(input.offset)||Number(input.offset)<0||Number(input.offset)>rows.length)fail('invalid_page_offset',400)
   await transact(env.DB,actor,fences)

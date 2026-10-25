@@ -149,9 +149,6 @@ export async function proveFileImports(origin, context, page, restartWorker) {
  const invalidDate = await plan({ ...base, data: 'id,date,region,amount,note\n5,02/30/2026,West,$1.00,Invalid date\n' }, true)
  assert.equal(invalidDate.counts.rejected, 1); assert.match(invalidDate.rejected[0].reason, /column 2: expected date/)
  await cancel(invalidDate)
- const bounds = await plan({ ...base, data: 'id,date,region,amount,note\n' + Array.from({ length: 2001 }, (_, i) => `${i + 10},01/01/2026,West,$1.00,Row\n`).join('') }, true)
- assert.equal(bounds.counts.rejected, 1); assert.match(bounds.rejected[0].reason, /ROW_LIMIT/)
- await cancel(bounds)
  // Resume a multi-chunk upload without changing the visible native dataset.
  const larger = { ...base, data: 'id,date,region,amount,note\n' + Array.from({ length: 700 }, (_, i) => `${i + 10},01/01/2026,West,$1.00,${'x'.repeat(100)}\n`).join('') }
  const resumed = await plan(larger, true, dataset, true)

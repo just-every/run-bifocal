@@ -18,6 +18,7 @@ export default {
     "bf_environment_history",
     "bf_explore_export_policy",
     "bf_explore_export_policy_audit",
+    "bf_exploration_compositions",
     "bf_charts",
     "bf_policy_definition_sources",
     "bf_policy_definitions",

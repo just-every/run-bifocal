@@ -18,7 +18,7 @@ export async function scheduleDefinitionPage(request:Request,original:Bindings):
  if(!match)return null
  const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request)
  if(!session)return new Response(null,{status:303,headers:{location:'/signin?returnTo='+encodeURIComponent(url.pathname),'cache-control':'no-store'}})
- const document=(main:string,status=200)=>new Response(appDocument({title:'Schedule definition · Bifocal',viewer:session.operator as Viewer,place:'answers',main}),{status,headers})
+ const document=(main:string,status=200)=>new Response(appDocument({title:'Schedule definition · Bifocal',viewer:session.operator as Viewer,place:'answers',head:'<link rel="stylesheet" href="/bifocal/schedules.css">',main}),{status,headers})
  const owner=await fileOwner(request,env)
  if(!owner)return document('<h1>Schedule unavailable</h1><p role="alert">Current installation owner required.</p>',403)
  try {

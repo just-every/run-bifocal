@@ -3,6 +3,8 @@ import {proveCalculations} from './journeys/calculations.mjs'
 import {proveModelImports,proveModelLifecycle} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
 import {provePivotTooling} from './journeys/pivot-tooling.mjs'
+import {proveCompositionTooling} from './journeys/composition-tooling.mjs'
+import {proveLargeExploration} from './journeys/large-exploration.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -39,11 +41,14 @@ try {
  const upload=async(dataset,data,catchup=false)=>{
   const input={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
   const post=async(action,data)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
-  const u=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
+  let u
+  const chunkBytes=65536,totalChunks=Math.ceil(bytes.length/chunkBytes)
+  for(let index=0;index<totalChunks;index++){const chunk=bytes.subarray(index*chunkBytes,(index+1)*chunkBytes);u=await post('uploads',{...u?{uploadId:u.uploadId}:{},name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks,index,chunkSha256:createHash('sha256').update(chunk).digest('hex'),base64:chunk.toString('base64')})}
   const p=await post('plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})
   for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return}
   assert.fail('Shared source apply did not complete')
  }
+ if(process.env.BIFOCAL_LARGE_EXPORT_ONLY==='1'){await proveLargeExploration({origin,context,page,call,upload,proveScreen});await context.close();return}
  const dataset='synthetic-bifocal-invoices',csv='invoice,date,region,revenue\n1,06/30/2026,West,$100.00\n2,07/01/2026,West,$10.01\n3,07/31/2026,East,$20.02\n4,08/01/2026,West,$4.00\n5,08/02/2026,East,$5.00\n6,08/15/2026,West,$30.03\n7,08/16/2026,East,$200.00\n'
  await upload(dataset,csv)
  await upload('synthetic-bifocal-tickets','ticket,invoice\nt1,2\nt2,2\n')
@@ -127,6 +132,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:'Open model '+saved.modelId.slice(0,8)+' · revision '+revised.version+' · branch '+saved.branchId.slice(0,8),exact:true}).click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
  await proveExploration({origin,context,page,call,upload,proveScreen,definition})
  await provePivotTooling({origin,context,page,call,upload,proveScreen})
+ await proveCompositionTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveModelImports({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)

@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import type { Json } from '../../../modules/import-kit/src/types.ts'
+import { FILE_LIMITS, originalBase64Limit } from './limits'
 
 export const encodings = ['utf-8', 'utf-16le', 'utf-16be', 'windows-1252'] as const
 /** The original encoded bytes and the reviewed decoded text must agree. */
@@ -12,9 +13,9 @@ export function csvOriginal(input: Record<string, Json>) {
   if (encoding !== 'utf-8' || Buffer.from(input.data, 'utf8').toString('utf8') !== input.data) throw Error('ENCODING: Non-UTF-8 files require their original bytes.')
   return { sha256: sha256(input.data), encoding }
  }
- if (typeof input.originalBase64 !== 'string' || input.originalBase64.length > 699052) throw Error('FILE_LIMIT: Original CSV bytes exceed 512 KiB.')
+ if (typeof input.originalBase64 !== 'string' || input.originalBase64.length > originalBase64Limit(FILE_LIMITS.bytes)) throw Error(`FILE_LIMIT: Original CSV bytes exceed ${FILE_LIMITS.bytes} bytes.`)
  const bytes = Buffer.from(input.originalBase64, 'base64')
- if (bytes.toString('base64') !== input.originalBase64 || bytes.length > 524288) throw Error('ENCODING: Supply canonical base64 original bytes within 512 KiB.')
+ if (bytes.toString('base64') !== input.originalBase64 || bytes.length > FILE_LIMITS.bytes) throw Error(`ENCODING: Supply canonical base64 original bytes within ${FILE_LIMITS.bytes} bytes.`)
  let decoded: string
  try { decoded = new TextDecoder(encoding, { fatal: true, ignoreBOM: true }).decode(bytes) } catch { throw Error('ENCODING: The file is invalid in the selected encoding.') }
  if (decoded !== input.data) throw Error('ENCODING: Original bytes do not match the reviewed decoded text.')

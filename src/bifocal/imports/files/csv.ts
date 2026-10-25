@@ -4,8 +4,9 @@ import { csvOriginal, candidateKeys, spreadsheetMetadata, type Spreadsheet, type
 import { readWorkbook, WorkbookError } from './xlsx'
 import { sha256, canonicalJson } from '../../../modules/import-kit/src/provenance/identity.ts'
 import type { Json, ParsedRecord, ImportMapping, TargetRow } from '../../../modules/import-kit/src/types.ts'
+import { FILE_LIMITS } from './limits'
 
-export const FILE_LIMITS = { bytes: 524288, rows: 2000, columns: 64, cell: 4096, tableBytes: 786432 } as const
+export { FILE_LIMITS } from './limits'
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
 export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
@@ -25,8 +26,8 @@ function date(value: string): string | null {
 function csv(text: string, delimiter: string): string[][] {
  if (text.includes('\0')) refuse('CSV_NUL: Remove NUL characters before uploading.')
  const rows: string[][] = [], row: string[] = []; let cell = '', quoted = false, closed = false
- const field = () => { if (cell.length > FILE_LIMITS.cell) refuse('CELL_LIMIT: A cell exceeds 4096 characters.'); row.push(cell); cell = ''; closed = false; if (row.length > FILE_LIMITS.columns) refuse('COLUMN_LIMIT: At most 64 columns are supported.') }
- const record = () => { field(); rows.push(row.splice(0)); if (rows.length > FILE_LIMITS.rows + 1) refuse('ROW_LIMIT: At most 2000 data rows are supported.') }
+ const field = () => { if (cell.length > FILE_LIMITS.cell) refuse(`CELL_LIMIT: A cell exceeds ${FILE_LIMITS.cell} characters.`); row.push(cell); cell = ''; closed = false; if (row.length > FILE_LIMITS.columns) refuse(`COLUMN_LIMIT: At most ${FILE_LIMITS.columns} columns are supported.`) }
+ const record = () => { field(); rows.push(row.splice(0)); if (rows.length > FILE_LIMITS.rows + 1) refuse(`ROW_LIMIT: At most ${FILE_LIMITS.rows} data rows are supported.`) }
  for (let i = 0; i < text.length; i++) {
   const ch = text[i]
   if (quoted) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++ } else { quoted = false; closed = true } } else cell += ch }
@@ -34,7 +35,7 @@ function csv(text: string, delimiter: string): string[][] {
   else if (ch === delimiter) field()
   else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; record() }
   else { if (closed) refuse('CSV_QUOTE: Unexpected text after a closing quote.'); cell += ch }
-  if (cell.length > FILE_LIMITS.cell) refuse('CELL_LIMIT: A cell exceeds 4096 characters.')
+  if (cell.length > FILE_LIMITS.cell) refuse(`CELL_LIMIT: A cell exceeds ${FILE_LIMITS.cell} characters.`)
  }
  if (quoted) refuse('CSV_QUOTE: Close the quoted field before uploading.')
  if (cell || row.length || closed) record()
@@ -77,14 +78,14 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    if (isWorkbook && spreadsheet) refuse('SPREADSHEET_METADATA: Range metadata applies to CSV cached range values only.')
    if (input.formulaTreatment !== (isWorkbook || spreadsheet ? 'cached-values-preserve-formulas' : 'literal-text')) refuse('FORMULA_TREATMENT: Explicitly choose literal-text for CSV or cached-values-preserve-formulas for XLSX; nothing is evaluated.')
    if (!['append','replace','keyed-update'].includes(String(input.mode))) refuse('IMPORT_MODE: Choose append, replace or keyed-update.')
-   if (typeof input.data !== 'string' || (!isWorkbook && Buffer.byteLength(input.data, 'utf8') > FILE_LIMITS.bytes)) refuse('FILE_LIMIT: The CSV byte limit is 524288; split larger data before uploading.')
+   if (typeof input.data !== 'string' || (!isWorkbook && Buffer.byteLength(input.data, 'utf8') > FILE_LIMITS.bytes)) refuse(`FILE_LIMIT: Decoded CSV text must fit ${FILE_LIMITS.bytes} UTF-8 bytes; split larger data before uploading.`)
    let original: {sha256: string; encoding: string} | null = null
    if (!isWorkbook) { try { original = csvOriginal(input) } catch (error) { refuse((error as Error).message) } }
    else if (input.encoding !== 'utf-8' || input.originalBase64 !== undefined) refuse('ENCODING: XLSX uses UTF-8 XML and its data holds original bytes.')
    const workbook = isWorkbook ? readWorkbook(input.data, input.sheet) : null
    if (!isWorkbook && input.sheet !== undefined) refuse('CSV_SHEET: Sheet selection applies only to XLSX workbooks.')
    const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter)), headers = records.shift()!
-   if (headers.length > FILE_LIMITS.columns || records.length > FILE_LIMITS.rows) refuse('TABLE_LIMIT: At most 64 columns and 2000 data rows are supported.')
+   if (headers.length > FILE_LIMITS.columns || records.length > FILE_LIMITS.rows) refuse(`TABLE_LIMIT: At most ${FILE_LIMITS.columns} columns and ${FILE_LIMITS.rows} data rows are supported.`)
    if (headers.some(name => !name || name !== name.trim() || name.length > 128) || new Set(headers).size !== headers.length) refuse('HEADERS: Use unique, nonempty headers, at most 128 characters, without outer whitespace.')
    const widthErrors = records.flatMap((row, index) => row.length === headers.length ? [] : [{row: index + 2, actual: row.length, expected: headers.length}])
    let columns: Column[]
@@ -136,8 +137,9 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    const index = table.columns.findIndex(column => column.name === table.key), seen = new Set<Json>()
    for (const row of table.rows) { if (row[index] === null || seen.has(row[index])) return { effects: [], rejection: 'DUPLICATE_KEY: The final table must have unique non-null keys.' }; seen.add(row[index]) }
   }
-  if (table.rows.length > FILE_LIMITS.rows || Buffer.byteLength(canonicalJson(table as unknown as Json)) > FILE_LIMITS.tableBytes) return { effects: [], rejection: 'TABLE_LIMIT: The complete result exceeds 2000 rows or 786432 UTF-8 bytes. No partial table is published.' }
+  if (table.rows.length > FILE_LIMITS.rows) return { effects: [], rejection: `TABLE_LIMIT: The complete result exceeds ${FILE_LIMITS.rows} rows. No partial table is published.` }
   table.keyCandidates = candidateKeys(table.columns.map(column => column.name), table.rows)
+  if (Buffer.byteLength(canonicalJson(table as unknown as Json)) > FILE_LIMITS.tableBytes) return { effects: [], rejection: `TABLE_LIMIT: The complete result exceeds ${FILE_LIMITS.tableBytes} UTF-8 bytes. No partial table is published.` }
   return { effects: [{ targetKind: 'file-table', targetId: datasetId, value: table as unknown as Json, ...(current ? { expectedRevision: current.revision } : {}) }] }
  } } }
 }

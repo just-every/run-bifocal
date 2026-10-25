@@ -18,6 +18,7 @@ import { fileSource } from './csv'
 import { fileTargets, fileDestination } from './targets'
 import { fileOwner } from './owner.server'
 import { retainReview, readReview } from './reviews.server'
+import { FILE_LIMITS } from './limits'
 
 const DOOR_KEY = 'bifocal:files:v1', PRINCIPAL = 'role:owner'
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox", 'referrer-policy': 'no-referrer' }
@@ -42,9 +43,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  const source = fileSource(dataset, current, new Date().toISOString())
  const options = { ...source, database: env.DB, targets: fileTargets, destination, ownerPrincipalId: PRINCIPAL,
   installationId: DOOR_KEY, appOrigin: env.AUTH_ORIGIN, ownerEmail: owner.email, namespace, format: 'json' as const,
-  limits: { maxBytes: 1048576, maxRecords: 1, maxRecordBytes: 1048576 }, authorize: (incoming: Request) => fileOwner(incoming, env) }
+  limits: { maxBytes: FILE_LIMITS.envelopeBytes, maxRecords: 1, maxRecordBytes: FILE_LIMITS.envelopeBytes }, authorize: (incoming: Request) => fileOwner(incoming, env) }
  const rowForPlan = (id: string) => env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(id, DOOR_KEY, namespace).first<DoorPlanRow>()
- const admitted: DoorRequest = { options, authority: owner, via: 'operator', epoch: 0, access: { action: 'plan', installationId: DOOR_KEY, email: owner.email, namespace, maxBytes: 1048576, maxRecords: 1, maxChunks: 16 } }
+ const admitted: DoorRequest = { options, authority: owner, via: 'operator', epoch: 0, access: { action: 'plan', installationId: DOOR_KEY, email: owner.email, namespace, maxBytes: FILE_LIMITS.envelopeBytes, maxRecords: 1, maxChunks: Math.ceil(FILE_LIMITS.envelopeBytes/FILE_LIMITS.chunkBytes) } }
  try {
   if (path === `/api/operator/datasets/${dataset}`) {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
