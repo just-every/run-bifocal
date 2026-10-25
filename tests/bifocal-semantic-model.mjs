@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {proveCalculations} from './journeys/calculations.mjs'
 import {proveModelImports,proveModelLifecycle} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
+import {provePivotTooling} from './journeys/pivot-tooling.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -125,6 +126,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:1,definition:{name:'New retail revision',kind:'445',startMonth:3,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
  await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:'Open model '+saved.modelId.slice(0,8)+' · revision '+revised.version+' · branch '+saved.branchId.slice(0,8),exact:true}).click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')
  await proveExploration({origin,context,page,call,upload,proveScreen,definition})
+ await provePivotTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveModelImports({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)

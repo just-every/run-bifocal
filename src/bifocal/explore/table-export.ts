@@ -7,7 +7,7 @@ export function exportTable(columns:ExportColumn[],rows:Cell[][],format:'csv'|'x
   const cell=(value:Cell,type:string)=>{let text=value===null?'':String(value);if(type==='text'&&/^[\s]*[=+@-]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"'}
   return {body:[columns.map(c=>cell(c.name,'text')).join(','),...rows.map(row=>row.map((value,i)=>cell(value,columns[i].type)).join(','))].join('\r\n')+'\r\n',type:'text/csv; charset=utf-8'}
  }
- if(columns.length>16384)fail('xlsx_column_limit_exceeded',422)
+ if(columns.length>16384)fail('xlsx_column_limit',422)
  const reference=(index:number)=>{let text='';for(let n=index+1;n;n=Math.floor((n-1)/26))text=String.fromCharCode(65+(n-1)%26)+text;return text}
  const cell=(value:Cell,type:string,ref:string)=>{
   if(value===null)return `<c r="${ref}"/>`

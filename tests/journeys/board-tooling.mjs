@@ -14,7 +14,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
   const review=await cli(kind+'-import',['--file',file,'--plan-file',plan]);assert.deepEqual(review.answers.map(answer=>answer.totals.revenue.value),['30.00','9.98'])
   const created=await cli(kind+'-import',['--file',file,'--approve',review.digest]);assert.equal(created.cards.length,2)
   await cli(kind+'-export',['--id',created.id,'--output',exported]);assert.deepEqual(JSON.parse(await readFile(exported,'utf8')),document)
-  await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#board-cards').innerText(),/30\.00/);assert.match(await page.locator('#board-cards').innerText(),/9\.98/);await proveScreen('native-multi-answer-'+kind)
+  await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:document.title,exact:true}).waitFor();assert.match(await page.locator('#board-cards').innerText(),/30\.00/);assert.match(await page.locator('#board-cards').innerText(),/9\.98/);await proveScreen('native-multi-answer-'+kind)
   const config=(digest)=>({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{['bifocal_'+kind+'_snapshot']:{main:{document:JSON.stringify(document),...(digest?{review_digest:digest}:{})}}}})
   const terraform=(args,ok=true)=>tfRun([args[0],'-state='+kind+'-board.tfstate',...args.slice(1)],ok)
   await writeFile(tf,JSON.stringify(config()));await terraform(['import','-input=false','-no-color','bifocal_'+kind+'_snapshot.main',created.id]);await terraform(['plan','-input=false','-no-color','-detailed-exitcode'])

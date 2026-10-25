@@ -1541,7 +1541,7 @@
       "executable": false
     },
     "src/bifocal/explore/table-export.ts": {
-      "sha256": "e6fcba112d373495598b34a360fb9f7219d3143e52dda914128ae777aa5e7a2a",
+      "sha256": "c90fcd5271649d169fb923f86a6ca50fb664ea97e492dcdf7f8a7945b3983ff1",
       "executable": false
     },
     "src/bifocal/exports/warehouse/rows.ts": {
@@ -4001,7 +4001,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "0528655e997ec823c22fd4404b46859fbcd4578a564203e7e091482628bb4088",
+      "sha256": "b7cbffce0f417359a9a4abe28cd9fd1ba9630c977a130e5e41756ddd9b13463a",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -4025,7 +4025,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "9e99ed8d8a6e5d2c35c81766c15695966bafd94aed1aed216e064fa3f6e7172a",
+      "sha256": "4e68134bce38e3eeceab6c7474b5fe0755976027a79bd6b3e7450c2c40ef5096",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {
@@ -4102,6 +4102,10 @@
     },
     "tests/journeys/model-project-fixtures.mjs": {
       "sha256": "84a0b2f825a946a9ee39f3753add6606fa614b223d969a61190afdc9aa00dc04",
+      "executable": false
+    },
+    "tests/journeys/pivot-tooling.mjs": {
+      "sha256": "6c91f3cf4ceabaadb9d1cd5860d03732688cf50194c2f6a5a9470212410e281d",
       "executable": false
     },
     "tests/journeys/policy-tooling.mjs": {
