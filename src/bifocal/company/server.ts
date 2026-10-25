@@ -11,7 +11,7 @@ import { guarded, sql, type Authority } from './store'
 import { temporalRoute } from './temporal.server'
 const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox", 'referrer-policy': 'no-referrer' }
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers })
-const owned = /^\/api\/operator\/(?:company|viewer-timezone|calendars|rates|currency|time|schedules|conventions)(?:\/|$)/
+const owned = /^\/api\/operator\/(?:company|viewer-timezone|calendars|rates|currency|time|schedules|schedule-definitions|conventions)(?:\/|$)/
 /** Mount before the app router. Every request uses Base's current owner and
  * same-origin check, then rechecks authority inside the D1 read/write batch. */
 export async function conventionsResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -25,7 +25,7 @@ export async function conventionsResponse(request: Request, original: Bindings):
   else if (path === '/api/operator/viewer-timezone') result = await viewerTimezoneRoute(request, env, owner)
   else if (path === '/api/operator/calendars' || path.startsWith('/api/operator/calendars/')) result = await calendarRoute(request, env, owner, path === '/api/operator/calendars' ? [] : path.slice('/api/operator/calendars/'.length).split('/'))
   else if (path === '/api/operator/rates' || path.startsWith('/api/operator/rates/') || path === '/api/operator/currency/convert') result = await currencyRoute(request, env, owner, path)
-  else if (path === '/api/operator/schedules' || path.startsWith('/api/operator/schedules/') || path.startsWith('/api/operator/time/')) result = await temporalRoute(request, env, owner, path)
+  else if (path === '/api/operator/schedules' || path.startsWith('/api/operator/schedules/') || path.startsWith('/api/operator/time/') || path.startsWith('/api/operator/schedule-definitions/')) result = await temporalRoute(request, env, owner, path)
   else if (path === '/api/operator/conventions' && request.method === 'GET') {
    await guarded(env, owner, [])
    result = { defaults: companyDefaults, holidayRules: HOLIDAY_RULES, scope: 'owner-only native company, calendar, civil-time and exact currency calculations',

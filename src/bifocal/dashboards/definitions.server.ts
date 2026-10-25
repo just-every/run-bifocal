@@ -10,10 +10,11 @@ import {execute} from '../query/execute'
 import {fail,QueryError} from '../query/types'
 import {discardBody,exactKeys,json,jsonBody} from '../models/validation/transport'
 
-/** Reviewed creation of an immutable dashboard and its answer in one batch. */
+/** Reviewed creation of an immutable dashboard or report and its answer in one batch. */
 export async function dashboardDefinitionResponse(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),prefix='/api/operator/dashboard-definitions'
- if(url.pathname!==prefix+'/review'&&url.pathname!==prefix+'/create')return null
+ const url=new URL(request.url),match=/^\/api\/operator\/(dashboard|report)-definitions\/(review|create)$/.exec(url.pathname)
+ if(!match)return null
+ const kind=match[1] as 'dashboard'|'report'
  const env=runtimeBindings(original)
  try{
   const owner=await fileOwner(request,env);if(!owner)return json({error:'owner_required'},401)
@@ -32,7 +33,7 @@ export async function dashboardDefinitionResponse(request:Request,original:Bindi
   }
   if(input.reviewedDigest!==digest)fail('exact_current_dashboard_review_required',409)
   const {snapshot,changes}=prepareQuery(definition,context,sources),id=randomUUID(),createdAt=new Date().toISOString()
-  await transact(env.DB,owner,[...changes,sql('INSERT INTO bf_query_artifacts(id,kind,snapshot_id,title,owner_id,created_at) VALUES(?,?,?,?,?,?)',id,'dashboard',snapshot.snapshotId,document.title,ownerId,createdAt)])
-  return json({id,kind:'dashboard',title:document.title,artifactCreatedAt:createdAt,...snapshot},201)
+  await transact(env.DB,owner,[...changes,sql('INSERT INTO bf_query_artifacts(id,kind,snapshot_id,title,owner_id,created_at) VALUES(?,?,?,?,?,?)',id,kind,snapshot.snapshotId,document.title,ownerId,createdAt)])
+  return json({id,kind,title:document.title,artifactCreatedAt:createdAt,...snapshot},201)
  }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'dashboard_definition_conflict'},409)}finally{await discardBody(request)}
 }

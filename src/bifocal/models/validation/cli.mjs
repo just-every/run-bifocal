@@ -4,6 +4,11 @@ import {constants} from 'node:fs'
 
 const usage=`Usage: node src/bifocal/models/validation/cli.mjs COMMAND --origin URL --session-file PATH [options]
 Commands:
+ schedule-export --schedule ID --output PATH
+ schedule-plan --file PATH --plan-file PATH
+ schedule-apply --plan-file PATH --approve DIGEST
+ report-export --id UUID --output PATH
+ report-import --file PATH [--plan-file PATH | --approve DIGEST]
  dashboard-export --id UUID --output PATH
  dashboard-import --file PATH [--plan-file PATH | --approve DIGEST]
  export --model UUID --branch UUID --output PATH
@@ -23,9 +28,9 @@ Only current native human owner sessions are accepted. Use your own mode-0600 se
 Plan files contain definitions and a review fingerprint, without rows, credentials or grants.
 Review the printed exact results before apply. Approve and promote are explicit separate commands.
 Exported JSON is the documented native model format; git branches hold edits to that file.
-The bounded tool manages native models only, not the full BIF-022 resource estate.`
-const options={'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
-const required={...options,'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
+The tools manage native models, single-answer dashboards and reports, and one-time schedule definitions, not the full BIF-022 resource estate.`
+const options={'report-export':['id','output'],'report-import':['file','approve','plan-file'],'schedule-export':['schedule','output'],'schedule-plan':['file','plan-file'],'schedule-apply':['plan-file','approve'],'dashboard-export':['id','output'],'dashboard-import':['file','approve','plan-file'],export:['model','branch','output'],plan:['file','plan-file','model','branch'],apply:['plan-file','approve'],branch:['model','file'],preview:['model','branch','view','digest'],validate:['model','branch'],approve:['model','branch','digest','security-resolution'],promote:['model','branch','digest','environment'],run:['model','environment','view'],status:['model'],'rollback-plan':['model','revision'],rollback:['model','revision','generation','digest','security-resolution'],'delete-branch':['model','branch','version']}
+const required={...options,'report-import':['file'],'dashboard-import':['file'],plan:['file','plan-file'],approve:['model','branch','digest'],rollback:['model','revision','generation','digest']}
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value)
 export async function main(argv=process.argv.slice(2)) {
  if(argv.includes('--help')){console.log(usage);return}
@@ -52,8 +57,26 @@ export async function main(argv=process.argv.slice(2)) {
  const documentInput=async()=>({document:JSON.stringify(await definition()),...(flags.model?{modelId:flags.model,branchId:flags.branch}:{}),...(flags.model?{previousVersion:(await call(branch)).version}:{})})
  let result
  switch(command){
-  case 'dashboard-export':{const dashboard=await call('/dashboards/'+flags.id);if(!dashboard.definition)throw Error('Only single-answer native dashboards are currently portable through this command');await writeFile(flags.output,JSON.stringify({version:1,title:dashboard.title,definition:dashboard.definition},null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break}
-  case 'dashboard-import':{const document=await definition();const review=await call('/dashboard-definitions/review',{document});if(!flags.approve){if(!flags['plan-file'])throw Error('Review first with --plan-file, then apply with --approve');await writeFile(flags['plan-file'],JSON.stringify({version:1,origin:url.origin,document:review.document,reviewedDigest:review.digest},null,2)+'\n',{flag:'wx',mode:0o600});result=review}else{result=await call('/dashboard-definitions/create',{document,reviewedDigest:flags.approve})}break}
+  case 'schedule-export':{
+   const versions=await call('/schedules/'+encodeURIComponent(flags.schedule)),version=versions.versions[0]?.version
+   if(!version)throw Error('Schedule not found')
+   const saved=await call('/schedules/'+encodeURIComponent(flags.schedule)+'/'+version),{resolution,dispatcher,...definition}=saved.definition
+   await writeFile(flags.output,JSON.stringify({version:1,id:saved.id,definition},null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break
+  }
+  case 'schedule-plan':{
+   const document=await definition(),versions=await call('/schedules/'+encodeURIComponent(document.id)),previousVersion=versions.versions[0]?.version??null
+   const review=await call('/schedule-definitions/review',{document,previousVersion})
+   await writeFile(flags['plan-file'],JSON.stringify({version:1,origin:url.origin,document:review.document,previousVersion,reviewedDigest:review.digest},null,2)+'\n',{flag:'wx',mode:0o600});result=review;break
+  }
+  case 'schedule-apply':{
+   const plan=JSON.parse(await readFile(flags['plan-file'],'utf8'))
+   if(plan.version!==1||plan.origin!==url.origin||plan.reviewedDigest!==flags.approve||!/^[a-f0-9]{64}$/.test(flags.approve))throw Error('Exact reviewed plan required for this origin')
+   result=await call('/schedule-definitions/apply',{document:plan.document,previousVersion:plan.previousVersion,reviewedDigest:flags.approve});break
+  }
+  case 'report-export':
+  case 'dashboard-export':{const kind=command.split('-')[0],dashboard=await call('/'+kind+'s/'+flags.id);if(!dashboard.definition)throw Error('Only single-answer native '+kind+'s are currently portable through this command');await writeFile(flags.output,JSON.stringify({version:1,title:dashboard.title,definition:dashboard.definition},null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break}
+  case 'report-import':
+  case 'dashboard-import':{const kind=command.split('-')[0],document=await definition();const review=await call('/'+kind+'-definitions/review',{document});if(!flags.approve){if(!flags['plan-file'])throw Error('Review first with --plan-file, then apply with --approve');await writeFile(flags['plan-file'],JSON.stringify({version:1,origin:url.origin,document:review.document,reviewedDigest:review.digest},null,2)+'\n',{flag:'wx',mode:0o600});result=review}else{result=await call('/'+kind+'-definitions/create',{document,reviewedDigest:flags.approve})}break}
   case 'export':result=(await call(branch)).definition;await writeFile(flags.output,JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o600});result={exported:true};break
   case 'plan':{
    const input=await documentInput(),review=await call('/model-authoring/review',input)

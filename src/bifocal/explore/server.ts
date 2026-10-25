@@ -42,7 +42,17 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
      }
     }
    }
-   const questions=(await env.DB.prepare("SELECT id,created_at,json_extract(context_json,'$.exploration.viewId') AS view_id FROM bf_query_snapshots WHERE json_extract(context_json,'$.exploration') IS NOT NULL AND ((?=1 AND owner_id=?) OR (?=0 AND json_extract(context_json,'$.exploration.operatorId')=?)) ORDER BY created_at DESC,id LIMIT 51").bind(isOwner?1:0,actor.id,isOwner?1:0,actor.id).all<{id:string;created_at:string;view_id:string}>()).results
+   // Filter before ordering and limiting so neither labels nor the history-limit
+   // flag disclose questions whose exact grant is no longer current.
+   const questionScope=isOwner?'q.owner_id=?':grants.length?`EXISTS(SELECT 1 FROM bf_explore_grants g WHERE g.id IN (${grants.map(()=>'?').join(',')})
+    AND g.id=json_extract(q.context_json,'$.exploration.grantId') AND g.owner_id=q.owner_id
+    AND g.operator_id=json_extract(q.context_json,'$.exploration.operatorId')
+    AND g.model_id=json_extract(q.context_json,'$.exploration.modelId')
+    AND g.revision=json_extract(q.context_json,'$.exploration.revision')
+    AND g.view_id=json_extract(q.context_json,'$.exploration.viewId'))`:'0'
+   const questions=(await env.DB.prepare(`SELECT q.id,q.created_at,json_extract(q.context_json,'$.exploration.viewId') AS view_id FROM bf_query_snapshots q
+    WHERE json_extract(q.context_json,'$.exploration') IS NOT NULL AND (${questionScope}) ORDER BY q.created_at DESC,q.id LIMIT 51`)
+    .bind(...(isOwner?[actor.id]:grants.map(g=>g.id))).all<{id:string;created_at:string;view_id:string}>()).results
    await transact(env.DB,actor,guards.map(assertion))
    return json({views,questions:questions.slice(0,50).map(q=>({id:q.id,createdAt:q.created_at,viewId:q.view_id})),historyLimited:questions.length>50,pageSize,limits:{csv:30000,xlsx:150000,sourceRows:2000},authority:isOwner?'installation-owner':'delegated-view'})
   }

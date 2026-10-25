@@ -1,7 +1,7 @@
 # Native model tools
 
 Bifocal's current native tools manage owner-only model drafts. They also create
-and export single-answer tabular dashboards. This is partial BIF-022 support:
+and export single-answer tabular dashboards and reports, and manage one-time civil-time schedule definitions. This is partial BIF-022 support:
 full resource serialization and environment
 configuration and all downstream application parity remain unfinished.
 
@@ -127,7 +127,7 @@ any answer or dashboard. Destroy releases Terraform tracking after a current
 authority check and explicitly reports that the dashboard is retained. Erasure
 and retention remain installation-owner actions. No automatic deletion is added.
 
-Terraform manages model drafts and retained dashboard snapshots only. Publication and rollback remain separate exact
+Terraform manages model drafts, retained dashboard and report snapshots and one-time schedule definitions. Publication and rollback remain separate exact
 human CLI actions. Destruction removes only the draft branch pointer; immutable
 revision and approval history remain. A branch currently published to staging
 or production cannot be destroyed. A changed draft version also refuses an old
@@ -137,3 +137,55 @@ CI compiles this provider and runs real Terraform commands against the emitted
 Worker in the existing semantic-model journey. `node scripts/prepare-model-tools.mjs`
 prepares checksum-verified Terraform 1.13.4 and the provider in the ignored local
 cache on Linux amd64; other hosts can use their supported Terraform binary.
+
+## One-time schedule definitions
+
+`schedule-export --schedule ID --output schedule.native.json` writes
+`{version: 1, id, definition}`. The definition has `name`, `localDate`, `time`,
+`timezone`, `reportCutoff`, `skipped` and `repeated`, matching the native
+[civil-time semantics](./US-CONVENTIONS.md). Resolved instants, author identity,
+installation authority and provider credentials are excluded from this file.
+
+`schedule-plan --file schedule.native.json --plan-file schedule.plan.json`
+reviews the exact definition, current version and native owner. It prints DST
+resolution and saves the normalized definition and review fingerprint.
+`schedule-apply --plan-file schedule.plan.json --approve DIGEST` saves one new
+immutable version only if that exact review is still current. A concurrent edit
+or a replay refuses. To restore an earlier definition, export or retain its
+file, review it against the current version and apply it as a new version.
+This does not move any model or environment pointer.
+
+`bifocal_schedule_definition` accepts that normalized `document` and the exact
+`review_digest` from `schedule-plan`. Terraform creates and updates actual native
+versions, refreshes the latest definition for drift, and imports a native ID with
+`terraform import bifocal_schedule_definition.sales SCHEDULE_ID`. A saved plan
+refuses a concurrent native change atomically. Keep configuration aligned with
+the current reviewed definition before releasing its Terraform tracking.
+Destroy releases tracking while retaining all immutable history; it does not
+cancel, activate or execute a subscription. No schedule dispatcher is connected.
+Recurring subscription definitions, environment source bindings and atomic
+estate promotion remain unfinished under BIF-022; execution belongs to BIF-015
+and BIF-058.
+
+Exploration grants remain installation-local. Model production changes and
+source revision or content changes permanently retire affected activations,
+with metadata-only audit entries. Undo and model rollback do not reactivate
+them. The owner must review and issue a fresh grant, and the recipient must save
+a fresh question. Migration 0042 also retires existing activations once because
+older history cannot prove uninterrupted authority. Saved-question discovery
+reveals labels only for the recipient's currently validated exact grants.
+
+## Retained report definitions
+
+`report-export --id UUID --output report.native.json` and
+`report-import --file report.native.json --plan-file report.plan.json` use the
+same `{version: 1, title, definition}` format as single-answer dashboards.
+`report-import --file report.native.json --approve DIGEST` requires the exact
+current native review and atomically retains a new report and its answer.
+`bifocal_report_snapshot` supports the same Terraform fields and lifecycle as
+`bifocal_dashboard_snapshot`, including actual UUID import and source-bound
+creation. The resulting artifact opens on the native report page. Replacing a
+definition creates a new retained artifact; releasing Terraform tracking keeps
+its immutable history. These tools do not import report-recipient grants,
+activate delivery, or implement paginated report layouts. No saved answer is
+silently updated after a model or source change.

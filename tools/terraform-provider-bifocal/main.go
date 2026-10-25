@@ -110,7 +110,7 @@ func main() {
 	plugin.Serve(&plugin.ServeOpts{ProviderFunc: func() *schema.Provider {
 		return &schema.Provider{
 			Schema:               map[string]*schema.Schema{"origin": {Type: schema.TypeString, Required: true, DefaultFunc: schema.EnvDefaultFunc("BIFOCAL_ORIGIN", nil), Description: "HTTPS app origin or loopback HTTP. Current native owner session comes only from BIFOCAL_SESSION_FILE."}},
-			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": dashboardResource()},
+			ConfigureContextFunc: configure, ResourcesMap: map[string]*schema.Resource{"bifocal_model_branch": resource(), "bifocal_dashboard_snapshot": snapshotResource("dashboard"), "bifocal_report_snapshot": snapshotResource("report"), "bifocal_schedule_definition": scheduleResource()},
 		}
 	}})
 }
@@ -245,22 +245,22 @@ func read(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostic
 
 // Dashboard snapshots are immutable retained history. Destroy only untracks them;
 // source erasure and owner retention controls continue to own their custody.
-func dashboardResource() *schema.Resource {
+func snapshotResource(kind string) *schema.Resource {
 	return &schema.Resource{
-		Description: "A retained immutable native dashboard snapshot. Replacing the definition creates a new dashboard. Destroy only removes Terraform tracking; it does not erase retained history.",
+		Description: "A retained immutable native " + kind + " snapshot. Replacing the definition creates a new snapshot. Destroy only removes Terraform tracking; it does not erase retained history.",
 		Schema: map[string]*schema.Schema{
 			"document": {Type: schema.TypeString, Required: true, ForceNew: true, StateFunc: func(v any) string { return canonical(v.(string)) }, DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return canonical(old) == canonical(new) }, DiffSuppressOnRefresh: true, ValidateFunc: func(v any, k string) ([]string, []error) {
 				var document map[string]any
 				if json.Unmarshal([]byte(v.(string)), &document) != nil {
-					return nil, []error{errors.New("document must be normalized native dashboard JSON")}
+					return nil, []error{errors.New("document must be normalized native " + kind + " JSON")}
 				}
 				return nil, nil
 			}},
-			"review_digest": {Type: schema.TypeString, Optional: true, Default: "", Description: "Exact fingerprint from native CLI dashboard review; required for creation."}, "query_id": {Type: schema.TypeString, Computed: true},
+			"review_digest": {Type: schema.TypeString, Optional: true, Default: "", Description: "Exact fingerprint from native CLI " + kind + " review; required for creation."}, "query_id": {Type: schema.TypeString, Computed: true},
 		},
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta any) error {
 			if !d.NewValueKnown("document") {
-				return errors.New("dashboard definition must be known during planning")
+				return errors.New(kind + " definition must be known during planning")
 			}
 			oldDocument, newDocument := d.GetChange("document")
 			if d.Id() != "" && canonical(oldDocument.(string)) == canonical(newDocument.(string)) {
@@ -270,7 +270,7 @@ func dashboardResource() *schema.Resource {
 			if e := json.Unmarshal([]byte(d.Get("document").(string)), &document); e != nil {
 				return e
 			}
-			review, e := meta.(*client).call(ctx, "POST", "/dashboard-definitions/review", map[string]any{"document": document})
+			review, e := meta.(*client).call(ctx, "POST", "/"+kind+"-definitions/review", map[string]any{"document": document})
 			if e != nil {
 				return e
 			}
@@ -279,10 +279,10 @@ func dashboardResource() *schema.Resource {
 				return e
 			}
 			if canonical(d.Get("document").(string)) != string(normalized) {
-				return errors.New("Use normalized JSON from CLI dashboard-export before Terraform planning")
+				return errors.New("Use normalized JSON from CLI " + kind + "-export before Terraform planning")
 			}
 			if d.Get("review_digest") != review["digest"] {
-				return errors.New("stale dashboard review fingerprint: review the exact native dashboard with the CLI, then set review_digest before planning")
+				return errors.New("stale " + kind + " review fingerprint: review the exact native definition with the CLI, then set review_digest before planning")
 			}
 			return nil
 		},
@@ -291,38 +291,40 @@ func dashboardResource() *schema.Resource {
 			if e := json.Unmarshal([]byte(d.Get("document").(string)), &document); e != nil {
 				return diag.FromErr(e)
 			}
-			result, e := meta.(*client).call(ctx, "POST", "/dashboard-definitions/create", map[string]any{"document": document, "reviewedDigest": d.Get("review_digest")})
+			result, e := meta.(*client).call(ctx, "POST", "/"+kind+"-definitions/create", map[string]any{"document": document, "reviewedDigest": d.Get("review_digest")})
 			if e != nil {
 				return diag.FromErr(e)
 			}
 			d.SetId(result["id"].(string))
-			return readDashboard(ctx, d, meta)
+			return readSnapshot(ctx, d, meta, kind)
 		},
-		ReadContext:   readDashboard,
+		ReadContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			return readSnapshot(ctx, d, meta, kind)
+		},
 		UpdateContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics { return nil },
 		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
 			// Recheck current native authority even for releasing this state reference.
-			if _, e := meta.(*client).call(ctx, "GET", "/dashboards/"+d.Id(), nil); e != nil {
+			if _, e := meta.(*client).call(ctx, "GET", "/"+kind+"s/"+d.Id(), nil); e != nil {
 				return diag.FromErr(e)
 			}
 			d.SetId("")
-			return diag.Diagnostics{{Severity: diag.Warning, Summary: "Retained dashboard history", Detail: "Terraform tracking was removed. The immutable dashboard and answer remain under the installation owner's retention and source-erasure controls."}}
+			return diag.Diagnostics{{Severity: diag.Warning, Summary: "Retained " + kind + " history", Detail: "Terraform tracking was removed. The immutable " + kind + " and answer remain under the installation owner's retention and source-erasure controls."}}
 		},
 		Importer: &schema.ResourceImporter{StateContext: func(ctx context.Context, d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
 			if len(d.Id()) != 36 || strings.ContainsAny(d.Id(), "/?#:") {
-				return nil, errors.New("Import with the native dashboard UUID")
+				return nil, errors.New("Import with the native " + kind + " UUID")
 			}
 			return []*schema.ResourceData{d}, nil
 		}},
 	}
 }
-func readDashboard(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
-	result, e := meta.(*client).call(ctx, "GET", "/dashboards/"+d.Id(), nil)
+func readSnapshot(ctx context.Context, d *schema.ResourceData, meta any, kind string) diag.Diagnostics {
+	result, e := meta.(*client).call(ctx, "GET", "/"+kind+"s/"+d.Id(), nil)
 	if e != nil {
 		return diag.FromErr(e)
 	}
 	if result["definition"] == nil {
-		return diag.Errorf("Only single-answer native dashboards are currently supported")
+		return diag.Errorf("Only single-answer native %ss are currently supported", kind)
 	}
 	document, e := json.Marshal(map[string]any{"version": 1, "title": result["title"], "definition": result["definition"]})
 	if e != nil {
@@ -332,6 +334,108 @@ func readDashboard(ctx context.Context, d *schema.ResourceData, meta any) diag.D
 		return diag.FromErr(e)
 	}
 	if e = d.Set("query_id", result["queryId"]); e != nil {
+		return diag.FromErr(e)
+	}
+	return nil
+}
+
+// Schedule definitions have no dispatch authority. Revisions remain immutable.
+func scheduleResource() *schema.Resource {
+	return &schema.Resource{
+		Description: "A versioned native civil-time schedule definition. No subscription or dispatch is activated. Destroy releases tracking and retains history.",
+		Schema: map[string]*schema.Schema{
+			"document":      {Type: schema.TypeString, Required: true, StateFunc: func(v any) string { return canonical(v.(string)) }, DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return canonical(old) == canonical(new) }, DiffSuppressOnRefresh: true},
+			"version":       {Type: schema.TypeInt, Computed: true},
+			"review_digest": {Type: schema.TypeString, Optional: true, Default: ""},
+		},
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta any) error {
+			if !d.NewValueKnown("document") {
+				return errors.New("Schedule document must be known during planning")
+			}
+			old, next := d.GetChange("document")
+			if d.Id() != "" && canonical(old.(string)) == canonical(next.(string)) {
+				return nil
+			}
+			var document map[string]any
+			if json.Unmarshal([]byte(d.Get("document").(string)), &document) != nil {
+				return errors.New("Schedule document must be native JSON")
+			}
+			if d.Id() != "" && document["id"] != d.Id() {
+				return errors.New("Schedule id is immutable; use a new resource")
+			}
+			var previous any
+			if d.Id() != "" {
+				previous = d.Get("version")
+			}
+			review, e := meta.(*client).call(ctx, "POST", "/schedule-definitions/review", map[string]any{"document": document, "previousVersion": previous})
+			if e != nil {
+				return e
+			}
+			normalized, _ := json.Marshal(review["document"])
+			if canonical(d.Get("document").(string)) != string(normalized) {
+				return errors.New("Use normalized native schedule JSON from CLI schedule-export")
+			}
+			if d.Get("review_digest") != review["digest"] {
+				return errors.New("stale schedule review fingerprint: review the exact schedule with the CLI")
+			}
+			return d.SetNewComputed("version")
+		},
+		CreateContext: saveSchedule, UpdateContext: saveSchedule, ReadContext: readSchedule,
+		DeleteContext: func(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+			if _, e := meta.(*client).call(ctx, "GET", "/schedules/"+url.PathEscape(d.Id()), nil); e != nil {
+				return diag.FromErr(e)
+			}
+			d.SetId("")
+			return diag.Diagnostics{{Severity: diag.Warning, Summary: "Retained schedule definition", Detail: "Terraform tracking was removed. Immutable schedule history remains. No dispatcher is connected."}}
+		},
+		Importer: &schema.ResourceImporter{StateContext: func(ctx context.Context, d *schema.ResourceData, meta any) ([]*schema.ResourceData, error) {
+			return []*schema.ResourceData{d}, nil
+		}},
+	}
+}
+func saveSchedule(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+	if d.Id() != "" && !d.HasChange("document") {
+		return nil
+	}
+	var document map[string]any
+	if e := json.Unmarshal([]byte(d.Get("document").(string)), &document); e != nil {
+		return diag.FromErr(e)
+	}
+	var previous any
+	if d.Id() != "" {
+		old, _ := d.GetChange("version")
+		previous = old
+	}
+	result, e := meta.(*client).call(ctx, "POST", "/schedule-definitions/apply", map[string]any{"document": document, "previousVersion": previous, "reviewedDigest": d.Get("review_digest")})
+	if e != nil {
+		return diag.FromErr(e)
+	}
+	d.SetId(result["id"].(string))
+	return readSchedule(ctx, d, meta)
+}
+func readSchedule(ctx context.Context, d *schema.ResourceData, meta any) diag.Diagnostics {
+	c := meta.(*client)
+	result, e := c.call(ctx, "GET", "/schedules/"+url.PathEscape(d.Id()), nil)
+	if e != nil {
+		return diag.FromErr(e)
+	}
+	versions, ok := result["versions"].([]any)
+	if !ok || len(versions) == 0 {
+		return diag.Errorf("Schedule definition not found")
+	}
+	version := versions[0].(map[string]any)["version"]
+	saved, e := c.call(ctx, "GET", fmt.Sprintf("/schedules/%s/%.0f", url.PathEscape(d.Id()), version), nil)
+	if e != nil {
+		return diag.FromErr(e)
+	}
+	definition := saved["definition"].(map[string]any)
+	delete(definition, "resolution")
+	delete(definition, "dispatcher")
+	document, _ := json.Marshal(map[string]any{"version": 1, "id": d.Id(), "definition": definition})
+	if e = d.Set("document", string(document)); e != nil {
+		return diag.FromErr(e)
+	}
+	if e = d.Set("version", int(version.(float64))); e != nil {
 		return diag.FromErr(e)
 	}
 	return nil

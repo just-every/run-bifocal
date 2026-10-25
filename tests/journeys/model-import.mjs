@@ -145,6 +145,58 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+answer.queryId);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();await proveScreen('model-cli-rollback')}
   const editPlan=join(directory,'edit.plan.json'),editReview=await cli('plan',[...branchFlags,'--file',branchFile,'--plan-file',editPlan]);await cli('apply',['--plan-file',editPlan,'--approve',editReview.digest]);const editState=await call('/models/'+created.modelId+'/branches/'+branched.branchId)
   await cli('apply',['--plan-file',editPlan,'--approve',editReview.digest],false);assert.deepEqual(await call('/models/'+created.modelId+'/branches/'+branched.branchId),editState)
+  // Reports use the actual native report surface, not a representative kind.
+  const reportFile=join(directory,'report.native.json'),reportPlan=join(directory,'report.plan.json')
+  const reportDocument={version:1,title:'Reviewed git report',definition:native.views[0].query};await writeFile(reportFile,JSON.stringify(reportDocument))
+  const reportReview=await cli('report-import',['--file',reportFile,'--plan-file',reportPlan]),report=await cli('report-import',['--file',reportFile,'--approve',reportReview.digest])
+  const reportExport=join(directory,'report-export.native.json');await cli('report-export',['--id',report.id,'--output',reportExport]);assert.deepEqual(JSON.parse(await readFile(reportExport,'utf8')),reportDocument)
+  await writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_report_snapshot:{main:{document:JSON.stringify(reportDocument),review_digest:reportReview.digest}}}}))
+  await tfRun(['import','-input=false','-no-color','-state=report.tfstate','bifocal_report_snapshot.main',report.id])
+  let reportState=JSON.parse(await readFile(join(directory,'report.tfstate'),'utf8'));assert.equal(reportState.resources[0].instances[0].attributes.query_id,report.queryId)
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color','-state=report.tfstate']);assert.deepEqual((await call('/reports/'+report.id)).answer,report.answer)
+  await tfRun(['plan','-input=false','-no-color','-state=report.tfstate','-out=report-create.tfplan']);await tfRun(['apply','-input=false','-no-color','-state=report.tfstate','report-create.tfplan'])
+  reportState=JSON.parse(await readFile(join(directory,'report.tfstate'),'utf8'));const reportId=reportState.resources[0].instances[0].attributes.id
+  assert.notEqual(reportId,report.id);assert.deepEqual((await call('/reports/'+reportId)).answer,report.answer)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/reports/'+reportId);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#totals').innerText(),/69\.06/);await proveScreen('model-terraform-report')}
+  assert.ok(!(await readFile(join(directory,'report.tfstate'),'utf8')).includes(cookie));assert.ok(!(await readFile(reportExport,'utf8')).includes('securityScope'))
+  // Native civil-time definitions travel without authority and retain history.
+  const scheduleFile=join(directory,'schedule.native.json'),schedulePlan=join(directory,'schedule.plan.json')
+  const schedule={version:1,id:'synthetic-bifocal-tool-schedule',definition:{name:'Reviewed DST schedule',localDate:'2026-11-01',time:'01:30',timezone:'America/New_York',reportCutoff:'02:00',skipped:'reject',repeated:'both'}}
+  await writeFile(scheduleFile,JSON.stringify(schedule))
+  assert.equal((await fetch(origin+'/api/operator/schedule-definitions/review',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify({document:schedule,previousVersion:null})})).status,401)
+  const foreignSchedule=await context.request.post(origin+'/api/operator/schedule-definitions/review',{headers:{Origin:'https://synthetic-bifocal.invalid'},data:{document:schedule,previousVersion:null}});assert.equal(foreignSchedule.status(),401)
+  const scheduleReview=await cli('schedule-plan',['--file',scheduleFile,'--plan-file',schedulePlan])
+  assert.equal(scheduleReview.resolution.instants.length,2);assert.equal(scheduleReview.productionSends,0);assert.equal(scheduleReview.sourceWrites,0)
+  const firstSchedule=await cli('schedule-apply',['--plan-file',schedulePlan,'--approve',scheduleReview.digest]);assert.equal(firstSchedule.version,1)
+  const scheduleExport=join(directory,'schedule-export.native.json');await cli('schedule-export',['--schedule',schedule.id,'--output',scheduleExport]);assert.deepEqual(JSON.parse(await readFile(scheduleExport,'utf8')),schedule)
+  const setScheduleConfig=async(name)=>{
+   const file=join(directory,name+'.plan.json'),review=await cli('schedule-plan',['--file',scheduleFile,'--plan-file',file])
+   await writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_schedule_definition:{main:{document:JSON.stringify(schedule),review_digest:review.digest}}}}))
+   return {file,review}
+  }
+  // Use a separate state so published model and dashboard tracking stays intact.
+  await setScheduleConfig('schedule-import')
+  const scheduleTF=async(args,ok=true)=>tfRun([args[0],'-state=schedule.tfstate',...args.slice(1)],ok)
+  await scheduleTF(['import','-input=false','-no-color','bifocal_schedule_definition.main',schedule.id])
+  schedule.definition.repeated='later';await writeFile(scheduleFile,JSON.stringify(schedule));await setScheduleConfig('schedule-change')
+  await tfRun(['plan','-input=false','-no-color','-state=schedule.tfstate','-out=schedule-stale.tfplan'])
+  const concurrentSchedule=await call('/schedules',{id:schedule.id,previousVersion:1,definition:{...schedule.definition,time:'01:45'}})
+  await tfRun(['apply','-input=false','-no-color','-state=schedule.tfstate','schedule-stale.tfplan'],false)
+  assert.deepEqual(await call('/schedules/'+schedule.id+'/2'),concurrentSchedule,'Stale Terraform schedule apply leaves the concurrent definition unchanged')
+  await setScheduleConfig('schedule-current');await tfRun(['plan','-input=false','-no-color','-state=schedule.tfstate','-out=schedule-current.tfplan']);await tfRun(['apply','-input=false','-no-color','-state=schedule.tfstate','schedule-current.tfplan'])
+  const currentSchedule=await call('/schedules/'+schedule.id+'/3');assert.equal(currentSchedule.definition.repeated,'later');assert.equal(currentSchedule.definition.dispatcher,'unavailable');assert.equal(currentSchedule.definition.resolution.instants[0].instant,'2026-11-01T06:30:00.000Z')
+  // Reapply the earlier portable definition as a new reviewed revision.
+  await writeFile(scheduleFile,await readFile(scheduleExport));const restorePlan=join(directory,'schedule-restore.plan.json'),restoreReview=await cli('schedule-plan',['--file',scheduleFile,'--plan-file',restorePlan])
+  await cli('schedule-apply',['--plan-file',restorePlan,'--approve',restoreReview.digest]);assert.deepEqual((await call('/schedules/'+schedule.id+'/4')).definition,firstSchedule.definition)
+  await cli('schedule-apply',['--plan-file',restorePlan,'--approve',restoreReview.digest],false)
+  schedule.definition.repeated='both';await setScheduleConfig('schedule-release')
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color','-state=schedule.tfstate']);assert.deepEqual((await call('/schedules/'+schedule.id+'/1')).definition,firstSchedule.definition)
+  schedule.id='synthetic-bifocal-terraform-schedule';await writeFile(scheduleFile,JSON.stringify(schedule));await setScheduleConfig('schedule-create')
+  await tfRun(['plan','-input=false','-no-color','-state=schedule.tfstate','-out=schedule-create.tfplan']);await tfRun(['apply','-input=false','-no-color','-state=schedule.tfstate','schedule-create.tfplan'])
+  const terraformSchedule=await call('/schedules/'+schedule.id+'/1');assert.deepEqual(terraformSchedule.definition,firstSchedule.definition,'Terraform creation uses the same native DST semantics as CLI creation')
+  await tfRun(['destroy','-auto-approve','-input=false','-no-color','-state=schedule.tfstate']);assert.deepEqual((await call('/schedules/'+schedule.id+'/1')).definition,firstSchedule.definition)
+  const portableSchedule=await readFile(scheduleExport,'utf8'),scheduleState=await readFile(join(directory,'schedule.tfstate.backup'),'utf8')
+  for(const content of [portableSchedule,scheduleState]){assert.ok(!content.includes(cookie));assert.ok(!content.includes('createdBy'));assert.ok(!content.includes('explore_activation'))}
   const stateText=await readFile(join(directory,'terraform.tfstate'),'utf8');assert.ok(!stateText.includes(cookie));assert.ok(!stateText.includes('SESSION_SECRET'));assert.ok(!stateText.includes('answer_json'));assert.ok(!stateText.includes('explore_activation'))
   console.log('Native model tools: real CLI and Terraform create, import, semantic edit, stale saved-plan atomic refusal, explicit staging and production, source preservation, published deletion refusal and coherent rollback passed')
  }finally{await page.close();await rm(directory,{recursive:true,force:true})}
