@@ -7,6 +7,7 @@ import { discardBody, exactKeys, json, jsonBody } from '../models/validation/tra
 import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
 import { fail, QueryError, type Answer, type Context, type Query } from '../query/types'
+import { dashboardFilters, filteredDashboardQuery } from './filters'
 import { refreshBindings, sameRefreshConventions } from './tv-bindings.server'
 
 type Owner=Parameters<typeof readQuery>[1]
@@ -33,7 +34,8 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
  if(!match)return null
  try {
   if(request.method!=='POST')fail('method_not_allowed',405)
-  const input=await jsonBody(request);exactKeys(input,['maxAgeSeconds'])
+  const input=await jsonBody(request);exactKeys(input,['maxAgeSeconds','filters'])
+  const filters=dashboardFilters(input.filters)
   if(!Number.isSafeInteger(input.maxAgeSeconds)||Number(input.maxAgeSeconds)<1||Number(input.maxAgeSeconds)>31536000)fail('dashboard_max_age_required',400)
   const manifest=await readManifest(env,ownerId,match[1])
   if(!manifest){await transact(env.DB,owner,[]);return json({error:'dashboard_withdrawn',withdraw:true},404)}
@@ -44,7 +46,8 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
     const retained=await readQuery(env,owner,ownerId,ref.snapshot_id),snapshot=retained.snapshot
     title=snapshot.definition.dataset;guards.push(retained.guard)
     guards.push(...await refreshBindings(env,ownerId,snapshot))
-    const current=await queryContext(env,snapshot.definition,ownerId)
+    const definition=filteredDashboardQuery(snapshot.definition,filters)
+    const current=await queryContext(env,definition,ownerId)
     guards.push(...current.guards??[])
     if(!sameRefreshConventions(snapshot.context,current))fail('dashboard_conventions_changed',409)
     const sources=await readSources(env,snapshot.definition)
@@ -53,10 +56,10 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
     const now=Date.now()
     if(observed.some(source=>!Number.isFinite(Date.parse(source.at))||Date.parse(source.at)>now))fail('source_observation_time_unavailable',409)
     const oldest=Math.min(...observed.map(source=>Date.parse(source.at))),stale=now-oldest>Number(input.maxAgeSeconds)*1000
-    const answer=execute(snapshot.definition,sources,current),{guards:privateGuards,...context}=current
+    const answer=execute(definition,sources,current),{guards:privateGuards,...context}=current
     // Recheck imported-source provenance as well as its frozen conventions.
     if(canonicalJson(snapshot.context.modelImport??null)!==canonicalJson(current.modelImport??null))fail('published_model_changed',409)
-    cards.push({id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition:snapshot.definition,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
+    cards.push({id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
    }catch(error) {
     const code=error instanceof QueryError?error.code:'dashboard_tile_refresh_unavailable'
     cards.push({id:ref.snapshot_id,title,status:'failed',error:code,withdraw:withdrawErrors.has(code)})
@@ -65,7 +68,7 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
   await transact(env.DB,owner,guards.map(assertion))
   const refreshedAt=new Date().toISOString()
   for(const card of cards)if(card.status!=='failed'&&card.observedAt){const stale=Date.parse(refreshedAt)-Date.parse(card.observedAt)>Number(input.maxAgeSeconds)*1000;card.freshness=stale?'stale':'fresh';if(card.status!=='empty')card.status=stale?'stale':'fresh'}
-  return json({id:manifest.id,title:manifest.title,refreshedAt,cards})
+  return json({id:manifest.id,title:manifest.title,refreshedAt,filters,cards})
  }catch(error) {
   if(error instanceof QueryError)return json({error:error.code,...error.status===404||withdrawErrors.has(error.code)?{withdraw:true}:{}},error.status)
   // Failed response-boundary authority or custody assertions disclose no new

@@ -8,6 +8,43 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  const lineage={kind:'revenue-table',link:'https://example.com/revenue',description:'Explicit historical ledger extract',from:'2000-01-01',to:'2000-02-01',timezone:'UTC',observedAt:'2000-02-01T00:00:00.000Z',schema:'Invoice revenue'}
  await upload(fresh,csv('10.01'));await upload(old,csv('20.02'),false,{lineage})
  const query=dataset=>({version:1,dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'}],context:{modelVersion:'synthetic-bifocal-tv-model',metricVersion:'synthetic-bifocal-tv-metric',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-july',version:1},rounding:'half-even'}})
+ // Two real source regions and a retained West-only card prove that reader
+ // choices intersect saved restrictions, and export the displayed selection.
+ const regions='synthetic-bifocal-tv-regions'
+ await upload(regions,'invoice,region,revenue\n1,West,$10.01\n2,East,$30.03\n')
+ const regional=[]
+ for(const definition of [query(regions),{...query(regions),filters:[{column:'region',op:'eq',value:'West'}]}])regional.push(await call('/queries/run',definition))
+ const interactive=await call('/dashboards',{queryIds:regional.map(item=>item.queryId),title:'Interactive regional dashboard'})
+ const filterEndpoint='/dashboards/'+interactive.id+'/refresh',east=[{column:'region',op:'eq',value:'East'}]
+ const beforeFilters=await call('/queries')
+ const filtered=await call(filterEndpoint,{maxAgeSeconds:3600,filters:east},200)
+ assert.equal(filtered.cards[0].answer.totals.revenue.value,'30.03');assert.equal(filtered.cards[1].answer.filteredRows,0,'Reader filters never remove saved restrictions')
+ const exact=await call('/dashboards/'+interactive.id+'/tiles/'+regional[0].queryId+'/export-snapshot',{maxAgeSeconds:3600,filters:east,definitionHash:filtered.cards[0].answer.definitionHash,watermarks:filtered.cards[0].answer.sourceWatermarks})
+ await proveRetainedExports({origin,context,snapshotId:exact.queryId,summary:[['East','30.03']],underlying:[['2','East','30.03']]})
+ await call('/dashboards/'+interactive.id+'/tiles/'+regional[0].queryId+'/export-snapshot',{maxAgeSeconds:3600,filters:[],definitionHash:filtered.cards[0].answer.definitionHash,watermarks:filtered.cards[0].answer.sourceWatermarks},409)
+ await call(filterEndpoint,{maxAgeSeconds:3600,filters:[{column:'region',op:'ne',value:'West'}]},400)
+ await call(filterEndpoint,{maxAgeSeconds:3600,filters:Array.from({length:9},(_,index)=>({column:'synthetic-bifocal-'+index,op:'eq',value:'West'}))},400)
+ const unknown=await call(filterEndpoint,{maxAgeSeconds:3600,filters:[{column:'invoice',op:'eq',value:'1'}]},200)
+ assert.ok(unknown.cards.every(card=>card.status==='failed'&&card.error==='dashboard_filter_dimension_unavailable'&&!card.answer))
+ const afterExport=await call('/queries');assert.equal(afterExport.queries?.length??afterExport.length,(beforeFilters.queries?.length??beforeFilters.length)+1)
+ await page.goto(origin+'/app/dashboards/'+interactive.id+'/tv')
+ await page.locator('section[data-state="fresh"]').first().waitFor()
+ await page.getByLabel('Filter dimension',{exact:true}).selectOption('region');await page.getByLabel('Filter value',{exact:true}).fill('East')
+ await page.getByRole('button',{name:'Apply filter',exact:true}).click()
+ await page.locator('section[data-state="empty"]').waitFor();await page.waitForFunction(()=>document.querySelector('#tv-filter-state')?.textContent.includes('East'))
+ assert.match(await page.locator('section[data-tile-id="'+regional[0].queryId+'"]').innerText(),/30\.03/)
+ await proveScreen('dashboard-tv-global-filter-empty-intersection')
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();await page.locator('section[data-state="fresh"]').nth(1).waitFor()
+ const sourceTile=page.locator('section[data-tile-id="'+regional[0].queryId+'"]')
+ await sourceTile.getByText('Cross-filter from this tile',{exact:true}).click()
+ await sourceTile.getByRole('button',{name:'Filter Region to West',exact:true}).click()
+ await page.waitForFunction(()=>document.querySelector('#tv-filter-state')?.textContent.includes('West'))
+ await page.locator('section[data-state="fresh"]').nth(1).waitFor()
+ for(const tile of await page.locator('section[data-tile-id]').all()){assert.match(await tile.innerText(),/10\.01/);assert.doesNotMatch(await tile.innerText(),/30\.03/)}
+ await proveScreen('dashboard-tv-cross-filtered')
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();await page.locator('section[data-state="fresh"]').nth(1).waitFor();await proveScreen('dashboard-tv-cleared-filters')
+ assert.deepEqual(await call('/queries'),afterExport,'Filtering never saves answers')
+ assert.equal((await call('/dashboards/'+interactive.id)).cards[0].answer.totals.revenue.value,'40.04','Reader filters never mutate saved dashboards')
  const empty={...query(fresh),filters:[{column:'region',op:'eq',value:'North'}]}
  const retained=[]
  for(const definition of [query(fresh),query(old),empty])retained.push(await call('/queries/run',definition))

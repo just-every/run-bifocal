@@ -4,6 +4,7 @@ import {retainedExport} from './retained-export.js'
 
 const $=id=>document.getElementById(id),root=$('dashboard-tv'),zone=document.body.dataset.zone
 const tiles=new Map(),names={fresh:'Fresh',stale:'Stale',empty:'Empty',failed:'Failed',loading:'Loading'}
+let activeFilters=[]
 let running=false,busy=false,timer=null,requestController=null,viewGeneration=0
 const message=(text,error=false)=>{const node=$('tv-status');node.textContent=text;node.setAttribute('role',error?'alert':'status')}
 const shown=(value,currency)=>value?.state==='value'?figure(value.value,value.unit,currency):String(value?.state??'unavailable').toUpperCase()
@@ -19,7 +20,7 @@ function currentExports(tile,data){
   const current=settings();if(!current)return
   prepare.disabled=true;status.textContent='Retaining the exact displayed answer for exports…'
   try{
-   const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/tiles/'+encodeURIComponent(tile.id)+'/export-snapshot',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({definitionHash:data.answer.definitionHash,watermarks:data.answer.sourceWatermarks,maxAgeSeconds:current.maxAgeSeconds})})
+   const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/tiles/'+encodeURIComponent(tile.id)+'/export-snapshot',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({definitionHash:data.answer.definitionHash,watermarks:data.answer.sourceWatermarks,maxAgeSeconds:current.maxAgeSeconds,filters:data.interactionFilters??[]})})
    if([401,403,404].includes(response.status)){
     clearValues();message('Dashboard export access unavailable. Previously displayed values were cleared.',true);return
    }
@@ -63,10 +64,39 @@ function renderTile(tile){
   const watermarks=element('ul',undefined,'tv-watermarks');watermarks.dataset.watermarks=''
   for(const source of data.watermarks??data.answer.sourceWatermarks??[])watermarks.append(element('li',`${source.dataset} · revision ${source.revision} · observed ${stamp(source.observedAt??source.updatedAt,zone)}`))
   section.append(watermarks,currentExports(tile,data))
+  if(['fresh','stale'].includes(tile.status)){
+   const controls=element('details'),summary=element('summary','Cross-filter from this tile');controls.append(summary)
+   const dimensions=commonDimensions()
+   for(const row of data.answer.rows)for(let index=0;index<data.definition.groupBy.length;index++){
+    const column=data.definition.groupBy[index],value=row.dimensions[index]
+    if(!dimensions.includes(column))continue
+    const button=element('button','Filter '+label(column)+' to '+String(value??'empty'));button.type='button'
+    button.onclick=()=>applyFilters([...activeFilters.filter(filter=>filter.column!==column),{column,op:'eq',value}]);controls.append(button)
+   }
+   section.append(controls)
+  }
  }
  return section
 }
-function render(){ $('tv-cards').replaceChildren(...[...tiles.values()].map(renderTile)) }
+function commonDimensions(){
+ const definitions=[...tiles.values()].map(tile=>tile.data?.definition)
+ if(!definitions.length||definitions.some(definition=>!definition))return []
+ return definitions[0].groupBy.filter(column=>definitions.every(definition=>definition.groupBy.includes(column)))
+}
+function filterControls(){
+ const select=$('tv-filter-column'),previous=select.value
+ select.replaceChildren(...commonDimensions().map(column=>{const option=element('option',label(column));option.value=column;return option}))
+ if([...select.options].some(option=>option.value===previous))select.value=previous
+ $('tv-filter-apply').disabled=!select.options.length
+ $('tv-filter-state').textContent=activeFilters.length?'Reader filters: '+activeFilters.map(filter=>label(filter.column)+' = '+String(filter.value??'empty')).join('; ')+'. Saved tile restrictions remain in force.':'No reader filters. Saved tile restrictions remain in force.'
+}
+function applyFilters(filters){
+ if(busy)return
+ activeFilters=filters
+ // Never show last-good values or exports under a different reader context.
+ tiles.clear();$('tv-cards').replaceChildren();filterControls();refresh()
+}
+function render(){ $('tv-cards').replaceChildren(...[...tiles.values()].map(renderTile));filterControls() }
 function timerState(){
  $('tv-start').disabled=running;$('tv-pause').disabled=!running
  $('tv-timer').textContent=running?'Automatic refresh every '+$('tv-interval').value+' seconds while this page is open.':'Automatic refresh paused. Start runs only while this page is open.'
@@ -89,14 +119,14 @@ function failedTiles(error){
 async function refresh(){
  if(busy)return
  const current=settings();if(!current){pause();return}
- const generation=viewGeneration
+ const generation=viewGeneration,requestedFilters=structuredClone(activeFilters)
  clearTimeout(timer);timer=null;busy=true;$('tv-refresh').disabled=true
  for(const tile of tiles.values()){tile.status='loading';tile.error=null;tile.withdraw=false}
  render();message('Refreshing dashboard tiles…')
  requestController=new AbortController()
  const timeout=setTimeout(()=>requestController?.abort(),30000)
  try{
-  const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/refresh',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxAgeSeconds:current.maxAgeSeconds}),signal:requestController.signal})
+  const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/refresh',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxAgeSeconds:current.maxAgeSeconds,filters:activeFilters}),signal:requestController.signal})
   if([401,403,404].includes(response.status)){
    clearValues();message('Dashboard access unavailable. Previously displayed values were cleared.',true);return
   }
@@ -112,7 +142,7 @@ async function refresh(){
    if(tile.withdraw){tile.data=null;tile.successAt=null}
    else if(card.status!=='failed'){
     if(!card.answer||!card.context||!card.definition)throw Error('Dashboard tile answer could not be read')
-    tile.data=card;tile.successAt=result.refreshedAt
+    card.interactionFilters=requestedFilters;tile.data=card;tile.successAt=result.refreshedAt
    }
    next.set(card.id,tile)
   }
@@ -123,6 +153,8 @@ async function refresh(){
  }catch(error){failedTiles(error.name==='AbortError'?'Refresh timed out':error.message);message('Dashboard refresh failed. Any retained last-good values are dated and marked failed.',true)}
  finally{clearTimeout(timeout);requestController=null;busy=false;$('tv-refresh').disabled=false;timerState();schedule()}
 }
+$('tv-filter-apply').onclick=()=>{const column=$('tv-filter-column').value;if(column)applyFilters([...activeFilters.filter(filter=>filter.column!==column),{column,op:'eq',value:$('tv-filter-value').value}])}
+$('tv-filter-clear').onclick=()=>applyFilters([])
 $('tv-start').onclick=()=>{if(!settings())return;running=true;timerState();refresh()}
 $('tv-pause').onclick=()=>{pause();message('Automatic refresh paused. Refresh now remains available.')}
 $('tv-controls').onsubmit=event=>{event.preventDefault();refresh()}
