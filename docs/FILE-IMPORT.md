@@ -195,3 +195,10 @@ for the selected scope, and underlying rows retain their subject identity.
 This does not multiply raw facts or establish a shared snapshot or certification.
 Combined downloads currently require the complete selected result to fit the
 interactive cap; larger combined exports are explicitly unavailable.
+
+Retained exact answers, bar charts and each saved dashboard or report card also
+offer summarized and underlying CSV and XLSX. These downloads retain the
+original query filters and source snapshots and require the current installation
+owner; they do not activate an exploration grant. Above the owner’s current cap,
+each named export part rechecks authority, custody and the current limit. Source
+erasure withdraws these downloads.

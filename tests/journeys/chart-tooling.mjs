@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { proveRetainedExports } from './retained-export.mjs'
 
 /** One retained chart, through the native CLI, actual provider and built page. */
 export async function proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf}) {
@@ -28,9 +29,13 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
  assert.equal(native.answer.totals.amount.value,'8.00')
  assert.deepEqual(Object.fromEntries(native.answer.rows.map(row=>[row.dimensions[0],[row.values.amount.state,row.values.amount.value]])),{Missing:['null',null],Negative:['value','-4.00'],Positive:['value','12.00'],Zero:['value','0.00']})
  assert.equal((await fetch(origin+'/api/operator/charts/'+chart.id)).status,401)
+ await proveRetainedExports({origin,context,snapshotId:chart.queryId,summary:[['Missing',null],['Negative','-4.00'],['Positive','12.00'],['Zero','0.00']],underlying:[['1','Positive','12.00'],['2','Negative','-4.00'],['3','Zero','0.00'],['4','Missing',null]],parts:true})
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/charts/'+chart.id)
   await page.getByRole('heading',{name:document.title,exact:true}).waitFor()
+  for(const scope of ['summary','underlying'])for(const format of ['CSV','XLSX'])await page.getByRole('button',{name:'Export '+scope+' '+format,exact:true}).waitFor()
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:width===1440?'Export summary CSV':'Export underlying XLSX',exact:true}).click();assert.match((await download).suggestedFilename(),/bifocal-retained-/)
+  await page.getByRole('status').filter({hasText:'Export complete: 4'}).waitFor()
   const table=page.getByRole('table',{name:'Exact grouped values and totals'})
   await table.getByRole('rowheader',{name:'Negative',exact:true}).waitFor()
   assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Negative',exact:true})}).getByRole('cell').innerText(),'USD -4.00')
@@ -78,5 +83,6 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
  const source=await call('/datasets/'+dataset)
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
  for(const id of [chart.id,created.id])assert.equal((await context.request.get(origin+'/api/operator/charts/'+id)).status(),404,'Source erasure withdraws retained charts')
+ for(const id of [chart.queryId,created.queryId])assert.equal((await context.request.post(origin+'/api/operator/queries/'+id+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'xlsx'}})).status(),404,'Erasure withdraws retained visual exports')
  console.log('Native chart tools: CLI and Terraform round trips, typed positive, negative, zero and null rendering, source drift refusal, retained history and source erasure passed')
 }

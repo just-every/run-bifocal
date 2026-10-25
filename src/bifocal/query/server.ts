@@ -11,6 +11,7 @@ import { queryInput } from './validate'
 import { queryContext } from './context'
 import { execute } from './execute'
 import { fail, QueryError } from './types'
+import { retainedExportResponse } from './exports.server'
 const headers = {'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}
 const json = (body: unknown,status=200) => Response.json(body,{status,headers})
 const resourceId = /^[a-f0-9-]{36}$/
@@ -35,6 +36,8 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if (!authority) { await discard(request); return json({error:'owner_required'},401) }
   const ownerId=await ownerIdentity(env,authority)
   if (url.search) fail('query_parameters_not_supported',400)
+  const exported=await retainedExportResponse(request,env,authority,ownerId)
+  if(exported)return exported
   if (path==='/api/operator/queries/run') {
    if (request.method!=='POST') return json({error:'method_not_allowed'},405)
    const definition=queryInput(await body(request)), context=await queryContext(env,definition,ownerId), sources=await readSources(env,definition)

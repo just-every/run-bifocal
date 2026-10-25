@@ -1,5 +1,6 @@
 import {element,table,sourceView} from './file-view.js'
 import {figure,label,stamp} from './format.js'
+import {retainedExport} from './retained-export.js'
 const $=id=>document.getElementById(id),zone=document.body.dataset.zone
 let board,preview
 /** A chart always retains its exact accessible table. Different measures and
@@ -39,6 +40,7 @@ export function renderBoard(result,request,action,status) {
   for(const metric of measures)section.append(chart(card,metric))
   const shown=value=>value.state==='value'?figure(value.value,value.unit,card.context.currency):value.state.toUpperCase()
   section.append(table('Exact '+card.definition.dataset+' results',[...card.definition.groupBy.map(label),...measures.map(label)],card.answer.rows.map(row=>[...row.dimensions,...measures.map(metric=>shown(row.values[metric]))])))
+  section.append(retainedExport(card.snapshotId))
   for(const source of card.provenance){const details=element('details'),summary=element('summary','Source: '+source.dataset+' · revision '+source.revision);details.append(summary,sourceView(source.source,source.updatedAt,zone));section.append(details)}
   const definition=element('details'),summary=element('summary','Exact query, definitions and source watermarks'),pre=element('pre',JSON.stringify({definition:card.definition,totals:card.answer.totals,watermarks:card.answer.sourceWatermarks,digest:card.digest},null,2));definition.append(summary,pre);section.append(definition)
   $('board-cards').append(section)

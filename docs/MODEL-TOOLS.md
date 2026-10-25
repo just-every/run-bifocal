@@ -402,7 +402,9 @@ answers and reports remain retained at their original versions.
 `environment-run --estate ID --environment development|staging|production --key KEY`
 runs the selected resource under current authority; supply `--view ID` when
 selecting a model view. Every command also requires the common origin and
-private session file. These tools implement a bounded native estate workflow;
+private session file. Native semantic revision references require the matching model revision in the
+same estate, including every metric and retained visual. Mixed revisions refuse
+before any pointer changes. These tools implement a bounded native estate workflow;
 full BI resource parity, portable source authority and subscription dispatch
 remain outside this support.
 

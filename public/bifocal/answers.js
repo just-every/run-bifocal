@@ -1,6 +1,7 @@
 import {renderBoard,boardChoices} from './board.js'
 import { element, table } from './file-view.js'
 import { figure, label, stamp, when } from './format.js'
+import { retainedExport } from './retained-export.js'
 const $ = id => document.getElementById(id), zone = document.body.dataset.zone
 let snapshot, pending=false
 // Once an answer is on screen its title leads: routine messages stay in the live region, for screen readers only.
@@ -22,6 +23,7 @@ function render(result) {
  $('snapshot-note').replaceChildren(...dotted([KIND[document.body.dataset.kind],stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
  $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi');const caption=element('span',undefined,'kpi-id');caption.append(...dotted([id,total.unit==='money'?currency:''].filter(Boolean)));tile.append(element('span',label(id),'kpi-label'),element('strong',shown(total,currency),'kpi-value'),caption);return tile}))
  $('groups').replaceChildren(table('Grouped results',columns.map(label),result.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],currency))]),columns.map((_,i)=>i>=result.definition.groupBy.length)))
+ let exports=document.getElementById('retained-answer-exports');if(!exports){exports=document.createElement('div');exports.id='retained-answer-exports';$('groups').after(exports)}exports.replaceChildren(retainedExport(result.queryId))
  // Yellow marks a real exception; the standing "not certified" limitation sits in the meta line.
  $('certification').textContent=(result.quality&&result.quality.state!=='healthy'?'Quality '+result.quality.state+'. Retained result; inspect Data quality for the exact test. ':'')+(result.answer.commonSnapshot==='unavailable'?'No common upstream snapshot is available. This answer cannot be officially certified.':'')
  $('context').textContent=JSON.stringify({snapshot:{id:result.snapshotId,createdAt:result.createdAt,...(result.artifactCreatedAt?{savedAt:result.artifactCreatedAt}:{})},exact:{totals:result.answer.totals,rows:result.answer.rows},definition:result.definition,context:result.context,sources:result.answer.sourceWatermarks,joinDiagnostics:result.answer.joinDiagnostics,digest:result.digest},null,2)
