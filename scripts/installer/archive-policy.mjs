@@ -42,6 +42,8 @@ export default {
     "bf_report_dispatches",
     "bf_report_audit",
     "bf_report_reviewer_grants",
+    "bf_explore_grants",
+    "bf_explore_audit",
     "bf_report_grant_audit",
     "bf_report_pending_recipients",
     "bf_catalog_collections",
@@ -129,6 +131,7 @@ export default {
   ],
   "excludeTables": [
     "bf_report_reviewer_activation",
+    "bf_explore_activation",
     "bf_catalog_grant_activation",
     "bf_catalog_epoch",
     "bf_semantic_cache",

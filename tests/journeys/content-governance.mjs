@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveExplorationAccess} from '../bifocal-exploration.mjs'
 import {proveUsageCohorts} from './content-cohorts.mjs'
 import {contentBrowser} from './content-browser.mjs'
 import { createHash } from 'node:crypto'
@@ -46,6 +47,7 @@ export async function proveContentGovernance(){
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
   const readerSession=await(await reader.request.get(origin+'/auth/session')).json(),ownerSession=await(await owner.request.get(origin+'/auth/session')).json()
   assert.equal(readerSession.operator.role,'member')
+  await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
   const fixtures=await importDataset(origin,owner)
   await proveCatalog(origin,owner,reader,readerSession.operator.id,ownerSession.operator.id,fixtures)
   // The reader's same native session must still be unable to read source rows.

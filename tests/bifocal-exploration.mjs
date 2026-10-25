@@ -96,3 +96,95 @@ print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE 
  const mapping=await call('/datasets/synthetic-bifocal-customer-map');await call('/datasets/synthetic-bifocal-customer-map/erase',{confirmDataset:'synthetic-bifocal-customer-map',reviewedRevision:mapping.revision},200)
  console.log('Exploration: published model rules, exact fiscal totals and paged drill, scoped CSV and typed XLSX, saved parameters, stale model and source erasure passed at 1440 and 390')
 }
+
+/** Native invited sales-manager access, distinct export grants and revocation. */
+export async function proveExplorationAccess(origin,owner,reader,readerId){
+ const headers={Origin:origin},call=async(context,path,data,expected=data===undefined?200:201)=>{
+  const response=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers,...data===undefined?{}:{data}});assert.equal(response.status(),expected,await response.text());return response.headers()['content-type']?.startsWith('application/json')?response.json():response
+ }
+ const dataset='synthetic-bifocal-delegated',records=Array.from({length:61},(_,i)=>({id:'synthetic-bifocal-'+(i+1),region:i%2?'East':'West',cents:101+i,date:i<10?'06/30/2026':'07/02/2026'}))
+ const text='invoice,date,region,revenue,source_url,salary\n'+records.map(r=>[r.id,r.date,r.region,'$'+(r.cents/100).toFixed(2),'https://example.test/invoices/'+r.id,9999].join(',')).join('\n')
+ const upload=async(data,catchup=false)=>{
+  const bytes=Buffer.from(JSON.stringify({version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data})),hash=(await import('node:crypto')).createHash('sha256').update(bytes).digest('hex')
+  const post=async(action,data)=>{const response=await owner.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':dataset},data});assert.equal(response.status(),200,await response.text());return response.json()}
+  const uploaded=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')}),plan=await post('plan',{uploadId:uploaded.uploadId,...catchup?{catchup:true}:{}})
+  for(let i=0;i<20;i++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return
+  assert.fail('Source import did not finish')
+ }
+ await upload(text)
+ await call(owner,'/calendars',{id:'synthetic-bifocal-delegated',previousVersion:null,definition:{name:'Sales fiscal year',kind:'fiscal',startMonth:7}})
+ const query={version:1,dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',sourceCurrency:'USD',scale:2},{id:'invoices',op:'count',unit:'count',scale:0}],context:{modelVersion:'sales-v1',metricVersion:'draft',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-delegated',version:1},rounding:'half-even'},fiscal:{column:'date',asOf:'2026-08-15',window:'quarter-to-date'},semantic:{grain:['invoice'],dimensions:[{column:'invoice',type:'text'},{column:'date',type:'date'},{column:'region',type:'text'},{column:'revenue',type:'money'},{column:'source_url',type:'text'}],hierarchies:[['region','invoice']],slowlyChanging:'reject-duplicate-grain'}}
+ const model=await call(owner,'/models',{definition:{views:[{id:'sales',kind:'chart',query,rowRules:[]}],quality:[]}}),base='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(owner,base+'/validate',{},200)
+ await call(owner,base+'/approve',{digest:review.digest},200);await call(owner,base+'/promote',{environment:'staging',digest:review.digest},200);await call(owner,base+'/promote',{environment:'production',digest:review.digest},200)
+ const person=async()=>(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.id===readerId)
+ const body={operatorId:readerId,operatorVersion:(await person()).version,modelId:model.modelId,revision:model.revision,viewId:'sales',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['region','date'],underlying:true,summaryExport:true,underlyingExport:true,expiresAt:new Date(Date.now()+300000).toISOString()}
+ const issue=async(input)=>{const preview=await call(owner,'/explore/access/review',input,200);return call(owner,'/explore/access',{...input,reviewedDigest:preview.digest})}
+ const parameters={modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['region'],filters:[]}
+ await call(reader,'/explore/run',parameters,403)
+ assert.equal((await reader.request.get(origin+'/app/questions')).status(),403)
+ await call(reader,'/explore/access/review',body,403)
+ await call(owner,'/explore/access',{...body,reviewedDigest:'0'.repeat(64)},409)
+ const grant=await issue(body)
+ const audit=await call(owner,'/explore/access');assert.ok(audit.audit.some(a=>a.grant_id===grant.id&&a.action==='issued'&&a.digest===grant.digest))
+ const input={...parameters,grantId:grant.id}
+ await call(reader,'/explore/run',{...input,viewId:'hidden'},403)
+ await call(reader,'/explore/run',{...input,groupBy:['salary']},403)
+ await call(reader,'/explore/run',{...input,filters:[{column:'salary',op:'eq',value:'9999'}]},403)
+ assert.equal((await reader.request.get(origin+'/api/operator/datasets/'+dataset)).status(),401)
+ assert.equal((await reader.request.get(origin+'/api/operator/models/'+model.modelId)).status(),401)
+ assert.equal((await reader.request.post(origin+'/api/operator/explore/run',{headers:{Origin:'https://foreign.example.test'},data:input})).status(),401)
+ const run=await call(reader,'/explore/run',input),expected=records.filter(r=>r.region==='West'&&r.date==='07/02/2026'),money=expected.reduce((sum,r)=>sum+r.cents,0)
+ assert.equal(run.answer.filteredRows,26);assert.equal(run.answer.inputRows,26,'Unpermitted input counts never leave the server');assert.deepEqual(run.answer.joinDiagnostics,[]);assert.equal(run.answer.totals.revenue.value,(money/100).toFixed(2));assert.equal(run.context.securityScope.operatorId,readerId)
+ assert.deepEqual((await call(reader,'/explore/'+run.snapshotId)).definition.filters,run.definition.filters)
+ const rows=[];let offset=0
+ do{const result=await call(reader,'/explore/'+run.snapshotId+'/page',{scope:'underlying',offset},200);rows.push(...result.rows);offset=result.nextOffset}while(offset!==null)
+ assert.deepEqual(rows.map(r=>r[0]).sort(),expected.map(r=>r.id).sort());assert.equal(rows.reduce((sum,r)=>sum+Math.round(Number(r[3])*100),0),money)
+ const ownerRun=await call(owner,'/explore/run',parameters);await call(reader,'/explore/'+ownerRun.snapshotId,undefined,404)
+ for(const scope of ['summary','underlying'])for(const format of ['csv','xlsx']){
+  const response=await reader.request.post(origin+'/api/operator/explore/'+run.snapshotId+'/export',{headers,data:{scope,format}});assert.equal(response.status(),200,await response.text());assert.equal(Number(response.headers()['x-bifocal-row-count']),scope==='summary'?1:26)
+  if(format==='csv'){const csv=await response.text();assert.ok(csv.includes((money/100).toFixed(2))||scope==='underlying');assert.ok(!csv.includes('East')&&!csv.includes('salary'));if(scope==='underlying'){const exported=csv.trimEnd().split('\r\n').slice(1).map(row=>row.split(',').map(c=>c.slice(1,-1)));assert.deepEqual(exported.map(r=>r[0]).sort(),expected.map(r=>r.id).sort());assert.equal(exported.reduce((sum,r)=>sum+Math.round(Number(r[3])*100),0),money)}}
+  else{const xml=strFromU8(unzipSync(new Uint8Array(await response.body()))['xl/worksheets/sheet1.xml']),doc=new DOMParser().parseFromString(xml,'application/xml');assert.equal(doc.getElementsByTagName('row').length,scope==='summary'?2:27);assert.equal(doc.getElementsByTagName('f').length,0);assert.ok(!xml.includes('East')&&!xml.includes('salary'));if(scope==='underlying'){const dataRows=[...doc.getElementsByTagName('row')].slice(1);assert.equal(dataRows.reduce((sum,row)=>sum+Math.round(Number(row.getElementsByTagName('c')[3].getElementsByTagName('v')[0].textContent)*100),0),money);assert.ok(dataRows.every(row=>row.getElementsByTagName('c')[1].getAttribute('t')==='d'))}}
+ }
+ const page=await reader.newPage(),screen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR){const {mkdir}=await import('node:fs/promises');await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}}
+ try{
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/questions');await page.getByRole('status').filter({hasText:'Ready to explore'}).waitFor()
+   await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();await screen('explore-manager-summary')
+   await page.getByRole('button',{name:'View records for West',exact:true}).click();await page.getByRole('status').filter({hasText:'Filtered source rows loaded'}).waitFor();assert.match(await page.locator('#page-note').innerText(),/of 26 underlying rows/);assert.doesNotMatch(await page.locator('#results').innerText(),/East|salary/)
+   const link=await page.getByRole('link',{name:'Reopen saved question'}).getAttribute('href');await page.goto(origin+link);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();await page.getByRole('button',{name:'Underlying rows',exact:true}).click();await page.getByRole('status').filter({hasText:'Question scope changed'}).waitFor();await screen('explore-manager-drill')
+   await page.getByRole('button',{name:'Next page',exact:true}).click();await page.waitForFunction(()=>document.getElementById('page-note').textContent.includes('26–26'));await screen('explore-manager-last-page')
+   await reader.route('https://example.test/invoices/**',route=>route.fulfill({contentType:'text/plain',body:'Synthetic invoice'}));const popup=page.waitForEvent('popup');await page.getByRole('link',{name:'Open source'}).first().click();const source=await popup;await source.waitForLoadState();assert.match(source.url(),/example.test\/invoices\/synthetic-bifocal-/);await source.close()
+   await page.getByText('Export this question',{exact:true}).click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export XLSX',exact:true}).click();assert.match((await download).suggestedFilename(),/underlying.xlsx$/);await page.getByRole('status').filter({hasText:'Export complete: 26'}).waitFor();await screen('explore-manager-export')
+   await page.getByLabel('Filter field').selectOption('');await page.getByLabel('Group by',{exact:true}).selectOption('region');await page.getByLabel('Pivot columns').selectOption('date');await page.getByLabel('Fiscal window').selectOption('year-to-date');await page.getByLabel('As of',{exact:true}).fill('2026-06-30');await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();assert.match(await page.locator('#scope-note').innerText(),/5 matching/);assert.equal(await page.getByRole('region',{name:'Pivot of summarized rows',exact:true}).isVisible(),true);await screen('explore-manager-period-pivot')
+   await page.getByLabel('Filter field').selectOption('region');await page.getByLabel('Filter equals').fill('East');await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();assert.match(await page.locator('#scope-note').innerText(),/0 matching/);await screen('explore-manager-empty')
+  }
+  // A readable underlying table does not itself authorize its download.
+  const noDownload=await issue({...body,underlyingExport:false}),readable=await call(reader,'/explore/run',{...parameters,grantId:noDownload.id})
+  await call(reader,'/explore/'+readable.snapshotId+'/page',{scope:'underlying',offset:0},200)
+  for(const format of ['csv','xlsx'])await call(reader,'/explore/'+readable.snapshotId+'/export',{scope:'underlying',format},403)
+  const noSummary=await issue({...body,summaryExport:false}),underlyingOnly=await call(reader,'/explore/run',{...parameters,grantId:noSummary.id})
+  for(const format of ['csv','xlsx']){await call(reader,'/explore/'+underlyingOnly.snapshotId+'/export',{scope:'summary',format},403);await call(reader,'/explore/'+underlyingOnly.snapshotId+'/export',{scope:'underlying',format},200)}
+  const expiring=await issue({...body,expiresAt:new Date(Date.now()+1300).toISOString()}),expiringRun=await call(reader,'/explore/run',{...parameters,grantId:expiring.id});await new Promise(resolve=>setTimeout(resolve,1500));await call(reader,'/explore/'+expiringRun.snapshotId,undefined,403)
+  await call(owner,'/explore/access/'+grant.id+'/revoke',{},200)
+  assert.ok((await call(owner,'/explore/access')).audit.some(a=>a.grant_id===grant.id&&a.action==='revoked'));
+  await call(reader,'/explore/'+run.snapshotId,undefined,403);await call(reader,'/explore/'+run.snapshotId+'/export',{scope:'summary',format:'csv'},403)
+  const summary=await issue({...body,underlying:false,underlyingExport:false}),summaryRun=await call(reader,'/explore/run',{...parameters,grantId:summary.id})
+  for(const format of ['csv','xlsx']){await call(reader,'/explore/'+summaryRun.snapshotId+'/export',{scope:'summary',format},200);await call(reader,'/explore/'+summaryRun.snapshotId+'/export',{scope:'underlying',format},403)}
+  await call(reader,'/explore/'+summaryRun.snapshotId+'/page',{scope:'underlying',offset:0},403);await call(reader,'/explore/run',{...parameters,grantId:summary.id,groupBy:['invoice']},403)
+  await page.goto(origin+'/app/questions/'+summaryRun.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();assert.equal(await page.getByRole('button',{name:'Underlying rows',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'View records for West',exact:true}).count(),0);await screen('explore-summary-only')
+  const oldReview=await call(owner,'/explore/access/review',body,200)
+  await upload(text.replace('$1.01','$2.01'),true);await call(owner,'/explore/access',{...body,reviewedDigest:oldReview.digest},409);await call(reader,'/explore/'+summaryRun.snapshotId,undefined,409);await page.reload();await page.getByRole('heading',{name:'Question access unavailable'}).waitFor();await screen('explore-source-access-changed')
+  const beforePublication=await issue(body),beforeRun=await call(reader,'/explore/run',{...parameters,grantId:beforePublication.id})
+  const next=await call(owner,'/models/'+model.modelId+'/branches',{definition:{views:[{id:'sales',kind:'chart',query,rowRules:[]}],quality:[]}}),nextBase='/models/'+model.modelId+'/branches/'+next.branchId,nextReview=await call(owner,nextBase+'/validate',{},200)
+  await call(owner,nextBase+'/approve',{digest:nextReview.digest},200);await call(owner,nextBase+'/promote',{environment:'staging',digest:nextReview.digest},200);await call(owner,nextBase+'/promote',{environment:'production',digest:nextReview.digest},200)
+  await call(reader,'/explore/'+beforeRun.snapshotId,undefined,403);body.revision=parameters.revision=next.revision
+  const renewed=await issue(body);await call(reader,'/explore/run',{...parameters,grantId:renewed.id})
+  assert.equal((await owner.request.post(origin+'/auth/operator/status',{headers,data:{operatorId:readerId,status:'inactive'}})).status(),200)
+  assert.equal((await reader.request.get(origin+'/api/operator/explore')).status(),401)
+  assert.equal((await owner.request.post(origin+'/auth/operator/status',{headers,data:{operatorId:readerId,status:'active'}})).status(),200)
+  await reader.request.get(new URL((await person()).signInUrl,origin).href);await call(reader,'/explore/run',{...parameters,grantId:renewed.id},403)
+  const finalGrant=await issue({...body,operatorVersion:(await person()).version}),finalRun=await call(reader,'/explore/run',{...parameters,grantId:finalGrant.id})
+  const state=await call(owner,'/datasets/'+dataset);await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:state.revision},200);await call(reader,'/explore/'+finalRun.snapshotId,undefined,404)
+ }finally{await page.close()}
+ console.log('Delegated exploration: native manager, exact West money and complete pages, fiscal pivot, saved question, source link, typed downloads, summary-only and distinct export grants, source revision, membership and erasure fences passed at 1440 and 390')
+}

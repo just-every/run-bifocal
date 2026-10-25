@@ -27,6 +27,7 @@ export async function readSources(env: Bindings, query: Query): Promise<Source[]
 export async function saveQuery(env: Bindings, authority: Authority, definition: Query, context: Context, sources: Source[]): Promise<Snapshot> {
  context = {...context, definitionVersions: {model: {label: definition.context.modelVersion, revision: sha256(canonicalJson({tables: sources.map(source => ({id: source.id, columns: source.table.columns})), joins: definition.joins, dimensions: definition.groupBy}))}, metrics: {label: definition.context.metricVersion, revision: sha256(canonicalJson(definition.measures))}}}
  const answer = execute(definition,sources,context), snapshotId = randomUUID(), createdAt = new Date().toISOString()
+ if(context.exploration?.grantId){answer.inputRows=answer.filteredRows;answer.joinDiagnostics=[]}
  const {guards = [],...frozenContext} = context
  const snapshot: Snapshot = {queryId:snapshotId,snapshotId,definition,context:frozenContext,answer,digest:'',createdAt}
  return persist(env,authority,snapshot,sources,guards)
