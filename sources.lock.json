@@ -4193,7 +4193,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-authoring.mjs": {
-      "sha256": "aa08262bfcf27a65feaa7714fbe5f879366a97356941e36fa78422748c5bd96f",
+      "sha256": "b488ab06701064320e5e30428976e3c3c37beffeb0bf0b1d5ad45948b2728026",
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
