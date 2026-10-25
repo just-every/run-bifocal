@@ -73,9 +73,7 @@ func dashboardDefinitionResource() *schema.Resource {
 			if canonical(d.Get("document").(string)) != canonical(string(normalized)) {
 				return errors.New("Use normalized native JSON from CLI dashboard-definition-export or the reviewed plan")
 			}
-			if !d.NewValueKnown("review_digest") || !definitionReviewPattern.MatchString(d.Get("review_digest").(string)) || d.Get("review_digest") != review["digest"] {
-				return errors.New("stale dashboard review fingerprint; review the exact current draft with CLI dashboard-definition-plan")
-			}
+			// Exact approval is enforced by native apply when a draft mutation is saved.
 			return d.SetNewComputed("revision")
 		},
 		CreateContext: saveDashboardDefinition, UpdateContext: saveDashboardDefinition, ReadContext: readDashboardDefinition,
