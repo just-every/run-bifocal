@@ -18,7 +18,7 @@ export async function provePivotTooling({origin,context,page,call,upload,proveSc
  const branch='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(branch+'/validate',{},200)
  await call(branch+'/approve',{digest:review.digest},200);await call(branch+'/promote',{environment:'staging',digest:review.digest},200);await call(branch+'/promote',{environment:'production',digest:review.digest},200)
  const parameters={modelId:model.modelId,revision:model.revision,viewId:'pivot',groupBy:['store','period'],pivot:'period',filters:[]}
- const snapshot=await call('/explore/run',parameters),base='/api/operator/explore/'+snapshot.snapshotId
+ const snapshot=await call('/explore/run',parameters),base=origin+'/api/operator/explore/'+snapshot.snapshotId
  assert.equal(snapshot.context.exploration.parameters.pivot,'period')
  const rows=[],pages=[];let offset=0
  do {

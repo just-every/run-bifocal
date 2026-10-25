@@ -1,7 +1,7 @@
 export async function sha256(bytes) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('') }
 export function base64(bytes) { let text = ''; for (const byte of bytes) text += String.fromCharCode(byte); return btoa(text) }
 export function fileLimits(form) {
- const limits={csvBytes:Number(form.dataset.csvBytes),xlsxBytes:Number(form.dataset.xlsxBytes),maxBytes:Number(form.dataset.envelopeBytes),chunkBytes:Number(form.dataset.chunkBytes)}
+ const limits={csvBytes:Number(form.getAttribute('data-csv-bytes')),xlsxBytes:Number(form.getAttribute('data-xlsx-bytes')),maxBytes:Number(form.getAttribute('data-envelope-bytes')),chunkBytes:Number(form.getAttribute('data-chunk-bytes'))}
  if(Object.values(limits).some(value=>!Number.isSafeInteger(value)||value<1))throw Error('Import bounds are unavailable. Reload this page before uploading.')
  return limits
 }

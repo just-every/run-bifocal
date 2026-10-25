@@ -773,7 +773,7 @@
       "executable": false
     },
     "public/bifocal/file-upload.js": {
-      "sha256": "2d90f9fe8915ead1b2273f913717d5411b17d964cdbc5391e01c7634e2b3ce92",
+      "sha256": "21ea409d665dc5a51161d238a63cc1f9b38da7ff4a8dfc7ed5fea2c72e58eefd",
       "executable": false
     },
     "public/bifocal/file-view.js": {
@@ -4161,7 +4161,7 @@
       "executable": false
     },
     "tests/journeys/pivot-tooling.mjs": {
-      "sha256": "6c91f3cf4ceabaadb9d1cd5860d03732688cf50194c2f6a5a9470212410e281d",
+      "sha256": "e664ebfd98851621df7d0f7399306d118a0864d8b4f21781c66e05d4bae437e1",
       "executable": false
     },
     "tests/journeys/policy-tooling.mjs": {
