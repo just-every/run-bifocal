@@ -12,6 +12,7 @@ import { queryContext } from './context'
 import { execute } from './execute'
 import { fail, QueryError } from './types'
 import { retainedExportResponse } from './exports.server'
+import { dashboardRefreshResponse } from '../dashboards/tv.server'
 const headers = {'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}
 const json = (body: unknown,status=200) => Response.json(body,{status,headers})
 const resourceId = /^[a-f0-9-]{36}$/
@@ -36,6 +37,8 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if (!authority) { await discard(request); return json({error:'owner_required'},401) }
   const ownerId=await ownerIdentity(env,authority)
   if (url.search) fail('query_parameters_not_supported',400)
+  const refreshed=await dashboardRefreshResponse(request,env,authority,ownerId)
+  if(refreshed)return refreshed
   const exported=await retainedExportResponse(request,env,authority,ownerId)
   if(exported)return exported
   if (path==='/api/operator/queries/run') {

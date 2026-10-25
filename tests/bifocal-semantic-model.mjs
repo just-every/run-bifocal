@@ -5,6 +5,7 @@ import {proveExploration} from './bifocal-exploration.mjs'
 import {provePivotTooling} from './journeys/pivot-tooling.mjs'
 import {proveCompositionTooling} from './journeys/composition-tooling.mjs'
 import {proveLargeExploration} from './journeys/large-exploration.mjs'
+import {proveDashboardTv} from './journeys/dashboard-tv.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -38,16 +39,17 @@ try {
  await page.goto(origin+'/app/questions');await page.getByRole('status').filter({hasText:'No published models yet'}).waitFor();await proveScreen('explore-no-model');await page.goto(origin+'/app/models')
  await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}})
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:null,definition:{name:'Retail 445',kind:'445',startMonth:2,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
- const upload=async(dataset,data,catchup=false)=>{
-  const input={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
+ const upload=async(dataset,data,catchup=false,options={})=>{
+  const input={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data,...options},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
   const post=async(action,data)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
   let u
   const chunkBytes=65536,totalChunks=Math.ceil(bytes.length/chunkBytes)
   for(let index=0;index<totalChunks;index++){const chunk=bytes.subarray(index*chunkBytes,(index+1)*chunkBytes);u=await post('uploads',{...u?{uploadId:u.uploadId}:{},name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks,index,chunkSha256:createHash('sha256').update(chunk).digest('hex'),base64:chunk.toString('base64')})}
   const p=await post('plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})
-  for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return}
+  for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return p}
   assert.fail('Shared source apply did not complete')
  }
+ if(process.env.BIFOCAL_TV_ONLY==='1'){await proveDashboardTv({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_LARGE_EXPORT_ONLY==='1'){await proveLargeExploration({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_EXPLORATION_ONLY==='1'){await provePivotTooling({origin,context,page,call,upload,proveScreen});await proveCompositionTooling({origin,context,page,call,upload,proveScreen});await context.close();return}
  const dataset='synthetic-bifocal-invoices',csv='invoice,date,region,revenue\n1,06/30/2026,West,$100.00\n2,07/01/2026,West,$10.01\n3,07/31/2026,East,$20.02\n4,08/01/2026,West,$4.00\n5,08/02/2026,East,$5.00\n6,08/15/2026,West,$30.03\n7,08/16/2026,East,$200.00\n'
@@ -81,8 +83,10 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  const href=await page.getByRole('link',{name:'Open revenue answer'}).getAttribute('href'),answer=await call(href.replace('/app',''))
  assert.equal(answer.answer.totals.revenue.value,'69.06');assert.equal(answer.definition.fiscal.asOf,'2026-08-15');assert.equal(answer.context.calendar.id,'synthetic-bifocal-july')
  await proveModelLifecycle({origin,context,page,definition,proveScreen,upload})
+ await proveDashboardTv({origin,context,page,call,upload,proveScreen})
  const report=await call('/reports',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(report.answer,answer.answer)
  const dashboard=await call('/dashboards',{queryId:answer.queryId,title:'Fiscal revenue'});assert.deepEqual(dashboard.answer,answer.answer)
+ assert.equal((await call('/dashboards/'+dashboard.id+'/refresh',{maxAgeSeconds:31536000},200)).cards[0].status,'fresh')
  const retail=structuredClone(definition);retail.views[0].query.context.calendar={id:'synthetic-bifocal-retail',version:1}
  const retailReview=await call('/model-authoring/review',{document:dump(retail)},200);assert.equal(retailReview.impacts[0].answer.totals.revenue.value,(expected[1][0]/100).toFixed(2));assert.equal(retailReview.impacts[0].answer.filteredRows,expected[1][1])
  const year=structuredClone(retail);year.views[0].query.fiscal.window='year-to-date';assert.equal((await call('/model-authoring/review',{document:dump(year)},200)).impacts[0].answer.totals.revenue.value,'169.06')
@@ -128,6 +132,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await call(branchPath+'/promote',{environment:'staging',digest:nextPublication.digest},409)
  await call(branchPath+'/approve',{digest:nextPublication.digest},200);await call(branchPath+'/promote',{environment:'staging',digest:nextPublication.digest},200);await call(branchPath+'/promote',{environment:'production',digest:nextPublication.digest},200)
  assert.equal((await call('/models/'+saved.modelId+'/production/run',{viewId:'revenue'})).answer.totals.revenue.value,'35.03')
+ const withdrawnTv=(await call('/dashboards/'+dashboard.id+'/refresh',{maxAgeSeconds:31536000},200)).cards[0];assert.equal(withdrawnTv.status,'failed');assert.equal(withdrawnTv.error,'published_model_changed');assert.equal(withdrawnTv.withdraw,true);assert.equal(withdrawnTv.answer,undefined)
  assert.equal((await call('/queries/'+answer.queryId)).answer.totals.revenue.value,'69.06')
  await call('/calendars',{id:'synthetic-bifocal-retail',previousVersion:1,definition:{name:'New retail revision',kind:'445',startMonth:3,startDay:1,weekStartsOn:0,anchor:'on-or-after'}})
  await page.reload();await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByRole('button',{name:'Open model '+saved.modelId.slice(0,8)+' · revision '+revised.version+' · branch '+saved.branchId.slice(0,8),exact:true}).click();await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();assert.match(await page.getByLabel('Model document').inputValue(),/synthetic-bifocal-retail/);assert.equal(await page.getByLabel('Fiscal calendar',{exact:true}).inputValue(),JSON.stringify({id:'synthetic-bifocal-retail',version:1}));assert.equal(await page.getByLabel('Date column',{exact:true}).inputValue(),'date');assert.equal(await page.getByLabel('As of',{exact:true}).inputValue(),'2026-08-15');await proveScreen('model-reopened')

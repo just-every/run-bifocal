@@ -1,0 +1,17 @@
+/* The TV page uses the installed app's existing frame, tokens and controls. */
+body[data-dashboard-tv] .single .main{width:100%;max-width:1440px}
+.dashboard-tv,.dashboard-tv>*{min-width:0;max-width:100%}
+.dashboard-tv nav{margin-bottom:16px}
+.dashboard-tv .tv-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:20px}
+.dashboard-tv .tv-tile{min-width:0;max-width:100%;margin:0;overflow:hidden}
+.dashboard-tv .tv-tile h2{overflow-wrap:anywhere}
+.dashboard-tv .tv-state{font-weight:600}
+.dashboard-tv .tv-table{min-width:0;max-width:100%}
+.dashboard-tv .tv-table .tablewrap{margin:0;max-width:100%}
+.dashboard-tv .tv-watermarks{padding-left:20px;overflow-wrap:anywhere;font-size:13px;color:var(--app-muted)}
+.dashboard-tv .tv-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:12px;margin:16px 0}
+.dashboard-tv .tv-totals div{min-width:0}
+.dashboard-tv .tv-totals dt{font-size:13px;color:var(--app-muted)}
+.dashboard-tv .tv-totals dd{margin:0;font-size:24px;font-weight:600;overflow-wrap:anywhere}
+.dashboard-tv:fullscreen{max-width:none;width:100%;height:100%;padding:28px;background:var(--app-page);overflow:auto}
+@media(max-width:760px){.dashboard-tv .tv-cards{grid-template-columns:minmax(0,1fr)}.dashboard-tv:fullscreen{padding:16px}.dashboard-tv .actions button{max-width:100%;white-space:normal}}
