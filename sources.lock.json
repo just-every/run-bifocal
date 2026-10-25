@@ -4085,7 +4085,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "04c978b3d5e63f330c813dd741af7c51854790ca90b5adc1f14f322cd3782c13",
+      "sha256": "5004f82d24b2ea93db858f66d36e73d9a976fcac9aafd9f0e4d47165f85d87b1",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -4157,7 +4157,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "cd07e28705c7431ca787b6f4c07767ef95591d5b6e6b129b99be9ff14014c828",
+      "sha256": "259a6fac366768b24da59c374d08788860732260f7e150e412c6f4a2c83e85ec",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
