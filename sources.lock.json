@@ -4145,7 +4145,7 @@
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {
-      "sha256": "ef09329dcd08e22c46213f16a2727906defcf0d4910a9848232048279d61315e",
+      "sha256": "8ab41ff04c73e97f2e0b644ef5643be3a5d974c47b40bba1e222659bffe85447",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

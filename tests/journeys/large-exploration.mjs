@@ -29,7 +29,7 @@ export async function proveLargeExploration({origin,context,page,call,proveScree
  assert.equal(question.answer.totals.rows.value,String(count));assert.equal(question.answer.totals['invoice-sum'].value,String(count*(count+1)/2))
  const limited=await call('/explore/run',{...parameters,filters:[{column:'invoice',op:'lte',value:'30001'}]})
  assert.equal(limited.answer.filteredRows,30001)
- const base='/api/operator/explore/'+limited.snapshotId,refusal=await context.request.post(base+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'csv'}});assert.equal(refusal.status(),413)
+ const base=origin+'/api/operator/explore/'+limited.snapshotId,refusal=await context.request.post(base+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'csv'}});assert.equal(refusal.status(),413)
  const csvPlan=(await refusal.json()).fullExport;assert.equal(csvPlan.totalRows,30001);assert.equal(csvPlan.interactiveCap,30000)
  let offset=0,csvRows=0,csvSum=0;const csvIds=new Set()
  do{
