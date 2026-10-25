@@ -67,6 +67,15 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
   const exported=text.trimEnd().split('\r\n').slice(1).map(row=>row.split(',').map(cell=>cell.slice(1,-1)))
   assert.deepEqual(exported.map(row=>row[0]).sort(),['inv-a','inv-b','inv-c','inv-d']);assert.equal(exported.reduce((sum,row)=>sum+Math.round(Number(row[2])*100),0),3400)
   assert.deepEqual((await call('/explore/access')).grants,grantsBefore,'Changing export limits cannot issue, activate or change grants')
+  const lastPolicy=await setting();await setting({previousRevision:lastPolicy.revision,csv:1,xlsx:1})
+  const memberRefusal=await download(reader,underlying.snapshotId,'underlying','csv',413),memberPlan=(await memberRefusal.json()).fullExport
+  assert.equal(memberPlan.totalRows,2,'A full-export plan reveals only the member scope')
+  const memberPart=await reader.request.post(origin+'/api/operator/explore/'+underlying.snapshotId+'/full-export',{headers,data:{scope:'underlying',format:'csv',offset:0,planDigest:memberPlan.planDigest}})
+  assert.equal(memberPart.status(),200,await memberPart.text());assert.equal(Number(memberPart.headers()['x-bifocal-row-count']),1);assert.ok(!(await memberPart.text()).includes('East'))
+  assert.equal((await reader.request.post(origin+'/api/operator/explore/'+summary.snapshotId+'/export-plan',{headers,data:{scope:'underlying',format:'csv'}})).status(),403)
+  await call('/explore/access/'+underlyingGrant.id+'/revoke',{})
+  assert.equal((await reader.request.post(origin+'/api/operator/explore/'+underlying.snapshotId+'/full-export',{headers,data:{scope:'underlying',format:'csv',offset:1,planDigest:memberPlan.planDigest}})).status(),403,'Revocation stops the next named export part')
+
  } finally {
   const current=await setting();await setting({previousRevision:current.revision,csv:original.csv,xlsx:original.xlsx})
   await call('/explore/access/'+summaryGrant.id+'/revoke',{});await call('/explore/access/'+underlyingGrant.id+'/revoke',{})
