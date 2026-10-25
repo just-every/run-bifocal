@@ -25,7 +25,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  assert.deepEqual(selectedField.availableDimensions,['region','invoice'])
  assert.equal((await call(fieldEndpoint,{maxAgeSeconds:3600,fields:['revenue']},200)).cards[0].error,'dashboard_field_selection_unavailable')
  const fieldExport=await call('/dashboards/'+fieldDashboard.id+'/tiles/'+fieldQuery.queryId+'/export-snapshot',{maxAgeSeconds:3600,fields:['region'],definitionHash:selectedField.answer.definitionHash,watermarks:selectedField.answer.sourceWatermarks})
- await proveRetainedExports({origin,context,snapshotId:fieldExport.queryId,summary:[['West','15.01'],['East','30.03']],underlying:[['1','West','10.01'],['2','East','30.03'],['3','West','5.00']]})
+ await proveRetainedExports({origin,context,snapshotId:fieldExport.queryId,summary:[['East','30.03'],['West','15.01']],underlying:[['1','West','10.01'],['2','East','30.03'],['3','West','5.00']]})
  const beforeFilters=await call('/queries')
  const filtered=await call(filterEndpoint,{maxAgeSeconds:3600,filters:east},200)
  assert.equal(filtered.cards[0].answer.totals.revenue.value,'30.03');assert.equal(filtered.cards[1].answer.filteredRows,0,'Reader filters never remove saved restrictions')
