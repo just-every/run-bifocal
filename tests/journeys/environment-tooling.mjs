@@ -45,8 +45,22 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  await writeFile(tf,JSON.stringify(config()));await terraform(['import','-input=false','-no-color','bifocal_environment_definition.main',document.id]);await terraform(['plan','-input=false','-no-color','-detailed-exitcode'])
  const changed=structuredClone(definition);changed.views[0].query.filters=[{column:'region',op:'eq',value:'West'}]
  const modelFile=join(directory,'estate-branch.native.json');await writeFile(modelFile,JSON.stringify(changed));const branch=await cli('branch',['--model',model.modelId,'--file',modelFile])
- const metricRevision=await call('/metrics/'+metric.id+'/propose',{previousRevision:1,definition:{...JSON.parse(await readFile(join(directory,'metric-export.native.json'),'utf8')).definition,name:'Estate revenue',description:'West revenue',query:{...scalar,filters:changed.views[0].query.filters}}})
- document.resources[0]={...document.resources[0],branchId:branch.branchId,revisionId:branch.revision};document.resources[1].revision=metricRevision.revision
+ const originalResources=structuredClone(document.resources)
+ document.resources[0]={...document.resources[0],branchId:branch.branchId,revisionId:branch.revision}
+ const refuseMixed=async()=>{const before={estate:await status(),model:await call('/models/'+model.modelId),metric:await call('/metric-definitions/'+metric.id)};await writeFile(file,JSON.stringify(document));await cli('environment-plan',['--file',file,'--plan-file',join(directory,'environment-mixed-'+sequence+++'.json')],false);assert.deepEqual(await status(),before.estate);assert.deepEqual(await call('/models/'+model.modelId),before.model);assert.deepEqual(await call('/metric-definitions/'+metric.id),before.metric)}
+ await refuseMixed()
+ const westScalar={...scalar,filters:changed.views[0].query.filters,context:{...scalar.context,modelVersion:branch.revision}},westGrouped={...westScalar,groupBy:['region']}
+ const metricRevision=await call('/metrics/'+metric.id+'/propose',{previousRevision:1,definition:{...JSON.parse(await readFile(join(directory,'metric-export.native.json'),'utf8')).definition,name:'Estate revenue',description:'West revenue',query:westScalar}})
+ const westChart=await retain('chart',{version:1,title:'West estate regions',definition:westGrouped,visual:{kind:'bar',dimension:'region',measure:'revenue'}})
+ const westDashboard=await retain('dashboard',{version:1,title:'West estate dashboard',cards:[westScalar,westGrouped]}),westReport=await retain('report',{version:1,title:'West estate report',cards:[westScalar,westGrouped]})
+ document.resources[1].revision=metricRevision.revision
+ document.resources[2].id=westChart.id;document.resources[3].id=westDashboard.id;document.resources[4].id=westReport.id
+ const coherent=structuredClone(document.resources)
+ for(const index of [1,2,3,4]){document.resources[index]=originalResources[index];await refuseMixed();document.resources[index]=coherent[index]}
+ document.resources=coherent.filter(resource=>resource.kind!=='model');await refuseMixed();document.resources=coherent
+ assert.equal((await call('/charts/'+westChart.id)).definition.context.modelVersion,branch.revision)
+ for(const [kind,id] of [['dashboards',westDashboard.id],['reports',westReport.id]]){const saved=await call('/'+kind+'/'+id);assert.ok(saved.cards.every(card=>card.definition.context.modelVersion===branch.revision));assert.ok(saved.cards.every(card=>card.definition.filters.some(filter=>filter.column==='region'&&filter.value==='West')))}
+ assert.equal((await call('/charts/'+chart.id)).definition.context.modelVersion,model.revision,'Retained original snapshots keep their original semantic revision')
  const edit=await plan();await writeFile(tf,JSON.stringify(config(edit.review.digest)));await terraform(['plan','-input=false','-no-color','-out=environment-stale.tfplan'])
  const concurrent=await cli('environment-apply',['--plan-file',edit.path,'--approve',edit.review.digest]);assert.equal(concurrent.revision,2)
  const stateBefore=await status(),modelBefore=await call('/models/'+model.modelId),metricBefore=await call('/metric-definitions/'+metric.id)

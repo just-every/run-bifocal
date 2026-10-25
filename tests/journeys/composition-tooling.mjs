@@ -87,7 +87,7 @@ export async function proveCompositionTooling({origin,context,page,upload,proveS
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/questions')
   await page.getByRole('status').filter({hasText:'Ready to explore'}).waitFor()
   await page.locator('#composition > summary').click()
-  const pick=async(label,id)=>{const select=page.getByLabel(label,{exact:true}),option=select.locator('option').filter({hasText:id.slice(0,8)});await select.selectOption(await option.first().getAttribute('value'))}
+  const pick=async(label,id)=>{const select=page.getByLabel(label,{exact:true}),option=select.locator('option').filter({hasText:id.slice(0,8)});assert.ok((await select.locator('option').allTextContents()).some(text=>text.includes(id.slice(0,8))),JSON.stringify({label,id,options:await select.locator('option').allTextContents()}));await select.selectOption(await option.first().getAttribute('value'))}
   await pick('Left subject',left.modelId);await pick('Right subject',right.modelId)
   await page.getByLabel('Left matching key',{exact:true}).selectOption('region');await page.getByLabel('Right matching key',{exact:true}).selectOption('region')
   await page.getByLabel('Combination',{exact:true}).selectOption('join');await page.getByLabel('Match behavior',{exact:true}).selectOption('inner')

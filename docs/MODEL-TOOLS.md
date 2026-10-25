@@ -420,7 +420,7 @@ The owner configures interactive CSV and XLSX row caps at
 questions support stable pivots and explicit complete exports in named parts
 above those caps, with current authority and caps checked on every part.
 Owner-only subject compositions preserve separate row rules and provenance;
-their downloads currently refuse above the interactive cap. Definition exports
+their downloads offer the same explicit named parts above the interactive cap. Definition exports
 from the CLI contain no result rows and do not grant either download scope.
 These exploration capabilities do not activate schedule dispatch or complete
 the full report application.

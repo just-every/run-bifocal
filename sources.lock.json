@@ -397,7 +397,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "3d9721de092117744aafe0f79db0e3d584bec46922f8a7dfdda44ffb96cfe171",
+      "sha256": "4a7e9cfa2265545df79351178b98f46b57b7f73aad69fd5172e3d0d379e57d1e",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -409,7 +409,7 @@
       "executable": false
     },
     "docs/MODEL-TOOLS.md": {
-      "sha256": "df85816557c0322b71a1fe4da47e2f0b5329e60dd1c040db0425ff99c82ffa9e",
+      "sha256": "86be38e2e3aa5e33714949675f92702279e6f8c56cc0da56f1653d2828ae3362",
       "executable": false
     },
     "docs/people.md": {
@@ -1508,6 +1508,10 @@
       "sha256": "55c6bca850f31c48a4d65b8c861a3e638d8712c17e81eb52cf91cc6286734d94",
       "executable": false
     },
+    "src/bifocal/environments/dependencies.server.ts": {
+      "sha256": "f6e3c2588a6c37b7aae8a2f308128a73ecd1a22689768c801098b9813b256aa2",
+      "executable": false
+    },
     "src/bifocal/environments/erasure.ts": {
       "sha256": "1e3c9e3934255a6ba9b95f5bc423485b36fd38b11df988aba64edf7da5b8d7b6",
       "executable": false
@@ -1525,7 +1529,7 @@
       "executable": false
     },
     "src/bifocal/environments/resources.server.ts": {
-      "sha256": "7351cc6155022d7327243a263bdf2de362b726cf6b345aff8e49caf592f0f82a",
+      "sha256": "eb5efdafc4bac7abc6f479df2626369b92143d11579bd59987bb6c62c084f8c0",
       "executable": false
     },
     "src/bifocal/environments/run.server.ts": {
@@ -4101,7 +4105,7 @@
       "executable": false
     },
     "tests/journeys/composition-tooling.mjs": {
-      "sha256": "703c94d3566358c2f76e50e419782c68cdae48d55f54527320a6fe92cf5124dd",
+      "sha256": "c02198ef28cdb1f53624bc10c78f1b01bc018a894e8c3d33d7db3e63d06fafb9",
       "executable": false
     },
     "tests/journeys/content-browser.mjs": {
@@ -4121,7 +4125,7 @@
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
-      "sha256": "82ae8224213687ad7f20ce53b6d69f2f56b113199450e1ee224b4be83144b0ac",
+      "sha256": "38c7f00720e7ad3e831c84c73aabc8a9b1e26914e389093744cdf74dea4facdb",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {

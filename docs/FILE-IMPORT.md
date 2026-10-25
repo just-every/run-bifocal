@@ -144,21 +144,21 @@ It establishes synthetic file-format proof, not qualification in a live Excel ho
 
 Workbook admission is bounded to 512 KiB compressed, 128 ZIP entries, 1 MiB per
 expanded part, 4 MiB expanded total, 100,000 XML nodes, 50,000 XML markup
-boundaries, 64 XML nesting levels and 32 named sheets. The ordinary row/column/cell/final-table bounds also
-apply. Central/local offsets, paths, names, sizes, CRC32 and nonoverlap are checked;
-ZIP64/encryption and unsafe/duplicate paths are refused before use. DTDs and
-entity declarations, external relationships, VBA/macros, active controls and
+boundaries, 64 XML nesting levels and 32 named sheets. The ordinary row, column, cell and final-table bounds also
+apply. Central and local offsets, paths, names, sizes, CRC32 and nonoverlap are checked;
+ZIP64 and encryption and unsafe or duplicate paths are refused before use. DTDs and
+entity declarations, external relationships, VBA and macros, active controls and
 embedded binaries are rejected. ZIP bytes never become extracted app files or
 public content. Large or unsupported workbooks need a bounded values-only export;
 that is an explicit limitation and does not close large-file acceptance.
 
 ## Browser workflow and retained copies
 
-`/app/import` uses the same HTTP upload/plan/apply/reconcile/Undo handlers. It detects byte-order marks and unambiguous header delimiters, requires an explicit encoding when UTF-8 decoding fails, previews columns/candidate keys and interpretation, displays lineage/time/formulas, binds explicit approval to the full fingerprint and reports completion only after reconciliation. Upload chunk references in session storage contain only a digest and id; select the identical file to resume. No file bytes or provider token are stored in browser storage. Error metadata is owner-only and dataset erasure deletes it.
+`/app/import` uses the same HTTP upload, plan, apply, reconcile and Undo handlers. It detects byte-order marks and unambiguous header delimiters, requires an explicit encoding when UTF-8 decoding fails, previews columns and candidate keys and interpretation, displays lineage, time and formulas, binds explicit approval to the full fingerprint and reports completion only after reconciliation. Upload chunk references in session storage contain only a digest and id; select the identical file to resume. No file bytes or provider token are stored in browser storage. Error metadata is owner-only and dataset erasure deletes it.
 
-The browser downloads original CSV/XLSX bytes under the original filename; a live range downloads its derived JSON snapshot with formulas and lineage. Erasure clears the page preview and selected file buffer as well as withdrawing native custody.
+The browser downloads original CSV and XLSX bytes under the original filename; a live range downloads its derived JSON snapshot with formulas and lineage. Erasure clears the page preview and selected file buffer as well as withdrawing native custody.
 
-Native exact queries retain source rows in immutable snapshots. Explicit dataset erasure also withdraws dependent query snapshots and saved tabular dashboard/report results in the same retirement transaction, including after Undo leaves no published table. Undo unpublishes data while retaining historical owner-held answers until explicit erasure. The erasure receipt includes those affected native stores and counts. Archive inventory includes convention versions, error reviews and query custody; transient guards, sessions and provider tokens are excluded.
+Native exact queries retain source rows in immutable snapshots. Explicit dataset erasure also withdraws dependent query snapshots and saved tabular dashboard and report results in the same retirement transaction, including after Undo leaves no published table. Undo unpublishes data while retaining historical owner-held answers until explicit erasure. The erasure receipt includes those affected native stores and counts. Archive inventory includes convention versions, error reviews and query custody; transient guards, sessions and provider tokens are excluded.
 
 
 ## Questions, pivots and complete exports

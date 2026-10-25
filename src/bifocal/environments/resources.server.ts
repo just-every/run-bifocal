@@ -19,6 +19,7 @@ import { resolveSchedule, scheduleDefinition } from '../calendars/timezone'
 import { recurringDocument } from '../schedules/protocol'
 import { resolveRecurrence } from '../schedules/recurrence'
 import type { EstateDocument } from './protocol'
+import { nativeModelDependency } from './dependencies.server'
 
 type Resource=EstateDocument['resources'][number]
 type CheckedModel={model:Model;branch:Branch;review:Awaited<ReturnType<typeof validateBranch>>['review']}
@@ -36,7 +37,8 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
   definitions.push({key:ref.key,kind:ref.kind,id:ref.id,definition})
   fingerprints.push({key:ref.key,kind:ref.kind,id:ref.id,definitionHash:hash(definition),...binding})
  }
- const inspectQuery=async(key:string,query:Query)=>{
+ const inspectQuery=async(key:string,query:Query,checkDependency=true)=>{
+  if(checkDependency)guards.push(...await nativeModelDependency(env,actor,document,query))
   const context=await queryContext(env,query,actor.id),sources=await readSources(env,query),answer=execute(query,sources,context)
   sources.forEach(source=>sourceIds.add(source.id))
   guards.push(...context.guards??[],...sources.map(sourceMatch))
@@ -72,13 +74,14 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
    // Validation includes old and new numerical answers; only safe context hashes and
    // watermarks become estate fingerprints, never those answer rows.
    for(const view of definition.views)await inspectQuery(ref.key+'.candidate.'+view.id,scopedQuery(view,ref.revisionId))
-   if(model.production)for(const view of (await readDefinition(env,model.production)).views)await inspectQuery(ref.key+'.production.'+view.id,scopedQuery(view,model.production))
+   if(model.production)for(const view of (await readDefinition(env,model.production)).views)await inspectQuery(ref.key+'.production.'+view.id,scopedQuery(view,model.production),false)
    continue
   }
   if(ref.kind==='metric') {
    if(!Number.isSafeInteger(ref.revision)||Number(ref.revision)<1)fail('estate_metric_revision_required',400)
    const row=await metric(env,actor.id,ref.id),rev=await revision(env,ref.id,ref.revision!)
    if(!rev)fail('estate_metric_revision_not_found',404)
+   guards.push(...await nativeModelDependency(env,actor,document,JSON.parse(rev.document_json).query))
    const evaluation=await metricValue(env,actor.id,row,rev)
    guards.push(metricGuard(row),sql('EXISTS(SELECT 1 FROM bf_metric_revisions WHERE metric_id=? AND revision=? AND digest=? AND document_json=? AND approved_at IS ?)',row.id,rev.revision,rev.digest,rev.document_json,rev.approved_at),...evaluation.context.guards??[],...evaluation.sources.map(sourceMatch))
    evaluation.sources.forEach(source=>sourceIds.add(source.id))
@@ -118,13 +121,14 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
    const retained=await env.DB.prepare('SELECT revision,document_json,digest,created_at FROM bf_policy_definition_revisions WHERE owner_id=? AND policy_id=? AND revision=?').bind(actor.id,ref.id,ref.revision).first<PolicyVersion>()
    if(!retained)fail('estate_policy_revision_not_found',404)
    const policy=policyInput(JSON.parse(retained.document_json)),model=await readModel(env,actor.id,policy.modelId)
-   if(!model.production)fail('estate_policy_model_unpublished',409)
-   const modelDefinition=await readDefinition(env,model.production),view=modelDefinition.views.find(v=>v.id===policy.viewId)
+   const selected=document.resources.find(resource=>resource.kind==='model'&&resource.id===model.id),targetRevision=selected?.revisionId??model.production
+   if(!targetRevision)fail('estate_policy_model_unpublished',409)
+   const modelDefinition=await readDefinition(env,targetRevision),view=modelDefinition.views.find(v=>v.id===policy.viewId)
    if(!view?.query.semantic)fail('governed_view_required',404)
    validatePolicyScope(policy,view.query)
-   guards.push(policyGuard(actor,ref.id,current.revision),modelGuard(model),definitionGuard(model.id,model.production,modelDefinition),sql('EXISTS(SELECT 1 FROM bf_policy_definition_revisions WHERE owner_id=? AND policy_id=? AND revision=? AND digest=? AND document_json=?)',actor.id,ref.id,retained.revision,retained.digest,retained.document_json))
-   add(ref,policy,{revision:retained.revision,headRevision:current.revision,digest:retained.digest,production:model.production,generation:model.generation})
-   await inspectQuery(ref.key,scopedQuery(view,model.production))
+   guards.push(policyGuard(actor,ref.id,current.revision),modelGuard(model),definitionGuard(model.id,targetRevision,modelDefinition),sql('EXISTS(SELECT 1 FROM bf_policy_definition_revisions WHERE owner_id=? AND policy_id=? AND revision=? AND digest=? AND document_json=?)',actor.id,ref.id,retained.revision,retained.digest,retained.document_json))
+   add(ref,policy,{revision:retained.revision,headRevision:current.revision,digest:retained.digest,bindingRevision:targetRevision,production:model.production,generation:model.generation})
+   await inspectQuery(ref.key,scopedQuery(view,targetRevision),!!selected)
    continue
   }
   if(ref.kind==='schedule') {
