@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveRetainedExports} from './retained-export.mjs'
 
 /** A live owner TV view refreshes real sources without rewriting retained cards. */
 export async function proveDashboardTv({origin,context,page,call,upload,proveScreen}) {
@@ -18,7 +19,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  const single=await call('/dashboards',{queryId:retained[0].queryId,title:'One exact owner tile'});assert.equal((await call('/dashboards/'+single.id+'/refresh',{maxAgeSeconds:3600},200)).cards.length,1)
  assert.equal((await fetch(origin+'/api/operator'+endpoint,{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify({maxAgeSeconds:3600})})).status,401)
  await call(endpoint,{maxAgeSeconds:3600},401,{Origin:'https://synthetic-bifocal.invalid'})
- const initialQueries=await call('/queries')
+ let initialQueries=await call('/queries')
  await page.goto(origin+'/app/dashboards/'+dashboard.id)
  await page.getByRole('link',{name:'Open dashboard TV',exact:true}).click()
  await page.getByRole('heading',{name:'Regional operations TV',exact:true}).waitFor()
@@ -29,14 +30,30 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await page.locator('[data-tile-id="'+retained[1].queryId+'"][data-state="stale"]').waitFor()
  await page.locator('[data-tile-id="'+retained[2].queryId+'"][data-state="empty"]').waitFor()
  await proveScreen('dashboard-tv-fresh-stale-empty')
+ const prepare=async(index)=>{const tile=page.locator('section[data-tile-id="'+retained[index].queryId+'"]'),[response]=await Promise.all([page.waitForResponse(response=>response.url().endsWith('/export-snapshot')),tile.getByRole('button',{name:'Prepare current exports',exact:true}).click()]);assert.equal(response.status(),201,await response.text());const snapshot=await response.json();await tile.getByRole('button',{name:'Export summary CSV',exact:true}).waitFor();return {snapshot,tile}}
+ const staleExport=await prepare(1)
+ await proveRetainedExports({origin,context,snapshotId:staleExport.snapshot.queryId,summary:[['West','20.02']],underlying:[['1','West','20.02']]})
+ const emptyExport=await prepare(2);assert.equal(emptyExport.snapshot.answer.filteredRows,0)
+ await proveRetainedExports({origin,context,snapshotId:emptyExport.snapshot.queryId,summary:[],underlying:[]})
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const download=page.waitForEvent('download');await staleExport.tile.getByRole('button',{name:width===1440?'Export summary CSV':'Export underlying XLSX',exact:true}).click();assert.match((await download).suggestedFilename(),/retained-(summary|underlying)\.(csv|xlsx)$/)}
+ await proveScreen('dashboard-tv-current-stale-and-empty-exports');initialQueries=await call('/queries')
+
  await upload(fresh,csv('11.01'),true)
  await upload(old,'invoice,region,revenue\n1,West,unavailable\n',true,{columns:{invoice:'number',region:'text',revenue:'text'},lineage})
  result=await refresh();assert.deepEqual(result.cards.map(card=>card.status),['fresh','failed','empty']);assert.equal(result.cards[0].answer.totals.revenue.value,'11.01');assert.equal(result.cards[1].answer,undefined);assert.equal(result.cards[1].withdraw,false)
+ const freshTile=page.locator('section[data-tile-id="'+retained[0].queryId+'"]')
+ const [changedExport]=await Promise.all([page.waitForResponse(response=>response.url().endsWith('/export-snapshot')),freshTile.getByRole('button',{name:'Prepare current exports',exact:true}).click()]);assert.equal(changedExport.status(),409);assert.deepEqual(await call('/queries'),initialQueries,'A changed displayed source saves no export answer');await proveScreen('dashboard-tv-changed-export-refused')
+
  await page.getByRole('button',{name:'Refresh now',exact:true}).click()
  const failed=page.locator('[data-tile-id="'+retained[1].queryId+'"][data-state="failed"]')
  await failed.waitFor();assert.match(await failed.innerText(),/20\.02/);assert.match(await failed.innerText(),/Last successful|Last good/i)
  assert.match(await page.locator('[data-tile-id="'+retained[0].queryId+'"]').innerText(),/11\.01/)
  await proveScreen('dashboard-tv-partial-failure')
+ const currentExport=await prepare(0)
+ await proveRetainedExports({origin,context,snapshotId:currentExport.snapshot.queryId,summary:[['West','11.01']],underlying:[['1','West','11.01']]})
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});const download=page.waitForEvent('download');await currentExport.tile.getByRole('button',{name:width===1440?'Export underlying CSV':'Export summary XLSX',exact:true}).click();assert.match((await download).suggestedFilename(),/retained-(summary|underlying)\.(csv|xlsx)$/)}
+ await proveScreen('dashboard-tv-current-fresh-export');initialQueries=await call('/queries')
+
  await upload(old,csv('22.02'),true,{columns:{invoice:'number',region:'text',revenue:'money'},lineage})
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.locator('[data-tile-id="'+retained[1].queryId+'"][data-state="stale"]').waitFor();assert.match(await page.locator('[data-tile-id="'+retained[1].queryId+'"]').innerText(),/22\.02/)
  await proveScreen('dashboard-tv-recovered')
@@ -60,6 +77,7 @@ export async function proveDashboardTv({origin,context,page,call,upload,proveScr
  await page.goto(origin+'/app/dashboards/'+dashboard.id+'/tv');await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.locator('section[data-state="fresh"]').waitFor()
  const source=await call('/datasets/'+fresh);await call('/datasets/'+fresh+'/erase',{confirmDataset:fresh,reviewedRevision:source.revision},200)
  await call(endpoint,{maxAgeSeconds:3600},404)
+ assert.equal((await context.request.post(origin+'/api/operator/queries/'+currentExport.snapshot.queryId+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'csv'}})).status(),404)
  await page.getByRole('button',{name:'Refresh now',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('[data-tile-id]').length===0);await proveScreen('dashboard-tv-source-withdrawn')
  const staleSource=await call('/datasets/'+old);await call('/datasets/'+old+'/erase',{confirmDataset:old,reviewedRevision:staleSource.revision},200)
  console.log('Dashboard TV: explicit timer, real freshness, independent failure and recovery, immutable history, fullscreen and current authority withdrawal passed')

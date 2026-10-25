@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "5698d613a2d80daaa05995729f5a5a0630587bce2e3940611c613a661a7dcb53",
+      "sha256": "2836163583b9a6d90d140304150a0ba10edab606c1f01caee3debd0c289435f8",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2f6c024596f6838fc26d5277957b059323093a262250a81b28d5dc67e55130ad",
+      "sha256": "68ec3ffd135c196b7c2aaa05c00d7986af23916bd22316aced1035bd4cf86276",
       "executable": false
     },
     "DEMO.md": {
@@ -777,7 +777,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
-      "sha256": "04879a787d8a100698b2250431012978a67bf9f74b31a962c0923362b6ee3b2f",
+      "sha256": "72797862fe06ea2786a2ee186b698636c08efab8b90751ea351fd57ecb560ebe",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -1556,12 +1556,16 @@
       "sha256": "f366486acea6fda7d73c9e230fcf21d666106d8677a1175e93f547e6fc4cc93e",
       "executable": false
     },
+    "src/bifocal/dashboards/tv-export.server.ts": {
+      "sha256": "bbb616cbedc6079fdf3c3d1c1645b0485bcce268845e43b6999c3851def8afab",
+      "executable": false
+    },
     "src/bifocal/dashboards/tv.page.server.ts": {
       "sha256": "0a41325b973178e1435e9ac96b63d72c49d58e6807e3246bcd59378a07d42861",
       "executable": false
     },
     "src/bifocal/dashboards/tv.server.ts": {
-      "sha256": "4f470007bfaba5813911150c338721b8469a274a7ccef9a8edf90954e7e4fa67",
+      "sha256": "f6c0110afd8e6cc49972fba87841a825eae0ea4061424af72cb24adea8e7e689",
       "executable": false
     },
     "src/bifocal/data/snapshots/store.ts": {
@@ -1937,7 +1941,7 @@
       "executable": false
     },
     "src/bifocal/query/server.ts": {
-      "sha256": "c1f9d1af696ec7e1ee18a8ab56407b3bb889d17ebba645097a143edc889b766b",
+      "sha256": "9ba99032d129d22cbe29a676e35c0acfe56253257acaa6eb722651d08f1aa663",
       "executable": false
     },
     "src/bifocal/query/types.ts": {
@@ -4197,7 +4201,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {
-      "sha256": "935675706003fa39ad891317d39f7f2d0b1ddb6f0214e9064e9a9c4aa81015cb",
+      "sha256": "caefb8a517db94257b10913393f940ea421140aa61a7ee4491a36b1f6fde429d",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {

@@ -13,6 +13,7 @@ import { execute } from './execute'
 import { fail, QueryError } from './types'
 import { retainedExportResponse } from './exports.server'
 import { dashboardRefreshResponse } from '../dashboards/tv.server'
+import { dashboardTvExportResponse } from '../dashboards/tv-export.server'
 import { dashboardAuthoringResponse } from '../dashboards/authoring.server'
 const headers = {'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}
 const json = (body: unknown,status=200) => Response.json(body,{status,headers})
@@ -40,6 +41,8 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if (url.search) fail('query_parameters_not_supported',400)
   const authored=await dashboardAuthoringResponse(request,env,{...authority,id:ownerId,role:'owner'})
   if(authored)return authored
+  const liveExport=await dashboardTvExportResponse(request,env,authority,ownerId)
+  if(liveExport)return liveExport
   const refreshed=await dashboardRefreshResponse(request,env,authority,ownerId)
   if(refreshed)return refreshed
   const exported=await retainedExportResponse(request,env,authority,ownerId)

@@ -14,7 +14,7 @@ type Card={id:string;title:string;status:'fresh'|'stale'|'empty'|'failed';answer
 type Manifest={id:string;title:string;refs:{snapshot_id:string;position:number}[];guards:D1Sql[]}
 
 /** Read immutable board membership without requiring every tile to compile. */
-async function readManifest(env:Bindings,ownerId:string,id:string):Promise<Manifest|null> {
+export async function readManifest(env:Bindings,ownerId:string,id:string):Promise<Manifest|null> {
  const board=await env.DB.prepare("SELECT title,created_at FROM bf_analytics_boards WHERE id=? AND owner_id=? AND kind='dashboard'").bind(id,ownerId).first<{title:string;created_at:string}>()
  if(board) {
   const refs=(await env.DB.prepare('SELECT snapshot_id,position FROM bf_analytics_cards WHERE board_id=? ORDER BY position').bind(id).all<{snapshot_id:string;position:number}>()).results

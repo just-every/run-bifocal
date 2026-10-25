@@ -1,11 +1,41 @@
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
+import {retainedExport} from './retained-export.js'
 
 const $=id=>document.getElementById(id),root=$('dashboard-tv'),zone=document.body.dataset.zone
 const tiles=new Map(),names={fresh:'Fresh',stale:'Stale',empty:'Empty',failed:'Failed',loading:'Loading'}
-let running=false,busy=false,timer=null,requestController=null
+let running=false,busy=false,timer=null,requestController=null,viewGeneration=0
 const message=(text,error=false)=>{const node=$('tv-status');node.textContent=text;node.setAttribute('role',error?'alert':'status')}
 const shown=(value,currency)=>value?.state==='value'?figure(value.value,value.unit,currency):String(value?.state??'unavailable').toUpperCase()
+function currentExports(tile,data){
+ const box=element('div'),prepare=element('button','Prepare current exports'),note=element('p','Prepare summary and underlying CSV and XLSX downloads. This action retains one exact current answer.','hint'),status=element('p'),downloads=element('div')
+ box.dataset.tileExports='';box.setAttribute('aria-label','Current tile exports');prepare.type='button'
+ status.dataset.tileExportStatus='';status.setAttribute('aria-label','Current tile export status');status.setAttribute('role','status');status.setAttribute('aria-live','polite')
+ const unavailable=tile.withdraw||!['fresh','stale','empty'].includes(tile.status)
+ prepare.disabled=unavailable
+ if(unavailable)status.textContent='Refresh this tile successfully before preparing current exports. Last-good values cannot prepare exports.'
+ box.append(note,prepare,status,downloads)
+ prepare.onclick=async()=>{
+  const current=settings();if(!current)return
+  prepare.disabled=true;status.textContent='Retaining the exact displayed answer for exports…'
+  try{
+   const response=await fetch('/api/operator/dashboards/'+encodeURIComponent(root.dataset.id)+'/tiles/'+encodeURIComponent(tile.id)+'/export-snapshot',{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify({definitionHash:data.answer.definitionHash,watermarks:data.answer.sourceWatermarks,maxAgeSeconds:current.maxAgeSeconds})})
+   if([401,403,404].includes(response.status)){
+    clearValues();message('Dashboard export access unavailable. Previously displayed values were cleared.',true);return
+   }
+   const result=await response.json()
+   if(result.withdraw===true){clearValues();message('Dashboard values were withdrawn and cleared.',true);return}
+   if(!response.ok)throw Error(result.error??'Current export preparation unavailable')
+   if(typeof result.queryId!=='string'||!result.queryId)throw Error('Retained export answer could not be read')
+   if(!box.isConnected||tiles.get(tile.id)?.data!==data)return
+   downloads.replaceChildren(retainedExport(result.queryId));status.textContent='Exact current answer retained. Choose a summary or underlying download below.'
+  }catch(error){
+   if(!box.isConnected)return
+   status.textContent='Export preparation failed: '+String(error.message).replaceAll('_',' ')+'. Refresh the tile before preparing exports again.'
+  }
+ }
+ return box
+}
 function settings(){
  if(!$('tv-controls').reportValidity())return null
  return {interval:Number($('tv-interval').value),maxAgeSeconds:Number($('tv-max-age').value)}
@@ -32,7 +62,7 @@ function renderTile(tile){
   const box=element('div',undefined,'tv-table');box.append(table('Exact '+tile.title+' results',[...data.definition.groupBy.map(label),...measures.map(label)],rows,[...data.definition.groupBy.map(()=>false),...measures.map(()=>true)]));section.append(box)
   const watermarks=element('ul',undefined,'tv-watermarks');watermarks.dataset.watermarks=''
   for(const source of data.watermarks??data.answer.sourceWatermarks??[])watermarks.append(element('li',`${source.dataset} · revision ${source.revision} · observed ${stamp(source.observedAt??source.updatedAt,zone)}`))
-  section.append(watermarks)
+  section.append(watermarks,currentExports(tile,data))
  }
  return section
 }
@@ -50,7 +80,7 @@ function schedule(){
  timer=setTimeout(()=>refresh(),current.interval*1000)
 }
 function clearValues(){
- pause();tiles.clear();$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
+ viewGeneration++;requestController?.abort();pause();tiles.clear();$('tv-cards').replaceChildren();$('tv-title').textContent='Dashboard TV'
 }
 function failedTiles(error){
  for(const tile of tiles.values()){tile.status='failed';tile.error=error;tile.withdraw=false}
@@ -59,6 +89,7 @@ function failedTiles(error){
 async function refresh(){
  if(busy)return
  const current=settings();if(!current){pause();return}
+ const generation=viewGeneration
  clearTimeout(timer);timer=null;busy=true;$('tv-refresh').disabled=true
  for(const tile of tiles.values()){tile.status='loading';tile.error=null;tile.withdraw=false}
  render();message('Refreshing dashboard tiles…')
@@ -70,6 +101,7 @@ async function refresh(){
    clearValues();message('Dashboard access unavailable. Previously displayed values were cleared.',true);return
   }
   const result=await response.json()
+  if(generation!==viewGeneration)return
   if(result.withdraw===true){clearValues();message('Dashboard values were withdrawn and cleared. Refresh requires current owner access and valid source custody.',true);return}
   if(!response.ok)throw Error(result.error??'Dashboard refresh unavailable')
   if(result.id!==root.dataset.id||!Array.isArray(result.cards))throw Error('Dashboard refresh response could not be read')
