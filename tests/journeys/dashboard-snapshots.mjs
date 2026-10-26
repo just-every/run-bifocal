@@ -58,6 +58,7 @@ export async function proveDashboardSnapshots({origin,context,page,upload,proveS
   }
   const explanation=review.pages.flatMap(p=>p.shapes.filter(s=>s.label==='Text tile explanation').flatMap(s=>s.lines));assert.deepEqual(explanation,Array.from({length:75},(_,i)=>'Explanation line '+String(i+1).padStart(3,'0')+'.'))
   assert.ok(review.pages.every(p=>['Dashboard title','Snapshot state','Effective filters and parameters','Source versions','Open authenticated dashboard'].every(label=>p.shapes.some(s=>s.label===label))))
+  assert.ok(review.pages.every(p=>p.shapes.every((s,i)=>i===0||p.shapes[i-1].y<=s.y)),'Accessible reading order follows page positions')
   assert.ok(review.pages.every(p=>p.shapes.every(s=>s.x>=0&&s.y>=0&&s.x+s.w<=1280&&s.y+s.h<=900)))
   const data={...input,exportedAt:review.exportedAt,reviewedDigest:review.digest},response=await context.request.post(origin+'/api/operator'+denseEndpoint+'/snapshot/download',{headers,data});assert.equal(response.status(),200);const bytes=await response.body()
   if(format==='pdf'){assert.equal((bytes.toString('latin1').match(/\/Type \/Page\b/g)??[]).length,10)}else{const files=unzipSync(bytes);assert.equal(Object.keys(files).filter(k=>/^ppt\/slides\/slide\d+\.xml$/.test(k)).length,10);for(const [path,value] of Object.entries(files))if(path.endsWith('.xml'))assert.ok(!strFromU8(value).includes('98765.43'),'No forbidden row in slides or notes')}

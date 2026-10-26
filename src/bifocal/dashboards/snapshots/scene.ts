@@ -69,5 +69,6 @@ function readablePages(run:Run,tab:Run['config']['tabs'][number],cards:Run['card
  }
  for(const key of tab.tiles){const tile=run.config.tiles.find(t=>t.key===key)!;if(tile.kind==='text')blocks('Text tile '+key,[],lines(tile.text,1216,16));else page(tile.alt).shapes.push({kind:'image',x:32,y:bodyTop,w:1216,h:bodyHeight,data:tile.data,label:tile.alt})}
  if(!pages.length)page('Empty tab')
+ for(const scene of pages)scene.shapes.sort((a,b)=>a.y-b.y||a.x-b.x)
  return pages
 }
