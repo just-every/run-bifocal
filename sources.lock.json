@@ -4505,7 +4505,7 @@
       "executable": false
     },
     "tests/journeys/reporting-apps.mjs": {
-      "sha256": "6ba594faf527f8e724757f89ea1dd44d6ac34c30e335b9bebf761c93fdbfae5f",
+      "sha256": "a3c6b9ad22487ba4108e452208f522dc1bf5c696cc5f459d6f7de54c147300e5",
       "executable": false
     },
     "tests/journeys/retained-export.mjs": {

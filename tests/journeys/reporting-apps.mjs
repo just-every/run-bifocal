@@ -166,7 +166,9 @@ export async function proveReportingApps({origin,browser,owner,page,devKey,uploa
  await call(owner,'/apps/'+appId+'/rollback/apply',{version:1,previousPublished:2,reviewedDigest:'0'.repeat(64)},409)
  await page.goto(origin+'/app/apps/'+appId);await page.getByRole('button',{name:'Review restore of version 1',exact:true}).click();await page.locator('#app-restore-result').getByText(/^Version 3 · fingerprint/).waitFor();await screen(page,'apps-restore-review')
  await page.getByLabel('I reviewed this exact version, its audiences and their row scope',{exact:true}).check()
- await Promise.all([page.waitForURL(origin+'/app/apps/'+appId),page.getByRole('button',{name:'Restore version 1 as version 3',exact:true}).click()])
+ // The page is already at this URL; wait for the committed restore response.
+ const [restoredResponse]=await Promise.all([page.waitForResponse(response=>response.url()===origin+'/api/operator/apps/'+appId+'/rollback/apply'&&response.request().method()==='POST'),page.getByRole('button',{name:'Restore version 1 as version 3',exact:true}).click()])
+ assert.equal(restoredResponse.status(),201)
  assert.equal((await call(alice.context,'/apps/'+appId)).audiences[0].pages[0].title,'Pipeline overview');assert.deepEqual((await nav(dave)).map(a=>a.name),['Sales'],'Rollback never revives a removed member')
  const history=await call(owner,'/apps/'+appId);assert.deepEqual(history.versions.map(v=>[v.version,v.action,v.restores]),[[3,'rollback',1],[2,'publish',null],[1,'publish',null]]);assert.equal(history.publishedVersion,3)
  assert.equal(back.version,3)
