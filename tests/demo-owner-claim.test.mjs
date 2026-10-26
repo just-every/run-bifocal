@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { prepareMachineRestore } from './journeys/machine-doors.mjs'
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -113,11 +114,12 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const normalization = join(scratch, 'migrations/core/0024_company_defaults_restore.sql')
   await rename(normalization, join(scratch, 'pending-company-defaults.sql'))
   run(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--config', 'wrangler.jsonc'])
-  const startWorker = (mode = {}) => spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup, ...mode }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'ignore', 'ignore'] })
+  let workerOutput = ''
+  const startWorker = (mode = {}) => { const child = spawn(process.execPath, [...wrangler, 'dev', '--config', 'dist/server/wrangler.json', '--persist-to', '.wrangler/state', '--local', '--inspector-port', '0', '--ip', '127.0.0.1', '--port', String(port), ...Object.entries({ AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: originalOwner, SESSION_SECRET: syntheticSecret, SETUP_TOKEN: syntheticSetup, INSTALLATION_KEY: syntheticInstallationKey, ...mode }).flatMap(([key, value]) => ['--var', `${key}:${value}`])], { cwd: scratch, env: environment, stdio: ['ignore', 'pipe', 'pipe'] }); child.stdout.on('data', b => { workerOutput += b }); child.stderr.on('data', b => { workerOutput += b }); return child }
   const waitReady = async () => {
    let ready = false
    for (let attempt = 0; attempt < 120; attempt++) {
-    assert.equal(worker.exitCode, null)
+    assert.equal(worker.exitCode, null, workerOutput.split('\n').filter(line => /error|exception|failed|invalid/i.test(line)).join('\n'))
     try { ready = (await fetch(origin + '/health')).ok } catch {}
     if (ready) break
     await new Promise(resolve => setTimeout(resolve, 250))
@@ -147,6 +149,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
    assert.deepEqual(result.items.map(item => item.id), [catalogItem.id])
   }
   await search(cookie)
+  const machineCredential = await prepareMachineRestore({ origin, cookie })
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
@@ -160,7 +163,8 @@ test('restored owner definitions survive archives and browser setup refuses a di
   for await (const record of fileRecords(join(scratch, 'exports/owner.rer'))) if (record.kind === 'manifest') manifest = record
   assert.ok(manifest.tables.some(table => table.name === 'oa_operators'), 'archive includes original owner definitions')
   assert.ok(!manifest.tables.some(table => table.name.startsWith('bf_catalog_search')), 'derived search and shadow tables never travel')
-  for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
+  for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys', 'bf_machine_credentials']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
+  assert.ok(!archive.includes(machineCredential.token), 'machine bearer never travels')
   assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup) && !archive.includes(syntheticInstallationKey), 'private settings do not travel')
   await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
   await rm(join(scratch, '.dev.vars'))
@@ -176,7 +180,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const devKey = 'synthetic-bifocal-4'.repeat(3)
   worker = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { cwd: scratch, env: { ...environment, RER_STATE_DIR: join(scratch, '.wrangler/state'), RER_DEV_ORIGIN: origin, RER_DEV_KEY: devKey }, stdio: ['ignore', 'ignore', 'ignore'] })
   await waitReady()
-  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH } : {}), args: ['--use-mock-keychain', '--password-store=basic', '--no-sandbox'] })
   const restoredContext = await browser.newContext(), restoredPage = await restoredContext.newPage()
   assert.equal((await restoredContext.request.post(origin + '/__dev/key', { headers: { Origin: origin }, data: { key: devKey } })).status(), 204)
   await restoredPage.goto(origin + '/auth/dev/enter?as=owner')
@@ -184,6 +188,14 @@ test('restored owner definitions survive archives and browser setup refuses a di
    await restoredPage.getByRole('checkbox').check()
    await Promise.all([restoredPage.waitForURL(origin + '/app'), restoredPage.getByRole('button', { name: 'Finish setup', exact: true }).click()])
   }
+  const restoredCredential = await fetch(origin + '/api/v1/definitions', { headers: { Authorization: 'Bearer ' + machineCredential.token } })
+  assert.equal(restoredCredential.status, 401, 'supported CLI restore cannot revive an issued machine credential')
+  await restoredCredential.arrayBuffer()
+  const restoredMachineHistory = await restoredContext.request.get(origin + '/api/operator/credentials')
+  assert.equal(restoredMachineHistory.status(), 200)
+  const machineHistory = await restoredMachineHistory.json()
+  assert.deepEqual(machineHistory.credentials, [])
+  assert.ok(machineHistory.history.some(event => event.credential_id === machineCredential.id && event.actor_kind === 'human' && event.action === 'issued-exact-review'), 'attributed human issuance history survives without authority')
   const restoredSearch = await restoredContext.request.get(origin + '/api/operator/library/search?q=quarterly')
   assert.equal(restoredSearch.status(), 200)
   const restoredResults = await restoredSearch.json()
@@ -211,7 +223,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   assert.deepEqual(company(), expectedCompany, 'refused restore makes no partial writes')
   const { createSeed } = await import(new URL('file://' + join(scratch, 'scripts/installer/seed.mjs')))
   installer = await startInstaller(scratch, { seed: createSeed(scratch) })
-  browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH } : {}), args: ['--use-mock-keychain', '--password-store=basic', '--no-sandbox'] })
   const context = await browser.newContext(), page = await context.newPage()
   const response = await page.goto(installer.origin)
   const token = /<meta name="installer-token" content="([^"]+)"/.exec(await response.text())?.[1]

@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4aeafb6c6f4e70ffc77049c65ebbd27abb9d62e8b1a23b529d936dc53ef2d062",
+      "sha256": "85d59ead37a7cfa8830f4ca75379f6d1580be9441f171f497faf4c157b149e74",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "75e1d23d36fce76208fb9f60bb631421e997e8246b3f5fa90640220c5dacf65e",
+      "sha256": "db7cd51ad9bbe3b7585dc1886f92531dfbac0f915f89d56b69b116939fbdad0e",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -414,6 +414,10 @@
     },
     "docs/import-files.md": {
       "sha256": "c4f7e5f6d807f6330a609b6fc5e3ff7fc1cf415a51403390390c86058b7861de",
+      "executable": false
+    },
+    "docs/MACHINE-API.md": {
+      "sha256": "d36c2462d143271c95effb902df071a757a6c46c47815ed970f196bb87c88808",
       "executable": false
     },
     "docs/MODEL-TOOLS.md": {
@@ -688,6 +692,10 @@
       "sha256": "ce13382eed088c36eb3d73b360b7c9b982258ec5ca8c569543ec7401e305e58f",
       "executable": false
     },
+    "migrations/core/0054_machine_credentials.sql": {
+      "sha256": "6872339316a3f6c7e2612c6c5aa324b849ee0a3dea1b6cf5d00d51b24826848f",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -701,7 +709,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "c177025c759249d2791b6eb79395e52f2a298e822fe56e4fee5094901935ddec",
+      "sha256": "fc9f589da5453ea979165719b7c934a966643cf9c9bbbcfeb0095a32e61758b8",
       "executable": false
     },
     "packaging.json": {
@@ -709,7 +717,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "6eb67113ecd414597563f7e738f39dfd39dd38317965a7f1b2954613626eb52c",
+      "sha256": "7ef86d3f044f5285eb1b0ab2914bfd68d8c69b6c94f9affec8a3db9ff7efac98",
       "executable": false
     },
     "public/app-theme.css": {
@@ -1173,7 +1181,7 @@
       "executable": false
     },
     "scripts/installer/archive-policy.mjs": {
-      "sha256": "05e263e1a68a048221764240eef9f20e8c83695fc9e4c687cdfc3f89159db30c",
+      "sha256": "54fbe3b6f7abbe766bac96cb0433cec2d82924ecb028e8d9071cb22600022bd4",
       "executable": false
     },
     "scripts/installer/local.mjs": {
@@ -1362,6 +1370,10 @@
     },
     "src/base/theme-frame.ts": {
       "sha256": "b65a43496156ee6ebe86ab9d0158ea0d18659146aa1d22aaa380ac14d83d64d0",
+      "executable": false
+    },
+    "src/bifocal/api/server.ts": {
+      "sha256": "c27524b87480d170379181db8b6e0e4bec31bec60e38c1fccf832d0fb01aebfa",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -1630,6 +1642,10 @@
     },
     "src/bifocal/costs/server.ts": {
       "sha256": "ee8b6fb1dad3c246a9dbb3418607e24937339cef1335f9d67fc66520df7b6403",
+      "executable": false
+    },
+    "src/bifocal/credentials/store.server.ts": {
+      "sha256": "622ff83669fd3eb252c16bbf6ad987fe1f20f02e59c0ffb9f794073a4f3f9148",
       "executable": false
     },
     "src/bifocal/currency/convert.ts": {
@@ -4125,7 +4141,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "8fab4076ca2d9fad1e55a2b1f50fce4ff5c3d411b77ea4d5057155f1ff0fe56d",
+      "sha256": "dbbf2023b03377b329dc30fb73f6560fd152a803be4505d3f57bca063e81cdf7",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -4329,11 +4345,11 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "f5b545e08d868d9d408f33da86285241d0eae80303106fa9a2d24ce10520ec60",
+      "sha256": "d727cb3672cd2daea2aa3f15202f6e33aee56510402e7c3cc1b59cd1d38b0542",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "f4c3438486d35bd7bff8e28e9c380416c06ae0c89e2fa70fe158b49ac9ca62e8",
+      "sha256": "0767767a62b94f0d21ece3183c33a553f9e1afcd9643721d14cba9ddc5c329a9",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -4450,6 +4466,10 @@
     },
     "tests/journeys/large-exploration.mjs": {
       "sha256": "8ab41ff04c73e97f2e0b644ef5643be3a5d974c47b40bba1e222659bffe85447",
+      "executable": false
+    },
+    "tests/journeys/machine-doors.mjs": {
+      "sha256": "5a136c4abcb5ab1d56bab321e0cf8b179d8863af7cc7646216610c1ed63a38bd",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

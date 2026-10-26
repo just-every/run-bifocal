@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveMachineDoors} from './journeys/machine-doors.mjs'
 import {proveCalculations} from './journeys/calculations.mjs'
 import {proveModelImports,proveModelLifecycle} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
@@ -30,7 +31,7 @@ try {
  worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
  for(let i=0;i<120;i++){if(worker.exitCode!==null)throw Error(output);try{if((await fetch(origin+'/health')).ok)break}catch{}await new Promise(r=>setTimeout(r,250))}
  assert.equal((await fetch(origin+'/health')).status,200,output)
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
  const context=await browser.newContext(),page=await context.newPage()
  const call=async(path,data,expected=data===undefined?200:201,extra={})=>{const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...(data===undefined?{}:{data})});assert.equal(r.status(),expected,await r.text());return r.json()}
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)
@@ -51,6 +52,8 @@ try {
   for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return p}
   assert.fail('Shared source apply did not complete')
  }
+ await proveMachineDoors({origin,context,page,call,upload,proveScreen})
+ if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await context.close();return}
  if(process.env.BIFOCAL_DASHBOARD_ONLY==='1'){await proveDashboardInteractions({origin,context,page,upload,proveScreen});await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await context.close();return}
  if(process.env.BIFOCAL_TV_ONLY==='1'){await proveDashboardTv({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_LARGE_EXPORT_ONLY==='1'){await proveLargeExploration({origin,context,page,call,upload,proveScreen});await context.close();return}

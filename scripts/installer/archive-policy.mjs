@@ -1,6 +1,7 @@
 // Search is derived from the retained catalog metadata, including its FTS shadow tables.
 export default {
   "includeTables": [
+    "bf_machine_audit",
     "oa_operators",
     "oa_bootstrap",
     "oa_external_identities",
@@ -155,6 +156,7 @@ export default {
     "ik_targets"
   ],
   "excludeTables": [
+    "bf_machine_credentials",
     "bf_dashboard_reader_contexts",
     "bf_app_dashboard_contexts",
     "bf_app_activation",

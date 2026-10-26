@@ -50,6 +50,7 @@ import { appResponse } from './bifocal/apps/server'
 import { appImportResponse } from './bifocal/apps/import/door.server'
 
 import { retentionPolicyResponse } from './bifocal/retention/policy.server'
+import { publicApiResponse } from './bifocal/api/server'
 import { costResponse } from './bifocal/costs/server'
 import { erasureReceiptResponse } from './bifocal/retention/server'
 
@@ -71,6 +72,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const publicApi = await publicApiResponse(request, env)
+    if (publicApi) return publicApi
     const costs = await costResponse(request, env)
     if (costs) return costs
     const retentionPolicy = await retentionPolicyResponse(request, env)

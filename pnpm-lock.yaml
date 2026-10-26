@@ -25,6 +25,9 @@ importers:
       fflate:
         specifier: 0.8.3
         version: 0.8.3
+      graphql:
+        specifier: 16.11.0
+        version: 16.11.0
       hono:
         specifier: 4.13.11
         version: 4.13.11
@@ -934,6 +937,10 @@ packages:
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
+
+  graphql@16.11.0:
+    resolution: {integrity: sha512-mS1lbMsxgQj6hge1XZ6p7GPhbrtFwUFYi3wRzXAC/FmYnyXMTvvI3td3rjmQ2u8ewXueaSvRPWaEcgVVOT9Jnw==}
+    engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   h3@2.0.1-rc.20:
     resolution: {integrity: sha512-28ljodXuUp0fZovdiSRq4G9OgrxCztrJe5VdYzXAB7ueRvI7pIUqLU14Xi3XqdYJ/khXjfpUOOD2EQa6CmBgsg==}
@@ -2121,6 +2128,8 @@ snapshots:
     optional: true
 
   gensync@1.0.0-beta.2: {}
+
+  graphql@16.11.0: {}
 
   h3@2.0.1-rc.20:
     dependencies:
