@@ -10,6 +10,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { proveReportCustody } from './report-custody.mjs'
+import { proveReportingApps } from './reporting-apps.mjs'
 import { chromium } from '@playwright/test'
 
 /** The actual local-only entry supplies native invited-member sign-in. The
@@ -56,6 +57,7 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
   const fixtures=await importDataset(origin,owner)
@@ -68,6 +70,7 @@ export async function proveContentGovernance(){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/catalog-native-membership-'+width+'.png',fullPage:true})
   }
+  await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload})
   await owner.close();await reader.close()
  }catch(error){console.error(output.split('\n').filter(line=>/error|exception|body|promise/i.test(line)).join('\n'));throw error}
  finally{

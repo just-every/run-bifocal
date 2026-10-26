@@ -9,6 +9,7 @@ account tools, Lobby, Run and contract pages, with native sign-out.
 People and invitations are available at `/app/people` through native account
 authorization. Only foundation owner/admin/member roles exist; analytics
 workflows and roles are not built.
+Reporting apps with audiences are at `/app/apps`: owners package retained dashboards, reports, questions and scorecards, import Power BI app exports through the shared door, publish immutable versions and manage audience members; members read their own audiences from the app home. See `docs/REPORTING-APPS.md`.
 The separate public Run site provides the homepage, `/run`, `/docs` and `/contract`.
 
 The owner file workflow is at `/app/import`: prepare, review, approve, reconcile, inspect history and originals, Undo and erase. `/app/queries` creates exact immutable answers and saves tabular dashboard/report results. Native US company/calendar/rate APIs are documented in `docs/US-CONVENTIONS.md`.

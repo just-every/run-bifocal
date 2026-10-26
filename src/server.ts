@@ -45,6 +45,9 @@ import { calculationPage } from './bifocal/calculations/page.server'
 import { calculationResponse } from './bifocal/calculations/server'
 import { calculationImportResponse } from './bifocal/calculations/library/import.server'
 import { fileImportResponse } from './bifocal/imports/files/server'
+import { appPage } from './bifocal/apps/page.server'
+import { appResponse } from './bifocal/apps/server'
+import { appImportResponse } from './bifocal/apps/import/door.server'
 
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', (context) => context.json({ status: 'ok', ...deploymentHealth(context.env) }))
@@ -116,6 +119,12 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (authoring) return authoring
     const semantic = await semanticResponse(request, env)
     if (semantic) return semantic
+    const appsDocument = await appPage(request, env)
+    if (appsDocument) return appsDocument
+    const apps = await appResponse(request, env)
+    if (apps) return apps
+    const appImports = await appImportResponse(request, env)
+    if (appImports) return appImports
     const explorationDocument = await explorationPage(request, env)
     if (explorationDocument) return explorationDocument
     const exploration = await explorationResponse(request, env)

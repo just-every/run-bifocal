@@ -7,6 +7,8 @@ import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthCo
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 import { homePage } from './app/home'
+import { currentAuthority } from './bifocal/catalog/authority.server'
+import { homeEntries } from './bifocal/apps/reader.server'
 import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './app/shell'
 import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
@@ -160,7 +162,8 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
-  return html(homePage(session.operator), `App home · ${branding.name}`, session.operator, 'home')
+  const actor = await currentAuthority(request, env)
+  return html(homePage(session.operator, actor && actor.role !== 'owner' ? await homeEntries(env, actor) : []), `App home · ${branding.name}`, session.operator, 'home')
  }
  return null
 }
