@@ -69,7 +69,7 @@ const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-ref
 // Every app page wears the frame (src/app/shell.ts); the installed guide wears it signed out too, without tools.
 function html(main: string, title: string, viewer: Viewer | null, place: Place, status = 200) {
  const side = viewer ? accountSide(viewer.role, place) : ''
- return new Response(appDocument({ title, viewer, place, side, main, head: place === 'home' ? '<link rel="stylesheet" href="/bifocal/apps.css">' : '' }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
+ return new Response(appDocument({ title, viewer, place, side, main, head: place === 'home' ? '<link rel="stylesheet" href="/bifocal/apps.css">' : place === 'settings' && viewer?.role === 'owner' ? '<script type="module" src="/bifocal/protection-settings.js"></script>' : '' }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}; ${place === 'settings' ? "script-src 'self'; connect-src 'self'" : ''}` } })
 }
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {

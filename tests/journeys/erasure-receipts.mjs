@@ -18,9 +18,63 @@ export async function proveErasureReceipt(origin,context,auditId,dataset,revisio
 
 export async function proveRetentionHold(origin,context,dataset,revision,page){
  const url=origin+'/api/operator/retention/'+dataset
- const input={confirmDataset:dataset,reviewedDatasetRevision:revision,previousRevision:null,legalHold:true,minimumRetainUntil:null}
+ if(page)for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/settings')
+  const review=page.locator('#protection-review'),save=page.locator('#protection-save')
+  await review.getByLabel('Protection dataset id',{exact:true}).fill(dataset)
+  await review.getByRole('button').click()
+  await page.locator('#protection-status').filter({hasText:'Source protection loaded'}).waitFor()
+  assert.match(await page.locator('#protection-state').innerText(),new RegExp(revision))
+  await save.getByLabel('Legal hold',{exact:true}).check()
+  await save.getByLabel('Minimum retain until (UTC)',{exact:true}).fill('2099-01-01T00:00:00.000Z')
+  await save.getByRole('checkbox',{name:'I reviewed this exact source state and policy revision',exact:true}).check()
+  await save.getByRole('button').click()
+  await page.locator('#protection-status').filter({hasText:'Protection saved'}).waitFor()
+  assert.equal((await (await context.request.get(url)).json()).policy.legal_hold,1)
+  await review.getByRole('button').click()
+  await page.locator('#protection-status').filter({hasText:'Source protection loaded'}).waitFor()
+  await save.getByLabel('Legal hold',{exact:true}).uncheck()
+  await save.getByLabel('Minimum retain until (UTC)',{exact:true}).fill('')
+  await save.getByRole('checkbox',{name:'I reviewed this exact source state and policy revision',exact:true}).check()
+  await save.getByRole('button').click()
+  await page.locator('#protection-status').filter({hasText:'Explicit acknowledgment is required'}).waitFor()
+  assert.equal((await (await context.request.get(url)).json()).policy.legal_hold,1)
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0)
+  if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/settings-protection-'+width+'.png',fullPage:true})}
+  if(width===390){
+   const current=(await (await context.request.get(url)).json()).policy
+   const changed=await context.request.put(url,{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedDatasetRevision:revision,previousRevision:current.revision,legalHold:true,minimumRetainUntil:null,releaseHold:true}})
+   assert.equal(changed.status(),200)
+   await save.getByRole('checkbox',{name:'I explicitly acknowledge replacing the existing protection; this is not legal clearance or erasure approval',exact:true}).check()
+   await save.getByRole('button').click()
+   await page.locator('#protection-status').filter({hasText:'retention_conflict'}).waitFor()
+   assert.equal((await (await context.request.get(url)).json()).policy.legal_hold,1)
+   await review.getByRole('button').click()
+   await page.locator('#protection-status').filter({hasText:'Source protection loaded'}).waitFor()
+   await save.getByLabel('Legal hold',{exact:true}).uncheck()
+   await save.getByLabel('Minimum retain until (UTC)',{exact:true}).fill('')
+   await save.getByRole('checkbox',{name:'I reviewed this exact source state and policy revision',exact:true}).check()
+  }
+  await save.getByRole('checkbox',{name:'I explicitly acknowledge replacing the existing protection; this is not legal clearance or erasure approval',exact:true}).check()
+  await save.getByRole('button').click()
+  await page.locator('#protection-status').filter({hasText:'Protection saved'}).waitFor()
+  assert.equal((await (await context.request.get(url)).json()).policy.legal_hold,0)
+ }
+ let current=(await (await context.request.get(url)).json()).policy
+ const minimum={confirmDataset:dataset,reviewedDatasetRevision:revision,previousRevision:current.revision,legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z',releaseHold:true}
+ const retained=await context.request.put(url,{headers:{Origin:origin},data:minimum})
+ assert.equal(retained.status(),200);current=await retained.json()
+ assert.equal((await context.request.post(origin+'/api/operator/datasets/'+dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedRevision:revision}})).status(),423)
+ const expired=await context.request.put(url,{headers:{Origin:origin},data:{...minimum,previousRevision:current.revision,minimumRetainUntil:'2000-01-01T00:00:00.000Z'}})
+ assert.equal(expired.status(),200)
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),200,'An elapsed minimum date never automatically erases the source')
+ const empty=await context.request.get(origin+'/api/operator/retention/synthetic-bifocal-no-published')
+ assert.equal(empty.status(),200);assert.equal((await empty.json()).reviewedDatasetRevision,null)
+ const previous=(await (await context.request.get(url)).json()).policy?.revision??null
+ const input={confirmDataset:dataset,reviewedDatasetRevision:revision,previousRevision:previous,legalHold:true,minimumRetainUntil:null}
  assert.equal((await fetch(url)).status,401)
- const saved=await context.request.put(url,{headers:{Origin:origin},data:input})
+ const saved=await context.request.put(url,{headers:{Origin:origin},data:{...input,releaseHold:true}})
  assert.equal(saved.status(),200,await saved.text());const policy=await saved.json()
  assert.equal(policy.automaticErasure,false)
  const held=await context.request.post(origin+'/api/operator/datasets/'+dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedRevision:revision}})
@@ -46,4 +100,14 @@ export async function proveRetentionHold(origin,context,dataset,revision,page){
  assert.equal(release.status(),200,await release.text())
  assert.equal((await context.request.put(url,{headers:{Origin:origin},data:{...input,previousRevision:policy.revision,releaseHold:true}})).status(),409)
  assert.equal((await (await context.request.get(url)).json()).policy.legal_hold,0)
+ if(page)for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/settings')
+  await page.getByLabel('Protection dataset id',{exact:true}).fill('synthetic-bifocal-no-published')
+  await page.getByRole('button',{name:'Review source protection',exact:true}).click()
+  await page.locator('#protection-status').filter({hasText:'Source protection loaded'}).waitFor()
+  await page.getByText('No published revision',{exact:true}).waitFor()
+  await page.getByText('No protection policy',{exact:true}).waitFor()
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/settings-unpublished-'+width+'.png',fullPage:true})
+ }
 }

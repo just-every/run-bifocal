@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "fe1b705f8b6dbbdddb7209729b81c9bf857dc3543315bacba72f6c780fecce51",
+      "sha256": "4aeafb6c6f4e70ffc77049c65ebbd27abb9d62e8b1a23b529d936dc53ef2d062",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "579cfdf1b40aaa92f64801af54fe26c45d90dcf66cdcd4ab8ed0ef8253029e86",
+      "sha256": "75e1d23d36fce76208fb9f60bb631421e997e8246b3f5fa90640220c5dacf65e",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -868,6 +868,10 @@
       "sha256": "7705833f9e22124fb294e90cb7dbc14ee4aa11032e6a308b7288eb271cffe018",
       "executable": false
     },
+    "public/bifocal/protection-settings.js": {
+      "sha256": "da30e936ee777dcc40ebcbdd8e311c2c09ce6ce175fbffb7d0061623b654dfdb",
+      "executable": false
+    },
     "public/bifocal/report-custody.css": {
       "sha256": "ffd0ef74731c2ca0747a5a2e1a3467f82987b605a8db4f45943ed3a9132713db",
       "executable": false
@@ -1232,8 +1236,12 @@
       "sha256": "46669cb10756ed798571289e4c6f4a4078df53844768bb3b0f089b5ba88c1712",
       "executable": false
     },
+    "src/app/protection-settings.ts": {
+      "sha256": "be64ca9ea83518df5079f12a17e422f38c2736ecbafd3a9bd4ff44f689f42f1b",
+      "executable": false
+    },
     "src/app/settings.ts": {
-      "sha256": "1f2e314dc5a403aa30b290471b33d33b1f01168f4f4a13090f89807afeccd974",
+      "sha256": "dd2e91c4824eabc08d92007c67199f3415dbba7031e3b0b59f262b9e8909db00",
       "executable": false
     },
     "src/app/shell.ts": {
@@ -1245,7 +1253,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "2b51a813305ab50a786753df9a6aae7685c40a949777864a8903cfa28c12e39a",
+      "sha256": "535e56daeeeff28a7a8107dcc5b012415d1a23341f89891de211b6c923704482",
       "executable": false
     },
     "src/base/actor.ts": {
@@ -2241,7 +2249,7 @@
       "executable": false
     },
     "src/bifocal/retention/policy.server.ts": {
-      "sha256": "616cb855bc42350c12efdff36a234f5fb1cec1681e0aafc4dbcb89578fc9833f",
+      "sha256": "37539f1c22939b44c52eaefe750021b30ef9a71297cd0eef023cec3c0cba4254",
       "executable": false
     },
     "src/bifocal/retention/server.ts": {
@@ -4389,11 +4397,11 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "a0f2277ecfaeefa63ae952c0682715da5fb2753f9beaae730d82467de5705a7e",
+      "sha256": "29fbb535bc97ade7c111ab62181144efe6eca52633afb80e98476660942940e6",
       "executable": false
     },
     "tests/journeys/cost-controls.mjs": {
-      "sha256": "1720a886aaf4b6e4da5c84b4db7d81d8c2526ed99b77daac87e166251fa06536",
+      "sha256": "e7d5681298b8b4cbfb5b99a4bfd4efd51d7d3804c3dd54c9a1d4a251efdb131d",
       "executable": false
     },
     "tests/journeys/dashboard-authoring.mjs": {
@@ -4417,7 +4425,7 @@
       "executable": false
     },
     "tests/journeys/erasure-receipts.mjs": {
-      "sha256": "8c028e67d5463b01bb6a3e8d27d10da45c44c07021d777c3a033db753de5447d",
+      "sha256": "f091d89b6338380622bc3e465e9429a8dbb6d624339b811a8301014c095423f6",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {

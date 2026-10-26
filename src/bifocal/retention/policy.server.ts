@@ -15,8 +15,8 @@ export async function retentionPolicyResponse(request:Request,original:Bindings)
  try{
   const dataset=identifier(path.slice('/api/operator/retention/'.length))
   if(request.method==='GET'){
-   const [rows]=await guarded(env,owner,[sql('SELECT revision,legal_hold,minimum_retain_until FROM bf_source_retention WHERE dataset_id=?',dataset)])
-   return json({policy:rows[0]??null,semantics:'Minimum retention and legal holds prevent explicit source erasure. No rule automatically expires or purges any content. Existing content remains until an explicit reviewed owner erasure after all holds are released.'})
+   const [rows,sources]=await guarded<{revision:string}>(env,owner,[sql('SELECT revision,legal_hold,minimum_retain_until FROM bf_source_retention WHERE dataset_id=?',dataset),sql('SELECT revision FROM bf_file_tables WHERE id=?',dataset)])
+   return json({dataset,reviewedDatasetRevision:sources[0]?.revision??null,policy:rows[0]??null,semantics:'Minimum retention and legal holds prevent explicit source erasure. No rule automatically expires or purges any content. Existing content remains until an explicit reviewed owner erasure after all holds are released.'})
   }
   if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
   const input=object(await body(request),['confirmDataset','reviewedDatasetRevision','previousRevision','legalHold','minimumRetainUntil','releaseHold'])
