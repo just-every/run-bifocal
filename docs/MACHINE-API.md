@@ -27,7 +27,8 @@ Only issuance returns the random bearer, once. Store it privately. The database
 holds an installation-keyed hash, not the bearer. Never put it in a URL, logs,
 git or Terraform state. `GET /api/operator/credentials` returns owner-only scope,
 usage and attributed audit history without bearer material. Explicit human
-issuance and revocation have distinct events from machine reads.
+issuance and revocation have distinct events from machine reads. Recognized
+credentials also record a redacted denial event without requested fields or values.
 `POST /api/operator/credentials/{id}/revoke` with an empty JSON object revokes it.
 There is no reactivation endpoint. Rotation requires a new exact human review
 and issuance, followed by explicit revocation of the old credential.

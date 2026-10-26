@@ -2,7 +2,7 @@ import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { sha256, canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
-import { credentialResponse, machineAuthority, machineAudit } from '../credentials/store.server'
+import { credentialResponse, machineAuthority, machineAudit, recordMachineRefusal } from '../credentials/store.server'
 import { readModel, readDefinition, modelGuard } from '../models/validation/store.server'
 import { scopedQuery } from '../models/validation/protocol'
 import { readSources, sourceMatch } from '../data/snapshots/store'
@@ -76,7 +76,7 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
    if(root.selectionSet&&(root.selectionSet.selections.length>8||root.selectionSet.selections.some(field=>field.kind!=='Field'||field.alias)))fail('bounded_result_selection_required',400)
    if(validate(schema,document,specifiedRules).length)fail('invalid_graphql_request',400)
    const result=await graphql({schema,source:input.query,variableValues:input.variables as Record<string,unknown>|undefined,operationName:input.operationName as string|undefined,rootValue:{definitions:()=>machineOperation(request,env,'definitions'),query:({input}:{input:Record<string,unknown>})=>machineOperation(request,env,'query',input)}})
-   if(result.errors){const error=result.errors[0].originalError,code=error instanceof QueryError?error.code:'operation_refused',status=error instanceof QueryError?error.status:409;return json({errors:[{message:code,extensions:{code}}]},status)}
+   if(result.errors){await recordMachineRefusal(request,env).catch(()=>{});const error=result.errors[0].originalError,code=error instanceof QueryError?error.code:'operation_refused',status=error instanceof QueryError?error.status:409;return json({errors:[{message:code,extensions:{code}}]},status)}
    return json(result)
   }
   if(path==='/api/v1/mcp'&&request.method==='POST'){
@@ -101,10 +101,10 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
     if(!params.arguments||typeof params.arguments!=='object'||Array.isArray(params.arguments))fail('invalid_tool_request',400)
     const result=await machineOperation(request,env,'query',params.arguments as Record<string,unknown>)
     return reply({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result,isError:false})
-    }catch(error){const code=error instanceof QueryError?error.code:'operation_refused';return reply({content:[{type:'text',text:code}],isError:true})}
+    }catch(error){await recordMachineRefusal(request,env).catch(()=>{});const code=error instanceof QueryError?error.code:'operation_refused';return reply({content:[{type:'text',text:code}],isError:true})}
    }
    return json({jsonrpc:'2.0',id:body.id,error:{code:-32601,message:'Method not found'}})
   }
   fail('not_found',404)
- }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'operation_refused',reason:'Check current authority, scope and remaining operation budget.'},409)}finally{await discardBody(request)}
+ }catch(error){await recordMachineRefusal(request,env).catch(()=>{});if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'operation_refused',reason:'Check current authority, scope and remaining operation budget.'},409)}finally{await discardBody(request)}
 }

@@ -78,3 +78,13 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
  await transact(env.DB,actor,[...guards.map(assertion),sql('INSERT INTO bf_machine_credentials(id,owner_id,owner_version,token_hash,definition_json,digest,expires_at,max_operations,created_at) VALUES(?,?,?,?,?,?,?,?,?)',id,actor.id,owner.version,hash(env,token),canonicalJson(scope),scopeDigest,scope.expiresAt,scope.maxOperations,new Date().toISOString()),machineAudit(id,actor.id,'human','issued-exact-review')])
  return json({id,token,scope,digest:scopeDigest},201)
 }
+
+/** Recognized revoked or expired keys may append a redacted security fact, never
+ * read data or recover authority. Unknown bearer material is not retained. */
+export async function recordMachineRefusal(request:Request,env:Bindings){
+ const token=/^Bearer ([a-f0-9]{64})$/.exec(request.headers.get('authorization')??'')?.[1]
+ if(!token||!env.INSTALLATION_KEY)return
+ const tokenHash=hash(env,token),row=await env.DB.prepare('SELECT id,owner_id FROM bf_machine_credentials WHERE token_hash=?').bind(tokenHash).first<{id:string;owner_id:string}>()
+ if(!row)return
+ await transact(env.DB,sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND token_hash=?)',row.id,tokenHash),[machineAudit(row.id,row.owner_id,'machine','denied')])
+}

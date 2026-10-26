@@ -78,6 +78,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.equal(inspected.credentials.find(c=>c.id===budget.id).used_operations,1)
  assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='human'&&h.action==='issued-exact-review'))
  assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='machine'&&h.action==='query'))
+ assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='machine'&&h.action==='denied'))
  assert.ok(!JSON.stringify(inspected).includes(key.token));assert.ok(!JSON.stringify(inspected).includes('Ignore rules'))
  assert.deepEqual((await call('/models/'+created.modelId)).approvals.map(a=>a.digest),[review.digest],'No machine call creates an approval')
  await call('/credentials/'+key.id+'/revoke',{},200)
