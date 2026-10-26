@@ -1,3 +1,5 @@
+import {proveDashboardInteractions} from './dashboard-interactions.mjs'
+import {proveDashboardSnapshots} from './dashboard-snapshots.mjs'
 import assert from 'node:assert/strict'
 import {readFile,writeFile} from 'node:fs/promises'
 import {join} from 'node:path'
@@ -5,6 +7,8 @@ import {proveRetainedExports} from './retained-export.mjs'
 
 /** The same versioned layouts pass through owner UI, native tools and estates. */
 export async function proveDashboardAuthoring({origin,context,page,upload,proveScreen,cli,tfRun,directory,tf}) {
+ await proveDashboardInteractions({origin,context,page,upload,proveScreen})
+ await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory})
  const api=async(path,data,expected=data===undefined?200:201)=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{Origin:origin},...(data===undefined?{}:{data})});assert.equal(response.status(),expected,await response.text());return response.json()}
  const dataset='synthetic-bifocal-authored-dashboard',csv='invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n'
  await upload(dataset,csv)

@@ -10,6 +10,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { proveReportCustody } from './report-custody.mjs'
+import { proveDashboardInteractions } from './dashboard-interactions.mjs'
+import { proveDashboardSnapshots } from './dashboard-snapshots.mjs'
+import { proveReportingApps } from './reporting-apps.mjs'
 import { chromium } from '@playwright/test'
 
 /** The actual local-only entry supplies native invited-member sign-in. The
@@ -48,14 +51,17 @@ export async function proveContentGovernance(){
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
   const readerSession=await(await reader.request.get(origin+'/auth/session')).json(),ownerSession=await(await owner.request.get(origin+'/auth/session')).json()
   assert.equal(readerSession.operator.role,'member')
-  const upload=async(dataset,data)=>{
+  const upload=async(dataset,data,replace=false)=>{
    const bytes=Buffer.from(JSON.stringify({version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data})),hash=createHash('sha256').update(bytes).digest('hex')
    const post=async(action,data)=>{const r=await owner.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
-   const uploaded=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')}),plan=await post('plan',{uploadId:uploaded.uploadId})
+   const uploaded=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')}),plan=await post('plan',{uploadId:uploaded.uploadId,...replace?{catchup:true}:{}})
    for(let i=0;i<20;i++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return
    assert.fail('Reviewed export-policy source import did not finish')
   }
-  const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
+  if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
+  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
   const fixtures=await importDataset(origin,owner)
@@ -68,6 +74,7 @@ export async function proveContentGovernance(){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/catalog-native-membership-'+width+'.png',fullPage:true})
   }
+  await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload})
   await owner.close();await reader.close()
  }catch(error){console.error(output.split('\n').filter(line=>/error|exception|body|promise/i.test(line)).join('\n'));throw error}
  finally{

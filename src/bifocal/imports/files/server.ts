@@ -57,14 +57,6 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
    const raw = await boundedBody(request)
    if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || raw.reviewedRevision !== (current?.revision ?? null)) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the dataset state and explicitly confirm its id and current revision, or null when no table is published, before erasing.' }, 409)
-   const state = await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{ source_identity: string }>()
-   const identity = state?.source_identity ?? randomUUID()
-   const tombstone = sha256(canonicalJson([identity, 'rer_portability_state', { id: 1 }]))
-   const checkpoint = [sql('INSERT OR IGNORE INTO rer_portability_state(id,source_identity) VALUES(1,?)', identity),
-    sql('INSERT INTO rer_portability_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM rer_portability_state WHERE id=1 AND source_identity=?) THEN 1 ELSE 0 END', identity),
-    sql('DELETE FROM rer_portability_guard'), sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)', identity, tombstone),
-    sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
-    sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const match = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
    const extraCounts=[...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
@@ -78,6 +70,16 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),${extraCounts.map(entry=>`json_object('store','${entry.store}','rows',(${entry.query.sql}))`).join(',')}))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset,...extraCounts.flatMap(entry=>entry.query.params??[]))
    const calculationLibraries=await eraseSourceCalculationLibraries(env,owner,dataset,match)
    const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match)
+   // Derivative erasure can initialize the journal. Bind the source checkpoint
+   // to that same installation identity after those guarded retirements.
+   const state = await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{ source_identity: string }>()
+   const identity = state?.source_identity ?? randomUUID()
+   const tombstone = sha256(canonicalJson([identity, 'rer_portability_state', { id: 1 }]))
+   const checkpoint = [sql('INSERT OR IGNORE INTO rer_portability_state(id,source_identity) VALUES(1,?)', identity),
+    sql('INSERT INTO rer_portability_guard(value) SELECT CASE WHEN EXISTS(SELECT 1 FROM rer_portability_state WHERE id=1 AND source_identity=?) THEN 1 ELSE 0 END', identity),
+    sql('DELETE FROM rer_portability_guard'), sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)', identity, tombstone),
+    sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
+    sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
     sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, ...eraseDefinitions(dataset), semanticErasure(dataset),catalogErasure(dataset),sql('DELETE FROM bf_questions WHERE id IN (SELECT question_id FROM bf_question_sources WHERE dataset_id=?)',dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),

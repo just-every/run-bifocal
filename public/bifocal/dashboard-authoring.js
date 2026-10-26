@@ -1,8 +1,11 @@
+import {mountDashboardSnapshots} from './dashboard-snapshots.js'
+import {mountDashboardReader} from './dashboard-reader.js'
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
 
 const $=id=>document.getElementById(id),root=$('dashboard-authoring'),zone=document.body.dataset.zone
+let interactionConfig=undefined
 let resource=null,draftReview=null,releaseReview=null,jsonChanged=false,busy=false
 const status=(text,error=false)=>{const node=$('authoring-status');node.textContent=text;node.setAttribute('role',error?'alert':'status')}
 const link=(text,path)=>{const node=element('a',text);node.href=path;return node}
@@ -32,6 +35,7 @@ function inputField(text,name,value,{min=0,max=10000,type='number'}={}){
 }
 function fillDocument(document){
  if(document.version!==2||!Array.isArray(document.cards)||document.cards.length<2||document.cards.length>4||!Array.isArray(document.layout?.desktop)||!Array.isArray(document.layout?.phone))throw Error('Load a version 2 document with two to four cards and both layouts')
+ interactionConfig=document.interactions===undefined?undefined:structuredClone(document.interactions)
  $('authoring-title').value=document.title;$('authoring-document').value=JSON.stringify(document,null,2);jsonChanged=false
  const sections=document.cards.map((card,index)=>{
   const section=element('section',undefined,'panel');section.dataset.cardKey=card.key
@@ -58,7 +62,7 @@ function readDocument(){
   layout.desktop.push({key,...Object.fromEntries(['x','y','w','h'].map(name=>[name,Number(value('desktop-'+name))]))})
   layout.phone.push({key,x:0,y:Number(value('phone-y')),w:1,h:Number(value('phone-h'))})
  }
- const document={version:2,title:$('authoring-title').value,cards,layout}
+ const document={version:2,title:$('authoring-title').value,cards,layout,...interactionConfig===undefined?{}:{interactions:interactionConfig}}
  $('authoring-document').value=JSON.stringify(document,null,2);return document
 }
 function showResource(next,{fill=true}={}){
@@ -89,6 +93,7 @@ async function published(){
  if(!Array.isArray(board.cards)||board.cards.length!==document.cards.length)throw Error('Published board membership is unavailable')
  $('authoring-heading').textContent=document.title;$('published-version').textContent='Published revision '+saved.revision+' · retained board '+saved.boardId
  $('published-links').replaceChildren(link('Edit dashboard','/app/dashboard-authoring/'+resource.id),link('Open dashboard TV','/app/dashboards/'+saved.boardId+'/tv'))
+ if(document.interactions){const reader=await mountDashboardReader({root,resource,api,status,zone});mountDashboardSnapshots({container:reader.controls,api,endpoint:'/dashboard-authoring/'+resource.id,getState:reader.getState,status});return}
  const cards=document.cards.map((card,index)=>{
   const retained=board.cards[index],section=element('section',undefined,'panel published-tile');section.dataset.cardKey=card.key
   for(const layout of ['desktop','phone']){const placement=document.layout[layout].find(item=>item.key===card.key);for(const name of ['x','y','w','h'])section.style.setProperty('--'+layout+'-'+name,String(placement[name]))}

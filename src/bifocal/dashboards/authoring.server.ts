@@ -1,3 +1,5 @@
+import {dashboardSnapshotResponse} from './snapshots/response.server'
+import {dashboardInteractionsResponse} from './interactions.server'
 import type { Bindings } from '../../auth.server'
 import type { Authority } from '../catalog/authority.server'
 import { assertion, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -14,6 +16,8 @@ export async function dashboardAuthoringResponse(request:Request,env:Bindings,ac
  if(path!==prefix&&!path.startsWith(prefix+'/'))return null
  try {
   if(actor.role!=='owner')fail('owner_required',403)
+  const snapshot=await dashboardSnapshotResponse(request,env,actor);if(snapshot)return snapshot
+  const interaction=await dashboardInteractionsResponse(request,env,actor);if(interaction)return interaction
   if(path===prefix) {
    if(request.method!=='GET')fail('method_not_allowed',405)
    const ids=(await env.DB.prepare('SELECT id FROM bf_dashboard_definitions WHERE owner_id=? ORDER BY id LIMIT 101').bind(actor.id).all<{id:string}>()).results

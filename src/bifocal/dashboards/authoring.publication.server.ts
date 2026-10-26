@@ -1,3 +1,4 @@
+import {prepareDashboardInteractions} from './interactions.prepare.server'
 import { randomUUID } from 'node:crypto'
 import type { Bindings } from '../../auth.server'
 import type { Authority } from '../catalog/authority.server'
@@ -40,6 +41,9 @@ export async function prepareDashboardPublication(env:Bindings,actor:Authority,i
   guards.push(...context.guards??[],...sources.map(sourceMatch))
   fingerprints.push({snapshotDigest:card.digest,watermarks:answer.sourceWatermarks,conventions:{company:context.company,calendar:context.calendar,rateSource:context.rateSource,timezone:context.timezone,currency:context.currency}})
  }
+ const interactions=await prepareDashboardInteractions(env,actor,revision.document)
+ guards.push(...interactions.guards)
+ fingerprints.push(...interactions.fingerprints as typeof fingerprints)
  const before=state.publishedRevision?(await readDashboardDefinitionRevision(env,actor,id,state.publishedRevision)).document:null
  const content={id,revision:n,previousGeneration:state.generation,action:action as DashboardPublicationAction,document:revision.document,before,after:revision.document,boardId:revision.boardId,productionSends:0,sourceWrites:0}
  const digest=sha256(canonicalJson({ownerId:actor.id,...content,head:state.revision,publishedRevision:state.publishedRevision,fingerprints}))

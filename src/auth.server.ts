@@ -7,6 +7,8 @@ import { createOperatorAuth, createAuthHandler, createSignInHandler, type AuthCo
 import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 import { homePage } from './app/home'
+import { currentAuthority } from './bifocal/catalog/authority.server'
+import { homeEntries } from './bifocal/apps/reader.server'
 import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './app/shell'
 import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
@@ -67,7 +69,7 @@ const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-ref
 // Every app page wears the frame (src/app/shell.ts); the installed guide wears it signed out too, without tools.
 function html(main: string, title: string, viewer: Viewer | null, place: Place, status = 200) {
  const side = viewer ? accountSide(viewer.role, place) : ''
- return new Response(appDocument({ title, viewer, place, side, main }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
+ return new Response(appDocument({ title, viewer, place, side, main, head: place === 'home' ? '<link rel="stylesheet" href="/bifocal/apps.css">' : '' }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
 }
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -160,7 +162,8 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
  if (url.pathname === '/app') {
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
-  return html(homePage(session.operator), `App home · ${branding.name}`, session.operator, 'home')
+  const actor = await currentAuthority(request, env)
+  return html(homePage(session.operator, actor && actor.role !== 'owner' ? await homeEntries(env, actor) : []), `App home · ${branding.name}`, session.operator, 'home')
  }
  return null
 }

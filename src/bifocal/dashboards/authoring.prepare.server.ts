@@ -1,3 +1,5 @@
+import {prepareDashboardInteractions} from './interactions.prepare.server'
+import type {D1Sql} from '../../modules/import-kit/src/d1/types.ts'
 import { randomUUID } from 'node:crypto'
 import type { Bindings } from '../../auth.server'
 import type { Authority } from '../catalog/authority.server'
@@ -16,17 +18,19 @@ export async function prepareDashboardDefinition(env:Bindings,actor:Authority,va
  const previousRevision=previous===undefined?null:previous
  if(previousRevision!==(state?.revision??null))fail('dashboard_definition_revision_changed',409)
  const before=state?(await readDashboardDefinitionRevision(env,actor,key!,state.revision)).document:null,evaluations=[]
+ for(const shared of document.interactions?.states??[]){const old=before?.interactions?.states.find(s=>s.name===shared.name);if(old&&(shared.revision<old.revision||shared.revision===old.revision&&canonicalJson(shared.selection)!==canonicalJson(old.selection)))fail('dashboard_shared_state_revision_changed',409)}
  for(const card of document.cards){const context=await queryContext(env,card.definition,actor.id),sources=await readSources(env,card.definition),answer=execute(card.definition,sources,context);evaluations.push({card,context,sources,answer})}
- const guards=[...state?[dashboardDefinitionGuard(actor,key!,state)]:[],...evaluations.flatMap(value=>[...value.context.guards??[],...value.sources.map(sourceMatch)])]
+ const interactions=await prepareDashboardInteractions(env,actor,document,key)
+ const guards=[...interactions.guards,...state?[dashboardDefinitionGuard(actor,key!,state)]:[],...evaluations.flatMap(value=>[...value.context.guards??[],...value.sources.map(sourceMatch)])]
  const fingerprints=evaluations.map(value=>({key:value.card.key,watermarks:value.answer.sourceWatermarks,context:{company:value.context.company,calendar:value.context.calendar,rateSource:value.context.rateSource,timezone:value.context.timezone,currency:value.context.currency},answerDigest:sha256(canonicalJson(value.answer))}))
- const digest=sha256(canonicalJson({ownerId:actor.id,id:key,previousRevision,document,fingerprints,generation:state?.generation??null,publishedRevision:state?.publishedRevision??null}))
+ const digest=sha256(canonicalJson({ownerId:actor.id,id:key,previousRevision,document,fingerprints,interactionBindings:interactions.fingerprints,generation:state?.generation??null,publishedRevision:state?.publishedRevision??null}))
  return {state,evaluations,guards,review:{document,id:key,previousRevision,before,after:document,digest,productionSends:0,sourceWrites:0}}
 }
-export async function applyDashboardDefinition(env:Bindings,actor:Authority,input:{document?:unknown;id?:unknown;previousRevision?:unknown;reviewedDigest?:unknown}) {
+export async function applyDashboardDefinition(env:Bindings,actor:Authority,input:{document?:unknown;id?:unknown;previousRevision?:unknown;reviewedDigest?:unknown},extraGuards:D1Sql[]=[]) {
  const prepared=await prepareDashboardDefinition(env,actor,input.document,input.id,input.previousRevision),{state,evaluations,guards,review}=prepared
  if(input.reviewedDigest!==review.digest)fail('exact_dashboard_definition_review_required',409)
  const id=review.id??randomUUID(),n=(state?.revision??0)+1,boardId=randomUUID(),now=new Date().toISOString(),retained=evaluations.map(value=>prepareQuery(value.card.definition,value.context,value.sources))
- await transact(env.DB,actor,[...guards.map(assertion),...state?[]:[assertion(dashboardDefinitionGuard(actor,id,null))],...retained.flatMap(value=>value.changes),
+ await transact(env.DB,actor,[...extraGuards.map(assertion),...guards.map(assertion),...state?[]:[assertion(dashboardDefinitionGuard(actor,id,null))],...retained.flatMap(value=>value.changes),
   sql("INSERT INTO bf_analytics_boards(id,kind,owner_id,title,created_at) VALUES(?,'dashboard',?,?,?)",boardId,actor.id,review.document.title,now),...retained.map((value,position)=>sql('INSERT INTO bf_analytics_cards(board_id,position,snapshot_id) VALUES(?,?,?)',boardId,position,value.snapshot.snapshotId)),
   state?sql('UPDATE bf_dashboard_definitions SET head_revision=? WHERE id=? AND owner_id=?',n,id,actor.id):sql('INSERT INTO bf_dashboard_definitions(id,owner_id,head_revision) VALUES(?,?,?)',id,actor.id,n),
   sql('INSERT INTO bf_dashboard_definition_revisions(dashboard_id,revision,document_json,board_id,digest,created_at) VALUES(?,?,?,?,?,?)',id,n,canonicalJson(review.document),boardId,review.digest,now),
