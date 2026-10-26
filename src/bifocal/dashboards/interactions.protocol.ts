@@ -1,9 +1,10 @@
+import { FISCAL_WINDOWS, type FiscalWindow } from '../calendars/fiscal'
 import {exactKeys} from '../models/validation/transport'
 import {fail,type Filter} from '../query/types'
 import {dashboardFilters} from './filters'
 import type {DashboardDocument,Placement} from './authoring.protocol'
 
-export type ReaderSelection={tab:string;filters:Filter[];fields:Record<string,string>;fiscal:Record<string,{asOf:string;window:'quarter-to-date'|'year-to-date'}>;whatIf:Record<string,string>}
+export type ReaderSelection={tab:string;filters:Filter[];fields:Record<string,string>;fiscal:Record<string,{asOf:string;window:FiscalWindow}>;whatIf:Record<string,string>}
 export type DashboardInteractions={
  tabs:{id:string;label:string;cards:string[];tiles:string[]}[]
  tiles:({key:string;kind:'text';text:string}|{key:string;kind:'image';alt:string;data:string})[]
@@ -11,7 +12,7 @@ export type DashboardInteractions={
  recordActions:{id:string;label:string;card:string;columns:string[];keys:string[]}[]
  dimensions:string[]
  fieldParameters:{id:string;label:string;card:string;default:string;choices:{id:string;label:string;groupBy:string[];measures:string[]}[]}[]
- fiscalParameters:{id:string;label:string;cards:string[];default:{asOf:string;window:'quarter-to-date'|'year-to-date'}}[]
+ fiscalParameters:{id:string;label:string;cards:string[];default:{asOf:string;window:FiscalWindow}}[]
  whatIfParameters:{id:string;label:string;card:string;libraryId:string;revision:string;parameter:string;default:string}[]
  states:{name:string;revision:number;selection:ReaderSelection}[]
  stories:{id:string;label:string;steps:{state:string;revision:number}[]}[]
@@ -25,7 +26,7 @@ const key=(value:unknown)=>{const result=text(value,64);if(!/^[a-z][a-z0-9-]*$/.
 const refs=(value:unknown,max=16)=>{const result=list(value,max).map(v=>text(v,200));if(new Set(result).size!==result.length)fail('duplicate_dashboard_interaction_reference',400);return result}
 const unique=(values:string[])=>{if(new Set(values).size!==values.length)fail('duplicate_dashboard_interaction_key',400)}
 const civil=(value:unknown):string=>{const result=text(value,10);if(!/^\d{4}-\d\d-\d\d$/.test(result)||!Number.isFinite(Date.parse(result+'T00:00:00Z'))||new Date(result+'T00:00:00Z').toISOString().slice(0,10)!==result)fail('dashboard_fiscal_date_required',400);return result}
-const fiscal=(value:unknown)=>{const v=interactionObject(value);exactKeys(v,['asOf','window']);if(v.window!=='quarter-to-date'&&v.window!=='year-to-date')fail('dashboard_fiscal_window_required',400);return {asOf:civil(v.asOf),window:v.window} as ReaderSelection['fiscal'][string]}
+const fiscal=(value:unknown)=>{const v=interactionObject(value);exactKeys(v,['asOf','window']);if(!FISCAL_WINDOWS.some(window=>window===v.window))fail('dashboard_fiscal_window_required',400);return {asOf:civil(v.asOf),window:v.window} as ReaderSelection['fiscal'][string]}
 const strings=(value:unknown):Record<string,string>=>Object.fromEntries(Object.entries(interactionObject(value??{})).map(([id,value])=>[key(id),text(value,200)]))
 export function readerSelection(value:unknown,config:DashboardInteractions):ReaderSelection{
  const v=interactionObject(value??{});exactKeys(v,['tab','filters','fields','fiscal','whatIf'])

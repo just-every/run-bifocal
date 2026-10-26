@@ -1,7 +1,7 @@
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
 import { decimal } from '../currency/decimal'
-import { date } from '../calendars/date'
-import { classifyDate, fiscalYear, type CalendarDefinition } from '../calendars/fiscal'
+import { addDays, date } from '../calendars/date'
+import { FISCAL_WINDOWS, fiscalWindow, type CalendarDefinition } from '../calendars/fiscal'
 import { fail, type Context, type Filter, type Query, type Source } from '../query/types'
 export type SemanticShape = { grain: string[]; dimensions: {column:string;type:string}[]; hierarchies: string[][]; slowlyChanging: 'reject-duplicate-grain' }
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v)
@@ -14,16 +14,15 @@ export function semanticInput(value:unknown):SemanticShape {
  return value as SemanticShape
 }
 export function fiscalInput(value:unknown):NonNullable<Query['fiscal']> {
- if(!object(value)||Object.keys(value).some(k=>!['column','asOf','window'].includes(k))||!refs([value.column],1)||!['quarter-to-date','year-to-date'].includes(String(value.window)))fail('invalid_fiscal_window',400)
+ if(!object(value)||Object.keys(value).some(k=>!['column','asOf','window'].includes(k))||!refs([value.column],1)||!FISCAL_WINDOWS.some(window=>window===value.window))fail('invalid_fiscal_window',400)
  try{date(value.asOf)}catch{fail('invalid_fiscal_cutoff',400)}
  return value as NonNullable<Query['fiscal']>
 }
 /** Freeze the cutoff with the selected native calendar; never use today's date. */
 export function fiscalFilters(query:Query,context:Context):Filter[] {
  if(!query.fiscal)return []
- const definition=context.calendar.definition as unknown as CalendarDefinition, position=classifyDate(definition,query.fiscal.asOf), year=fiscalYear(definition,position.fiscalYear)
- const start=query.fiscal.window==='year-to-date'?year.start:year.periods.find(p=>p.quarter===position.quarter)!.start
- return [{column:query.fiscal.column,op:'gte',value:start},{column:query.fiscal.column,op:'lte',value:query.fiscal.asOf}]
+ const definition=context.calendar.definition as unknown as CalendarDefinition, bounds=fiscalWindow(definition,query.fiscal.asOf,query.fiscal.window)
+ return [{column:query.fiscal.column,op:'gte',value:bounds.start},{column:query.fiscal.column,op:'lte',value:addDays(bounds.end,-1)}]
 }
 /** A history table needs an explicit version key or a reviewed current-state source.
  * Duplicate business keys are refused; no arbitrary latest-row selection occurs. */

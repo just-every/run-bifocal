@@ -53,3 +53,30 @@ export function classifyDate(definition: CalendarDefinition, input: unknown) {
  requireValue(period, 'date_outside_calendar')
  return { date: civil, fiscalYear: label, period: period.period, quarter: period.quarter, week: definition.kind === 'fiscal' ? null : Math.floor((dayNumber(civil) - dayNumber(fiscal.start)) / 7) + 1 }
 }
+
+export const FISCAL_WINDOWS = ['period-to-date', 'quarter-to-date', 'year-to-date', 'previous-period', 'previous-quarter', 'previous-year'] as const
+export type FiscalWindow = typeof FISCAL_WINDOWS[number]
+/** Explicit civil cutoff and immutable calendar revision determine every bound.
+ * Complete prior periods use the calendar's half-open intervals, including the
+ * extra retail week; they never subtract an assumed number of days or months. */
+export function fiscalWindow(definition: CalendarDefinition, asOf: string, window: FiscalWindow) {
+ const position = classifyDate(definition, asOf), year = fiscalYear(definition, position.fiscalYear)
+ const period = year.periods[position.period - 1]
+ if (window === 'period-to-date') return { start: period.start, end: addDays(asOf, 1) }
+ if (window === 'quarter-to-date') return { start: year.periods[(position.quarter - 1) * 3].start, end: addDays(asOf, 1) }
+ if (window === 'year-to-date') return { start: year.start, end: addDays(asOf, 1) }
+ if (window === 'previous-period') {
+  const prior = position.period === 1 ? fiscalYear(definition, position.fiscalYear - 1).periods[11] : year.periods[position.period - 2]
+  return { start: prior.start, end: prior.end }
+ }
+ if (window === 'previous-quarter') {
+  const priorYear = position.quarter === 1 ? fiscalYear(definition, position.fiscalYear - 1) : year
+  const index = position.quarter === 1 ? 9 : (position.quarter - 2) * 3
+  return { start: priorYear.periods[index].start, end: priorYear.periods[index + 2].end }
+ }
+ if (window === 'previous-year') {
+  const prior = fiscalYear(definition, position.fiscalYear - 1)
+  return { start: prior.start, end: prior.end }
+ }
+ requireValue(false, 'invalid_fiscal_window')
+}

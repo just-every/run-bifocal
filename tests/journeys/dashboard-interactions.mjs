@@ -26,6 +26,37 @@ export async function proveDashboardInteractions({origin,context,page,upload,pro
  assert.equal((await run(west)).cards[0].answer.totals.revenue.value,'10.00');assert.equal((await run(east)).cards[1].status,'empty')
  const annual={...west,fiscal:{period:{asOf:'2026-10-15',window:'year-to-date'}},whatIf:{scenario:'1.5'}},annualRun=await run(annual)
  assert.equal(annualRun.cards[0].answer.totals.revenue.value,'40.00');assert.equal(annualRun.cards[0].scenario.answer.formatted.totals['scenario-revenue'],'60.00');assert.equal((await run({})).cards[0].answer.totals.revenue.value,'30.00','Scenario and reader period never change source actuals or published defaults')
+ // Reconcile exact source rows at the dashboard door, including fixed West
+ // restrictions. Complete prior windows exclude the current interval boundary.
+ const relativeCases=[
+  ['period-to-date','2026-08-15',['3'],'20.00'],
+  ['previous-period','2026-08-15',['2'],'10.00'],
+  ['previous-quarter','2026-10-15',['2','3','4'],'60.00'],
+  ['previous-year','2026-08-15',['1'],'100.00'],
+ ]
+ for(const [window,asOf,invoices,total] of relativeCases){
+  const selection={fiscal:{period:{asOf,window}}},current=await run(selection)
+  assert.equal(current.cards[0].answer.totals.revenue.value,total,window)
+  const records=await api(endpoint+'/source-records',{selection,actionId:'source-invoices'},200)
+  assert.deepEqual(records.rows.map(row=>row.invoice),invoices,window)
+  assert.ok((await api(endpoint+'/source-records',{selection,actionId:'source-invoices',record:{invoice:'5'}},404)).error)
+ }
+ await api(endpoint+'/run',{selection:{fiscal:{period:{asOf:'2026-02-30',window:'previous-period'}}}},400)
+ await api(endpoint+'/run',{selection:{fiscal:{period:{asOf:'2026-08-15',window:'previous-decade'}}}},400)
+ // Independent dated corpus includes both sides of FY2020's 53rd retail week.
+ // July-style calendar arithmetic must not substitute for 4-4-5 or 4-5-4.
+ const retailDataset='synthetic-bifocal-relative-retail'
+ await upload(retailDataset,'invoice,date,region,revenue\n1,01/27/2019,West,1.00\n2,01/25/2020,West,2.00\n3,01/26/2020,West,4.00\n4,10/24/2020,West,8.00\n5,10/25/2020,West,16.00\n6,12/19/2020,West,32.00\n7,12/20/2020,West,64.00\n8,12/26/2020,West,128.00\n9,12/27/2020,West,256.00\n10,01/30/2021,West,512.00\n11,01/31/2021,West,1024.00\n12,02/01/2021,West,2048.00\n13,02/02/2021,West,4096.00\n')
+ for(const kind of ['445','454']){
+  const id='synthetic-bifocal-relative-'+kind
+  await api('/calendars',{id,previousVersion:null,definition:{name:'Retail boundary '+kind,kind,startMonth:2,startDay:1,weekStartsOn:0,anchor:'on-or-before'}})
+  for(const [window,total,rows] of [['period-to-date','3072.00',2],['quarter-to-date','3072.00',2],['year-to-date','3072.00',2],['previous-period',kind==='445'?'960.00':'768.00',kind==='445'?4:2],['previous-quarter','1008.00',6],['previous-year','1020.00',8]]){
+   const result=await api('/queries/run',{...query,dataset:retailDataset,groupBy:[],context:{...query.context,calendar:{id,version:1}},fiscal:{column:'date',asOf:'2021-02-01',window}})
+   assert.equal(result.answer.totals.revenue.value,total,kind+' '+window)
+   assert.equal(result.answer.filteredRows,rows,kind+' '+window+' boundaries')
+   assert.equal((await api('/queries/'+result.queryId+'/rerun',{},200)).reproduced,true)
+  }
+ }
  const sourceRows=await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices'},200);assert.deepEqual(sourceRows.rows.map(row=>[row.invoice,row.region,row.revenue]),[['2','West','10.00'],['4','West','30.00']]);assert.equal(sourceRows.totalRows,2)
  const exactRecord=await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'4'}},200);assert.equal(exactRecord.rows[0].date,'2026-09-01');await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'3'}},404);await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'1'}},404);await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{revenue:'30.00'}},400)
  const counts=await run({...annual,fields:{breakdown:'date'}});assert.equal(counts.cards[0].answer.totals.orders.value,'2');assert.equal(counts.cards[0].answer.totals.revenue,undefined)
@@ -55,6 +86,15 @@ export async function proveDashboardInteractions({origin,context,page,upload,pro
   await page.getByRole('button',{name:'Clear reader filters',exact:true}).click();await page.locator('[data-card-key="west-sales"][data-state="fresh"]').waitFor()
   const all=page.locator('[data-card-key="all-sales"]');await all.getByText('Cross-filter from this tile',{exact:true}).click();await all.getByRole('button',{name:'Filter Region to West',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#dashboard-reader-context')?.textContent.includes('West'));await screen('authored-dashboard-interactions-cross-filter')
   await page.getByLabel('Fiscal period as of',{exact:true}).fill('2026-10-15');await Promise.all([page.waitForResponse(r=>r.url().endsWith(endpoint+'/run')&&r.status()===200),page.getByLabel('Fiscal period as of',{exact:true}).dispatchEvent('change')])
+  await page.getByLabel('Fiscal period window',{exact:true}).selectOption('year-to-date');await page.waitForFunction(()=>document.querySelector('[data-card-key="all-sales"] .published-totals dd')?.textContent.includes('40.00'))
+  for(const [window,total] of [['period-to-date','0.00'],['previous-period','30.00'],['previous-quarter','40.00'],['previous-year','100.00']]){
+   const [response]=await Promise.all([page.waitForResponse(r=>r.url().endsWith(endpoint+'/run')&&r.status()===200),page.getByLabel('Fiscal period window',{exact:true}).selectOption(window)])
+   const result=await response.json()
+   // With the fixed West reader filter, the empty current period has null sum.
+   assert.equal(result.cards[0].answer.totals.revenue.value,window==='period-to-date'?null:total)
+   await page.waitForFunction(window=>document.querySelector('#dashboard-reader-context')?.textContent.includes(window),window)
+   await screen('authored-dashboard-relative-'+window)
+  }
   await page.getByLabel('Fiscal period window',{exact:true}).selectOption('year-to-date');await page.waitForFunction(()=>document.querySelector('[data-card-key="all-sales"] .published-totals dd')?.textContent.includes('40.00'))
   await page.getByLabel('Scenario factor',{exact:true}).fill('1.5');await page.getByLabel('Scenario factor',{exact:true}).dispatchEvent('change');await page.waitForFunction(()=>document.querySelector('.dashboard-scenario')?.textContent.includes('60.00'));await screen('authored-dashboard-interactions-fiscal-what-if')
   await page.getByLabel('Displayed breakdown',{exact:true}).selectOption('date');await page.getByRole('table',{name:'Exact all-sales results',exact:true}).getByRole('columnheader',{name:'Orders',exact:true}).waitFor();await screen('authored-dashboard-interactions-field-parameter')

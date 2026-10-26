@@ -12,7 +12,7 @@ The optional `interactions` object contains:
 - `tiles` and `tileLayout`: text and bounded inert PNG, JPEG or WebP data, with separate desktop and phone placement. Images never fetch a remote address, and text never executes markup.
 - `dimensions`: authored dimensions available to equality filtering. Cross-filtering and reader filters intersect the card's fixed model rules and any audience rules.
 - `fieldParameters`: named choices among authored grouping fields and measures. Totals are recomputed by the exact query engine.
-- `fiscalParameters`: named quarter-to-date and year-to-date selections relative to an explicit date and the retained fiscal calendar.
+- `fiscalParameters`: named `period-to-date`, `quarter-to-date`, `year-to-date`, `previous-period`, `previous-quarter` and `previous-year` selections relative to an explicit `asOf` date and the retained fiscal calendar. To-date selections include the cutoff. Previous selections include the complete preceding fiscal interval and exclude the current interval. Retail periods follow the retained 4-4-5 or 4-5-4 calendar, including its extra week; a fiscal period is not necessarily a calendar month. The reader displays the selected window and date. No selection follows the wall clock automatically.
 - `whatIfParameters`: one declared bounded numeric parameter of an exact native calculation-library revision. Scenarios operate on protected rows; actual values and source records remain unchanged.
 - `states`: named, versioned shared selections. A changed selection requires a new named-state revision.
 - `stories`: an ordered list of exact shared-state revisions, with manual steps, play and pause.
