@@ -242,7 +242,7 @@ try {
       await page.getByRole('link', { name: 'Your settings', exact: true }).click()
       await page.getByLabel('Your name', { exact: true }).fill(`Synthetic owner ${width}`)
       await Promise.all([page.waitForURL(/saved=1/), page.getByRole('button', { name: 'Save name', exact: true }).click()])
-      await page.getByRole('status').waitFor()
+      await page.getByRole('status').filter({ hasText: 'Your display name is saved.' }).waitFor()
       await page.reload()
       assert.equal(await page.getByLabel('Your name', { exact: true }).inputValue(), `Synthetic owner ${width}`)
       const current = await (await context.request.get(`${origin}/auth/session`)).json()
