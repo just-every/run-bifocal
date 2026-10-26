@@ -4345,7 +4345,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "d727cb3672cd2daea2aa3f15202f6e33aee56510402e7c3cc1b59cd1d38b0542",
+      "sha256": "a0596ec2c6c178ac53d0033158a68c15861b9950852ebf2e4c40b0ab7ee1e4fc",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
