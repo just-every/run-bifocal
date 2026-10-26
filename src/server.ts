@@ -49,6 +49,10 @@ import { appPage } from './bifocal/apps/page.server'
 import { appResponse } from './bifocal/apps/server'
 import { appImportResponse } from './bifocal/apps/import/door.server'
 
+import { retentionPolicyResponse } from './bifocal/retention/policy.server'
+import { costResponse } from './bifocal/costs/server'
+import { erasureReceiptResponse } from './bifocal/retention/server'
+
 const api = new Hono<{ Bindings: Bindings }>()
 api.get('/health', (context) => context.json({ status: 'ok', ...deploymentHealth(context.env) }))
 
@@ -67,6 +71,12 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const costs = await costResponse(request, env)
+    if (costs) return costs
+    const retentionPolicy = await retentionPolicyResponse(request, env)
+    if (retentionPolicy) return retentionPolicy
+    const erasureReceipt = await erasureReceiptResponse(request, env)
+    if (erasureReceipt) return erasureReceipt
     const settings = await companyPage(request, env)
     if (settings) return settings
     const conventions = await conventionsResponse(request, env)

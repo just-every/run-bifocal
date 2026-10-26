@@ -1,3 +1,4 @@
+import { retentionAllowsErasure } from '../../retention/policy.server'
 import {definitionErasureCounts,eraseDefinitions} from '../../environments/erasure'
 import { eraseSourceCalculationLibraries } from '../../calculations/library/store.server'
 import { modelImportResponse } from '../models/door.server'
@@ -57,7 +58,11 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
    const raw = await boundedBody(request)
    if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || raw.reviewedRevision !== (current?.revision ?? null)) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the dataset state and explicitly confirm its id and current revision, or null when no table is published, before erasing.' }, 409)
-   const match = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
+   const retention=retentionAllowsErasure(dataset)
+   const allowed=await env.DB.prepare(`SELECT CASE WHEN (${retention.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...retention.params??[]).first<{allowed:number}>()
+   if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
+   const sourceMatch = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
+   const match=sql(`(${sourceMatch.sql}) AND (${retention.sql})`,...sourceMatch.params??[],...retention.params??[])
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
    const extraCounts=[...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
    const counts = sql(`SELECT json_extract(value,'$.store') AS store,json_extract(value,'$.rows') AS rows FROM json_each(json_array(
@@ -68,6 +73,8 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     json_object('store','bf_query_artifacts','rows',(SELECT count(*) FROM bf_query_artifacts WHERE snapshot_id IN (${derived}))),
     json_object('store','bf_analytics_boards','rows',(SELECT count(*) FROM bf_analytics_boards WHERE id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),
     json_object('store','bf_analytics_cards','rows',(SELECT count(*) FROM bf_analytics_cards WHERE board_id IN (SELECT board_id FROM bf_analytics_cards WHERE snapshot_id IN (${derived})))),${extraCounts.map(entry=>`json_object('store','${entry.store}','rows',(${entry.query.sql}))`).join(',')}))`, dataset, dataset, dataset, dataset, dataset, dataset, dataset,...extraCounts.flatMap(entry=>entry.query.params??[]))
+   const auditId=randomUUID()
+   const auditStatements=[sql("INSERT INTO bf_erasure_audit(id,actor_ref,subject_ref,recorded_at,kind) VALUES(?,?,?,?,'source_erasure')",auditId,randomUUID(),randomUUID(),new Date().toISOString()),sql('INSERT INTO bf_erasure_pending(destination,audit_id) VALUES(?,?)',destination,auditId),sql(`INSERT INTO bf_erasure_stores(audit_id,store,rows) SELECT ?,store,rows FROM (${counts.sql})`,auditId,...counts.params??[])]
    const calculationLibraries=await eraseSourceCalculationLibraries(env,owner,dataset,match)
    const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match)
    // Derivative erasure can initialize the journal. Bind the source checkpoint
@@ -81,11 +88,11 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
-    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, ...eraseDefinitions(dataset), semanticErasure(dataset),catalogErasure(dataset),sql('DELETE FROM bf_questions WHERE id IN (SELECT question_id FROM bf_question_sources WHERE dataset_id=?)',dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
-    sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
+    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, ...auditStatements, ...eraseDefinitions(dataset), semanticErasure(dataset),catalogErasure(dataset),sql('DELETE FROM bf_questions WHERE id IN (SELECT question_id FROM bf_question_sources WHERE dataset_id=?)',dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
+    sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset),sql('DELETE FROM bf_source_retention WHERE dataset_id=?',dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, modelProjects, calculationLibraries, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, auditId, modelProjects, calculationLibraries, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
   if (path === '/api/operator/import/history') {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)

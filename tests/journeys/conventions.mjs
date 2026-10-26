@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
+import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
 export async function proveConventions(origin, context, page) {
+ await proveCostControls(origin,context)
  const call = async (path, data, method = data === undefined ? 'GET' : 'POST', expected = method === 'POST' && ['/calendars','/rates','/schedules'].includes(path) ? 201 : 200) => {
   const response = await context.request.fetch(origin + '/api/operator' + path, { method, headers: { Origin: origin }, ...(data === undefined ? {} : { data }) })
   assert.equal(response.status(), expected, await response.text()); return response.json()

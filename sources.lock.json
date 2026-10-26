@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6e94b6e9cda418533d9f1e939f12a9493e569fed297656e3eedbf690b6ecd20e",
+      "sha256": "fe1b705f8b6dbbdddb7209729b81c9bf857dc3543315bacba72f6c780fecce51",
       "executable": false
     },
     "AGENTS.md": {
@@ -353,7 +353,11 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "38e75a38c0b5ea872717b0bdca17c6a2f6dbcf7f642cc5a61642ca9e73bc7aa0",
+      "sha256": "579cfdf1b40aaa92f64801af54fe26c45d90dcf66cdcd4ab8ed0ef8253029e86",
+      "executable": false
+    },
+    "COST-CONTROLS.md": {
+      "sha256": "d14ebf078bf27797b1a9f2c9e952cf6f269f3d5247f02e7444db2274ef125821",
       "executable": false
     },
     "DEMO.md": {
@@ -680,6 +684,10 @@
       "sha256": "feef3f413df18f6c4b803726d1c2aeadcec660f8b9277bbda6f4cf86efba9972",
       "executable": false
     },
+    "migrations/core/0053_cost_and_erasure_receipts.sql": {
+      "sha256": "ce13382eed088c36eb3d73b360b7c9b982258ec5ca8c569543ec7401e305e58f",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -974,6 +982,10 @@
     },
     "rer-setup.json": {
       "sha256": "9d5d39c0b00537b75fdb9562276a4eb1a72cf80380b3785d0c2cd682716096f7",
+      "executable": false
+    },
+    "RETENTION.md": {
+      "sha256": "3413cc8c187c2c25c63b3b26d9d67cec937e354b2181037287e51dd3ec1814f2",
       "executable": false
     },
     "RUN-LOCALLY.md": {
@@ -1604,6 +1616,14 @@
       "sha256": "52ac8b08bebae1899e61fd88e8c79794319009461e7c4ef99edd43acc3f46ac2",
       "executable": false
     },
+    "src/bifocal/costs/quote.ts": {
+      "sha256": "a557809b6df571ebf05165750fc2f99e418831109472ce11f1c4d24f810e2e1b",
+      "executable": false
+    },
+    "src/bifocal/costs/server.ts": {
+      "sha256": "ee8b6fb1dad3c246a9dbb3418607e24937339cef1335f9d67fc66520df7b6403",
+      "executable": false
+    },
     "src/bifocal/currency/convert.ts": {
       "sha256": "63209b0872b31cc1ad555739f6b715a2f175c4f6fb6d0d24b18b26f53f3662e1",
       "executable": false
@@ -1933,7 +1953,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "cf887295254576a50418ea357934f69d7509ee88da7d08e8ec0c9e48f8529848",
+      "sha256": "1dc03264f1bda93edd1d71f9940cd2f54035a1cc431e6319318f8b4be63f664a",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -2218,6 +2238,14 @@
     },
     "src/bifocal/reports/transport.server.mjs": {
       "sha256": "78895028d2cbc8469d0c7c05886103a0389a2bc26408588e035c79a05704edda",
+      "executable": false
+    },
+    "src/bifocal/retention/policy.server.ts": {
+      "sha256": "616cb855bc42350c12efdff36a234f5fb1cec1681e0aafc4dbcb89578fc9833f",
+      "executable": false
+    },
+    "src/bifocal/retention/server.ts": {
+      "sha256": "02cb237ac2733dd80cfc1d5e338613fa32147c0ed6d1b206a4abbc1526d1a237",
       "executable": false
     },
     "src/bifocal/schedules/page.server.ts": {
@@ -4089,7 +4117,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "c40db11ee470b79f3985a4f927e434680e059bd107cba3e78e09df58c5a7a25d",
+      "sha256": "8fab4076ca2d9fad1e55a2b1f50fce4ff5c3d411b77ea4d5057155f1ff0fe56d",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -4361,7 +4389,11 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "0b69eb47787228c266873bd78205013bc74c1aa784ed240dfcb4f8be2da922d0",
+      "sha256": "a0f2277ecfaeefa63ae952c0682715da5fb2753f9beaae730d82467de5705a7e",
+      "executable": false
+    },
+    "tests/journeys/cost-controls.mjs": {
+      "sha256": "1720a886aaf4b6e4da5c84b4db7d81d8c2526ed99b77daac87e166251fa06536",
       "executable": false
     },
     "tests/journeys/dashboard-authoring.mjs": {
@@ -4384,6 +4416,10 @@
       "sha256": "38c7f00720e7ad3e831c84c73aabc8a9b1e26914e389093744cdf74dea4facdb",
       "executable": false
     },
+    "tests/journeys/erasure-receipts.mjs": {
+      "sha256": "8c028e67d5463b01bb6a3e8d27d10da45c44c07021d777c3a033db753de5447d",
+      "executable": false
+    },
     "tests/journeys/exact-browser.mjs": {
       "sha256": "12c07d68dee859a498705e0ed66801fe8b5bb68fccd74a91d4c2782a5d8e6cee",
       "executable": false
@@ -4401,7 +4437,7 @@
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "5e420eb314e79f491c1abc91d9e47a3985f26dae05c19f311e68971b1a78cbe0",
+      "sha256": "0d1515e03f914d23b4be794f91b7b0c7febf6e4c93dc202d675f3a7f6235b1be",
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {
