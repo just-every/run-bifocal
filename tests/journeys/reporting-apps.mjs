@@ -116,7 +116,7 @@ export async function proveReportingApps({origin,browser,owner,page,devKey,uploa
  await uninvited.page.goto(origin+'/app/apps/'+appId);await uninvited.page.getByRole('heading',{name:'App unavailable'}).waitFor();await screen(uninvited.page,'apps-uninvited')
  // Subscription access follows audience membership.
  const subscription=await call(bob.context,'/apps/'+appId+'/subscriptions',{audience:'finance',pageKey:'page-3'});assert.equal(subscription.delivery,'inactive')
- assert.equal((await call(bob.context,'/apps/'+appId+'/subscriptions/'+subscription.id+'/preview',{})).delivered,false)
+ assert.equal((await call(bob.context,'/apps/'+appId+'/subscriptions/'+subscription.id+'/preview',{},200)).delivered,false)
  await bob.page.goto(origin+'/app/apps/'+appId+'/finance/page-3');await bob.page.getByRole('button',{name:'Preview next delivery',exact:true}).click();await bob.page.getByText('Nothing was sent',{exact:false}).waitFor();await screen(bob.page,'apps-subscription')
  const bobDetail=await call(owner,'/apps/'+appId);assert.equal(bobDetail.members.filter(m=>m.audience==='finance').length,2)
  // Draft edits leave readers alone; publish version two; remove a member; roll back.
@@ -131,13 +131,13 @@ export async function proveReportingApps({origin,browser,owner,page,devKey,uploa
  await call(owner,'/apps/'+appId+'/rollback/review',{version:2,previousPublished:2},409)
  const back=await call(owner,'/apps/'+appId+'/rollback/review',{version:1,previousPublished:2},200)
  await call(owner,'/apps/'+appId+'/rollback/apply',{version:1,previousPublished:2,reviewedDigest:'0'.repeat(64)},409)
- await page.goto(origin+'/app/apps/'+appId);await page.getByRole('button',{name:'Review restore of version 1',exact:true}).click();await page.getByText('Version 3',{exact:false}).waitFor();await screen(page,'apps-restore-review')
+ await page.goto(origin+'/app/apps/'+appId);await page.getByRole('button',{name:'Review restore of version 1',exact:true}).click();await page.getByText('Version 3 · fingerprint',{exact:false}).waitFor();await screen(page,'apps-restore-review')
  await page.getByLabel('I reviewed this exact version, its audiences and their row scope',{exact:true}).check()
  await Promise.all([page.waitForURL(origin+'/app/apps/'+appId),page.getByRole('button',{name:'Restore version 1 as version 3',exact:true}).click()])
  assert.equal((await call(alice.context,'/apps/'+appId)).audiences[0].pages[0].title,'Pipeline overview');assert.deepEqual((await nav(dave)).map(a=>a.name),['Sales'],'Rollback never revives a removed member')
  const history=await call(owner,'/apps/'+appId);assert.deepEqual(history.versions.map(v=>[v.version,v.action,v.restores]),[[3,'rollback',1],[2,'publish',null],[1,'publish',null]]);assert.equal(history.publishedVersion,3)
  assert.equal(back.version,3)
- await page.getByText('Version 3 · current',{exact:false}).waitFor();await screen(page,'apps-version-history')
+ await page.getByText('Version 3 · current',{exact:false}).first().waitFor();await screen(page,'apps-version-history')
  // Removing a reader or audience ends their home entry, saved link, subscription and preview.
  const bobBefore=await bob.person()
  await call(owner,'/apps/'+appId+'/members',{audience:'finance',operatorId:bobBefore.id,operatorVersion:bobBefore.version,enabled:false},200,'PUT')
