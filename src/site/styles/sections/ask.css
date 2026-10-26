@@ -4,14 +4,14 @@
 .closing-line { font-weight: 400; }
 .closing-mark { height: auto; }
 @media (min-width: 1024px) {
-  .s-ask { --q: 164; }
+  .s-ask { --q: 176; }
   .s-ask .screen-copy { width: calc(1000 * var(--u)); }
   .closing-line { margin-top: calc(42 * var(--u)); max-width: none; font-size: calc(36 * var(--u)); line-height: calc(48 * var(--u)); white-space: nowrap; }
   .closing-actions { margin-top: calc(20 * var(--u)); gap: calc(42 * var(--u)); flex-wrap: nowrap; }
   .closing-actions .run-button { height: calc(79 * var(--u)); padding: 0 calc(37 * var(--u)); font-size: calc(30 * var(--u)); }
   .closing-actions .text-link { font-size: calc(32 * var(--u)); }
   .closing-actions .text-link + .text-link { margin-left: calc(20 * var(--u)); }
-  .closing-mark { position: absolute; right: calc(120 * var(--u)); bottom: calc(160 * var(--u)); width: calc(480 * var(--u)); }
+  .closing-mark { position: absolute; right: calc(120 * var(--u)); bottom: calc(160 * var(--u)); width: calc(525 * var(--u)); }
 }
 @media (max-width: 1023.98px) {
   .s-ask .question { font-size: clamp(72px, 19cqi, 120px); }

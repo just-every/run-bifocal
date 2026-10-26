@@ -20,10 +20,11 @@ import '../styles/sections/review.css'
 import '../styles/sections/match.css'
 import '../styles/sections/ask.css'
 import '../styles/base-pages.css'
+import '../styles/landing-fonts.css'
 
 /**
- * run-bifocal.com's homepage, built from the desk's page round 2 (page-s1/STRUCTURE.md with BUILD-NOTES.md's builder
- * fixes): the owner's hero H, then seven screens, each one Monday question a buyer asks, one sentence and one proof
+ * run-bifocal.com's homepage, built from the desk's picked page-s2/STRUCTURE.md:
+ * the owner's hero H, then seven screens, each one question a buyer asks, one sentence and one proof
  * from a different example US company, over flat fields of cobalt, golden yellow, ink and white with straight seams.
  */
 export function Landing() {

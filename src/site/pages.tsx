@@ -19,7 +19,7 @@ const COPY = "document.querySelectorAll('.docs-copy').forEach(b=>{b.hidden=false
 // The homepage's title and description (the desk set none for Bifocal: the title names the product and its category,
 // the description is the hero's approved line).
 const TITLE = 'Bifocal · Free, open source business intelligence'
-const DESCRIPTION = 'Ask in plain English. Get the chart, the query, the certified definition and the rows, from every database and app you run.'
+const DESCRIPTION = 'Ask in plain English and get the chart, query, certified definition and rows from every database and app you run.'
 const SHARE = `${identity.runSite}/site/share.png`
 const FONTS = ['/fonts/mona-sans/mona-sans-latin-wght-normal.woff2', '/fonts/kaushan-script/kaushan-script-latin-400-normal.woff2']
 

@@ -348,6 +348,10 @@
       "sha256": "7165149f4c390f61d8c415b49f83f13e26dc755dd719e4f2ab0691913f1e7fd3",
       "executable": false
     },
+    "CLAIMS.md": {
+      "sha256": "d655c6bd3a7031b30909a2b47b5e8aa6eab31837a3bf0a720006a349321ae3e4",
+      "executable": false
+    },
     "composition.lock.json": {
       "sha256": "dbb3a7d5503efea50d0a0f2a8f342f960e60ccdaee3b6dc97ca0c81bed179708",
       "executable": false
@@ -4193,11 +4197,11 @@
       "executable": false
     },
     "src/site/landing/Hero.tsx": {
-      "sha256": "c1db4a6b6ecfb1ba0ffbf1740264898b6100e69f00e3d0a6b600a77726a338e2",
+      "sha256": "fcbbb3df93991759fb5f095ab4c9a1b20443be36a18b4504ad8922afce24daf9",
       "executable": false
     },
     "src/site/landing/Landing.tsx": {
-      "sha256": "bbf0ce0ccfafc399ef6d1f3744fd4150bae90f6a58b47e53a177f7cdd35ee964",
+      "sha256": "34f462b6afdf3e84a38550a596045d365d632b24e2b65c159bb1eee7d6948c2e",
       "executable": false
     },
     "src/site/landing/parts.tsx": {
@@ -4205,7 +4209,7 @@
       "executable": false
     },
     "src/site/landing/records.ts": {
-      "sha256": "20aa87ae38bfa2d622f9c914069bcea5cfffa64d41a9a628eeb51c43257bfb7e",
+      "sha256": "7589624b32e848ff12b0989a045cd581138e71dbea8c8ae78887748bd6914975",
       "executable": false
     },
     "src/site/landing/sections/AskYours.tsx": {
@@ -4213,11 +4217,11 @@
       "executable": false
     },
     "src/site/landing/sections/MarginDrop.tsx": {
-      "sha256": "ca564c49df4fd96cdabff5fb163cf40a442accc9b33aa47b879f930b1ce5ab74",
+      "sha256": "ba01d4d607e4f74a3876a9d294a8246a130cae66b1243c359f8eb0d2db32d5f9",
       "executable": false
     },
     "src/site/landing/sections/MatchPowerBI.tsx": {
-      "sha256": "74822d030c2902f4d6c78eb2e8b40ce6a601276b17f8ba40e5fa61204d31d8f1",
+      "sha256": "9594c527ee8b093a6506a70673d147302cb22c8fc1d5b6c93e5d13fcf3da0ead",
       "executable": false
     },
     "src/site/landing/sections/SeeTheRows.tsx": {
@@ -4225,11 +4229,11 @@
       "executable": false
     },
     "src/site/landing/sections/StuckOnFriday.tsx": {
-      "sha256": "f2b21616ec657c70a1688f0c057d65a1a79759d08257533ad69cfdc8b2993079",
+      "sha256": "ec7df3c1dba99742b6a995e9889dfb366651846f95e60bec445de374510ed9cf",
       "executable": false
     },
     "src/site/landing/sections/WhatMoved.tsx": {
-      "sha256": "ace86d00412678e42dc827d9cfe7e62ccacae9d54bb307dd38c1c8ab973b06cc",
+      "sha256": "5f128ebf0bad06536d4d82c4e3e1e94c337e6da0cd93ed9be41d62c9a4576037",
       "executable": false
     },
     "src/site/landing/sections/WhichNumber.tsx": {
@@ -4237,7 +4241,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "9799ec70d0693e99cbbeebfdc06f3943aace01c155f61990f8b3b6ea81268880",
+      "sha256": "a32f3c7335962673b30647886629c37082ca40f0c95e04dd3ef88c25e38a6446",
       "executable": false
     },
     "src/site/run.json": {
@@ -4280,36 +4284,40 @@
       "sha256": "5ce11113b691fac38abefebb830cded889f4aea0bc0f8b0978dcf22ba506b903",
       "executable": false
     },
+    "src/site/styles/landing-fonts.css": {
+      "sha256": "6896bef20b3d4e4791df4c4aa8c62e64629fad832742f2735a7dfc5c7155d518",
+      "executable": false
+    },
     "src/site/styles/landing.css": {
-      "sha256": "93696583a221314db7b0538b67ff81da8f9572c04b60dd739a350485a1c63f46",
+      "sha256": "979e2fafb2d65258e7d55e992a99f58b3f18bb55ee7ec2e7714889fdd260c3fd",
       "executable": false
     },
     "src/site/styles/sections/ask.css": {
-      "sha256": "9cec73902787dfb8633e84dbdf407481f943645bb3712830252beacd7bd1e662",
+      "sha256": "667d1134178ca0876476cd81f911fb024056402a4b9608ad587936a7c175df58",
       "executable": false
     },
     "src/site/styles/sections/friday.css": {
-      "sha256": "b2c652415c44dec4f82a3aa881dbf0b41504d64f49bb01fdf357ed2027e72f9c",
+      "sha256": "abff3216a66e4b54e86f685ef06542b6b6c03f262f8642ba76de300673307225",
       "executable": false
     },
     "src/site/styles/sections/hero.css": {
-      "sha256": "18f654ed10fdc10c273f81ae29d5fb8cb6254f445746bf6f3d157a118fd7f0bf",
+      "sha256": "4d9317a143dffa9cb8c8831134711d22a7dc279f015fc02ad8da99ccd26132a6",
       "executable": false
     },
     "src/site/styles/sections/margin.css": {
-      "sha256": "007857fcd3c341ebe5ed0607b3af354d8967d0469b4211122b38fa324f5e2d6f",
+      "sha256": "5f1d5bf34ccc68b4db705fd1741b379cbaf100fbd3afae068b7c8ebb2212479c",
       "executable": false
     },
     "src/site/styles/sections/match.css": {
-      "sha256": "c6fc7305aceb925e45fe80fbbb3040ac0a4ea69c38caeb965265e3e5d9b81300",
+      "sha256": "d1663b142127ff1c694c16955e2f976d12479479c51a210420f8079277de90a6",
       "executable": false
     },
     "src/site/styles/sections/review.css": {
-      "sha256": "b6755204d0fdb9bb15e9acefbc9f8334d775ade35c99be7dd61319aa01500507",
+      "sha256": "352beef8ab73ace991b7b123969c9717a9346778404bcec7f0a276fbb535a618",
       "executable": false
     },
     "src/site/styles/sections/rows.css": {
-      "sha256": "146da470334b138922526c5bc3a07fb94567c7dacee143ce3f8fd2603e3d1ea8",
+      "sha256": "a443de9e19f33aee78bf174fb09e511a58f5811c933e6c4727423a983b0a8e74",
       "executable": false
     },
     "src/site/styles/sections/which.css": {

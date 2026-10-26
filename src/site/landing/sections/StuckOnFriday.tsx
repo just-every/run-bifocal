@@ -8,7 +8,7 @@ export function StuckOnFriday() {
   return <Screen id="friday" className="s-friday">
     <div className="screen-copy">
       <Question id="friday-title" lines={['Why is finance', 'stuck on Friday?']} narrow={{ below: 660, lines: ['Why is', 'finance stuck', 'on Friday?'] }} />
-      <Sentence>When the QuickBooks admin left, Bifocal kept Friday’s numbers stamped, named the fix, and finance&nbsp;reconnected.</Sentence>
+      <Sentence>When the QuickBooks admin left, Bifocal kept Friday's numbers stamped, named the fix, and finance&nbsp;reconnected.</Sentence>
     </div>
     <figure className="proof stamp">
       <p className="stamp-stale"><s><span className="nw">as of {stale.day},</span> <span className="nw">{stale.time}</span></s></p>

@@ -1,4 +1,4 @@
-/* 01, hero H built as drawn: a hard 50/50 split. Wide, every string sits where the 1536 x 1024 plate puts it, in
+/* 01, hero H with page-s2's lean offer: a hard 50/50 split. Wide, every string sits where the 1536 x 1024 plate puts it, in
    plate units (--h), around the window's center. Narrow, the yellow half comes first (header, headline, line,
    alternative line, Run Bifocal and the links, above the fold), then the cobalt block. */
 .home-hero { position: relative; background: var(--yellow); }
@@ -8,15 +8,10 @@
 .home-hero h1 .line-2 { font-size: 1.216em; }
 .hero-alt { font-weight: 400; letter-spacing: -.003em; text-wrap: pretty; }
 .hero-alt b { font-weight: 800; }
-.hero-struck s { --strike-at: 48.2%; --strike: .062em; --strike-out: -.012em; }
+.hero-struck s { --strike-at: 48.2%; --strike: .062em; --strike-out: 0; }
 .hero-label { font-weight: 800; letter-spacing: 0; line-height: 1; }
 /* The plate's "1," sits tighter than the face's own: the pair is drawn closer so the figure keeps the plate's width. */
 .hero-proof .tight { letter-spacing: -.075em; }
-.hero-list { position: relative; font-weight: 600; letter-spacing: -.004em; }
-.hero-list::before { content: ''; position: absolute; top: 0; bottom: 0; left: var(--list-rule-x); width: var(--rule-w); background: currentColor; }
-.hero-list li { border-bottom: var(--rule-w) solid currentColor; padding-left: var(--list-text-x); }
-.hero-list li:first-child { border-top: var(--rule-w) solid currentColor; }
-.hero-list .arrow { display: inline-block; vertical-align: -.02em; width: .95em; height: .7em; margin: 0 .12em 0 .02em; }
 
 @media (min-width: 1024px) {
   .home-hero { height: calc(1024 * var(--h)); }
@@ -35,10 +30,9 @@
   .hero-actions .text-link { font-size: calc(21.5 * var(--h)); }
   .hero-actions .text-link + .text-link { margin-left: calc(10 * var(--h)); }
   .hero-struck { position: absolute; left: calc(1.5 * var(--h)); top: calc(207.3 * var(--h)); font-size: calc(190 * var(--h)); }
-  .hero-figure { position: absolute; left: calc(-4 * var(--h)); top: calc(388.2 * var(--h)); font-size: calc(300 * var(--h)); }
+  .hero-figure { position: absolute; left: 0; top: calc(388.2 * var(--h)); font-size: calc(300 * var(--h)); }
   .hero-label { position: absolute; left: calc(1.4 * var(--h)); top: calc(685.2 * var(--h)); font-size: calc(62.8 * var(--h)); }
-  .hero-list { position: absolute; left: calc(2 * var(--h)); top: calc(778.5 * var(--h)); width: calc(681 * var(--h)); font-size: calc(25.5 * var(--h)); --rule-w: max(1px, calc(1.6 * var(--h))); --list-rule-x: calc(22 * var(--h)); --list-text-x: calc(46.5 * var(--h)); }
-  .hero-list li { height: calc(52 * var(--h)); line-height: calc(50 * var(--h)); white-space: nowrap; }
+
 }
 
 @media (max-width: 1023.98px) {
@@ -54,12 +48,11 @@
   .hero-actions .text-link { font-size: 18px; padding: 6px 0; }
   .hero-proof { background: var(--cobalt); padding: 72px var(--gutter) 80px; }
   .hero-proof > * { max-width: 640px; }
-  /* The gaps grow with the figures, so a comma's tail never meets the figure or label below it. */
+  /* Keep the proof whole, with air below the customer label. */
   .hero-struck { font-size: min(170px, 24.6cqi); }
   .hero-figure { margin-top: .12em; font-size: min(260px, 37.4cqi); }
   .hero-label { margin-top: calc(min(260px, 37.4cqi) * .2); font-size: clamp(30px, 8.2cqi, 44px); }
-  .hero-list { margin-top: 28px; font-size: clamp(17px, 4.6cqi, 21px); --rule-w: 1.5px; --list-rule-x: 14px; --list-text-x: 30px; }
-  .hero-list li { padding-top: 10px; padding-bottom: 10px; line-height: 1.35; }
+
 }
 @media (max-width: 600px) {
   .hero-actions .run-button { flex: 1 1 100%; }

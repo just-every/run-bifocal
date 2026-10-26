@@ -1,5 +1,5 @@
 // Every figure the homepage prints, in one place, so the hero and the screens read the same records (desk page round
-// 2, page-s1/STRUCTURE.md "Records"). Each screen asks one Monday question of a different example US company; dates
+// 2, page-s2/STRUCTURE.md "Records"). Each screen asks one question of a different example US company; dates
 // are 2026, times Eastern. Names beyond the page copy stay off the page.
 export const records = {
   // 01 and 02: Tidewell Software's active customers, HubSpot against the board deck built from Stripe.
@@ -10,7 +10,7 @@ export const records = {
   rows: { shown: '212', total: '212', amount: '$318,450.00' },
   // 05: Fernway Outfitters' QuickBooks refresh, kept stamped and then current again.
   refresh: { stale: { day: 'Fri Oct 16', time: '2:00 am' }, current: { day: 'Sat Oct 17', time: '9:27 am' } },
-  // 06: Fernway's weekly review, drafted by the report agent and sent by the COO.
+  // 06: Fernway's weekly review, drafted by the report agent and approved by the COO.
   review: { day: 'Mon Oct 19', netSales: 612_400, priorNetSales: 577_200, outerwear: 29_800, jackets: 200, jacketPrice: 149 },
   // 07: Granite's Power BI workspace, every tile compared before the switch.
   tiles: { matched: '186', total: '186' },

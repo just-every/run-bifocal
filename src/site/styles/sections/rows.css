@@ -3,10 +3,11 @@
 .rows-figure { color: var(--white); }
 @media (min-width: 1024px) {
   .s-rows { --copy-w: 960; }
+  .s-rows .sentence { max-width: calc(960 * var(--u)); }
   .s-rows::before { content: ''; position: absolute; left: 0; right: 0; top: calc(516 * var(--u)); bottom: 0; background: var(--cobalt); }
   .rows-figure { left: calc(120 * var(--u)); top: 0; width: calc(1200 * var(--u)); height: 100%; }
-  .rows-figure .numeral { position: absolute; left: calc(-6 * var(--u)); top: calc(574.8 * var(--u)); font-size: calc(200 * var(--u)); }
-  .rows-figure .label { position: absolute; left: calc(-1 * var(--u)); top: calc(755.1 * var(--u)); white-space: nowrap; }
+  .rows-figure .numeral { position: absolute; left: 0; top: calc(574.8 * var(--u)); font-size: calc(200 * var(--u)); }
+  .rows-figure .label { position: absolute; left: 0; top: calc(755.1 * var(--u)); white-space: nowrap; }
 }
 @media (max-width: 1023.98px) {
   /* "Can I see the rows?" fills the 640 px measure on tablets; it may run past it rather than wrap. Below 760 px it

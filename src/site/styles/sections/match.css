@@ -1,15 +1,15 @@
-/* 07 "Does it match Power BI?": the hero's split mirrored (builder fix 2): the words on yellow at the left, the giant
-   "186" over "of 186 tiles match" on cobalt at the right, on the proof baseline. */
+/* 07 "Does it match Power BI?": the hero's exact split returns: the words on yellow at the right, the giant
+   "186" over "of 186 tiles match" on cobalt at the left, on the proof baseline. */
 .match-figure { color: var(--white); }
 @media (min-width: 1024px) {
-  .s-match { --q: 100; --copy-w: 556; }
+  .s-match { --q: 112; --copy-w: 556; }
   /* "Does it" has no ascender: the copy sits 8 px higher so its ink still starts on the 160 px line. */
-  .s-match .screen-copy { top: calc(150 * var(--u)); }
-  .s-match .sentence { max-width: calc(556 * var(--u)); }
-  .match-figure { right: calc(120 * var(--u)); top: 0; width: calc(600 * var(--u)); height: 100%; }
-  .match-figure > * { position: absolute; right: 0; }
-  .match-figure .numeral { top: calc(533.5 * var(--u)); right: 0; font-size: calc(272 * var(--u)); }
-  .match-figure .label { top: calc(755.1 * var(--u)); white-space: nowrap; }
+  .s-match .screen-copy { left: calc(764 * var(--u)); top: calc(150 * var(--u)); }
+  .s-match .sentence { max-width: calc(556 * var(--u)); font-size: calc(36 * var(--u)); line-height: calc(52 * var(--u)); }
+  .match-figure { left: calc(120 * var(--u)); top: 0; width: calc(560 * var(--u)); height: 100%; }
+  .match-figure > * { position: absolute; left: 0; }
+  .match-figure .numeral { top: calc(504 * var(--u)); font-size: calc(300 * var(--u)); }
+  .match-figure .label { bottom: calc(160 * var(--u)); font-size: calc(54 * var(--u)); white-space: nowrap; }
 }
 @media (max-width: 1023.98px) {
   .match-figure .numeral { font-size: min(280px, 51cqi); }

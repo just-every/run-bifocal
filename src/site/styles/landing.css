@@ -2,7 +2,7 @@
    --u is one pixel of the 1440 design (up to a 1600 px stage, centered) and --h one pixel of the 1536 hero plate (the
    hero also shrinks on short windows so Run Bifocal stays above the fold). The rhythm is the build notes': 120 px side
    margins, every question's ink 160 px from the top, every proof on one baseline 160 px from the bottom, sentences at
-   28/40. Narrower, each screen stacks its words first and its proof second on the phone rules: 24 px gutters, 72 px
+   28/40 except 03 and 07, whose larger sentences follow the picked plates. Narrower, each screen stacks its words first and its proof second on the phone rules: 24 px gutters, 72 px
    top and bottom, each screen at least one window tall, questions at 52 px, sentences at 19/28. */
 .landing {
   position: relative;
@@ -16,7 +16,7 @@
 .screen { position: relative; background: var(--yellow); }
 .question { line-height: 1; }
 .sentence { font-weight: 400; letter-spacing: -.003em; text-wrap: pretty; }
-.numeral { font-family: var(--font-sans); font-weight: 850; letter-spacing: -.035em; word-spacing: .08em; line-height: .78; font-variant-numeric: proportional-nums; white-space: nowrap; }
+.numeral { font-family: 'Bifocal Page Figure', var(--font-sans); font-weight: 850; letter-spacing: -.035em; word-spacing: .08em; line-height: .8; font-variant-numeric: proportional-nums; white-space: nowrap; }
 .label { font-family: var(--font-sans); font-weight: 800; letter-spacing: -.012em; line-height: 1.1; }
 .proof { margin: 0; }
 s { text-decoration: none; position: relative; }
@@ -34,7 +34,6 @@ s::after { content: ''; position: absolute; left: var(--strike-out, -.02em); rig
   .label { font-size: calc(48 * var(--u)); }
   /* 03 and 07 split at the hero's seam: cobalt on one half, yellow on the other. */
   .split-screen::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 50%; background: var(--cobalt); }
-  .split-screen.mirrored::before { left: 50%; }
 }
 
 @media (max-width: 1023.98px) {

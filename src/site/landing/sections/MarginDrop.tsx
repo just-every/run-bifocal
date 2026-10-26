@@ -49,18 +49,18 @@ function Waterfall({ orientation }: { orientation: 'vertical' | 'horizontal' }) 
     </div>
   }
   // Phone: the axis is the left edge, bars run right; 77.9 a point, as the desk's phone plan draws it (204.5 at 2.626x).
-  const unit = 77.9, left = 4, rowH = 92, barH = 26
+  const unit = 77.9, left = 4, rowH = 86, barH = 26, barY = 18
   const x = (value: number) => left + (value - axisFrom) * unit
-  const width = x(aug) + 6, height = steps.length * rowH + 10
+  const width = x(aug) + 6, height = (steps.length - 1) * rowH + barY + barH + 10
   return <div className="waterfall waterfall-h">
     <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
       <g className="wf-lines">
         <path className="wf-axis" d={`M${left} 8V${height - 6}`} />
         <path className="wf-break" d={`M${left - 4} ${height - 2}l8-10M${left - 4} ${height + 5}l8-10`} />
-        {steps.map((step, i) => <rect key={step.name} x={x(step.from)} y={i * rowH + 44} width={x(step.to) - x(step.from)} height={barH} />)}
-        {steps.slice(0, 3).map((step, i) => { const level = i === 0 ? step.to : step.from; return <path key={i} className="wf-link" d={`M${x(level)} ${i * rowH + 44 + barH}V${(i + 1) * rowH + 44}`} /> })}
+        {steps.map((step, i) => <rect key={step.name} x={x(step.from)} y={i * rowH + barY} width={x(step.to) - x(step.from)} height={barH} />)}
+        {steps.slice(0, 3).map((step, i) => { const level = i === 0 ? step.to : step.from; return <path key={i} className="wf-link" d={`M${x(level)} ${i * rowH + barY + barH}V${(i + 1) * rowH + barY}`} /> })}
       </g>
     </svg>
-    <ul className="wf-labels">{steps.map((step, i) => <li key={step.name} style={{ left: pct(x(step.from) + (i === 0 || i === 3 ? 4 : 0), width), top: pct(i * rowH + 16, height) }}><span className="nw">{step.name} {step.value}</span></li>)}</ul>
+    <ul className="wf-labels">{steps.map((step, i) => <li key={step.name} style={{ left: pct(x(step.from) + (i === 0 || i === 3 ? 4 : 0), width), top: pct(i * rowH + 2, height) }}><span className="nw">{step.name} {step.value}</span></li>)}</ul>
   </div>
 }

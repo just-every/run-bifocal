@@ -15,11 +15,19 @@
 @media (min-width: 1024px) {
   .s-margin { --q: 100; --copy-w: 556; }
   .s-margin .screen-copy { left: calc(764 * var(--u)); }
-  .s-margin .sentence { max-width: calc(556 * var(--u)); }
+  .s-margin .sentence { margin-top: calc(50 * var(--u)); max-width: calc(556 * var(--u)); font-size: calc(40 * var(--u)); line-height: calc(56 * var(--u)); }
   .s-margin .proof { left: calc(120 * var(--u)); top: calc(461 * var(--u)); width: calc(560 * var(--u)); }
   .waterfall-h { display: none; }
 }
 @media (max-width: 1023.98px) {
   .waterfall-v { display: none; }
   .waterfall-h { width: 100%; max-width: 440px; }
+}
+
+@media (max-width: 600px) {
+  .s-margin .screen-copy, .s-margin .proof { min-height: 150cqi; }
+  .s-margin .screen-copy { padding-top: 60px; }
+  .s-margin .question { font-size: clamp(53px, 14.87cqi, 68px); }
+  .s-margin .sentence { font-size: clamp(22px, 6.15cqi, 26px); line-height: 1.17; }
+  .s-margin .proof { justify-content: flex-start; padding-top: 64px; }
 }

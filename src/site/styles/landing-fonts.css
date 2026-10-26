@@ -1,0 +1,28 @@
+/* The existing brand faces, with page-local line metrics. Their original font tables reserve large swash/descender
+   boxes even for plain numerals; these metrics keep adjacent lines and their DOM boxes in the same rhythm. */
+@font-face {
+  font-family: 'Bifocal Page Sans'; font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url('/fonts/mona-sans/mona-sans-latin-wght-normal.woff2') format('woff2');
+  ascent-override: 80%; descent-override: 20%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Bifocal Page Figure'; font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url('/fonts/mona-sans/mona-sans-latin-wght-normal.woff2') format('woff2');
+  ascent-override: 74%; descent-override: 2%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Bifocal Customer Figure'; font-style: normal; font-weight: 200 900; font-display: swap;
+  src: url('/fonts/mona-sans/mona-sans-latin-wght-normal.woff2') format('woff2');
+  ascent-override: 74%; descent-override: 17%; line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Bifocal Page Brush'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/kaushan-script/kaushan-script-latin-400-normal.woff2') format('woff2');
+  ascent-override: 85%; descent-override: 15%; line-gap-override: 0%;
+}
+.landing {
+  --font-sans: 'Bifocal Page Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-brush: 'Bifocal Page Brush', 'Segoe Script', 'Brush Script MT', cursive;
+  font-family: var(--font-sans);
+}
+.landing .hero-proof .numeral { font-family: 'Bifocal Customer Figure', var(--font-sans); line-height: .92; }
