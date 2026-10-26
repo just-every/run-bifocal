@@ -57,6 +57,40 @@ export async function proveDashboardInteractions({origin,context,page,upload,pro
    assert.equal((await api('/queries/'+result.queryId+'/rerun',{},200)).reproduced,true)
   }
  }
+ // Civil date windows are independent of the fiscal period and include leap
+ // day, a year crossing, and an explicit Monday week start.
+ const civilDataset='synthetic-bifocal-relative-civil',civilCalendar='synthetic-bifocal-relative-monday'
+ await upload(civilDataset,'invoice,date,region,revenue\n1,12/31/2023,West,1.00\n2,01/01/2024,West,2.00\n3,01/28/2024,West,4.00\n4,01/29/2024,West,8.00\n5,01/31/2024,West,16.00\n6,02/01/2024,West,32.00\n7,02/23/2024,West,64.00\n8,02/24/2024,West,128.00\n9,02/25/2024,West,256.00\n10,02/26/2024,West,512.00\n11,02/28/2024,West,1024.00\n12,02/29/2024,West,2048.00\n13,03/01/2024,West,4096.00\n')
+ await api('/calendars',{id:civilCalendar,previousVersion:null,definition:{name:'July fiscal year with Monday weeks',kind:'fiscal',startMonth:7,weekStartsOn:1}})
+ const civilQuery={...query,dataset:civilDataset,context:{...query.context,calendar:{id:civilCalendar,version:1}},fiscal:{column:'date',asOf:'2024-02-29',window:'month-to-date'}}
+ const civilModel=await api('/models',{definition:{views:[{id:'sales',kind:'chart',query:civilQuery,rowRules:[]}],quality:[]}}),civilBranch='/models/'+civilModel.modelId+'/branches/'+civilModel.branchId,civilReview=await api(civilBranch+'/validate',{},200)
+ assert.equal(civilReview.compatible,true);await api(civilBranch+'/approve',{digest:civilReview.digest},200);await api(civilBranch+'/promote',{environment:'staging',digest:civilReview.digest},200);await api(civilBranch+'/promote',{environment:'production',digest:civilReview.digest},200)
+ const civilDocument=structuredClone(targetDocument);civilDocument.title='Civil relative dates';civilDocument.cards=civilDocument.cards.map(c=>({key:c.key,definition:{...civilQuery,context:{...civilQuery.context,modelVersion:civilModel.revision}}}));civilDocument.interactions.fiscalParameters[0].default={asOf:'2024-02-29',window:'month-to-date'}
+ const civilSaved=await publish(await save(civilDocument)),civilEndpoint='/dashboard-authoring/'+civilSaved.id,civilCases=[
+  ['as-of-day','2024-02-29',['12'],'2048.00'],
+  ['previous-day','2024-03-01',['12'],'2048.00'],
+  ['week-to-date','2024-02-29',['10','11','12'],'3584.00'],
+  ['month-to-date','2024-02-29',['6','7','8','9','10','11','12'],'4064.00'],
+  ['previous-week','2024-02-29',['7','8','9'],'448.00'],
+  ['previous-month','2024-02-29',['2','3','4','5'],'30.00'],
+  ['last-7-days','2024-02-29',['7','8','9','10','11','12'],'4032.00'],
+  ['last-30-days','2024-02-29',['5','6','7','8','9','10','11','12'],'4080.00'],
+  ['previous-month','2024-01-01',['1'],'1.00'],
+  ['previous-day','2024-01-01',['1'],'1.00'],
+ ]
+ for(const [window,asOf,invoices,total] of civilCases){
+  const selection={fiscal:{period:{asOf,window}}},result=await api(civilEndpoint+'/run',{selection},200),records=await api(civilEndpoint+'/source-records',{selection,actionId:'source-invoices'},200)
+  assert.equal(result.cards[0].answer.totals.revenue.value,total,window+' '+asOf);assert.deepEqual(records.rows.map(row=>row.invoice),invoices,window+' exact bounds')
+  const independent=await api('/queries/run',{...civilQuery,fiscal:{column:'date',asOf,window}});assert.equal(independent.answer.totals.revenue.value,total);assert.equal((await api('/queries/'+independent.queryId+'/rerun',{},200)).reproduced,true)
+ }
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboard-authoring/'+civilSaved.id+'/view');await page.getByRole('table',{name:'Exact all-sales results',exact:true}).waitFor();await page.getByText('Filters and parameters',{exact:true}).click()
+  for(const [window,asOf,,total] of civilCases.slice(0,8)){
+   const cutoff=page.getByLabel('Fiscal period as of',{exact:true});await cutoff.fill(asOf);await Promise.all([page.waitForResponse(r=>r.url().endsWith(civilEndpoint+'/run')&&r.status()===200),cutoff.dispatchEvent('change')])
+   await page.getByLabel('Fiscal period window',{exact:true}).selectOption(window);await page.waitForFunction(total=>document.querySelector('[data-card-key="all-sales"] .published-totals dd')?.textContent.replaceAll(',','').includes(total),total)
+   await proveScreen('authored-dashboard-civil-'+window,{widths:[width],resize:false})
+  }
+ }
  const sourceRows=await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices'},200);assert.deepEqual(sourceRows.rows.map(row=>[row.invoice,row.region,row.revenue]),[['2','West','10.00'],['4','West','30.00']]);assert.equal(sourceRows.totalRows,2)
  const exactRecord=await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'4'}},200);assert.equal(exactRecord.rows[0].date,'2026-09-01');await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'3'}},404);await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{invoice:'1'}},404);await api(endpoint+'/source-records',{selection:annual,actionId:'source-invoices',record:{revenue:'30.00'}},400)
  const counts=await run({...annual,fields:{breakdown:'date'}});assert.equal(counts.cards[0].answer.totals.orders.value,'2');assert.equal(counts.cards[0].answer.totals.revenue,undefined)

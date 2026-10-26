@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "de41a70d934c95f48910880dded4bf8dbe466d2187737df7e54e2b3908cce70d",
+      "sha256": "c9362bab835d9c4ddb0c7a23edcc42268a67798376708dbc4857da643fe7503e",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f6f33466ee5c3182fbf3d619b900b9bdd3e71428e724bf2d1dd1aee132e39878",
+      "sha256": "350088bed8c5dbc945a0c9fd58f87e8663dd02b1ce72f67ffb8181c0bbf98aa2",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -825,11 +825,11 @@
       "executable": false
     },
     "public/bifocal/dashboard-reader.js": {
-      "sha256": "d9d69d19e6a713d1f0f4f0017aa38f636107daa38a82c4ed4d81f003ebb1ecef",
+      "sha256": "1b749843abcb4737fc487bce06fc4d44d4caed5951fa30c3460e91d3be912472",
       "executable": false
     },
     "public/bifocal/dashboard-snapshots.js": {
-      "sha256": "2f0caed592d3ed396d167b286c84ca71d765030c676cabdf81f82f651fe153e5",
+      "sha256": "3f5a8d88ffd5ac2d417785a668dc12e9eab3adaf6d5be95f62b3271590d49996",
       "executable": false
     },
     "public/bifocal/dashboard-tv.css": {
@@ -1541,7 +1541,7 @@
       "executable": false
     },
     "src/bifocal/calendars/fiscal.ts": {
-      "sha256": "8bb2eb92a1da85dcc7975839f7d97427a93eb02e48f99f07185fde21f5b23773",
+      "sha256": "bb33184caf194e0ee31c43ea1f68bacd12c9fdfe0432acb3c8a5a715c74f6e6b",
       "executable": false
     },
     "src/bifocal/calendars/holidays.ts": {
@@ -1753,11 +1753,11 @@
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/response.server.ts": {
-      "sha256": "d353cd548cb6794a2e7642a39fa449fe4d5dc44cd82d7e1acb95a418ed65204c",
+      "sha256": "d474efe1ccf881c56e52ef329cc839bc8c60682148076766c09382bbc5c54dde",
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/scene.ts": {
-      "sha256": "54d526f10b6d45d4723cc414e481d64367eceb52285ede5700bd9475156cb793",
+      "sha256": "573ea04c50d106537d06e0ee9639db8bcc85bea68cd71280664f5d88b691ded1",
       "executable": false
     },
     "src/bifocal/dashboards/store.server.ts": {
@@ -4433,11 +4433,11 @@
       "executable": false
     },
     "tests/journeys/dashboard-interactions.mjs": {
-      "sha256": "e7f5d584e5ca783b558462f233a139b85d8118898b53f5dae2747b930dc064d9",
+      "sha256": "31137911b1c041ffa22aa84c5a2237bb8cc582ca8148da8dd0989ef20163e06e",
       "executable": false
     },
     "tests/journeys/dashboard-snapshots.mjs": {
-      "sha256": "6b6da4ebb137b9a31e3b82a554ad0e48df87e5e64702a9e71ee87c01577ec01e",
+      "sha256": "22679150486e2e1760fbd50336a10ae09e74f39d84598337e7a9c0314fb94632",
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {

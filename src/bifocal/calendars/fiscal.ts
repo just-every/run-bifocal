@@ -54,12 +54,24 @@ export function classifyDate(definition: CalendarDefinition, input: unknown) {
  return { date: civil, fiscalYear: label, period: period.period, quarter: period.quarter, week: definition.kind === 'fiscal' ? null : Math.floor((dayNumber(civil) - dayNumber(fiscal.start)) / 7) + 1 }
 }
 
-export const FISCAL_WINDOWS = ['period-to-date', 'quarter-to-date', 'year-to-date', 'previous-period', 'previous-quarter', 'previous-year'] as const
+export const FISCAL_WINDOWS = ['period-to-date', 'quarter-to-date', 'year-to-date', 'previous-period', 'previous-quarter', 'previous-year', 'as-of-day', 'previous-day', 'week-to-date', 'month-to-date', 'previous-week', 'previous-month', 'last-7-days', 'last-30-days'] as const
 export type FiscalWindow = typeof FISCAL_WINDOWS[number]
 /** Explicit civil cutoff and immutable calendar revision determine every bound.
  * Complete prior periods use the calendar's half-open intervals, including the
  * extra retail week; they never subtract an assumed number of days or months. */
 export function fiscalWindow(definition: CalendarDefinition, asOf: string, window: FiscalWindow) {
+ date(asOf)
+ // Civil windows use the explicit cutoff, with the calendar's configured week
+ // start. Rolling windows include that day; no wall clock enters the query.
+ const end = addDays(asOf, 1), weekStart = addDays(asOf, -(weekday(asOf) - definition.weekStartsOn + 7) % 7)
+ const civilYear = yearOf(asOf), month = Number(asOf.slice(5, 7)), monthStart = monthDate(civilYear, month, 1)
+ if (window === 'as-of-day') return { start: asOf, end }
+ if (window === 'previous-day') return { start: addDays(asOf, -1), end: asOf }
+ if (window === 'week-to-date') return { start: weekStart, end }
+ if (window === 'month-to-date') return { start: monthStart, end }
+ if (window === 'previous-week') return { start: addDays(weekStart, -7), end: weekStart }
+ if (window === 'previous-month') return { start: monthDate(month === 1 ? civilYear - 1 : civilYear, month === 1 ? 12 : month - 1, 1), end: monthStart }
+ if (window === 'last-7-days' || window === 'last-30-days') return { start: addDays(asOf, window === 'last-7-days' ? -6 : -29), end }
  const position = classifyDate(definition, asOf), year = fiscalYear(definition, position.fiscalYear)
  const period = year.periods[position.period - 1]
  if (window === 'period-to-date') return { start: period.start, end: addDays(asOf, 1) }
