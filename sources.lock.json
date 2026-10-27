@@ -917,7 +917,7 @@
       "executable": false
     },
     "public/bifocal/model-import.js": {
-      "sha256": "98dd646b3284f3e039c5a073ae1a11c571f982146eb6d558407bf328382c8617",
+      "sha256": "de733b6d8e0da274b320168e18815dbfdfea2b432783a190d7de2657bb02474c",
       "executable": false
     },
     "public/bifocal/models.js": {
@@ -4745,7 +4745,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "03160fac21ae9a2011c31f8cb6d4cb762e2ea2aa74000b12a5301bd5b0ac8e55",
+      "sha256": "d02d721d5f2e1eb8e9a8bfeb70b201f66b906738c6532d1577439454c761157f",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
