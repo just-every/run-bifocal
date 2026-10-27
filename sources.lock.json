@@ -4609,7 +4609,7 @@
       "executable": false
     },
     "tests/journeys/composition-tooling.mjs": {
-      "sha256": "c02198ef28cdb1f53624bc10c78f1b01bc018a894e8c3d33d7db3e63d06fafb9",
+      "sha256": "3ef193b479c961c234b08ea6cae13564f5bff6d7f465566033d358d19af7e9b0",
       "executable": false
     },
     "tests/journeys/content-browser.mjs": {
