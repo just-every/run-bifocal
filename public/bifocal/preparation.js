@@ -1,14 +1,17 @@
 import {element,metadata,table} from './file-view.js'
 import {newStep,renderGraph,graphSQL} from './preparation-graph.js'
 import {showPreparationReview} from './preparation-review.js'
+import {preparationPublication} from './preparation-publication.js'
+import {preparationFlow} from './preparation-flow.js'
 
 const $=id=>document.getElementById(id),form=$('preparation-form')
 if(form){
  const section=$('preparation'),mode=$('prep-mode'),dataset=$('prep-dataset'),sql=$('prep-sql')
- let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual'
+ let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual',imported=null
  const status=(message,error=false)=>{$('prep-status').textContent=message;$('prep-status').dataset.error=String(error)}
  const validId=(value,label)=>{if(!/^[a-z][a-z0-9-]{0,63}$/.test(value))throw Error('Enter a valid '+label+' using lowercase letters, digits and hyphens.');return value}
  const id=()=>validId($('prep-id').value,'preparation ID')
+ const publication=preparationPublication(()=>({id:headId,version}))
  function controls(){
   $('prep-save').disabled=busy||!reviewed?.compatible||!$('prep-confirm').checked
   $('prep-add').disabled=busy||steps.length>=32
@@ -41,9 +44,10 @@ if(form){
  async function loadHead(preparation){
   let current
   try{current=await call(preparation)}catch(error){if(error.status!==404)throw error;current={version:null,revisions:[]}}
-  headId=preparation;version=current.version;revisions=current.revisions;history();return current
+  headId=preparation;version=current.version;revisions=current.revisions;publication.reset();history();return current
  }
- function useDocument(document){dataset.value=document.dataset;steps=structuredClone(document.steps);sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
+ function useDocument(document){dataset.value=document.dataset;steps=structuredClone(document.steps);imported=document.imported??null;sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
+ preparationFlow(id,document=>{useDocument(document);editingMode('visual');status('Original flow translated into an editable native draft. Review its exact output before saving. Original output equivalence remains unverified.')})
  function selectedRevision(){
   if(headId!==id())throw Error('Load the current preparation first.')
   const revision=revisions.find(item=>item.version===Number($('prep-revision').value))
@@ -53,16 +57,16 @@ if(form){
  async function review(restoreRevision){
   const preparation=id();validId(dataset.value,'source dataset ID')
   invalidate();if(headId!==preparation)await loadHead(preparation)
-  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,previousVersion:version}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps)},previousVersion:version}
+  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,...imported?{imported}:{},previousVersion:version}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps),...imported?{imported}:{}},previousVersion:version}
   const value=await call(preparation,'review',payload)
-  steps=structuredClone(value.document.steps);dataset.value=value.document.dataset;sql.value=value.sql;graph()
+  steps=structuredClone(value.document.steps);imported=value.document.imported??null;dataset.value=value.document.dataset;sql.value=value.sql;graph()
   reviewed={id:preparation,payload,digest:value.digest,version,compatible:value.compatible,restoreVersion:restoreRevision?.version}
   $('prep-save').textContent=restoreRevision?'Restore reviewed draft revision':'Save reviewed draft'
   showPreparationReview($('prep-review-report'),value,version,restoreRevision?.version);$('prep-review').hidden=false
   status(value.compatible?(restoreRevision?'Prior revision reviewed against current sources. Confirm the exact output before restoring.':'Draft reviewed. Inspect output, source revisions and lineage before saving.'):'Draft blocked at step '+value.error.step+': '+value.error.code+'. The saved draft is unchanged.')
  }
- $('prep-id').addEventListener('input',()=>{headId=null;version=null;revisions=[];invalidate();history()})
- dataset.addEventListener('input',()=>{$('prep-source').replaceChildren();changed();$('prep-graph-source').textContent=(dataset.value||'Source dataset')+' → '+steps.length+' ordered steps → draft output'})
+ $('prep-id').addEventListener('input',()=>{headId=null;version=null;revisions=[];publication.reset();invalidate();history()})
+ dataset.addEventListener('input',()=>{imported=null;$('prep-source').replaceChildren();changed();$('prep-graph-source').textContent=(dataset.value||'Source dataset')+' → '+steps.length+' ordered steps → draft output'})
  sql.addEventListener('input',invalidate)
  $('prep-confirm').addEventListener('change',controls)
  $('prep-revision').addEventListener('change',invalidate)

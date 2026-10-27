@@ -14,6 +14,8 @@ import {provePolicyTooling} from './policy-tooling.mjs'
 import {proveBoardTooling} from './board-tooling.mjs'
 import {proveRecurringTooling} from './recurring-tooling.mjs'
 import {proveEnvironmentTooling} from './environment-tooling.mjs'
+import {provePreparationImports} from './preparation-import.mjs'
+import {provePreparationFlowBrowser} from './preparation-flow-browser.mjs'
 
 export async function proveModelImports({origin,context,page,call,upload,proveScreen,signInMember}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
@@ -590,7 +592,65 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  await page.getByRole('button',{name:'Load saved preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Current saved draft loaded'}).waitFor();assert.equal(await page.getByLabel('Step 2: Arithmetic',{exact:true}).inputValue(),'multiply')
  assert.deepEqual((await call('/preparations/'+browserID)).revisions.map(r=>r.version),[1,2,3]);assert.deepEqual(await call('/datasets/'+dataset),initial)
  await proveScreen('preparation-restored')
+ // A reviewed saved revision becomes a new native dataset, never an in-place
+ // change to input records or a certified definition.
+ const outputID='synthetic-bifocal-101',browserOutputID='synthetic-bifocal-102',childOutputID='synthetic-bifocal-103'
+ const publicationBody={dataset:outputID,version:3}
+ await call(path+'/publish-review',{...publicationBody,version:2},409)
+ await call(path+'/publish-review',{...publicationBody,dataset},409)
+ const publication=await call(path+'/publish-review',publicationBody,200)
+ assert.deepEqual(publication.output,review.output);assert.equal(publication.published,false)
+ await call('/datasets/'+outputID,undefined,404)
+ await call(path+'/publish',{...publicationBody,reviewedDigest:'stale'},409)
+ const published=await call(path+'/publish',{...publicationBody,reviewedDigest:publication.digest})
+ assert.equal(published.published,true);assert.equal(published.version,3)
+ const materialized=await call('/datasets/'+outputID)
+ assert.deepEqual(materialized.table.rows,review.output.rows);assert.deepEqual(materialized.table.columns,review.output.columns)
+ assert.deepEqual(materialized.preparation.lineage,review.output.lineage);assert.equal(materialized.preparation.current,true)
+ assert.equal(materialized.preparation.immutable,true);assert.equal(materialized.preparation.version,3)
+ await call(path+'/publish',{...publicationBody,reviewedDigest:publication.digest},409)
+ assert.deepEqual(await call('/datasets/'+dataset),initial)
+ assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11')
+ const publishedAnswer=await call('/queries/run',{...quantityQuery,dataset:outputID})
+ assert.equal(publishedAnswer.answer.totals.quantity.value,'9')
+ const publishedChartDocument={...chartDocument,title:'Prepared regional quantity',definition:{...quantityQuery,dataset:outputID,groupBy:['region']}}
+ const publishedChartReview=await call('/chart-definitions/review',{document:publishedChartDocument},200)
+ const publishedChart=await call('/chart-definitions/create',{document:publishedChartDocument,reviewedDigest:publishedChartReview.digest})
+ const overwrite=await context.request.post(origin+'/api/operator/import/uploads',{headers:{Origin:origin,'X-Import-Dataset':outputID},data:{}})
+ assert.equal(overwrite.status(),409);assert.equal((await overwrite.json()).error,'preparation_output_immutable')
+ // A second preparation retains original transitive column lineage and owes
+ // the original parent erasure even after multiple materializations.
+ const childPath='/preparations/synthetic-bifocal-104',childDocument={version:1,dataset:outputID,steps:[{op:'dedupe'}]}
+ const childReview=await call(childPath+'/review',{document:childDocument,previousVersion:null},200)
+ assert.deepEqual(childReview.output.lineage.amount,review.output.lineage.amount)
+ await call(childPath+'/save',{document:childDocument,previousVersion:null,reviewedDigest:childReview.digest})
+ const childPublication=await call(childPath+'/publish-review',{dataset:childOutputID,version:1},200)
+ await call(childPath+'/publish',{dataset:childOutputID,version:1,reviewedDigest:childPublication.digest})
+ assert.deepEqual((await call('/datasets/'+childOutputID)).table.rows,review.output.rows)
+ await page.locator('#prep-publication summary').click()
+ await page.getByLabel('Prepared dataset ID',{exact:true}).fill(browserOutputID)
+ await page.getByRole('button',{name:'Review saved output for publication',exact:true}).click()
+ await page.locator('#prep-publish-status').filter({hasText:'Saved output reviewed'}).waitFor()
+ assert.deepEqual(await page.getByRole('table',{name:'Publication output rows',exact:true}).locator('tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>cell.textContent))),[['a','West','2','0.10','12','0.2'],['b','East','3','0.20','bad','0.6'],['c','NULL','4','NULL','14','NULL']])
+ await proveScreen('preparation-publication-review')
+ await page.getByLabel('I approve this saved version and exact output as a new dataset',{exact:true}).check()
+ await page.getByRole('button',{name:'Publish reviewed dataset',exact:true}).click()
+ await page.locator('#prep-publish-status').filter({hasText:'Prepared dataset '+browserOutputID+' published from revision 3'}).waitFor()
+ assert.deepEqual((await call('/datasets/'+browserOutputID)).table.rows.map(row=>row[5]),['0.2','0.6',null])
+ await proveScreen('preparation-published-dataset')
+ await page.getByRole('button',{name:'Review saved output for publication',exact:true}).click()
+ await page.locator('#prep-publish-status').filter({hasText:'preparation_output_unavailable'}).waitFor()
+ await proveScreen('preparation-publication-refused')
+ await page.getByLabel('Dataset id',{exact:true}).fill(outputID)
+ await page.getByRole('button',{name:'Load dataset',exact:true}).click()
+ await page.getByRole('table',{name:'Prepared input revisions',exact:true}).waitFor()
+ assert.match(await page.locator('#current-table').innerText(),/Pinned input revisions still current/)
+ await proveScreen('preparation-dataset-custody')
+ await page.goto(origin+'/app/charts/'+publishedChart.id)
+ assert.equal((await call('/charts/'+publishedChart.id)).answer.totals.quantity.value,'9')
+ await proveScreen('preparation-published-chart')
  assert.equal((await context.request.post(origin+'/api/operator'+path+'/review',{headers:{Origin:'https://foreign.example.test'},data:{document,previousVersion:3}})).status(),401)
+ for(const action of ['publish-review','publish'])assert.equal((await context.request.post(origin+'/api/operator'+path+'/'+action,{headers:{Origin:'https://foreign.example.test'},data:publicationBody})).status(),401)
  const member=await context.browser().newContext({ignoreHTTPSErrors:true})
  try{
   const email='synthetic-bifocal-preparation-member@example.test'
@@ -599,16 +659,27 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
   await signInMember(member,email)
   const session=await member.request.get(origin+'/auth/session');assert.equal(session.status(),200);const identity=await session.json();assert.equal(identity.kind,'native');assert.equal(identity.operator.role,'member');assert.equal(identity.operator.email,email)
   assert.equal((await member.request.get(origin+'/api/operator'+path)).status(),401)
-  for(const action of ['review','save','restore'])assert.equal((await member.request.post(origin+'/api/operator'+path+'/'+action,{headers:{Origin:origin},data:{document,previousVersion:3,restoreVersion:1,reviewedDigest:restoreReview.digest}})).status(),401)
+  for(const action of ['review','save','restore','publish-review','publish'])assert.equal((await member.request.post(origin+'/api/operator'+path+'/'+action,{headers:{Origin:origin},data:{document,previousVersion:3,restoreVersion:1,reviewedDigest:restoreReview.digest}})).status(),401)
  }finally{await member.close()}
  const stale=await preview(document,3)
  await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]},3);assert.equal((await call('/charts/'+chart.id)).preparationErrors.length,1)
  await upload(dataset,csv.replace('2,0.10','2,0.11'),true);assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'Obsolete draft warnings disappear when a pinned source changes')
+ assert.equal((await call('/datasets/'+outputID)).preparation.current,false)
+ assert.equal((await call('/datasets/'+childOutputID)).preparation.current,false,'Prepared input freshness reaches every ancestor')
+ assert.deepEqual((await call('/datasets/'+outputID)).table.rows,review.output.rows,'Source drift preserves the dated last-good materialization')
+ await call(path+'/publish-review',{dataset:'synthetic-bifocal-105',version:3},409)
+ await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(outputID);await page.getByRole('button',{name:'Load dataset',exact:true}).click()
+ await page.getByRole('table',{name:'Prepared input revisions',exact:true}).waitFor()
+ assert.match(await page.locator('#current-table').innerText(),/Input changed or unavailable/)
+ await proveScreen('preparation-dataset-stale')
  await call(path+'/save',{document,previousVersion:3,reviewedDigest:stale.digest},409)
  const currentRestoreReview=await preview(document,3)
  await call(path+'/restore',{restoreVersion:1,previousVersion:3,reviewedDigest:currentRestoreReview.digest},409)
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/charts/'+chart.id,undefined,404)
+ for(const output of [outputID,browserOutputID,childOutputID])await call('/datasets/'+output,undefined,404)
+ await call('/queries/'+publishedAnswer.queryId,undefined,404);await call('/charts/'+publishedChart.id,undefined,404)
+ await call(childPath,undefined,404)
  await call(path,undefined,404);await call(path+'/restore',{restoreVersion:1,previousVersion:null,reviewedDigest:currentRestoreReview.digest},404)
  console.log('Native preparation: executable graph and edited SQL, exact values, explicit join and pivot refusals, lineage, reviewed revisions, non-owner isolation, source drift and erasure passed')
 }
@@ -649,6 +720,8 @@ export async function proveNativePreparation({imports=false}={}){
   }
   await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
   await proveDBTExecution({origin,context,call,upload,signInMember})
+  const flow=await provePreparationImports({origin,context,call,upload,signInMember,calendar:'synthetic-bifocal-preparation-calendar'})
+  await provePreparationFlowBrowser({origin,page,call,proveScreen,flow})
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}

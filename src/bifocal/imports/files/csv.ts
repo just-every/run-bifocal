@@ -8,7 +8,7 @@ import { FILE_LIMITS } from './limits'
 
 export { FILE_LIMITS } from './limits'
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
-export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
+export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; preparation?:{id:string;version:number;digest:string;lineage:Record<string,{dataset:string;revision:string;column:string}[]>}; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
 function refuse(message: string): never { throw new InvalidFile(message) }
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)

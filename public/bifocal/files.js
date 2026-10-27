@@ -49,6 +49,10 @@ async function load(id = form.elements.dataset.value) {
  current = response.ok ? data : null; reviewedDataset = id
  $('current-empty').textContent = current ? `Revision ${current.revision}. ${current.table.rows.length} rows.` : 'No table is published. Retained rejected or undone imports can still be erased.'
  $('current-table').replaceChildren(...current ? [sourceView(current.table.source, current.table.updatedAt, zone), table('Current rows (first 20)', current.table.columns.map(column => column.name), current.table.rows.slice(0, 20))] : [])
+ if(current?.preparation){
+  const preparation=current.preparation
+  $('current-table').prepend(metadata([['Prepared from',preparation.preparationId+' · revision '+preparation.version],['Input state',preparation.current?'Pinned input revisions still current':'Input changed or unavailable; retained prepared output'],['Publication','Immutable bounded native dataset']]),table('Prepared input revisions',['Dataset','Pinned revision','Current'],preparation.sources.map(source=>[source.dataset,source.revision,source.current?'Yes':'No'])))
+ }
  const history = await call('history', undefined, id); $('history-list').replaceChildren()
  for (const item of history.history) {
   // Each "·" travels with the part after it, so no line ends on one; the time stays whole.
@@ -61,7 +65,7 @@ async function load(id = form.elements.dataset.value) {
   if (item.state === 'completed') { const undo = element('button', 'Undo import'); undo.type = 'button'; undo.onclick = () => action(async () => { await call('undo', { planId: item.planId }, id); await load(id); status('Import undone. Previous data restored. Retained originals remain owner-erasable.') }); row.append(undo) }
   $('history-list').append(row)
  }
- if (!history.history.length) $('history-list').append(element('p', 'No approved versions.'))
+ if (!history.history.length) $('history-list').append(element('p', current?.preparation?'Prepared publication has no file import revisions. Its saved preparation version and pinned inputs are shown above.':'No approved versions.'))
 }
 form.onsubmit = event => { event.preventDefault(); action(async () => {
  activeInput = await envelope(form); await load(activeInput.datasetId); $('resume').hidden = false
