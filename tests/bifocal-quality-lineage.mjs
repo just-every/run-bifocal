@@ -63,8 +63,9 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  await proveScreen('/app/queries/'+qualified.queryId,'quality-answer-repaired')
  await proveScreen('/app/quality','quality-repaired')
  // Physical dotted source names and logical result IDs have separate identities.
+ const originalColumns={invoice:'number',date:'date',customer:'text',revenue:'money',state:'text'},dottedColumns={...originalColumns,'base.amount':'number','labels.amount':'number'}
  const dotted=good.trimEnd().split('\n').map((line,index)=>line+','+(index===0?'base.amount,labels.amount':[['7','13'],['-2','0'],['0','-1']][index-1].join(','))).join('\n')+'\n'
- await upload(dotted,true);for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
+ await upload(dotted,true,undefined,{columns:dottedColumns});for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
  const dottedQuery={...repaired.definition,filters:[],groupBy:[],semantic:undefined,measures:[{id:'logical-total',op:'sum',column:'base.amount',unit:'number',scale:0}]}
  const dottedAnswer=await call('/queries/run',dottedQuery)
  assert.equal(dottedAnswer.answer.totals['logical-total'].value,'5')
@@ -79,7 +80,7 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  assert.deepEqual((await call('/queries/'+aliasAnswer.queryId)).quality.lineage,[{dataset,columns:['invoice','labels.amount']}])
  await proveScreen('/app/queries/'+dottedAnswer.queryId,'quality-dotted-physical-column')
  const colliding=dotted.trimEnd().split('\n').map((line,index)=>line+','+(index===0?'amount':String(index*100))).join('\n')+'\n'
- await upload(colliding,true);for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
+ await upload(colliding,true,undefined,{columns:{...dottedColumns,amount:'number'}});for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
  const qualifiedDotted=await call('/queries/run',{...dottedQuery,measures:[{...dottedQuery.measures[0],column:'base.base.amount'}]})
  const plain=await call('/queries/run',dottedQuery)
  assert.equal(qualifiedDotted.answer.totals['logical-total'].value,'5');assert.equal(plain.answer.totals['logical-total'].value,'600')
@@ -88,6 +89,6 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  assert.deepEqual((await call('/queries/'+dottedAnswer.queryId)).quality.lineage,[{dataset,columns:['base.amount']}],'Historical lineage retains its original physical schema after a new colliding name is added')
  const collisionImpact=await call('/quality/impact/'+dataset+'?column=base.amount')
  assert.ok(collisionImpact.queries.includes(dottedAnswer.queryId)&&collisionImpact.queries.includes(qualifiedDotted.queryId));assert.ok(!collisionImpact.queries.includes(plain.queryId))
- await upload(good,true);for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
+ await upload(good,true,undefined,{columns:originalColumns});for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
  console.log('Quality and lineage: six rule types, duplicate and freshness failures, immutable at-risk results, column impact, expiring reviewed waiver, repaired-input history and denied raw reads passed')
 }

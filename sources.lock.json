@@ -4685,7 +4685,7 @@
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
-      "sha256": "38dc04cbf613bb810323a031554b6c83b59a1acfa9ed37b311edaa613ecc214b",
+      "sha256": "cea29785de5e1199d7d6badac60f8c9b57a47bc3a7e4b218bf84a182fdef5663",
       "executable": false
     },
     "tests/bifocal-exploration.mjs": {
@@ -4693,7 +4693,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "2b3402174ead40c05ae5c5a27f544fb607b31e2723d7269c5a0a43d149d479f2",
+      "sha256": "79ae60214650ad19673066a5099c6021e742ac51c17d120550cb474b3c0786e6",
       "executable": false
     },
     "tests/bifocal-questions.mjs": {

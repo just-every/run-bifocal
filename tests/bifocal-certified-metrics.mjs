@@ -34,8 +34,8 @@ try {
  await clock.set(new Date(pinnedTime).toISOString())
  await call('/calendars',{id:'synthetic-bifocal-calendar',previousVersion:null,definition:{name:'Calendar year',kind:'fiscal',startMonth:1}})
  const dataset='synthetic-bifocal-governance'
- const upload=async(data,catchup=false,lineage)=>{
-  const input={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data,...(lineage?{lineage}:{})},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
+ const upload=async(data,catchup=false,lineage,options={})=>{
+  const input={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data,...(lineage?{lineage}:{}),...options},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
   const post=async(action,data)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
   const u=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
   const p=await post('plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})
