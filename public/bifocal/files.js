@@ -1,4 +1,5 @@
 import './model-import.js'
+import { attachWebSource } from './web-source.js'
 import { element, table, metadata, sourceView } from './file-view.js'
 import { envelope, upload, originalFile, fileLimits } from './file-upload.js'
 import { stamp } from './format.js'
@@ -120,3 +121,5 @@ for(const [name,path] of [['vane','vane'],['product','product-table']]) {
 request('/api/operator/analytics/config',undefined,'').then(config=>{$('vane-configuration').textContent=config.vaneConfigured?'Configured Vane installation: '+config.vaneOrigin:'Vane is not connected. Configure your independent Vane installation before the API read. The Vane CSV export remains available above.'}).catch(error=>{$('vane-configuration').textContent=error.message})
 const initialDataset=new URL(location.href).searchParams.get('dataset')
 if(initialDataset){form.elements.dataset.value=initialDataset;action(()=>load(initialDataset))}
+
+attachWebSource({action,request,call,load,renderPlan,status,dataset:()=>form.elements.dataset.value})

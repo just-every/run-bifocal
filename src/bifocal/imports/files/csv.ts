@@ -1,3 +1,4 @@
+import { webMetadata, type WebMetadata } from '../../sources/web/metadata'
 import { lineage, type Lineage } from '../../sources/analytics/lineage'
 import { Buffer } from 'node:buffer'
 import { csvOriginal, candidateKeys, spreadsheetMetadata, type Spreadsheet, type RowErrors } from './interpretation'
@@ -8,7 +9,7 @@ import { FILE_LIMITS } from './limits'
 
 export { FILE_LIMITS } from './limits'
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
-export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
+export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; webSource?: WebMetadata; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
 function refuse(message: string): never { throw new InvalidFile(message) }
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -23,7 +24,7 @@ function date(value: string): string | null {
  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? `${yyyy}-${mm}-${dd}` : null
 }
 /** RFC 4180 quoting; no evaluation, trimming or implicit delimiter detection. */
-function csv(text: string, delimiter: string): string[][] {
+function csv(text: string, delimiter: string, allowEmpty = false): string[][] {
  if (text.includes('\0')) refuse('CSV_NUL: Remove NUL characters before uploading.')
  const rows: string[][] = [], row: string[] = []; let cell = '', quoted = false, closed = false
  const field = () => { if (cell.length > FILE_LIMITS.cell) refuse(`CELL_LIMIT: A cell exceeds ${FILE_LIMITS.cell} characters.`); row.push(cell); cell = ''; closed = false; if (row.length > FILE_LIMITS.columns) refuse(`COLUMN_LIMIT: At most ${FILE_LIMITS.columns} columns are supported.`) }
@@ -39,7 +40,7 @@ function csv(text: string, delimiter: string): string[][] {
  }
  if (quoted) refuse('CSV_QUOTE: Close the quoted field before uploading.')
  if (cell || row.length || closed) record()
- if (rows.length < 2) refuse('CSV_EMPTY: Supply a header and at least one data row.')
+ if (rows.length < (allowEmpty ? 1 : 2)) refuse('CSV_EMPTY: Supply a header and at least one data row.')
  return rows
 }
 function infer(values: string[]): Column['type'] {
@@ -66,15 +67,19 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
   let review: Json = null
   const invalid = (reason: string): ParsedRecord => ({ kind: 'invalid-file', sourceId: datasetId, payload: { reason, review } })
   try {
-   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet','lineage'].includes(key))
+   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet','lineage','webSource'].includes(key))
      || input.version !== 1 || input.datasetId !== datasetId) refuse('FILE_SCHEMA: Supply the documented version-1 file envelope for this dataset.')
    if (typeof input.filename !== 'string' || !/^[^/\\\x00-\x1f]{1,120}\.(csv|xlsx)$/i.test(input.filename)) refuse('FILE_TYPE: Choose CSV or XLSX; macro-enabled workbooks, templates and archives are refused.')
    if (![',',';','\t','|'].includes(String(input.delimiter)) || typeof input.nullValue !== 'string' || input.nullValue.length > 32) refuse('INTERPRETATION: Choose a supported delimiter and an explicit null marker.')
    let sourceLineage: Lineage | undefined
    try { sourceLineage = lineage(input.lineage) } catch { refuse('SOURCE_LINEAGE: Supply a credential-free source link, explicit date window, timezone and description.') }
+   let webSource: WebMetadata | undefined
+   try { webSource = webMetadata(input.webSource) } catch { refuse('WEB_METADATA: Supply complete snapshot metadata.') }
+   if (webSource && (input.mode !== 'replace' || input.columns === undefined)) refuse('WEB_SNAPSHOT: A complete web snapshot requires explicit types and reviewed replacement.')
    const isWorkbook = String(input.filename).toLowerCase().endsWith('.xlsx')
    let spreadsheet: Spreadsheet | undefined
    try { spreadsheet = spreadsheetMetadata(input.spreadsheet) } catch (error) { refuse((error as Error).message) }
+   if (isWorkbook && webSource) refuse('WEB_SNAPSHOT: Web snapshots use normalized CSV only.')
    if (isWorkbook && spreadsheet) refuse('SPREADSHEET_METADATA: Range metadata applies to CSV cached range values only.')
    if (input.formulaTreatment !== (isWorkbook || spreadsheet ? 'cached-values-preserve-formulas' : 'literal-text')) refuse('FORMULA_TREATMENT: Explicitly choose literal-text for CSV or cached-values-preserve-formulas for XLSX; nothing is evaluated.')
    if (!['append','replace','keyed-update'].includes(String(input.mode))) refuse('IMPORT_MODE: Choose append, replace or keyed-update.')
@@ -84,7 +89,7 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    else if (input.encoding !== 'utf-8' || input.originalBase64 !== undefined) refuse('ENCODING: XLSX uses UTF-8 XML and its data holds original bytes.')
    const workbook = isWorkbook ? readWorkbook(input.data, input.sheet) : null
    if (!isWorkbook && input.sheet !== undefined) refuse('CSV_SHEET: Sheet selection applies only to XLSX workbooks.')
-   const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter)), headers = records.shift()!
+   const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter), !!webSource), headers = records.shift()!
    if (headers.length > FILE_LIMITS.columns || records.length > FILE_LIMITS.rows) refuse(`TABLE_LIMIT: At most ${FILE_LIMITS.columns} columns and ${FILE_LIMITS.rows} data rows are supported.`)
    if (headers.some(name => !name || name !== name.trim() || name.length > 128) || new Set(headers).size !== headers.length) refuse('HEADERS: Use unique, nonempty headers, at most 128 characters, without outer whitespace.')
    const widthErrors = records.flatMap((row, index) => row.length === headers.length ? [] : [{row: index + 2, actual: row.length, expected: headers.length}])
@@ -116,7 +121,7 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    if (key !== null && (typeof key !== 'string' || !headers.includes(key))) refuse('KEY: Choose one existing column, or null.')
    if (previous && input.mode !== 'replace' && key !== previous.key) refuse('KEY_CHANGED: Changing the key requires an explicitly reviewed replace.')
    if (input.mode === 'keyed-update' && !key) refuse('KEY_REQUIRED: Keyed update needs an explicit unique key.')
-   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(sourceLineage ? {lineage:sourceLineage} : {}), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
+   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(sourceLineage ? {lineage:sourceLineage} : {}), ...(webSource ? {webSource} : {}), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
    return { kind: 'file-table', sourceId: datasetId, payload: { table: table as unknown as Json, mode: input.mode, contentHash: sha256(canonicalJson(input)) } }
   } catch (error) { if (error instanceof InvalidFile || error instanceof WorkbookError) return invalid(error.message); throw error }
  }

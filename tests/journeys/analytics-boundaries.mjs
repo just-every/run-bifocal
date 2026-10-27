@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { proveWebSources } from './web-sources.mjs'
 import { analyticsEdge } from './analytics-edge.mjs'
 const grant='synthetic-bifocal-60'
 export async function proveAnalyticsBoundaries(original,context,page,persist) {
@@ -99,6 +100,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   const erased=await call('datasets/'+apiDataset+'/erase',{confirmDataset:apiDataset,reviewedRevision:before.revision});assert.ok(erased.stores.some(store=>store.store==='bf_analytics_boards'&&store.rows===2))
   await call('dashboards/'+lastBoard.id,undefined,404);await call('warehouse/send',{id:pending.id,fingerprint:pending.fingerprint,accessToken:grant,confirmExport:true},409)
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboards/'+lastBoard.id);await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true');await shot('withdrawn',width);assert.ok(!await page.locator('#business-board').isVisible(),'withdrawn cross-system source values are not rendered')}
+  await proveWebSources(origin,context,page,state,edge.webOrigin)
   assert.ok(browserRequests.every(url=>new URL(url).origin === origin),'the built analytics workflow loads no external tracker or telemetry script')
   console.log('Analytics boundaries: Vane Stats/export and permitted product table beside exact ledger revenue, source links, chart/report and warehouse acknowledgement at 1440/390; separate setup links, no tracker/telemetry, revoked/partial source preservation, uncertain/partial non-replay and erasure withdrawal passed (official-schema network edges, not live-provider proof)')
  } finally {page.off('request',recordRequest);if(original)await page.goto(original+'/app');await edge.close()}
