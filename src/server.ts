@@ -1,3 +1,4 @@
+import {collaborationResponse} from './bifocal/collaboration/server'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
 import { rejectedResponse } from './base/rejected-response'
@@ -72,6 +73,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const collaboration = await collaborationResponse(request, env)
+    if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)
     if (publicApi) return publicApi
     const costs = await costResponse(request, env)

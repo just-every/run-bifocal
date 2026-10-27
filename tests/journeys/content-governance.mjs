@@ -1,3 +1,4 @@
+import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess} from '../bifocal-exploration.mjs'
 import {proveExportPolicy} from './export-policy.mjs'
@@ -59,9 +60,11 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
+  await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
   const fixtures=await importDataset(origin,owner)
