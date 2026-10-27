@@ -4657,7 +4657,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "5040c9521e0ede5e949cf7dab8d970196b4f5e56ab52f4e80e84e30638e28593",
+      "sha256": "e8d4e7f9be21beca8fcee06f1efe495252b8d5d7306ea02e672c86e50bbb9a3c",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -4717,7 +4717,7 @@
       "executable": false
     },
     "tests/journeys/export-policy.mjs": {
-      "sha256": "1f2ae1b0653fb691e526356379fa2db0618a33a5fbc28c16b46440f985bd6ddb",
+      "sha256": "c5215e9eacc9b810a328790a5920286103e15349a1a4d1b0cdc5fffbfe23d554",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {

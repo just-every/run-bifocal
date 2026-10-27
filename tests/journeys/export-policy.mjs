@@ -87,7 +87,7 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
 }
 
 /** Bounded native network policy and attributable restricted-export audit. */
-export async function proveSecurity({origin,owner,reader,readerId,page,upload,proveScreen,fixture}) {
+export async function proveSecurity({origin,owner,reader,readerId,page,upload,proveScreen,fixture,clock}) {
  const ingress='198.51.100.7',edge={'x-security-test-ip':ingress},headers={Origin:origin,...edge}
  const secret='synthetic-bifocal-private-row'
  const call=async(path,data,client=owner,status=200,extra={})=>{const response=await client.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...data===undefined?{}:{data}});assert.equal(response.status(),status,await response.text());return response.json()}
@@ -133,7 +133,9 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   assert.ok((await ownerDownload.text()).includes('20.02'))
   const question=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['region'],filters:[],grantId:issued.id},reader,201)
   assert.equal(question.answer.filteredRows,1);assert.equal(question.answer.totals.revenue.value,'10.01')
-  const download=await reader.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/export',{headers,data:{scope:'summary',format:'csv'}})
+  const exportedAt=new Date().toISOString();await clock.set(exportedAt)
+  let download
+  try{download=await reader.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/export',{headers,data:{scope:'summary',format:'csv'}})}finally{await clock.set(null)}
   assert.equal(download.status(),200,await download.text());assert.equal(await download.text(),'"region","revenue"\r\n"West","10.01"\r\n')
   await call('/explore/'+question.snapshotId+'/export',{scope:'underlying',format:'csv'},reader,403)
   const evidence=await audit();assert.equal(evidence.valid,true);assert.ok(evidence.head.sequence>0)
@@ -142,7 +144,7 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   const exports=evidence.events.filter(e=>e.action==='export'&&e.queryId===question.snapshotId)
   assert.deepEqual(exports.map(e=>e.outcome),['allowed','refused'])
   const exported=exports[0];assert.equal(exported.actorId,readerId);assert.equal(exported.delegatedCredential,null);assert.equal(exported.tenantId,null)
-  assert.equal(exported.scope.kind,'delegated-view');assert.equal(exported.scope.grantId,issued.id);assert.equal(exported.scope.modelId,model.modelId);assert.equal(exported.scope.modelRevision,model.revision);assert.equal(exported.scope.viewId,'sales');assert.equal(exported.scope.exportScope,'summary');assert.equal(exported.scope.exportRows,1);assert.equal(exported.httpStatus,200);assert.ok(Number.isFinite(Date.parse(exported.recordedAt)))
+  assert.equal(exported.scope.kind,'delegated-view');assert.equal(exported.scope.grantId,issued.id);assert.equal(exported.scope.modelId,model.modelId);assert.equal(exported.scope.modelRevision,model.revision);assert.equal(exported.scope.viewId,'sales');assert.equal(exported.scope.exportScope,'summary');assert.equal(exported.scope.exportRows,1);assert.equal(exported.httpStatus,200);assert.equal(exported.recordedAt,exportedAt)
   const {createHmac}=await import('node:crypto'),canonical=value=>value===null||typeof value!=='object'?JSON.stringify(value):Array.isArray(value)?'['+value.map(canonical).join(',')+']':'{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}'
   const expectedScope={filters:[{column:'region',op:'ne',value:'Hidden'},{column:'region',op:'eq',value:'West'}],fiscal:null}
   assert.equal(exported.scope.rowScopeDigest,createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('bifocal-security-v1\n'+canonical(expectedScope)).digest('hex'))
