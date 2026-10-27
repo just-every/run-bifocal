@@ -4837,7 +4837,7 @@
       "executable": false
     },
     "tests/journeys/web-sources.mjs": {
-      "sha256": "c78e089ea9fa0232583bcc04c191e3bac5d466b1888a09faa0dc2d777a13a89d",
+      "sha256": "57ee3a4266c5de81509827a4fd9ed3b472c32770f4cd4b58a0a9c76d66a5584e",
       "executable": false
     },
     "tests/runtime.mjs": {
