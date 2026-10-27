@@ -22,7 +22,7 @@ export default {
     if(pending&&url.pathname===pending.at&&metadata.some(q=>q?.query.startsWith(pending.before))){
      const mutation=pending;pending=null
      const response=await fetch(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json',...mutation.headers},body:JSON.stringify(mutation.body)})
-     if(response.status!==200)throw Error('Entitlement boundary public mutation refused: '+response.status)
+     if(![200,204].includes(response.status))throw Error('Entitlement boundary public mutation refused: '+response.status)
      await response.arrayBuffer()
     }
     return target.batch(metadata.map((value,i)=>value?.statement??queries[i]))

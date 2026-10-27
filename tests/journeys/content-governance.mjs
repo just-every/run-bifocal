@@ -28,7 +28,7 @@ export async function proveContentGovernance(){
  const clock=await entitlementClock(persist)
  const environment={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false',RER_STATE_DIR:persist,RER_DEV_ORIGIN:origin,RER_DEV_KEY:'synthetic-bifocal-4'.repeat(3)}
  try{
-  await writeFile(configFile,(await readFile('vite.config.ts','utf8')).replace("main: './src/server.dev.ts'","main: './tests/journeys/entitlement-boundary-worker.mjs'"),{flag:'wx'})
+  await writeFile(configFile,(await readFile('vite.config.ts','utf8')).replace("main: './src/server.dev.ts'","main: './tests/journeys/entitlement-boundary-worker.mjs'").replace("allow: ['src',", "allow: ['tests/journeys', 'src',"),{flag:'wx'})
   await writeFile(varsFile,`AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=synthetic-bifocal-1@example.test\nSESSION_SECRET=${'synthetic-bifocal-2'.repeat(3)}\nSETUP_TOKEN=${'synthetic-bifocal-3'.repeat(3)}\nINSTALLATION_KEY=${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`,{flag:'wx',mode:0o600});varsWritten=true
   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc'],{stdio:'pipe',env:{...environment,MINIFLARE_WORKERD_PATH:undefined},timeout:120000})
   child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--config',configFile,'--host','127.0.0.1','--port',String(port),'--strictPort'],{env:environment,stdio:['ignore','pipe','pipe']})
