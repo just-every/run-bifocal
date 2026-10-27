@@ -1,0 +1,5 @@
+#model-import-current pre,#model-import-review pre{max-height:36rem;overflow:auto}
+#model-import-current section[aria-label="Custom visual mappings"]{margin:24px 0}
+#model-import-current section[aria-label="Custom visual mappings"] summary{overflow-wrap:anywhere}
+#model-import-current section[aria-label="Custom visual mappings"] .metadata{margin:16px 20px;box-shadow:none;border:0;padding:0}
+#model-import-current section[aria-label="Custom visual mappings"] dd{overflow-wrap:anywhere}

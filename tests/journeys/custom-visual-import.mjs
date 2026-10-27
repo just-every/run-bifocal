@@ -58,6 +58,7 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  await call('/model-authoring/review',{document:dump(imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
  assert.ok((await page.getByRole('table',{name:'Source project inventory'}).innerText()).includes(source.file))
+ const mapping=page.getByRole('region',{name:'Custom visual mappings',exact:true});await mapping.waitFor();assert.ok((await mapping.innerText()).includes(publisher));assert.ok((await mapping.innerText()).includes(version));assert.ok((await mapping.innerText()).includes('native-declarative-chart'))
  await page.getByText('Full source compatibility report',{exact:true}).click()
  const visible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(visible.report.project.resources.find(item=>item.id===source.id).definition.inventory,inventory)
