@@ -781,7 +781,7 @@
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "ac78569286c22b74e62683661e73ebdcf461ff3ac0064abe9ff2df915fcd1a8c",
+      "sha256": "b5d862ba5385676f056dc5b92771536f0eb8c7ece18a5ee88478b5f9b96a14d5",
       "executable": false
     },
     "public/bifocal/apps.css": {
@@ -965,7 +965,7 @@
       "executable": false
     },
     "public/bifocal/quality.js": {
-      "sha256": "dd319e4bad2382ede4c739afa59c34dae1399dd47df6d0b2511ec47c6c707fc7",
+      "sha256": "683b95a058d7560cd0886ddd09c5dd430a081ec7c3e5b7e8cbcddd5084fabf90",
       "executable": false
     },
     "public/bifocal/report-custody.css": {
@@ -2497,7 +2497,7 @@
       "executable": false
     },
     "src/bifocal/query/quality.server.ts": {
-      "sha256": "441f6d1afff714440384b7c8d8a7bb4cb824a19c3fa8ddc8dafbf8916d072a84",
+      "sha256": "5fdc32a6863a18597b94d48fed0b12f86028407e69d96305d717cba21f405dbd",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
@@ -4685,7 +4685,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "99420259e84a0522a7df4eb6645208016a8c56740557002e8e2d4cc8d8b4945d",
+      "sha256": "a805b54488f0335e9229472a0448b7334902cdf83147c599fdc2a2d6d3e11bef",
       "executable": false
     },
     "tests/bifocal-questions.mjs": {
@@ -4813,7 +4813,7 @@
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {
-      "sha256": "2f7d986d708f32d6f68eaa08f04f092003525764bbfa55e403c2f5abfc27dbaf",
+      "sha256": "56b54e2c83b3693d7416f2941e323a8cb3ab7fcadca2c61571d7b972ec2dc1d7",
       "executable": false
     },
     "tests/journeys/erasure-receipts.mjs": {
@@ -4849,7 +4849,7 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "5ca86dce536870c9788666d607d21f292d2771e40935c686c3a46cff15afdea7",
+      "sha256": "c8585bd1230b5a0bd108ffdd1a5fcefc80572c90cdac8cb19043c2b4a10aaf5c",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {

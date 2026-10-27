@@ -22,6 +22,11 @@ export async function proveQualityLineage({origin,context,page,call,upload,datas
  let q=await call('/quality');assert.ok(q.quality.tests.find(t=>t.runId===key.id).waiver.active);assert.equal(q.quality.state,'at risk')
  await call('/quality/runs/'+fresh.id+'/waive',{reason:'Expired',expiresAt:'2000-01-01T00:00:00.000Z',confirm:'waive'},400)
  await proveScreen('/app/quality','quality-failed')
+ const settings=page.locator('.menu>summary'),tooltip=page.getByRole('tooltip')
+ await settings.focus();assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).visibility),'visible');assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).transitionDelay),'0s')
+ await settings.evaluate(node=>node.blur());await page.mouse.move(0,0);assert.equal(await tooltip.isVisible(),false)
+ await settings.hover();await tooltip.waitFor({state:'visible'});assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).transitionDelay),'0.3s')
+ await page.mouse.move(0,0)
  for(const [kind,id] of [['reports',report.id],['dashboards',dashboard.id]]){await page.goto(origin+'/app/'+kind+'/'+id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#certification').innerText(),/Quality at risk/);await proveScreen('/app/'+kind+'/'+id,'quality-'+kind)}
  await new Promise(r=>setTimeout(r,2600))
  q=await call('/quality');assert.equal(q.quality.tests.find(t=>t.runId===key.id).waiver.active,false);assert.equal(q.quality.state,'at risk');const waived=q.quality.tests.find(t=>t.runId===key.id).waiver;assert.equal(waived.ownerId,qualified.context.ownerId);assert.equal(waived.reason,'Reviewed temporary exception')

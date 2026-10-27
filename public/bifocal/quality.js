@@ -15,9 +15,8 @@ export function qualityNotice(quality,zone) {
   const row=element('li'),name=test.name??test.dataset
   if(test.href){const link=element('a',name+' · '+test.state);link.href=test.href;row.append(link)}else row.append(name+' · '+test.state)
   row.append(' · '+test.reason.replaceAll('_',' '))
-  if(test.sourceRevision)row.append(' · source '+test.sourceRevision)
   if(test.checkedAt)row.append(' · checked '+stamp(test.checkedAt,zone))
-  if(test.waiver)row.append(' · waiver '+(test.waiver.active?'active':'expired')+': '+test.waiver.reason+' · owner '+test.waiver.ownerId+' · expires '+stamp(test.waiver.expiresAt,zone))
+  if(test.waiver)row.append(' · waiver '+(test.waiver.active?'active':'expired')+': '+test.waiver.reason+' · expires '+stamp(test.waiver.expiresAt,zone))
   tests.append(row)
  }
  if(tests.childElementCount)notice.append(tests)

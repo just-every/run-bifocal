@@ -26,6 +26,16 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const rerun=await runQuality();assert.notEqual(rerun.id,previousRun)
  await cli('promote',[...flags,'--digest',initial.digest,'--environment','production'],false)
  assert.deepEqual(await call('/models/'+model.modelId),reviewedModel,'New passing evidence also requires an exact current review before production')
+ initial=await cli('validate',flags);await cli('approve',[...flags,'--digest',initial.digest])
+ const armQualityBoundary=async(at,before)=>{
+  const cookie=(await context.cookies()).map(item=>item.name+'='+item.value).join('; ')
+  const armed=await context.request.post(origin+'/__machine-boundary',{data:{at,before,path:'/api/operator/quality/rules/'+qualityRule+'/run',cookie,body:{},expectedStatus:201}})
+  assert.equal(armed.status(),200)
+ }
+ const beforeBoundary=await call('/models/'+model.modelId)
+ await armQualityBoundary('/api/operator/models/'+model.modelId+'/branches/'+model.branchId+'/promote','UPDATE bf_semantic_models SET production=')
+ await call('/models/'+model.modelId+'/branches/'+model.branchId+'/promote',{digest:initial.digest,environment:'production'},409)
+ assert.deepEqual(await call('/models/'+model.modelId),beforeBoundary,'Changed evidence inside the native promotion transaction leaves every model pointer and history unchanged')
  initial=await cli('validate',flags);await cli('approve',[...flags,'--digest',initial.digest]);await cli('promote',[...flags,'--digest',initial.digest,'--environment','production'])
  const scalar={...query,context:{...query.context,modelVersion:model.revision}},grouped={...scalar,groupBy:['region']}
  const metric=await call('/metrics',{id:'synthetic-bifocal-estate-revenue',definition:{name:'Estate revenue',description:'Exact revenue',grain:'invoice',unit:'money',timezone:'America/New_York',accountingBasis:'accrual',query:scalar}})
@@ -126,6 +136,12 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  await upload(dataset,csv.replace('$10.01','$11.01'),true);assert.equal((await runQuality()).result.state,'passed')
  const repaired=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(repaired.compatible,true);assert.equal(repaired.qualityImpact.state,'healthy');assert.notEqual(repaired.digest,failed.digest)
  await page.goto(origin+'/app/environments/'+document.id);await proveScreen('environment-stale-source-production-refusal')
+ const boundaryReview=await cli('environment-review',[...envFlags,'--version','3'])
+ await cli('environment-approve',[...envFlags,'--version','3','--digest',boundaryReview.digest]);await cli('environment-promote',[...envFlags,'--version','3','--digest',boundaryReview.digest,'--environment','staging'])
+ const boundaryState={estate:await status(),model:await call('/models/'+model.modelId),metric:await call('/metric-definitions/'+metric.id)}
+ await armQualityBoundary('/api/operator/environments/'+document.id+'/promote','UPDATE bf_environment_estates SET production=')
+ await call('/environments/'+document.id+'/promote',{version:3,environment:'production',digest:boundaryReview.digest},409)
+ assert.deepEqual(await status(),boundaryState.estate);assert.deepEqual(await call('/models/'+model.modelId),boundaryState.model);assert.deepEqual(await call('/metric-definitions/'+metric.id),boundaryState.metric)
  await publish(3)
  const production=await cli('environment-run',[...envFlags,'--environment','production','--key','sales-model','--view','revenue']),productionMetric=await cli('environment-run',[...envFlags,'--environment','production','--key','revenue'])
  assert.equal(production.answer.totals.revenue.value,'11.01');assert.equal(productionMetric.answer.totals.revenue.value,'11.01');assert.equal(production.estateRevision,3)

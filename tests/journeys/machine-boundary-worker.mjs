@@ -36,10 +36,10 @@ export default {
    if(key==='prepare')return query=>wrap(target.prepare(query),query)
    if(key==='batch')return async queries=>{
     const metadata=queries.map(query=>statements.get(query))
-    if(pending&&metadata.some(q=>(q?.query.startsWith('INSERT INTO bf_machine_audit(')&&['query','definitions'].includes(q.args[4]))||(q?.query==='INSERT INTO bf_portal_audit VALUES(?,?,?,?,?,?)'&&['read-completed','export-completed'].includes(q.args[3])))){
+    if(pending&&((pending.at===url.pathname&&metadata.some(q=>q?.query.startsWith(pending.before)))||metadata.some(q=>(q?.query.startsWith('INSERT INTO bf_machine_audit(')&&['query','definitions'].includes(q.args[4]))||(q?.query==='INSERT INTO bf_portal_audit VALUES(?,?,?,?,?,?)'&&['read-completed','export-completed'].includes(q.args[3]))))){
      const mutation=pending;pending=null
      const response=await fetch(new Request(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json'},body:JSON.stringify(mutation.body)}))
-     if(response.status!==200){console.error('Boundary fixture mutation refused',response.status,await response.text());throw Error('Boundary fixture public mutation refused: '+response.status)}
+     if(response.status!==(mutation.expectedStatus??200)){console.error('Boundary fixture mutation refused',response.status,await response.text());throw Error('Boundary fixture public mutation refused: '+response.status)}
      await response.arrayBuffer()
     }
     return target.batch(metadata.map((value,i)=>value?.statement??queries[i]))
