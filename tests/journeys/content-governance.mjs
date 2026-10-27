@@ -65,7 +65,7 @@ export async function proveContentGovernance(){
   if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
-  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload})});await owner.close();await reader.close();return}
+  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='exploration-access'){await proveExplorationAccess(origin,owner,reader,readerSession.operator.id);await owner.close();await reader.close();return}
   await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload,clock,fixtureSql:command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],env:environment}))[0].results})
   if(process.env.BIFOCAL_FOCUS==='entitlements'){await owner.close();await reader.close();return}
