@@ -1,3 +1,4 @@
+import { nativeApiResponse } from './native.server'
 import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -60,6 +61,7 @@ async function machineOperation(request:Request,env:Bindings,name:string,input:R
 export async function publicApiResponse(request:Request,original:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname
  if(!/^\/api\/operator\/credentials(?:\/|$)/.test(path)&&!/^\/api\/v1(?:\/|$)/.test(path))return null
+ if(path.startsWith('/api/v1/native/'))return nativeApiResponse(request,original)
  const env=runtimeBindings(original)
  try{
   const admin=await credentialResponse(request,env);if(admin)return admin

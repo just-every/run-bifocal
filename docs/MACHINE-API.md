@@ -36,9 +36,10 @@ and issuance, followed by explicit revocation of the old credential.
 Current owner membership, role and version, exact model publication and source
 revisions and content fingerprints fence every data response. Source or model
 withdrawal and principal changes permanently revoke matching credentials; a
-later rollback or reactivation cannot revive them. Each successful data or
-definition operation atomically consumes one operation; failed requests release
-no result and do not consume budget. Concurrent requests cannot overspend.
+later rollback or reactivation cannot revive them. Each authorized data or
+definition read reserves one lifetime operation before computation; a reserved
+read remains consumed after failure or withdrawal. Refused responses release
+no result. Concurrent requests cannot overspend.
 Protocol schema and initialization contain no installation data.
 
 Supported installation archives exclude the complete credential table and retain
@@ -99,7 +100,7 @@ strings and typed query results without conversion to binary floating point.
 protocol `2025-06-18`: `initialize`, the `initialized` notification in the `notifications` namespace, `ping`,
 the `list` and `call` methods in the `tools` namespace. The `query` tool accepts the same query input and
 returns both text content and `structuredContent` with identical results and
-citations. Tool discovery requires `definitions`; execution requires `query`.
+citations. Tool discovery lists only reviewed query authority; execution requires `query`.
 Claude, ChatGPT and Cursor protocol-edge clients are exercised by the journey;
 no hosted client installation or account qualification is claimed.
 
@@ -114,14 +115,88 @@ starts a background job or sends a webhook.
 The conservative policy is current-owner sponsorship only, exact explicit human
 review, one-day maximum expiry, bounded read operations, no delegation, no file
 or Business import grants and no consequential approval or outbound action.
-This new credential policy awaits ct approval; both clauses remain PARTIAL.
+CT approved this interim policy WITH RIDERS on 26 October 2026; both complete clauses remain PARTIAL.
 BIF-019, BIF-032, BIF-053, BIF-057 and BIF-069 retain their full receiving-door
 authority and custody obligations. This does not approve a pending delegated
 member policy.
 
 Delegated principals and the explicit Business import settings opt-in, general
-budgets, queued owner suspension and rotation, certified-metric APIs, model and
-content management and report jobs, cancellation, concurrency and version
-conflicts, signed lifecycle webhooks, replay and forgery rejection and durable
-delivery history remain unbuilt or unproved. Queued analytical execution needs
+budgets, queued owner suspension and rotation, complete API families and report
+jobs, cancellation, signed lifecycle webhooks, replay and forgery rejection and
+durable delivery history remain unbuilt or unproved. Bounded native APIs and
+version conflicts now have the qualification described below. Queued analytical execution needs
 Base BIF-058; this synchronous API does not substitute for it.
+
+## CT rider implementation, 27 October 2026
+
+CT approved the bounded interim policy WITH RIDERS on 26 October 2026 at
+4172bc949853e320eec7073acdfe234cd576f7f9. The synchronized addenda in
+CONTRACT.md and ACCEPTANCE.md govern this door. Both complete clauses remain
+partial.
+
+A current native owner can review a bounded machine source restriction with
+`POST /api/operator/credentials/sources/{dataset}/review` and apply it with
+`POST /api/operator/credentials/sources/{dataset}`. Read its current definition
+and version with GET on the latter path. Bodies contain `previousVersion`,
+explicit `columns` and typed `filters`; apply also requires the returned
+`reviewedDigest`. Review binds the exact source bytes, revision, prior policy
+version and current owner session. A stale policy write returns 409. Missing
+policy records add no restrictions to the current owner's source access;
+issuance still requires exact owner review of each source and permitted field.
+An empty column list refuses any query depending on a source column.
+
+Every participating source's current restrictions intersect the published view
+and credential restrictions before aggregation. A restricted joined source
+cannot release unmatched rows through null joins. Hidden source columns cannot
+be selected, filtered or used by a permitted measure. Definitions remain limited
+to the credential's permitted fields. This bounded machine source control does
+not qualify full enterprise sensitivity labels, source entitlements or tenant
+role inheritance under BIF-019, BIF-055 and BIF-071.
+
+Source policy versions and digests join the exact credential binding. Changing a
+policy permanently retires matching credentials, including when the policy is
+later restored. Policy definitions travel in supported archives; credentials do
+not. Erasing a published source removes its bounded machine policy. Broader
+retained-custody erasure and fresh-owner archive qualification remain open.
+
+Operations reserve a lifetime read atomically before query computation. Each
+page or definitions read consumes one shared operation across REST, GraphQL and
+MCP. A reserved operation remains consumed if execution fails or authority is
+withdrawn before release; a request refused before reservation consumes none.
+Static protocol discovery does not consume a data read and cannot add tools.
+MCP query discovery also works for a credential reviewed only for queries.
+The response transaction rechecks activation, current sponsor, fixed expiry,
+model, every source and policy binding before releasing any data. Automatic
+retirement records a durable attributed event. Source Undo, model rollback,
+policy rollback and native owner reactivation never revive an old credential.
+
+## Versioned native owner APIs
+
+The `/api/v1/native/` namespace requires a current native owner session. A
+machine bearer is refused even when accompanied by a native cookie. Browser
+mutations retain the exact installation Origin requirement. These APIs use the
+application handlers and their current authority, exact human review, source
+fences and optimistic version checks.
+
+REST families are `models`, `metrics`, `metric-definitions`, `content` and
+`report-runs`. Append the same resource suffix and use the same method and JSON
+body as the corresponding native operator route; `content` maps to the native
+library. These expose the existing bounded implementations, including metric
+certification and exact values, model branch revisions and catalog metadata.
+They do not implement general analytical jobs or additional reporting formats.
+
+`GET /api/v1/native/schema` supplies the GraphQL SDL and family paths.
+`POST /api/v1/native/graphql` accepts `query`, bound `variables` and optional
+`operationName`, with one root operation per request. Queries read a model,
+metric, metric list, content item or filtered content search. Mutations create
+or edit model branches, metric drafts and content metadata. JSON payloads pass
+through the same native validators. Model edits require `previousVersion`,
+metric proposals require `previousRevision`, and content edits require
+`previousVersion`. Conflicts return 409 without a partial edit. No machine
+approval or additional authority is created by choosing GraphQL.
+
+The machine-door journey proves native REST and GraphQL parity, certified money,
+stale edit refusal, one winner for concurrent model edits, and bearer and
+foreign-origin refusal. The complete BIF-027 API and client target, analytical
+job cancellation, queued rotation and revocation, signed lifecycle webhooks,
+forged-event refusal, replay and durable delivery history remain open.

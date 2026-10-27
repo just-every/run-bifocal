@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {createHmac} from 'node:crypto'
 
 /** A credential is a bounded read grant, never a human approval or raw source key. */
 export async function proveMachineDoors({origin,context,page,call,upload,proveScreen}) {
@@ -125,6 +126,45 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(state.history.some(h=>h.credential_id===credential.id&&h.action==='read-reserved'))
   assert.ok(!state.history.some(h=>h.credential_id===credential.id&&['query','definitions'].includes(h.action)),'Withdrawn response never commits successful use')
  }
+ const nativeApi=async(path,body,method=body===undefined?'GET':'POST',status=200)=>{
+  const response=await context.request.fetch(origin+'/api/v1/native/'+path,{method,headers:{Origin:origin},...body===undefined?{}:{data:body}})
+  assert.equal(response.status(),status,await response.text());return response.json()
+ }
+ const nativeSchema=await nativeApi('schema');assert.equal(nativeSchema.machineAuthority,false)
+ assert.equal((await nativeApi('models/'+created.modelId)).production,created.revision)
+ const nativeDefinition={views:[{id:'pipeline',kind:'chart',query:base,rowRules:fixed}],quality:[]}
+ const nativeCreated=(await nativeApi('graphql',{query:'mutation Create($definition: JSON!) { createModel(definition: $definition) }',variables:{definition:nativeDefinition}})).data.createModel
+ const branch='models/'+nativeCreated.modelId+'/branches/'+nativeCreated.branchId
+ assert.equal((await nativeApi(branch)).version,1)
+ const editA=structuredClone(nativeDefinition);editA.views[0].rowRules.push({column:'stage',op:'ne',value:'Stage 01'})
+ const editB=structuredClone(nativeDefinition);editB.views[0].rowRules.push({column:'stage',op:'ne',value:'Stage 02'})
+ const edited=await nativeApi(branch,{previousVersion:1,definition:editA},'PUT');assert.equal(edited.version,2)
+ await nativeApi('graphql',{query:'mutation Edit($model: String!, $branch: String!, $definition: JSON!) { updateModel(modelId:$model,branchId:$branch,previousVersion:1,definition:$definition) }',variables:{model:nativeCreated.modelId,branch:nativeCreated.branchId,definition:editB}},'POST',409)
+ assert.deepEqual((await nativeApi(branch)).definition,editA)
+ const concurrent=await Promise.all([editA,editB].map(definition=>context.request.put(origin+'/api/v1/native/'+branch,{headers:{Origin:origin},data:{previousVersion:2,definition}})))
+ assert.deepEqual(concurrent.map(r=>r.status()).sort(),[200,409])
+ assert.equal((await nativeApi(branch)).version,3)
+ const content={kind:'dashboard',title:'Scoped pipeline',description:'Native API contract proof',tags:[],definition:{},sourceLinks:[],verified:false,collectionId:null,sourceDatasets:[dataset,joined]}
+ const contentCreated=(await nativeApi('graphql',{query:'mutation Create($input: JSON!) { createContent(input:$input) }',variables:{input:content}})).data.createContent
+ const contentUpdated=await nativeApi('content/items/'+contentCreated.id,{...content,title:'Reviewed pipeline',previousVersion:1},'PUT');assert.equal(contentUpdated.version,2)
+ await nativeApi('graphql',{query:'mutation Edit($id:String!, $input:JSON!) { updateContent(id:$id,previousVersion:1,input:$input) }',variables:{id:contentCreated.id,input:content}},'POST',409)
+ const contentRest=await nativeApi('content/items/'+contentCreated.id),contentGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { content(id:$id) }',variables:{id:contentCreated.id}})).data.content
+ assert.deepEqual(contentGraph,contentRest);assert.equal(contentRest.title,'Reviewed pipeline')
+ const metricQuery={...base,joins:[],groupBy:[],filters:[...fixed,{column:'stage',op:'ne',value:'Blocked model'}]}
+ const metricId='synthetic-bifocal-api-revenue',metricDefinition={name:'West revenue',description:'Exact native API metric',grain:'invoice',unit:'money',timezone:'America'+'/'+'New_York',accountingBasis:'accrual',query:metricQuery}
+ await nativeApi('metrics',{id:metricId,definition:metricDefinition},'POST',201)
+ const metric=await nativeApi('metric-definitions/'+metricId)
+ await nativeApi('metrics/'+metricId+'/approve',{revision:metric.revision,digest:metric.digest,annotation:'Reviewed exact source money.',confirm:'approve'})
+ const metricRun=await nativeApi('metrics/'+metricId+'/run',{},'POST',201);assert.equal(metricRun.answer.totals.revenue.value,'31.31')
+ const metricRest=await nativeApi('metrics/'+metricId),metricGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { metric(id:$id) }',variables:{id:metricId}})).data.metric
+ assert.deepEqual(metricGraph,metricRest)
+ for(const route of ['models/'+created.modelId,'metrics/'+metricId,'content/items/'+contentCreated.id,'schema','graphql']){
+  await api('/api/v1/native/'+route,route==='graphql'?{query:'{ metrics }'}:undefined,403)
+  const denied=await fetch(origin+'/api/v1/native/'+route,{headers:{Authorization:headers.Authorization,cookie}})
+  assert.equal(denied.status,403);await denied.arrayBuffer()
+ }
+ assert.equal((await fetch(origin+'/api/v1/native/metrics')).status,401)
+ const foreign=await context.request.post(origin+'/api/v1/native/graphql',{headers:{Origin:'https://example.invalid'},data:{query:'{ metrics }'}});assert.equal(foreign.status(),401)
  const changed=await issue(),oldSource=await call('/datasets/'+dataset)
  const replacement=await upload(dataset,original.replace('$1.01','$2.01'),true)
  await api('/api/v1/query',input,401,changed.token)
@@ -146,6 +186,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   return call('/credentials/sources/'+id,{...body,reviewedDigest:review.reviewedDigest},200)
  }
  const stale=await call('/credentials/review',scope,200)
+ await call('/credentials/sources/'+dataset+'/review',{previousVersion:0,columns:['invoice'],filters:[{column:'invoice',op:'lte',value:'synthetic-bifocal-invalid'}]},400)
  const policy={columns:['invoice','region','stage','revenue'],filters:[{column:'invoice',op:'lte',value:'3'}]}
  await sourcePolicy(dataset,policy)
  await call('/credentials',{...scope,reviewedDigest:stale.digest},409)
@@ -170,13 +211,42 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const joinedUndo=await context.request.post(origin+'/api/operator/import/undo',{headers:{Origin:origin,'X-Import-Dataset':joined},data:{planId:joinedChange.planId}})
  assert.equal(joinedUndo.status(),200,await joinedUndo.text())
  await api('/api/v1/query',input,401,afterRollback.token)
+ // Real native local sign-in and administration, preserving the last-owner floor.
+ const cliHeaders={Origin:origin,'x-rer-local-cli':createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('local-cli'+String.fromCharCode(0)+'sign-in').digest('hex')}
+ const nativeSignIn=async()=>{
+  const response=await context.request.post(origin+'/auth/local/cli-session',{headers:cliHeaders,data:{returnTo:'/app'},maxRedirects:0})
+  assert.equal(response.status(),303,await response.text())
+ }
+ await nativeSignIn()
+ const people=await(await context.request.get(origin+'/auth/operators')).json(),sponsor=people.find(p=>p.email==='synthetic-bifocal-1@example.test')
+ const invitation=await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-owner-2@example.test',displayName:'Second synthetic owner',role:'owner'}})
+ assert.equal(invitation.status(),202,await invitation.text())
+ const second=await page.context().browser().newContext()
+ try{
+  const accepted=await second.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent('synthetic-bifocal-owner-2@example.test'),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0})
+  assert.equal(accepted.status(),303,await accepted.text())
+  const suspended=await issue()
+  assert.equal((await api('/api/v1/query',input,200,suspended.token)).totals.revenue.value,'2.02')
+  const deactivate=await context.request.post(origin+'/auth/operator/status',{headers:{Origin:origin},data:{operatorId:sponsor.id,status:'inactive'}})
+  assert.equal(deactivate.status(),200,await deactivate.text())
+  await api('/api/v1/query',input,401,suspended.token)
+  // The supported local CLI now selects the remaining active owner.
+  await nativeSignIn()
+  const reactivate=await context.request.post(origin+'/auth/operator/status',{headers:{Origin:origin},data:{operatorId:sponsor.id,status:'active'}})
+  assert.equal(reactivate.status(),200,await reactivate.text())
+  await api('/api/v1/query',input,401,suspended.token)
+  await nativeSignIn()
+  const fresh=await issue();assert.equal((await api('/api/v1/query',input,200,fresh.token)).totals.revenue.value,'2.02')
+  const retired=(await call('/credentials')).credentials.find(c=>c.id===suspended.id)
+  assert.equal(retired.revoked,1)
+ }finally{await second.close()}
  const history=await call('/credentials')
  for(const id of [changed.id,beforeModel.id,renewed.id,bounded.id,afterRollback.id]){
   assert.equal(history.credentials.find(c=>c.id===id).revoked,1)
   assert.ok(history.history.some(h=>h.credential_id===id&&h.action==='activation-retired'),'Durable attributed retirement for '+id)
  }
  assert.ok(!JSON.stringify(history).includes('Ignore rules'))
- console.log('Machine doors: source policy intersection, lifetime cross-protocol accounting, source Undo and model rollback retirement, fresh review, exact human issuance, REST and GraphQL and three MCP clients, dashboard parity, complete paging, fixed scope, atomic budget, private diagnostics, source fences and immediate revocation passed')
+ console.log('Machine doors: native versioned model and content conflicts, certified metric parity, current-owner suspension and reactivation, pre-release withdrawal across all protocols, source policy intersection, lifetime cross-protocol accounting, source Undo and model rollback retirement, fresh review, exact human issuance, REST and GraphQL and three MCP clients, dashboard parity, complete paging, fixed scope, atomic budget, private diagnostics, source fences and immediate revocation passed')
 }
 
 /** Prepare real issued authority for the existing supported CLI archive journey. */
@@ -194,6 +264,9 @@ export async function prepareMachineRestore({origin,cookie}) {
  const model=await call('/models',{definition:{views:[{id:'sales',kind:'chart',query,rowRules:[]}],quality:[]}}),path='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(path+'/validate',{},200)
  await call(path+'/approve',{digest:review.digest},200)
  for(const environment of ['staging','production'])await call(path+'/promote',{environment,digest:review.digest},200)
+ const sourcePolicy={previousVersion:0,columns:['invoice','region','revenue'],filters:[{column:'region',op:'eq',value:'West'}]}
+ const policyReview=await call('/credentials/sources/'+dataset+'/review',sourcePolicy,200)
+ await call('/credentials/sources/'+dataset,{...sourcePolicy,reviewedDigest:policyReview.reviewedDigest},200)
  const scope={purpose:'Restore custody proof',modelId:model.modelId,revision:model.revision,viewId:'sales',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['region'],measures:['revenue'],tools:['query','definitions'],expiresAt:new Date(Date.now()+3600000).toISOString(),maxOperations:10}
  const reviewed=await call('/credentials/review',scope,200),credential=await call('/credentials',{...scope,reviewedDigest:reviewed.digest})
  const response=await fetch(origin+'/api/v1/definitions',{headers:{Authorization:'Bearer '+credential.token}})

@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import {decimal} from '../currency/decimal'
+import {date} from '../calendars/date'
 import type { Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
@@ -54,6 +56,16 @@ export async function sourceRuleResponse(request:Request,env:Bindings,actor:Auth
  // Reuse the typed query filter grammar; execution validates types before release.
  const filters=queryInput({version:1,dataset:source.id,joins:[],groupBy:[],filters:input.filters,measures:[{id:'rows',op:'count',unit:'count',scale:0}],context:{modelVersion:'source-policy',metricVersion:'source-policy',accountingBasis:'not-applicable',calendar:{id:'source-policy',version:1},rounding:'half-even'}}).filters
  if(filters.some(f=>!source.table.columns.some((c:{name:string})=>c.name===f.column)))fail('source_filter_column_required',400)
+ for(const filter of filters){
+  const type=source.table.columns.find((c:{name:string})=>c.name===filter.column)!.type
+  if(filter.op==='is-null'){if(filter.value!==undefined)fail('unexpected_filter_value',400);continue}
+  if(['gte','lte'].includes(filter.op)&&(type==='boolean'||filter.value===null||Array.isArray(filter.value)||typeof filter.value==='boolean'))fail('ordered_filter_value_required',400)
+  for(const value of Array.isArray(filter.value)?filter.value:[filter.value]){
+   if(value===null)continue
+   if(type==='boolean'?typeof value!=='boolean':typeof value!=='string')fail('filter_value_type_mismatch',400)
+   try{if(type==='number'||type==='money')decimal(value);if(type==='date')date(value)}catch{fail('filter_value_type_mismatch',400)}
+  }
+ }
  const definition={columns:input.columns,filters},value=canonicalJson(definition),digest=sha256(value),reviewedDigest=sha256(canonicalJson({definition,previousVersion:version,source:{id:source.id,revision:source.revision,digest:sha256(source.value_json)},actor:actor.id,authority:actor}))
  const guards=[assertion(sourceMatch(source)),assertion(current.guard)]
  if(match[2]){await transact(env.DB,actor,guards);return json({definition,version,reviewedDigest})}

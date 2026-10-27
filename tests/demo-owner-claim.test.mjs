@@ -162,6 +162,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   let manifest
   for await (const record of fileRecords(join(scratch, 'exports/owner.rer'))) if (record.kind === 'manifest') manifest = record
   assert.ok(manifest.tables.some(table => table.name === 'oa_operators'), 'archive includes original owner definitions')
+  assert.ok(manifest.tables.some(table => table.name === 'bf_machine_source_rules'), 'bounded machine source restrictions travel as definitions')
   assert.ok(!manifest.tables.some(table => table.name.startsWith('bf_catalog_search')), 'derived search and shadow tables never travel')
   for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys', 'bf_machine_credentials']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
   assert.ok(!archive.includes(machineCredential.token), 'machine bearer never travels')
@@ -196,6 +197,9 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const machineHistory = await restoredMachineHistory.json()
   assert.deepEqual(machineHistory.credentials, [])
   assert.ok(machineHistory.history.some(event => event.credential_id === machineCredential.id && event.actor_kind === 'human' && event.action === 'issued-exact-review'), 'attributed human issuance history survives without authority')
+  const restoredPolicy = await restoredContext.request.get(origin + '/api/operator/credentials/sources/synthetic-bifocal-restore')
+  assert.equal(restoredPolicy.status(), 200)
+  assert.deepEqual((await restoredPolicy.json()).definition, { columns: ['invoice', 'region', 'revenue'], filters: [{ column: 'region', op: 'eq', value: 'West' }] }, 'archive preserves the exact source restrictions without machine activation')
   const restoredSearch = await restoredContext.request.get(origin + '/api/operator/library/search?q=quarterly')
   assert.equal(restoredSearch.status(), 200)
   const restoredResults = await restoredSearch.json()

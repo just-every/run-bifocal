@@ -27,7 +27,7 @@ let output='',worker
 let browser
 try {
  const configuration=JSON.parse(await readFile('dist/server/wrangler.json','utf8'))
- configuration.main='machine-boundary.mjs'
+ configuration.main='machine-boundary.mjs';configuration.no_bundle=false;configuration.vars.RER_DEV_KEY='synthetic-bifocal-9'.repeat(3)
  await writeFile('dist/server/machine-boundary-wrangler.json',JSON.stringify(configuration))
  await writeFile('dist/server/machine-boundary.mjs',(await readFile('tests/journeys/machine-boundary-worker.mjs','utf8')).replace('../../dist/server/index.js','./index.js'))
  execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe'})
@@ -158,7 +158,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await context.request.post(origin+'/auth/signout',{headers,form:{}});assert.equal((await context.request.get(origin+'/api/operator/model-authoring')).status(),401);assert.equal((await context.request.get(origin+'/api/operator/explore')).status(),401);assert.equal((await context.request.post(origin+'/api/operator/explore/'+answer.queryId+'/export',{headers,data:{scope:'underlying',format:'csv'}})).status(),401)
  console.log('Semantic models: native YAML authoring and revision review, exact fiscal SQL parity, fanout and grain refusals, immutable cross-door answers, current authority and source erasure passed')
  await context.close()
-}catch(error){console.error(output.split('\n').filter(line=>new RegExp('error|exception|fatal|signal|aborted','i').test(line)).join('\n'));throw error}finally{
+}catch(error){console.error(output.split('\n').filter(line=>new RegExp('error|exception|fatal|signal|aborted|Boundary fixture','i').test(line)).join('\n'));throw error}finally{
  if(browser)await browser.close()
  worker?.kill('SIGTERM')
  if(worker)await new Promise(r=>worker.exitCode!==null||worker.signalCode!==null?r():worker.once('exit',r))

@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f3b4adc59009fc778eb8aef384072902cf914a9163cd15e925a173fed87425e5",
+      "sha256": "7a60de71fa9e8174cd29801875fd0a87b63d71aac9fa60bb76d6378166279850",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "42e0d4444993ad733688c61ac7a77cfa7953ebafc3395068823ff6639b8f707f",
+      "sha256": "3a31cd9066b8a13507834a1253e92c77f5f8ca17ebf80405da909478255c40f2",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -421,7 +421,7 @@
       "executable": false
     },
     "docs/MACHINE-API.md": {
-      "sha256": "cad13f27b84d42ada0afe0ee99fa1a7d8e870061361534003c70fb7049d968d4",
+      "sha256": "9db4748af8b9f76719d7185b42574d213f56d637e4d333eff42d068df8302407",
       "executable": false
     },
     "docs/MODEL-TOOLS.md": {
@@ -1381,7 +1381,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "108c868218d40a22ad2e0784cc93b808a42782199d7941ef9138f675ae27becb",
+      "sha256": "73c613f418a73e7ee1b6ce9b2cdef2b03ba0e55eb6e7933d022009a6db1fa49d",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -1653,7 +1653,7 @@
       "executable": false
     },
     "src/bifocal/credentials/sources.server.ts": {
-      "sha256": "664b641248bd7c4b5661b3ee8d1250e4ca087bf28d7734d9e0d061ebf38c0798",
+      "sha256": "ceaf2fa0b7e659a75dcf295a843389382f0f80d4c4baa7c0f729c7e2c54026b1",
       "executable": false
     },
     "src/bifocal/credentials/store.server.ts": {
@@ -4361,11 +4361,11 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "4c3a934e39b9c94be90a5a4b699435ebfe0868456b57040507040a555c545c3c",
+      "sha256": "602a0eaae0417a038e6380e65fa9767d74c42e4bd107452994a163c621b97a7a",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "0767767a62b94f0d21ece3183c33a553f9e1afcd9643721d14cba9ddc5c329a9",
+      "sha256": "3dbcde1e4c68b480853677f2a377adcb8b64e1b530b9bf22c3260e92c4b80c60",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -4484,8 +4484,12 @@
       "sha256": "8ab41ff04c73e97f2e0b644ef5643be3a5d974c47b40bba1e222659bffe85447",
       "executable": false
     },
+    "tests/journeys/machine-boundary-worker.mjs": {
+      "sha256": "7d7910a702dc56574adc19a99d1006ba7e1f517c204ffb543efb7921e02ed769",
+      "executable": false
+    },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "e59ba0817a0c8f22be1a4baaee15b102340b29f4788ecfc44653e51a5a412338",
+      "sha256": "b42b1925a53d149949c0ac160e8e1468a7961816ceabe38b5fc3022b16e87899",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
