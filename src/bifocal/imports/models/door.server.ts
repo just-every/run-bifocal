@@ -85,6 +85,6 @@ async function handleModelImport(request:Request,original:Bindings):Promise<Resp
 }
 export async function modelImportResponse(request:Request,env:Bindings):Promise<Response|null>{
  let response
- try{response=await handleModelImport(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code},error.status):json({error:'model_import_conflict',reason:'Reload the current project and source records, then review again.'},409)}
+ try{response=await handleModelImport(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code,...error instanceof DoorError&&error.details?{details:error.details}:{}},error.status):json({error:'model_import_conflict',reason:'Reload the current project and source records, then review again.'},409)}
  return response?rejectedUpload(request,response):null
 }

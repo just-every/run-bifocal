@@ -19,8 +19,8 @@ export async function flowReview(env:Bindings,ownerId:string,input:Record<string
  const bindings=flowBindings(input.bindings),sources:Source[]=[]
  const cycle=await env.DB.prepare(`WITH RECURSIVE parents(id) AS (
   SELECT value FROM json_each(?) UNION SELECT p.dataset_id FROM bf_preparation_output_sources p JOIN parents a ON p.output_id=a.id
- ) SELECT 1 FROM parents a JOIN bf_preparation_outputs o ON o.dataset_id=a.id JOIN bf_preparation_revisions r ON r.preparation_id=o.preparation_id AND r.version=o.version
- WHERE json_extract(r.document_json,'$.imported.projectId')=? LIMIT 1`).bind(canonicalJson(flowDatasets(bindings)),project.id).first()
+ ) SELECT 1 FROM parents a JOIN bf_preparation_outputs o ON o.dataset_id=a.id
+ WHERE o.project_id=? LIMIT 1`).bind(canonicalJson(flowDatasets(bindings)),project.id).first()
  if(cycle)fail('flow_project_dependency_cycle',409)
  for(const dataset of flowDatasets(bindings)){
   const row=await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables WHERE id=?').bind(dataset).first<Omit<Source,'table'>>()
@@ -43,7 +43,7 @@ export async function reviewImportedFlow(request:Request,env:Bindings,owner:Owne
 
 export async function preparationOrigin(env:Bindings,ownerId:string,document:Preparation) {
  if(!document.imported)return []
- const {result,project}=await flowReview(env,ownerId,document.imported)
+ const {result,project,sources}=await flowReview(env,ownerId,document.imported)
  if(!result.compatible||result.document?.dataset!==document.dataset)fail('compatible_original_flow_required',409)
- return [assertion(projectGuard(project)),assertion(sql('NOT EXISTS(SELECT 1 FROM bf_preparation_erasing_projects WHERE project_id=?)',project.id))]
+ return [assertion(projectGuard(project)),assertion(sql('NOT EXISTS(SELECT 1 FROM bf_preparation_erasing_projects WHERE project_id=?)',project.id)),...sources.map(source=>assertion(sourceMatch(source))),...sources.map(source=>sql('INSERT OR IGNORE INTO bf_model_import_sources(project_id,dataset_id) VALUES(?,?)',project.id,source.id))]
 }

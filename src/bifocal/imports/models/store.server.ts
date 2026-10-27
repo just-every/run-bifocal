@@ -6,6 +6,7 @@ import type { D1Sql, D1ImportContext } from '../../../modules/import-kit/src/d1/
 import { modelDestination, modelImportTargets, type ProjectRow } from './targets'
 import type { CompiledProject } from './compile'
 import { fail } from '../../query/types'
+import { preparationErasureGuard } from '../../preparation/erasure.server'
 type Owner=D1Sql&{email:string}
 export async function readImportedProject(env:Bindings,ownerId:string,id:string){
  const row=await env.DB.prepare('SELECT * FROM bf_model_imports WHERE id=? AND owner_id=?').bind(id,ownerId).first<ProjectRow>()
@@ -17,8 +18,9 @@ export const modelImportContext=(env:Bindings,owner:Owner,id:string):D1ImportCon
 const modelIds='SELECT r.model_id FROM bf_model_revision_imports i JOIN bf_semantic_revisions r ON r.id=i.revision_id WHERE i.project_id=?'
 export async function eraseImportedProject(env:Bindings,owner:Owner,id:string,guards:D1Sql[]=[],request?:Request,erasingProjects:ReadonlySet<string>=new Set(),erasingDatasets:ReadonlySet<string>=new Set()){
  const activeProjects=new Set([...erasingProjects,id])
- await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT OR IGNORE INTO bf_preparation_erasing_projects(project_id) VALUES(?)',id)])
- const outputs=(await env.DB.prepare("SELECT DISTINCT o.dataset_id FROM bf_preparation_outputs o JOIN bf_preparation_revisions r ON r.preparation_id=o.preparation_id AND r.version=o.version WHERE json_extract(r.document_json,'$.imported.projectId')=? ORDER BY o.dataset_id LIMIT 101").bind(id).all<{dataset_id:string}>()).results
+ const retention=await preparationErasureGuard(env,'project',id)
+ await transact(env.DB,owner,[...guards.map(assertion),assertion(retention),sql('INSERT OR IGNORE INTO bf_preparation_erasing_projects(project_id) VALUES(?)',id)])
+ const outputs=(await env.DB.prepare('SELECT dataset_id FROM bf_preparation_outputs WHERE project_id=? ORDER BY dataset_id LIMIT 101').bind(id).all<{dataset_id:string}>()).results
  if(outputs.length>100)fail('preparation_erasure_limit',413)
  const preparedOutputs=[]
  for(const output of outputs){
