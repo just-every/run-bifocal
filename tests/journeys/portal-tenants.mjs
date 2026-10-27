@@ -126,7 +126,7 @@ export async function provePortalTenants({origin,owner,reader,upload}) {
  es=await activate(east,await stage(east,currentDoc))
  const currentQueue=await invoke(east,'queue',{},201),currentToken=await token(east,'export')
  const currentUsage=await admin('/'+east.id+'/usage')
- const affected=await admin('',{}),affectedState=await activate(affected,await stage(affected,eastDoc))
+ const affected=await admin('',{});await activate(affected,await stage(affected,eastDoc))
  const affectedQueue=await invoke(affected,'queue',{},201),affectedToken=await token(affected,'export')
  const source=await call('/api/operator/datasets/'+dataset)
  await call('/api/operator/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
@@ -161,15 +161,22 @@ export async function preparePortalRestore({origin,cookie,model}) {
 export async function provePortalBoundary({origin,context}) {
  const {prepareMachineRestore}=await import('./machine-doors.mjs')
  const cookie=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')
- const machine=await prepareMachineRestore({origin,cookie}),fixture=await preparePortalRestore({origin,cookie,model:machine.portalModel})
- const path='/api/operator/portal/tenants/'+fixture.id
- const armed=await context.request.post(origin+'/__machine-boundary',{data:{path:path+'/suspend',cookie,body:{previousGeneration:fixture.state.generation}}})
- assert.equal(armed.status(),200)
- const response=await context.request.post(origin+path+'/jobs/'+fixture.job.id+'/run',{headers:{Origin:origin,Authorization:'Bearer '+fixture.issued.token},data:{}})
- assert.equal(response.status(),409,'An already computed export is refused after current suspension')
- const body=await response.json();assert.equal(body.error,'portal_state_changed');assert.equal(body.result,undefined)
- const state=await context.request.get(origin+path);assert.equal((await state.json()).status,'suspended')
- const tokens=await context.request.post(origin+path+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}});assert.equal(tokens.status(),403)
- const usage=await context.request.get(origin+path+'/usage');assert.deepEqual(await usage.json(),fixture.usage)
- console.log('Portal boundary: authenticated suspension before final response refuses computed export and retains its single reservation')
+ const machine=await prepareMachineRestore({origin,cookie})
+ for(const action of ['read','export']){
+  const fixture=await preparePortalRestore({origin,cookie,model:machine.portalModel}),path='/api/operator/portal/tenants/'+fixture.id
+  let issued=fixture.issued
+  if(action==='read'){
+   const token=await context.request.post(origin+path+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}})
+   assert.equal(token.status(),201);issued=await token.json()
+  }
+  const armed=await context.request.post(origin+'/__machine-boundary',{data:{path:path+'/suspend',cookie,body:{previousGeneration:fixture.state.generation}}})
+  assert.equal(armed.status(),200)
+  const response=await context.request.post(origin+path+(action==='read'?'/read':'/jobs/'+fixture.job.id+'/run'),{headers:{Origin:origin,Authorization:'Bearer '+issued.token},data:{}})
+  assert.equal(response.status(),409,'An already computed '+action+' is refused after current suspension')
+  const body=await response.json();assert.equal(body.error,'portal_state_changed');assert.equal(body.result,undefined)
+  const state=await context.request.get(origin+path);assert.equal((await state.json()).status,'suspended')
+  const tokens=await context.request.post(origin+path+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}});assert.equal(tokens.status(),403)
+  const usage=await context.request.get(origin+path+'/usage');assert.deepEqual(await usage.json(),{...fixture.usage,queries:fixture.usage.queries+(action==='read'?1:0)})
+ }
+ console.log('Portal boundary: authenticated suspension before final response refuses warm reads and computed exports and retains exact reservations')
 }
