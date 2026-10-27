@@ -116,8 +116,9 @@ async function scopedRequest(request:Request,env:Bindings,actor:Authority,t:Tena
  const run=await compute(env,actor.id,doc,normalized,r.content.sources)
  changes.push(...run.guards.map(assertion))
  const cached=action==='read'?await env.DB.prepare('SELECT result_json FROM bf_portal_cache WHERE tenant_id=? AND generation=? AND key=?').bind(t.id,t.generation,key).first<{result_json:string}>():null
- const result=cached?JSON.parse(cached.result_json):run.result
- if(action==='read'&&!cached)changes.push(sql('INSERT OR REPLACE INTO bf_portal_cache VALUES(?,?,?,?)',t.id,t.generation,key,canonicalJson(result)))
+ const cacheMatches=!!cached&&cached.result_json===canonicalJson(run.result)
+ const result=cacheMatches?JSON.parse(cached!.result_json):run.result
+ if(action==='read'&&!cacheMatches)changes.push(sql('INSERT OR REPLACE INTO bf_portal_cache VALUES(?,?,?,?)',t.id,t.generation,key,canonicalJson(result)))
  await transact(env.DB,actor,changes)
- return json({tenantId:t.id,generation:t.generation,release:t.published,result,cached:!!cached,...action==='export'?{format:'json',download:true}:{}})
+ return json({tenantId:t.id,generation:t.generation,release:t.published,result,cached:cacheMatches,...action==='export'?{format:'json',download:true}:{}})
 }
