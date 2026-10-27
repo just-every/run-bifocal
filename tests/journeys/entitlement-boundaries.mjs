@@ -79,6 +79,24 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
   assert.ok(!(await call(rep.context,'/explore')).questions.some(q=>q.id===identityResult.snapshotId))
  }finally{await fixture('collision-remove')}
  await run(rep,['two'])
+ // Email changes preserve the native operator, session and grant. Replacing
+ // the old principal with another member must not release the old row scope.
+ const identitySnapshot=await run(rep,['two']),repEmail=rep.person.email,nextEmail=next.person.email
+ const movedEmail='synthetic-bifocal-reassigned-identity@example.test'
+ const cookies=async context=>(await context.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+ const emailStep=async(context,email)=>({path:'/auth/email',cookie:await cookies(context),body:{email}})
+ try{
+  await arm('/explore/'+identitySnapshot.snapshotId+'/export','INSERT INTO bf_explore_audit',{steps:[await emailStep(rep.context,movedEmail),await emailStep(next.context,repEmail)]})
+  await call(rep.context,'/explore/'+identitySnapshot.snapshotId+'/export',{scope:'underlying',format:'csv'},409)
+  const current=await(await rep.context.request.get(origin+'/auth/session')).json()
+  assert.equal(current.operator.id,rep.person.id);assert.equal(current.operator.version,rep.person.version);assert.equal(current.operator.email,movedEmail)
+  assert.equal((await call(rep.context,'/explore/'+identitySnapshot.snapshotId+'/page',{scope:'underlying',offset:0},403)).error,'entitlement_mapping_missing')
+  await run(next,['two'])
+ }finally{
+  assert.equal((await next.context.request.post(origin+'/auth/email',{headers:{Origin:origin},data:{email:nextEmail}})).status(),200)
+  assert.equal((await rep.context.request.post(origin+'/auth/email',{headers:{Origin:origin},data:{email:repEmail}})).status(),200)
+ }
+ await run(rep,['two']);await run(next,['one'])
  const pendingSource=await review(),replacement=await upload(mapping,map(rep.person.email),true,true)
  await arm(publishPath,'INSERT INTO bf_entitlement_snapshots',replacement)
  await call(owner,publishPath,{definition,previousRevision:revision(),reviewedDigest:pendingSource.digest},409)

@@ -37,9 +37,11 @@ export default {
     const metadata=queries.map(query=>statements.get(query))
     if(pending&&url.pathname===pending.at&&metadata.some(q=>q?.query.startsWith(pending.before))){
      const mutation=pending;pending=null
-     const response=await fetch(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json',...mutation.headers},body:JSON.stringify(mutation.body)})
-     if(![200,204].includes(response.status))throw Error('Entitlement boundary public mutation refused: '+response.status)
-     await response.arrayBuffer()
+     for(const step of mutation.steps??[mutation]){
+      const response=await fetch(url.origin+step.path,{method:'POST',headers:{cookie:step.cookie??mutation.cookie,Origin:url.origin,'content-type':'application'+'/json',...step.headers},body:JSON.stringify(step.body)})
+      if(![200,204].includes(response.status))throw Error('Entitlement boundary public mutation refused: '+response.status)
+      await response.arrayBuffer()
+     }
     }
     return target.batch(metadata.map((value,i)=>value?.statement??queries[i]))
    }
