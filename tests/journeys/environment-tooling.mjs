@@ -7,7 +7,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const dataset='synthetic-bifocal-estate-source',csv='invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n'
  await upload(dataset,csv)
  const base=JSON.parse(await readFile(join(directory,'metric-export.native.json'),'utf8')).definition.query
- const query={...base,dataset,filters:[],groupBy:[]};delete query.fiscal;delete query.semantic
+ const query={...base,dataset,filters:[],groupBy:[]};delete query.fiscal;query.semantic={...query.semantic,grain:['invoice','region']}
  const definition={views:[{id:'revenue',kind:'report',query,rowRules:[]}],quality:[]},model=await call('/models',{definition}),flags=['--model',model.modelId,'--branch',model.branchId]
  const nativeQualityScreen=async(branchId,state,label)=>{
   await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor()
