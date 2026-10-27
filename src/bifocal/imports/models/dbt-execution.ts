@@ -131,4 +131,3 @@ export function executeDBT(project: Project, bindings: Record<string, DBTBinding
  project.tables=project.tables.filter(table=>!internal.has(table.name))
  project.explores=project.explores.filter(explore=>!internal.has(explore.table))
 }
-
