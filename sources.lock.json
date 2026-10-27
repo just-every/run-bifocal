@@ -725,7 +725,7 @@
       "executable": false
     },
     "public/app-theme.css": {
-      "sha256": "e97bf521a2a9ac456b8ecb046b769c60b0c6857e45a1b0ed431a9d57b81d6cd6",
+      "sha256": "9d5870c69c04a9c20a9a4df2dabe76aaab624a0da3396f98462113734ea41264",
       "executable": false
     },
     "public/apple-touch-icon.png": {
@@ -733,11 +733,11 @@
       "executable": false
     },
     "public/bifocal/answers.js": {
-      "sha256": "288110ffea35d631af8bf2b80cfb16a5ca1873099d41389d06ce3f4d6b470f27",
+      "sha256": "9c37253175e60399766f9d66b0e7eeb0245ad2bca4c81f9ac9090893e5b63348",
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "3d1eef0043790ad1ec004345cbc706021f37e4a20ddea9a41af45ecda6e8d23c",
+      "sha256": "19be39ca4bb50159a055e13ff6111c4b7271e06eed14a98b2105d299e1cf4d22",
       "executable": false
     },
     "public/bifocal/apps.css": {
@@ -749,11 +749,11 @@
       "executable": false
     },
     "public/bifocal/ask.css": {
-      "sha256": "338be3cf8aee5b2b88906a335c813251d983b9d85398c090dbba8d3658c4a1a4",
+      "sha256": "aca8659c3ee51e085632ea840d5d6f5309af99dd637e053d7aaa0c750d4f39a2",
       "executable": false
     },
     "public/bifocal/ask.js": {
-      "sha256": "aa8915ba26cffe92a11c81852f5b69f67cf7c5208b0a0d47065bf1076eb017c2",
+      "sha256": "24ecb48128fe44da2eb2d2ebfff83c34334dff7783d6308f99962bac5207b961",
       "executable": false
     },
     "public/bifocal/board.js": {
@@ -789,7 +789,7 @@
       "executable": false
     },
     "public/bifocal/catalog.css": {
-      "sha256": "9373062b814c13eeae03231d681d675e40bf7378cfb3a371752365124c0006ea",
+      "sha256": "79b66cd70ddf23d165bff43650170f26dccea9d3437bf5fe3b6014ef4186d7cb",
       "executable": false
     },
     "public/bifocal/catalog.js": {
@@ -813,7 +813,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-authoring.css": {
-      "sha256": "d3f83975fe15b3bfdd1180a7b3f5e1e2852be7a91714ce44979cecc5b3ede3b3",
+      "sha256": "9812d13612df28cc2659f26653f1fcbc18aa6e068163f138c83e84a7cbd1ac0b",
       "executable": false
     },
     "public/bifocal/dashboard-authoring.js": {
@@ -833,7 +833,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.css": {
-      "sha256": "1d6c59be730a97c17476646d22c16e541c77911a634ae41e3234c973f1475f21",
+      "sha256": "d31fa793e814b05135f14636df22c966a48c99630f47328abbcd35c555e14fdf",
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
@@ -845,7 +845,7 @@
       "executable": false
     },
     "public/bifocal/explore.js": {
-      "sha256": "f42dd3579590ca05662610a5365ab7bf2a9f7a59048360bd66b8528f77664e7b",
+      "sha256": "4280d6722bc6813aef28de36fad4682634468e23906d4eaf8406d92fa1e69b6b",
       "executable": false
     },
     "public/bifocal/export-policy.js": {
@@ -1257,7 +1257,7 @@
       "executable": false
     },
     "src/app/shell.ts": {
-      "sha256": "792b71d03a3c043058493d5981c1037ad2a761d0098e5ed668b5ecea85f92084",
+      "sha256": "c7abed99da903929ebc982d3ddcf0f16781522cc539990bafc56576ead70fc1a",
       "executable": false
     },
     "src/app/time.ts": {
@@ -2061,7 +2061,7 @@
       "executable": false
     },
     "src/bifocal/metrics/store.server.ts": {
-      "sha256": "10ec805234fb945a6aeac0c65019d5e01ab26ec732f6d85a5d1f9d9355583aaf",
+      "sha256": "0e2045b822ee579ad0c35f5774e9cc8099736c05bcf8da95e69d212574043f6e",
       "executable": false
     },
     "src/bifocal/metrics/transport.ts": {
