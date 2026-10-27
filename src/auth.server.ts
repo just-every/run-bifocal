@@ -9,6 +9,7 @@ import branding from './branding.json'
 import { homePage } from './app/home'
 import { currentAuthority } from './bifocal/catalog/authority.server'
 import { homeEntries } from './bifocal/apps/reader.server'
+import { ownerPlaces } from './bifocal/home/places.server'
 import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './app/shell'
 import { installedDocs } from './app/docs'
 import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
@@ -68,7 +69,7 @@ export function operatorAuth(env: Bindings) {
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
 // Every app page wears the frame (src/app/shell.ts); the installed guide wears it signed out too, without tools.
 function html(main: string, title: string, viewer: Viewer | null, place: Place, status = 200) {
- const side = viewer ? accountSide(viewer.role, place) : ''
+ const side = viewer && place !== 'home' ? accountSide(viewer.role, place) : ''
  return new Response(appDocument({ title, viewer, place, side, main, head: place === 'home' ? '<link rel="stylesheet" href="/bifocal/apps.css">' : place === 'settings' && viewer?.role === 'owner' ? '<script type="module" src="/bifocal/protection-settings.js"></script>' : '' }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}; ${place === 'settings' ? "script-src 'self'; connect-src 'self'" : ''}` } })
 }
 
@@ -163,7 +164,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
   const actor = await currentAuthority(request, env)
-  return html(homePage(session.operator, actor && actor.role !== 'owner' ? await homeEntries(env, actor) : []), `App home · ${branding.name}`, session.operator, 'home')
+  return html(homePage(actor && actor.role !== 'owner' ? await homeEntries(env, actor) : [], actor?.role === 'owner' ? await ownerPlaces(env, actor) : null), `App home · ${branding.name}`, session.operator, 'home')
  }
  return null
 }

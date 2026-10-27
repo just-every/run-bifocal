@@ -1,22 +1,30 @@
 // The installed app's one frame, after the owner's approved app look A (round 2, h1; 26 Oct 2026): a white top bar with
-// the vector mark 4 (the real spectacles), the wordmark and the tools this account can open; a left list; one main pane.
-// Every signed-in app document renders through it, so the bar, its links and Sign out exist once. Only existing
-// workflows are linked.
+// the vector mark 4 (the real spectacles), the wordmark, the daily tools this account can open and a Settings menu; a
+// left list; one main pane. Every signed-in app document renders through it, so the bar, its links and Sign out exist
+// once. Only existing workflows are linked; the lockup opens app home.
 import { fontHead } from '../base/font-head'
 import { iconHead } from '../base/icon-head'
 
 export const escapeHtml = (value: string) => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!))
 
 export type Viewer = { displayName: string; role: string }
-export type Place = 'home' | 'apps' | 'files' | 'answers' | 'company' | 'people' | 'settings' | 'guide'
+export type Place = 'home' | 'answers' | 'metrics' | 'files' | 'library' | 'company' | 'people' | 'library-settings' | 'export' | 'settings' | 'guide'
+type Link = [Place | '', string, string, (role: string) => boolean]
 
-const TOOLS: [Place, string, string, (role: string) => boolean][] = [
- ['home', 'App home', '/app', () => true],
- ['apps', 'Apps', '/app/apps', () => true],
+// The bar holds daily work only, as h1's Questions · Metrics · Sources · Reports; configuration sits in Settings at right.
+const TOOLS: Link[] = [
+ ['answers', 'Answers', '/app/queries', role => role === 'owner'],
+ ['metrics', 'Metrics', '/app/metrics', role => role === 'owner'],
  ['files', 'Files', '/app/import', role => role === 'owner'],
- ['answers', 'Exact answers', '/app/queries', role => role === 'owner'],
+ ['library', 'Library', '/app/library', () => true],
+]
+const SETTINGS: Link[] = [
  ['company', 'Company', '/app/company', role => role === 'owner'],
  ['people', 'People', '/app/people', role => ['owner', 'admin'].includes(role)],
+ ['library-settings', 'Library settings', '/app/library/settings', role => role === 'owner'],
+ ['export', 'Export limits', '/app/settings/export', role => role === 'owner'],
+ ['settings', 'Your settings', '/app/settings', () => true],
+ ['', 'Identity settings', '/auth/settings/identity', role => role === 'owner'],
 ]
 
 /** Every app page's styles and fonts are same-origin files; nothing inline. */
@@ -33,9 +41,11 @@ function initials(name: string) {
 export const avatar = (name: string) => `<span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span>`
 
 function topBar(viewer: Viewer | null, place: Place) {
- const tools = viewer ? TOOLS.filter(([, , , allowed]) => allowed(viewer.role)).map(([id, label, href]) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`).join('') : ''
- const account = viewer ? `<div class="account">${avatar(viewer.displayName)}<span class="who">${escapeHtml(viewer.displayName)}</span><form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></div>` : ''
- return `<header class="topbar">${lockup}${tools ? `<nav class="tools" aria-label="App">${tools}</nav>` : ''}${account}</header>`
+ if (!viewer) return `<header class="topbar">${lockup}</header>`
+ const links = (list: Link[]) => list.filter(([, , , allowed]) => allowed(viewer.role)).map(([id, label, href]) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`).join('')
+ const configuring = SETTINGS.some(([id]) => id === place)
+ const menu = `<details class="menu"><summary${configuring ? ' data-current="true"' : ''}>Settings</summary><nav class="menu-panel" aria-label="Settings">${links(SETTINGS)}<form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></nav></details>`
+ return `<header class="topbar">${lockup}<nav class="tools" aria-label="App">${links(TOOLS)}</nav><div class="account">${avatar(viewer.displayName)}<span class="who">${escapeHtml(viewer.displayName)}</span>${menu}</div></header>`
 }
 
 /** The left column of the account pages: the signed-in person's own tools, then this installation's guides. */

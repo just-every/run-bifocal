@@ -15,19 +15,34 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .skip{position:absolute;left:-9999px}
 .skip:focus{left:16px;top:12px;z-index:10;padding:10px 14px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-control)}
 
-/* Top bar: mark 4 and the wordmark at h1's size, the tools this account can open (the current one cobalt over a cobalt
-   rule), a hairline divider, then the person's initials disc and name. */
+/* Top bar: mark 4 and the wordmark at h1's size, the daily tools this account can open (the current one cobalt over a
+   cobalt rule), a hairline divider, then the person's initials disc and name and the Settings menu that holds
+   configuration and Sign out. Nothing in the bar scrolls or clips: below 1000 px the tools take their own row. */
 .topbar{display:flex;align-items:center;gap:40px;min-height:70px;padding:0 32px;background:var(--app-surface);border-bottom:1px solid var(--app-line)}
 .lockup{display:inline-flex;align-items:center;gap:12px;color:var(--app-text);font:500 29px/1 var(--font-sans);letter-spacing:-.015em;text-decoration:none;white-space:nowrap}
 .lockup:hover{text-decoration:none}
 .lockup img{display:block;width:76px;height:36px}
-.tools{display:flex;align-self:stretch;gap:32px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+.tools{display:flex;align-self:stretch;gap:32px;margin-left:auto}
 .tools a{display:flex;align-items:center;white-space:nowrap;color:var(--app-text-2);font-size:16px;font-weight:500;border-bottom:3px solid transparent;padding-top:3px}
 .tools a:hover{color:var(--app-text);text-decoration:none}
 .tools a[aria-current=page]{color:var(--app-link);border-bottom-color:var(--app-mark);font-weight:650}
+.tools a:focus-visible{outline-offset:-3px}
 .account{display:flex;align-items:center;gap:12px;padding-left:28px;border-left:1px solid var(--app-line);min-height:36px;font-size:16px}
-.account form{margin:0}
-.account button{white-space:nowrap}
+/* Settings: one quiet outline control with a chevron; its panel drops below, right-aligned, and lists configuration
+   pages with the current one highlighted, then Sign out after a hairline. */
+.menu{position:relative;margin:0}
+.menu>summary{gap:8px;min-height:40px;padding:7px 12px 7px 14px;border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text);font-weight:500;white-space:nowrap}
+.menu>summary:hover{background:var(--app-sunk)}
+.menu>summary::before{content:none}
+.menu>summary::after{content:'';flex:none;width:7px;height:7px;margin:-3px 2px 0 2px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
+.menu[open]>summary::after{margin-top:3px;transform:rotate(-135deg)}
+.menu>summary[data-current]{color:var(--app-link);border-color:var(--app-mark);font-weight:650}
+.menu>.menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:20;display:flex;flex-direction:column;gap:2px;width:max-content;min-width:220px;margin:0;padding:8px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius);box-shadow:0 12px 32px rgb(17 24 39 / 12%)}
+.menu-panel a{padding:10px 12px;border-radius:6px;color:var(--app-text);font-size:16px;font-weight:500;white-space:nowrap}
+.menu-panel a:hover{background:var(--app-sunk);text-decoration:none}
+.menu-panel a[aria-current]{background:var(--app-select);font-weight:650}
+.menu-panel form{margin:6px 0 0;padding-top:6px;border-top:1px solid var(--app-line)}
+.menu-panel button.quiet{width:100%;justify-content:flex-start;min-height:44px;padding:10px 12px;color:var(--app-text);font-size:16px}
 .avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:40px;border-radius:50%;background:var(--app-avatar);color:var(--app-text);font-size:14px;font-weight:600;letter-spacing:.02em}
 .who{color:var(--app-text);font-weight:500;white-space:nowrap;max-width:24ch;overflow:hidden;text-overflow:ellipsis}
 
@@ -44,6 +59,9 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .sidelist a[aria-current]{background:var(--app-select);color:var(--app-text);font-weight:650}
 .sidelist .row-meta{color:var(--app-muted);font:400 14px/1.4 var(--font-ui);font-variant-numeric:tabular-nums}
 .sidelist hr{width:100%;margin:16px 0 8px;border:0;border-top:1px solid var(--app-line)}
+/* Tools beside a list sit in a quiet group below it, lighter than the list's rows. */
+.sidelist.tools-group{gap:0}
+.sidelist.tools-group a{padding:8px 14px;color:var(--app-text-2);font-weight:400}
 .side-note{margin:16px 14px 0;color:var(--app-muted);font-size:14px;line-height:1.55}
 .main{min-width:0;max-width:1180px;padding:36px 40px 64px}
 .single .main{max-width:880px;margin:0 auto}
@@ -61,6 +79,7 @@ p{margin:0 0 12px;text-wrap:pretty}
 .dot{margin:0 8px;color:var(--app-muted)}
 .section{margin:40px 0 4px}
 .hint,.muted{color:var(--app-muted);font-size:15px}
+label .hint{font-weight:400}
 .note{margin:20px 0;padding:16px 20px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text-2);font-size:15px}
 /* A wrapped links line breaks before its "·", never after it, with room for 24 px targets. */
 .links{margin-top:24px;font-size:16px;line-height:2}
@@ -91,6 +110,15 @@ code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px sol
 .session h3{margin-bottom:12px}
 .session .facts-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .session form button{display:inline-block;max-width:100%;text-align:left}
+
+/* App home: three place cards, each a short list of h1's rows (a name over one quiet line) and its way in. */
+.places{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:20px}
+.places .panel{margin:0}
+.place-list{list-style:none;margin:0;padding:0}
+.place-list li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--app-line)}
+.place-list a{color:var(--app-text);font-weight:500;line-height:1.4}
+.place-list .row-meta{color:var(--app-muted);font-size:14px}
+.place-more{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--app-line);font-weight:600}
 
 /* People. */
 .people{list-style:none;padding:0 28px}
@@ -156,7 +184,7 @@ pre{margin:0;padding:16px 18px;background:var(--app-sunk);border:1px solid var(-
 /* Status, the held notice (pale yellow, a full yellow edge and a yellow "!" disc) and errors. */
 .status{margin:0 0 16px;color:var(--app-text-2);font-size:15px}
 .status:empty{display:none}
-.status[data-quiet=true],body[data-answer=shown]:not([data-id=""]) .main>h1{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.status[data-quiet=true]{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .status[data-error=true]{padding:14px 18px;background:var(--app-danger-tint);border:1px solid var(--app-danger-line);border-radius:var(--app-radius);color:var(--app-danger)}
 .warning{position:relative;margin:20px 0;padding:18px 22px 18px 60px;background:var(--app-held-tint);border:2px solid var(--app-held);border-radius:var(--app-radius);color:var(--app-text);font-size:16px;line-height:1.5}
 .warning::before{content:'!';position:absolute;left:20px;top:16px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--app-held);color:#000;font-weight:800;font-size:16px;line-height:1}
@@ -167,17 +195,21 @@ pre{margin:0;padding:16px 18px;background:var(--app-sunk);border:1px solid var(-
 /* Exact answers: the title and meta with the actions at right, a modest KPI card in ink, the held notice in context,
    then the rows. */
 .answer{margin-top:4px}
-body[data-kind]:not([data-id=""]) .main>h1{font:500 15px/1.4 var(--font-ui);letter-spacing:0;color:var(--app-muted);margin-bottom:8px}
+/* The page name is the eyebrow over the answer's own title. */
+.eyebrow-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 20px;margin-bottom:8px}
+.eyebrow{font:500 15px/1.4 var(--font-ui);letter-spacing:0;color:var(--app-muted)}
 .answerhead{display:flex;align-items:flex-start;justify-content:space-between;gap:28px}
 .answer-title{font-size:36px;line-height:1.15;font-weight:750;letter-spacing:-.02em}
 .answer-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px;flex:none}
 #snapshot-note{font-family:var(--font-ui)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:24px 0 0;border:1px solid var(--app-line);border-radius:var(--app-radius);background:var(--app-surface)}
-.kpi{display:flex;flex-direction:column;gap:4px;padding:20px 24px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:24px 0 0;border:1px solid var(--app-line);border-radius:var(--app-radius);background:var(--app-surface)}
+.kpi{display:flex;flex-direction:column;gap:4px;padding:20px 24px;min-width:0;container-type:inline-size}
 .kpi+.kpi{border-left:1px solid var(--app-line)}
-.kpi-value{order:-1;font:700 32px/1.15 var(--font-sans);font-variant-numeric:tabular-nums;letter-spacing:-.015em;color:var(--app-text)}
+/* A figure never splits: it stays on one line and scales with its cell, up to 32 px. */
+.kpi-value{order:-1;font:700 32px/1.15 var(--font-sans);font-size:clamp(20px,16cqi,32px);font-variant-numeric:tabular-nums;letter-spacing:-.015em;color:var(--app-text);white-space:nowrap;overflow-wrap:normal}
+.kpi-value.long{font-size:clamp(18px,12cqi,28px)}
 .kpi-label{color:var(--app-text);font:400 17px/1.35 var(--font-ui)}
-.kpi-id{color:var(--app-text-2);font:400 15px/1.4 var(--font-ui)}
+.kpi-unit{color:var(--app-muted)}
 #artifact-links p{margin:12px 0 0}
 .emptystate{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 20px;align-items:start;margin:24px 0 0;padding:28px;border:1px dashed var(--app-field);border-radius:var(--app-radius);background:var(--app-surface)}
 .emptystate svg{grid-row:span 2;width:56px;height:44px;color:var(--app-field-strong);stroke-width:1.4}
@@ -193,6 +225,11 @@ table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:ta
 caption{padding:18px 24px 14px;text-align:left;font:700 18px/1.35 var(--font-sans);color:var(--app-text)}
 th{padding:10px 24px;background:var(--app-sunk);color:var(--app-text-2);font-size:14px;font-weight:600;text-align:left;white-space:nowrap;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}
 td{padding:12px 24px;border-bottom:1px solid var(--app-line);color:var(--app-text);vertical-align:top;max-width:320px}
+/* Inside a scrolling table no value splits (a date at its hyphens, an id, a figure); the table scrolls instead, its right
+   edge fades and the caption says more columns follow. */
+.tablewrap td{white-space:nowrap;overflow-wrap:normal;max-width:none}
+.tablewrap[data-more]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent)}
+caption .more{margin-left:14px;color:var(--app-link);font:500 14px/1.35 var(--font-ui);white-space:nowrap}
 tr:last-child td{border-bottom:0}
 td:first-child{white-space:nowrap}
 td.num{text-align:right;font-family:var(--font-mono);font-size:14px;white-space:nowrap;overflow-wrap:normal}
@@ -253,7 +290,6 @@ ul{padding-left:20px}
  .topbar:has([data-rer-demo-exit]) .lockup{font-size:20px;gap:8px}
  .topbar:has([data-rer-demo-exit]) .lockup img{width:46px;height:22px}
  .topbar:has([data-rer-demo-exit]) .avatar{display:none}
- .account button.quiet{padding:6px 8px}
  .account{gap:8px}
  /* Every tool stays in view on a phone: the row wraps instead of scrolling a tool off the edge. */
  .tools{flex:0 0 calc(100% + 32px);flex-wrap:wrap;margin:10px -16px 0;padding:0 16px;gap:0 20px;overflow:visible}
@@ -265,7 +301,7 @@ ul{padding-left:20px}
  .answer-title{font-size:28px}
  .pagehead,.answerhead{flex-direction:column;gap:14px}
  .answer-actions{justify-content:flex-start}
- .cards,.fields{grid-template-columns:minmax(0,1fr)}
+ .cards,.fields,.places{grid-template-columns:minmax(0,1fr)}
  .panel{padding:18px}
  .tablepanel{padding:0}
  .panel:not(.tablepanel) .tablewrap{margin:12px -18px -18px}
@@ -281,9 +317,7 @@ ul{padding-left:20px}
  .kpi+.kpi{border-left:0}
  .kpi:nth-child(even){border-left:1px solid var(--app-line)}
  .kpi:nth-child(n+3){border-top:1px solid var(--app-line)}
- .kpi-value{font-size:24px}
  .kpi-label{font-size:16px}
- .kpi-id{font-size:14px}
  .warning{padding:16px 16px 16px 52px}
  .warning::before{left:16px;top:15px}
  .actions button{flex:1 1 auto}

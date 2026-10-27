@@ -22,7 +22,7 @@ export async function reportRunPage(request: Request, original: Bindings): Promi
  if (request.method !== 'GET') return new Response(null, { status: 405 })
  const owner = await fileOwner(request, env)
  return new Response(appDocument({
-  title: 'Report artifact · Bifocal', viewer: session.operator, place: 'answers',
+  title: 'Report artifact · Bifocal', viewer: session.operator, place: 'library',
   body: ' data-run-id="' + match[1] + '" data-zone="' + escapeHtml(await displayZone(env, session.operator.email)) + '"',
   head: '<link rel="stylesheet" href="/bifocal/report-custody.css"><script type="module" src="/bifocal/report-custody.js"></script>',
   side: '<nav class="sidelist" aria-label="Report access"><a href="' + path + '" aria-current="page">This report version</a>' + (owner ? '<a href="/app/queries">Exact answers</a><a href="/app/models">Semantic models</a>' : '') + '<a href="/app/settings">Your settings</a></nav>',
