@@ -4665,11 +4665,11 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "0325c5001c4348d65d433904ea29e3682c007075ee65c94fbc7ae45768c9adee",
+      "sha256": "a01c41fc8425baf8e26007225e78bea3bc58938145952cd179c7412a4c8d5b89",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
-      "sha256": "9337408054763aa7245d393a999487a4b4aed5ee39ec178830834cc7dbc5514e",
+      "sha256": "20f21735a46a072ac05321d96084d756dfa2b251d80c564d4d322d654b5ae835",
       "executable": false
     },
     "tests/journeys/pivot-tooling.mjs": {

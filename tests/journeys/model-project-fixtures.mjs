@@ -136,6 +136,18 @@ export async function proveDBTExecution({origin,context,call,upload,signInMember
  await upload(dataset,'id,quantity,price,repair\n1,2,0.10,12\n1,3,0.20,13\n,4,,14\n',true,sourceOptions)
  const quality=await review();assert.equal(quality.compatible,false)
  assert.deepEqual(quality.tests.map(t=>[t.test,t.status,t.failures]).sort(),[['not_null','failed',1],['unique','failed',2]])
+ // Intake diagnostics remain blocking at execution; a malformed test cannot vanish.
+ for(const key of ['tests','data_tests'])for(const scope of ['column','model']){
+  const malformed=structuredClone(input);malformed.projectId='synthetic-bifocal-invalid-'+key.replace('_','-')+'-'+scope
+  malformed.files[1].content=malformed.files[1].content.replace('tests: [not_null, unique]',key+': not_null')
+  if(scope==='model')malformed.files[1].content=malformed.files[1].content.replace('      - name: id\n        '+key+': not_null','      - name: id\n    '+key+': not_null')
+  const intake=await importProject(malformed)
+  assert.ok(intake.report.project.issues.some(d=>d.code==='invalid_dbt_tests'&&d.file==='models/schema.yml'))
+  const invalid=await call(path,{...body,projectId:malformed.projectId},200)
+  assert.equal(invalid.compatible,false,'An invalid imported test must never become a compatible review')
+  assert.ok(invalid.diagnostics.some(d=>d.code==='invalid_dbt_tests'&&d.file==='models/schema.yml'))
+  assert.deepEqual(invalid.outputs,{},'A project with invalid declarations cannot release unchecked null IDs')
+ }
  await upload(dataset,csv.replace('0.20,13','0.20,bad'),true,sourceOptions)
  const failed=await review();assert.equal(failed.compatible,false)
  assert.ok(failed.diagnostics.some(d=>d.resource==='model.a_sales'&&d.code==='preparation_type_conversion_failed'));assert.equal(failed.outputs['model.a_sales'],undefined)
