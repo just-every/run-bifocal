@@ -31,7 +31,7 @@ static int frozen_clock_gettime(clockid_t id,struct timespec *out) {
  long long ms=id==CLOCK_REALTIME?epoch():0;
  if(ms){out->tv_sec=ms/1000;out->tv_nsec=(ms%1000)*1000000;return 0;}
 #ifdef __APPLE__
- int (*real_fn)(clockid_t,struct timespec*)=dlsym(RTLD_NEXT,"clock_gettime");return real_fn(id,out);
+ return clock_gettime(id,out);
 #else
  return syscall(SYS_clock_gettime,id,out);
 #endif
@@ -40,7 +40,7 @@ static int frozen_gettimeofday(struct timeval *out,void *zone) {
  long long ms=epoch();
  if(ms){out->tv_sec=ms/1000;out->tv_usec=(ms%1000)*1000;return 0;}
 #ifdef __APPLE__
- int (*real_fn)(struct timeval*,void*)=dlsym(RTLD_NEXT,"gettimeofday");return real_fn(out,zone);
+ return gettimeofday(out,zone);
 #else
  return syscall(SYS_gettimeofday,out,zone);
 #endif
@@ -49,7 +49,7 @@ static time_t frozen_time(time_t *out) {
  long long ms=epoch(); time_t value;
  if(ms)value=ms/1000;else {
 #ifdef __APPLE__
- time_t (*real_fn)(time_t*)=dlsym(RTLD_NEXT,"time");value=real_fn(NULL);
+ value=time(NULL);
 #else
  value=syscall(SYS_time,NULL);
 #endif
