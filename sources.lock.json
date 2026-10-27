@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "de0cb6e7a2c4d19c11e9af46e045bcd73b2fe10618d0209dc927a23cd73aea38",
+      "sha256": "d555a3683c8af5b63cf33e874b4d699615c74acfa70b51cf672aca3d50d65108",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1293,7 +1293,7 @@
       "executable": false
     },
     "seed.json": {
-      "sha256": "3dbe41f5c2743defa1f78b5e6d926ca601a51e79ef926f44588718c3c0eb6074",
+      "sha256": "e1ee9bbec2eb2965f5011cbe9d5187b177679585d914160d538cf4026d3e9627",
       "executable": false
     },
     "src/app/docs.ts": {
