@@ -40,10 +40,6 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .menu>summary::before{content:none}
 .menu>summary::after{content:'';flex:none;width:7px;height:7px;margin:-3px 2px 0 2px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
 .menu[open]>summary::after{margin-top:3px;transform:rotate(-135deg)}
-.menu .control-tooltip{position:absolute;right:0;top:calc(100% + 8px);z-index:30;padding:6px 10px;border-radius:var(--app-radius);background:var(--app-text);color:var(--app-surface);font-size:14px;font-weight:500;pointer-events:none;visibility:hidden;opacity:0;transition:visibility 0s,opacity .1s}
-.menu>summary:hover .control-tooltip{visibility:visible;opacity:1;transition-delay:.3s}
-.menu>summary:focus-visible .control-tooltip{visibility:visible;opacity:1;transition:none}
-.menu[open] .control-tooltip{display:none}
 .menu>summary[data-current]{color:var(--app-link);border-color:var(--app-mark);font-weight:650}
 .menu>.menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:20;display:flex;flex-direction:column;gap:2px;width:max-content;min-width:220px;margin:0;padding:8px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius);box-shadow:0 12px 32px rgb(17 24 39 / 12%)}
 .menu-panel a{padding:10px 12px;border-radius:6px;color:var(--app-text);font-size:16px;font-weight:500;white-space:nowrap}

@@ -12,7 +12,7 @@ export async function environmentPage(request:Request,original:Bindings):Promise
  if(!session)return new Response(null,{status:303,headers:{location:'/signin?returnTo='+encodeURIComponent(url.pathname),'cache-control':'no-store'}})
  if(request.method!=='GET')return new Response(null,{status:405})
  const actor=await currentAuthority(request,env),headers={'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','content-security-policy':`default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; ${appPolicy}`}
- const page=(main:string,status=200)=>new Response(appDocument({tooltips:true,title:'Environments · Bifocal',viewer:session.operator,place:'answers',main}),{status,headers})
+ const page=(main:string,status=200)=>new Response(appDocument({title:'Environments · Bifocal',viewer:session.operator,place:'answers',main}),{status,headers})
  if(!actor||actor.role!=='owner')return page('<h1>Environment access unavailable</h1><p>Current installation owner required.</p>',403)
  const state=await readEstate(env,actor,match[1]);if(!state)return page('<h1>Environment not found</h1>',404)
  const rows=[],guards=[estateGuard(actor,state.id,state)]

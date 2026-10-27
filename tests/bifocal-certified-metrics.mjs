@@ -13,7 +13,7 @@ import {entitlementClock} from './journeys/entitlement-clock.mjs'
 export async function proveCertifiedMetrics() {
 const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
 const origin=`http://127.0.0.1:${port}`,persist=await mkdtemp(join(tmpdir(),'bifocal-governance-')),headers={Origin:origin},setup='synthetic-bifocal-1'.repeat(3)
-const clock=await entitlementClock(persist);await clock.set('2026-10-27T12:00:00.000Z')
+const clock=await entitlementClock(persist)
 const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/wrangler.json'],env={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false'}
 let output='',worker
 let browser
@@ -28,6 +28,7 @@ try {
  const call=async(path,data,expected=data===undefined?200:201,extra={})=>{const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...(data===undefined?{}:{data})});assert.equal(r.status(),expected,await r.text());return r.json()}
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)
  await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])
+ await clock.set(new Date().toISOString())
  await call('/calendars',{id:'synthetic-bifocal-calendar',previousVersion:null,definition:{name:'Calendar year',kind:'fiscal',startMonth:1}})
  const dataset='synthetic-bifocal-governance'
  const upload=async(data,catchup=false,lineage)=>{
