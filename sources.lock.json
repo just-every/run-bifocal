@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6d9dcd3d4d8fe2f7007f3992eab2a4d827fc4c1f396f1cc92f1f52470c7ae27b",
+      "sha256": "1a1d12f79e9f6f00231c16325f66f091feb87099f6053be37ac2c1b35351968f",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4789,7 +4789,7 @@
       "executable": false
     },
     "tests/journeys/preparation-flow-browser.mjs": {
-      "sha256": "5174075bf246d028e224f13e276808d2979056ecdfa38ae9cf02eb0ea03b4f67",
+      "sha256": "9d9dc8dc38af12fa3c50ea3684d5d1e00bb4ffa031e12fa11576a57b93d72b2d",
       "executable": false
     },
     "tests/journeys/preparation-import.mjs": {
