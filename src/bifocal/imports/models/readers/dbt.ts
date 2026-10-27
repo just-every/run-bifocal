@@ -47,13 +47,12 @@ export function readDBT(p: Project, files: ProjectFile[]) {
    }
   }
  }
- // A manifest is the authoritative resolved graph. With source-only projects,
- // inventory literal ref and source calls but never claim Jinja compilation.
+ // Keep resolved manifest resources and uploaded SQL as inert inventory.
+ // Literal source references never establish Jinja compilation or equivalence.
  for (const file of [...files].sort((a, b) => Number(/\.sql$/i.test(b.path)) - Number(/\.sql$/i.test(a.path)))) {
   if (file === manifest) continue
   const at = provenance(file, file.content)
   if (/\.sql$/i.test(file.path)) {
-   if (manifest) continue
    const name = file.path.split('/').at(-1)!.replace(/\.sql$/i, '')
    const kind = /(?:^|\/)tests\//.test(file.path) ? 'test' : /(?:^|\/)macros\//.test(file.path) ? 'macro' : /(?:^|\/)snapshots\//.test(file.path) ? 'snapshot' : /(?:^|\/)analyses\//.test(file.path) ? 'analysis' : 'model'
    const dependencies = [...file.content.matchAll(/\{\{\s*(ref|source)\(\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\2(?:\s*,\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\4)?\s*\)\s*\}\}/g)].map(m => m[1] === 'source' ? `source.${m[3]}.${m[5] ?? ''}` : `model.${m[5] ?? m[3]}`)

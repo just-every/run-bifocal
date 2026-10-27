@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {dump} from 'js-yaml'
+import {dump,load,JSON_SCHEMA} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
 import {modelProjectFixtures} from './model-project-fixtures.mjs'
 import {proveMetricTooling} from './metric-tooling.mjs'
@@ -32,6 +32,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const originalFiles=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}});assert.equal(originalFiles.status(),200,await originalFiles.text());const originals=(await originalFiles.json()).originals;assert.equal(originals[0].original.status,'retained');assert.deepEqual(JSON.parse(Buffer.from(originals[0].original.base64,'base64').toString()).files,input.files)
   const imported=await call('/model-imports/'+input.projectId),native=dump(imported.definition),body={document:native,importProject:input.projectId,importRevision:imported.revision}
   assert.deepEqual(imported.input.files,input.files)
+  assert.deepEqual(load((await call('/model-authoring/format',body,200)).document,{schema:JSON_SCHEMA}),imported.definition)
   const review=await call('/model-authoring/review',body,200);assert.equal(review.compatible,true,JSON.stringify(review));assert.equal(review.imported.format,input.format)
   const measure=input.format==='tmdl'?'revenuesum':'revenue-sum',value=review.impacts[0].answer.totals[measure]
   assert.equal(value.value,(expected.all[0]/100).toFixed(2));if(input.format!=='tmdl')assert.equal(review.impacts[0].answer.totals['unique-regions'].value,String(expected.all[1]))
@@ -89,6 +90,29 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const edited=structuredClone(input);edited.files[0].content+='\n';const replacement=await prepare(edited,true);await apply(input.projectId,replacement)
   const revised=await call('/model-imports/'+input.projectId);assert.notEqual(revised.revision,imported.revision);assert.deepEqual(revised.report.project.resources.map(r=>r.dependencies),inventory.map(r=>r.dependencies))
   await post(input.projectId,'undo',{planId:replacement.planId});assert.equal((await call('/model-imports/'+input.projectId)).revision,imported.revision)
+  dbtProjects.push({input,plan})
+ }
+ // Adding a manifest must never hide an unsupported uploaded SQL definition.
+ const sql={path:'tests/revenue_check.sql',content:"select {{ run_query('select 1') }} from {{ ref('sales') }}"}
+ for(const [suffix,extra] of [['empty',[{path:'target/manifest.json',content:JSON.stringify({...manifest,nodes:{},sources:{}})}]],['source',[]],['resolved',cloud.files]]){
+  const input=dbtEnvelope('synthetic-bifocal-dbt-sql-'+suffix,[...projects[1].files,sql,...extra]),plan=await prepare(input)
+  assert.equal(plan.project.report.compatible,false,'Uploaded SQL stays incompatible with '+suffix+' manifest inventory')
+  const inventory=plan.project.report.project.resources,resource=inventory.find(r=>r.file===sql.path)
+  assert.ok(resource,'Uploaded SQL remains inventoried with '+suffix+' manifest inventory')
+  assert.equal(resource.id,'test.revenue_check');assert.equal(resource.kind,'test');assert.equal(resource.sourceExpression,JSON.stringify({sql:sql.content}));assert.equal(resource.definition.sql,sql.content);assert.deepEqual(resource.dependencies,['model.sales'])
+  assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.file===sql.path&&i.object===resource.id&&i.sourceExpression===JSON.stringify({sql:sql.content})),'Unsupported uploaded SQL retains its diagnostic')
+  if(suffix==='resolved')assert.deepEqual(inventory.find(r=>r.id==='model.synthetic_bifocal.sales').dependencies,['source.synthetic_bifocal.raw.invoices'])
+  await apply(input.projectId,plan)
+  const imported=await call('/model-imports/'+input.projectId)
+  assert.equal(imported.report.compatible,false);assert.deepEqual(imported.report.project.resources,inventory);assert.deepEqual(imported.report.issues,plan.project.report.issues);assert.deepEqual(imported.input.files,input.files)
+  const exported=await call('/model-authoring/format',{document:dump(imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
+  assert.equal(exported.error,'exact_compatible_project_required','Untranslated SQL cannot be exported as native YAML')
+  if(suffix==='empty'){
+   await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
+   assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/test.revenue_check/);assert.match(await page.locator('#model-import-current').innerText(),/dbt_resource_execution_pending/);assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0)
+   await proveScreen('dbt-manifest-sql-retained')
+  }
+  await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
   dbtProjects.push({input,plan})
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
