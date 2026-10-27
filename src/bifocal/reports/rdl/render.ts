@@ -85,6 +85,11 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
   const bound = name ? scope.dataset(name) : inherited
   if (!bound) fail('rdl_tablix_dataset_required')
   const table = sortRdlRows(scope, bound, child(node, 'SortExpressions'))
+  const noRows = child(node, 'NoRowsMessage')
+  if (!table.rows.length && noRows) {
+   layout.row({cells: [reportCell(scope.evaluate(noRows, table), noRows.location)], widths: [1], location: noRows.location})
+   return
+  }
   const templates = children(child(child(node, 'TablixBody'), 'TablixRows'), 'TablixRow'), widths = children(child(child(node, 'TablixBody'), 'TablixColumns'), 'TablixColumn').map(column => length(text(column, 'Width'), 72))
   const roots = children(child(child(node, 'TablixRowHierarchy'), 'TablixMembers'), 'TablixMember')
   const leaves = new Map<RdlNode, RdlNode>(); let index = 0
