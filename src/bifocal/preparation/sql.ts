@@ -7,12 +7,16 @@ const literal=(value:unknown)=>"'"+String(value).replaceAll("'","''")+"'"
  * user SQL to D1, invokes a provider, resolves a URL or evaluates source code. */
 export function preparationSQL(document:Preparation):string {
  return document.steps.map(s=>{
+  if(s.op==='rename')return `SELECT * RENAME (${quote(s.from)} AS ${quote(s.to)}) FROM INPUT`
+  if(s.op==='select'||s.op==='reorder')return `SELECT ${(s.columns as string[]).map(quote).join(', ')} FROM INPUT${s.op==='reorder'?' REQUIRE COMPLETE':''}`
+  if(s.op==='remove')return `SELECT * EXCLUDE (${(s.columns as string[]).map(quote).join(', ')}) FROM INPUT`
+  if(s.op==='sort')return `SELECT * FROM INPUT ORDER BY ${(s.columns as {column:string;direction:string}[]).map(c=>quote(c.column)+' '+c.direction.toUpperCase()).join(', ')}`
   if(s.op==='dedupe')return 'SELECT DISTINCT * FROM INPUT'
   if(s.op==='cast')return `SELECT * REPLACE (CAST(${quote(s.column)} AS ${String(s.type).toUpperCase()}) AS ${quote(s.column)}) FROM INPUT`
   if(s.op==='calculate')return `SELECT *, (${quote(s.left)} ${{add:'+',subtract:'-',multiply:'*'}[String(s.operator)]} ${quote(s.right)}) AS ${quote(s.name)} FROM INPUT`
   if(s.op==='union')return `SELECT * FROM INPUT UNION ALL SELECT * FROM ${quote(s.dataset)}`
   if(s.op==='join'||s.op==='lookup')return `SELECT * FROM INPUT ${s.kind==='left'?'LEFT':'INNER'} JOIN ${quote(s.dataset)} AS ${quote(s.prefix)} ON INPUT.${quote(s.left)} = ${quote(s.prefix)}.${quote(s.right)}`
-  if(s.op==='unpivot')return `SELECT * FROM INPUT UNPIVOT INCLUDE NULLS (${quote(s.value)} FOR ${quote(s.name)} IN (${(s.columns as string[]).map(quote).join(', ')}))`
+  if(s.op==='unpivot')return `SELECT * FROM INPUT UNPIVOT ${s.omitNulls?'EXCLUDE':'INCLUDE'} NULLS (${quote(s.value)} FOR ${quote(s.name)} IN (${(s.columns as string[]).map(quote).join(', ')}))`
   if(s.op==='pivot')return `SELECT ${(s.groupBy as string[]).map(quote).join(', ')}, ${(s.values as string[]).map(quote).join(', ')} FROM INPUT PIVOT (SINGLE(${quote(s.value)}) FOR ${quote(s.column)} IN (${(s.values as string[]).map(literal).join(', ')}))`
   fail('unsupported_preparation_step',400)
  }).join(';\n')+(document.steps.length?';':'')
@@ -37,17 +41,20 @@ export function preparationFromSQL(dataset:unknown,sql:unknown):Preparation {
   if(is('DISTINCT')){take('DISTINCT');take('*');take('FROM');take('INPUT');steps.push({op:'dedupe'})}
   else if(is('*')){
    take('*')
-   if(is('REPLACE')){take('REPLACE');take('(');take('CAST');take('(');const column=identifier();take('AS');const type=statement[i++]?.toLowerCase();take(')');take('AS');if(identifier()!==column)fail('preparation_cast_rename_refused',400);take(')');take('FROM');take('INPUT');steps.push({op:'cast',column,type})}
+   if(is('RENAME')){take('RENAME');take('(');const from=identifier();take('AS');const to=identifier();take(')');take('FROM');take('INPUT');steps.push({op:'rename',from,to})}
+   else if(is('EXCLUDE')){take('EXCLUDE');take('(');const columns=list(identifier);take(')');take('FROM');take('INPUT');steps.push({op:'remove',columns})}
+   else if(is('REPLACE')){take('REPLACE');take('(');take('CAST');take('(');const column=identifier();take('AS');const type=statement[i++]?.toLowerCase();take(')');take('AS');if(identifier()!==column)fail('preparation_cast_rename_refused',400);take(')');take('FROM');take('INPUT');steps.push({op:'cast',column,type})}
    else if(is(',')){take(',');take('(');const left=identifier(),operator={'+':'add','-':'subtract','*':'multiply'}[statement[i++]];const right=identifier();take(')');take('AS');const name=identifier();take('FROM');take('INPUT');steps.push({op:'calculate',left,right,operator,name})}
    else {
     take('FROM');take('INPUT')
-    if(is('UNION')){take('UNION');take('ALL');take('SELECT');take('*');take('FROM');steps.push({op:'union',dataset:identifier()})}
+    if(is('ORDER')){take('ORDER');take('BY');const columns=[];do{if(columns.length)take(',');const column=identifier(),direction=statement[i++]?.toLowerCase();if(!['asc','desc'].includes(direction))fail('preparation_sort_required',400);columns.push({column,direction})}while(is(','));steps.push({op:'sort',columns})}
+    else if(is('UNION')){take('UNION');take('ALL');take('SELECT');take('*');take('FROM');steps.push({op:'union',dataset:identifier()})}
     else if(is('LEFT')||is('INNER')){const kind=statement[i++].toLowerCase();take('JOIN');const target=identifier();take('AS');const prefix=identifier();take('ON');take('INPUT');take('.');const left=identifier();take('=');if(identifier()!==prefix)fail('preparation_join_alias_mismatch',400);take('.');const right=identifier();steps.push({op:'join',dataset:target,kind,prefix,left,right})}
-    else if(is('UNPIVOT')){take('UNPIVOT');take('INCLUDE');take('NULLS');take('(');const value=identifier();take('FOR');const name=identifier();take('IN');take('(');const columns=list(identifier);take(')');take(')');steps.push({op:'unpivot',columns,name,value})}
+    else if(is('UNPIVOT')){take('UNPIVOT');const omitNulls=is('EXCLUDE');take(omitNulls?'EXCLUDE':'INCLUDE');take('NULLS');take('(');const value=identifier();take('FOR');const name=identifier();take('IN');take('(');const columns=list(identifier);take(')');take(')');steps.push({op:'unpivot',columns,name,value,...omitNulls?{omitNulls:true}:{}})}
     else fail('unsupported_preparation_sql',400)
    }
   }else {
-   const projection=list(identifier);take('FROM');take('INPUT');take('PIVOT');take('(');take('SINGLE');take('(');const value=identifier();take(')');take('FOR');const column=identifier();take('IN');take('(')
+   const projection=list(identifier);take('FROM');take('INPUT');if(i===statement.length||is('REQUIRE')){const complete=is('REQUIRE');if(complete){take('REQUIRE');take('COMPLETE')}steps.push({op:complete?'reorder':'select',columns:projection});if(i!==statement.length)fail('unsupported_preparation_sql',400);continue}take('PIVOT');take('(');take('SINGLE');take('(');const value=identifier();take(')');take('FOR');const column=identifier();take('IN');take('(')
    const values=list(()=>{const token=statement[i++];if(!token?.startsWith("'"))fail('preparation_pivot_literal_required',400);return token.slice(1,-1).replaceAll("''","'")});take(')');take(')')
    if(projection.length<=values.length||projection.slice(-values.length).some((v,index)=>v!==values[index]))fail('preparation_pivot_projection_required',400)
    steps.push({op:'pivot',groupBy:projection.slice(0,-values.length),column,value,values})

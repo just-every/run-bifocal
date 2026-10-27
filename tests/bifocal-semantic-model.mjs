@@ -22,6 +22,7 @@ import {dump,load,JSON_SCHEMA} from 'js-yaml'
 
 
 export async function proveSemanticModels() {
+if(process.env.BIFOCAL_FLOW_IMPORT_ONLY==='1')return proveNativePreparation({flows:true})
 if(process.env.BIFOCAL_PREPARATION_ONLY==='1'||process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1')return proveNativePreparation({imports:process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'})
 const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
 const origin=`http://127.0.0.1:${port}`,persist=await mkdtemp(join(tmpdir(),'bifocal-semantics-')),headers={Origin:origin},setup='synthetic-bifocal-1'.repeat(3)

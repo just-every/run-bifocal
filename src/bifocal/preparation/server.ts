@@ -1,3 +1,4 @@
+import { preparationImportGuards } from './import.server'
 import { rejectedUpload } from '../http/rejected'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -35,9 +36,10 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
    return json({id,version:head.version,revisions:revisions.map(r=>({version:r.version,document:JSON.parse(r.document_json),sources:JSON.parse(r.sources_json),digest:r.digest,lineage:JSON.parse(r.lineage_json),createdAt:r.created_at})),published:false})
   }
   if(request.method!=='POST')fail('method_not_allowed',405)
-  const input=await jsonBody(request);exactKeys(input,['document','dataset','sql','previousVersion','reviewedDigest','restoreVersion'])
+  const input=await jsonBody(request);exactKeys(input,['document','dataset','sql','imported','previousVersion','reviewedDigest','restoreVersion'])
   if(input.previousVersion!==(head?.version??null))fail('stale_preparation_version',409)
-  if(input.sql!==undefined){if(input.document!==undefined||action==='restore')fail('one_preparation_form_required',400);input.document=preparationFromSQL(input.dataset,input.sql)}
+  if(input.sql!==undefined){if(input.document!==undefined||action==='restore')fail('one_preparation_form_required',400);input.document={...preparationFromSQL(input.dataset,input.sql),...input.imported?{imported:input.imported}:{}}}
+  else if(input.imported!==undefined)fail('preparation_import_in_document_required',400)
   else if(input.dataset!==undefined)fail('preparation_sql_required',400)
   if((action==='restore')!==(input.restoreVersion!==undefined)||action!=='restore'&&input.document===undefined||action==='restore'&&input.document!==undefined)fail('preparation_document_required',400)
   const restoring=action==='restore'?await env.DB.prepare('SELECT * FROM bf_preparation_revisions WHERE preparation_id=? AND version=?').bind(id,input.restoreVersion).first<Revision>():null
@@ -50,7 +52,8 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
   }
   const sqlForm=preparationSQL(document)
   const pins=sources.map(s=>({dataset:s.id,revision:s.revision})),result=executePreparation(document,sources),digest=sha256(canonicalJson({id,ownerId,version:head?.version??null,document,pins,result}))
-  const guards=[assertion(headGuard),...sources.map(s=>assertion(sourceMatch(s)))]
+  const importGuards=await preparationImportGuards(env,ownerId,document)
+  const guards=[...importGuards.map(assertion),assertion(headGuard),...sources.map(s=>assertion(sourceMatch(s)))]
   if(action==='review'){
    const {impact,guards:impactGuards}=await preparationImpact(env,ownerId,document,sources,result)
    await transact(env.DB,owner,[...guards,...impactGuards.map(assertion),...await preparationCheckStatements(env,ownerId,id,sources,result)])
@@ -61,7 +64,7 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
   if(restoring&&canonicalJson(pins)!==restoring.sources_json)fail('preparation_restore_source_changed',409)
   const version=(head?.version??0)+1
   if(version>100)fail('preparation_revision_limit',413)
-  await transact(env.DB,owner,[...guards,...head?[sql('UPDATE bf_preparations SET version=? WHERE id=?',version,id)]:[sql('INSERT INTO bf_preparations(id,owner_id,version) VALUES(?,?,?)',id,ownerId,version)],sql('INSERT INTO bf_preparation_revisions(preparation_id,version,document_json,sources_json,digest,lineage_json,created_at) VALUES(?,?,?,?,?,?,?)',id,version,canonicalJson(document),canonicalJson(pins),digest,canonicalJson({columns:result.output!.columns,lineage:result.output!.lineage}),new Date().toISOString()),...sources.map(s=>sql('INSERT OR IGNORE INTO bf_preparation_sources(preparation_id,dataset_id) VALUES(?,?)',id,s.id))])
+  await transact(env.DB,owner,[...guards,...head?[sql('UPDATE bf_preparations SET version=? WHERE id=?',version,id)]:[sql('INSERT INTO bf_preparations(id,owner_id,version) VALUES(?,?,?)',id,ownerId,version)],sql('INSERT INTO bf_preparation_revisions(preparation_id,version,document_json,sources_json,digest,lineage_json,created_at) VALUES(?,?,?,?,?,?,?)',id,version,canonicalJson(document),canonicalJson(pins),digest,canonicalJson({columns:result.output!.columns,lineage:result.output!.lineage}),new Date().toISOString()),...document.imported?[sql('INSERT OR IGNORE INTO bf_preparation_imports(preparation_id,project_id) VALUES(?,?)',id,document.imported.project)]:[],...sources.map(s=>sql('INSERT OR IGNORE INTO bf_preparation_sources(preparation_id,dataset_id) VALUES(?,?)',id,s.id))])
   return json({id,version,digest,document,sql:sqlForm,...result,published:false},201)
  }catch(error){return error instanceof QueryError?json({error:error.code},error.status):json({error:'preparation_conflict',reason:'Reload the current draft and source records, then review again.'},409)}
 }

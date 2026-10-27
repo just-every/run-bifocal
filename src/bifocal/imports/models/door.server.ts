@@ -1,3 +1,4 @@
+import { compileProject } from './compile'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
 import { rejectedUpload } from '../../http/rejected'
@@ -16,7 +17,7 @@ import { modelProjectSource } from './source'
 import { eraseImportedProject, modelImportContext, projectGuard, readImportedProject } from './store.server'
 
 async function handleModelImport(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/model-imports\/([a-z][a-z0-9-]{0,63})(\/erase|\/export)?$/.exec(path)
+ const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/model-imports\/([a-z][a-z0-9-]{0,63})(\/erase|\/export|\/preparation)?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='model'))return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
@@ -25,6 +26,21 @@ async function handleModelImport(request:Request,original:Bindings):Promise<Resp
  if(resource){
   let current
   try{current=await readImportedProject(env,ownerId,id)}catch(error){if(!(error instanceof QueryError)||error.code!=='model_project_not_found'||resource[2]!=='/erase')throw error}
+  if(resource[2]==='/preparation'){
+   if(request.method!=='POST')fail('method_not_allowed',405)
+   const input=await jsonBody(request);exactKeys(input,['reviewedRevision','flow'])
+   if(input.reviewedRevision!==current!.revision)fail('exact_project_preparation_revision_required',409)
+   const rows=(await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables ORDER BY id LIMIT 101').all<Omit<Source,'table'>>()).results
+   if(rows.length>100)fail('model_source_catalog_limit',413)
+   const sources=rows.map(row=>({...row,table:JSON.parse(row.value_json)}))
+   for(const pin of current!.value.sources)if(!sources.some(s=>s.id===pin.id&&s.revision===pin.revision))fail('preparation_import_source_changed',409)
+   // Reparse retained originals: uploaded or stored report fields never confer
+   // execution authority. Every item in the project must be resolved first.
+   const project=compileProject(current!.value.input,id,ownerId,sources),flow=project.preparation?.find(f=>f.id===input.flow)
+   if(!project.report.compatible||!flow?.compatible||!flow.document)fail('unresolved_preparation_import',409)
+   await transact(env.DB,owner,[assertion(projectGuard(current!)),...project.sources.map(s=>assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?)',s.id,s.revision)))])
+   return json({document:{...flow.document,imported:{project:id,revision:current!.revision,flow:flow.id}},sql:flow.sql,output:flow.output,published:false})
+  }
   if(resource[2]==='/export'){
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['reviewedRevision'])

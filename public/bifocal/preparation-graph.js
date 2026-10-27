@@ -1,8 +1,11 @@
 import {element} from './file-view.js'
 
-const operations={dedupe:'Deduplicate complete rows',cast:'Repair column type',calculate:'Calculate column',join:'Join dataset',lookup:'Look up dataset',union:'Union dataset',pivot:'Pivot',unpivot:'Unpivot'}
+const operations={dedupe:'Deduplicate complete rows',cast:'Repair column type',calculate:'Calculate column',join:'Join dataset',lookup:'Look up dataset',union:'Union dataset',pivot:'Pivot',unpivot:'Unpivot',rename:'Rename column',select:'Select columns',remove:'Remove columns',reorder:'Reorder columns',sort:'Sort rows'}
 const fields={
  dedupe:[],
+ rename:[['from','Source column'],['to','New column name']],
+ select:[['columns','Selected columns, one per line','list']],remove:[['columns','Removed columns, one per line','list']],reorder:[['columns','All columns in order, one per line','list']],
+ sort:[['columns','Sort columns as column:asc or column:desc, one per line','sort-list']],
  cast:[['column','Column'],['type','Target type',['text','number','money','date','boolean']]],
  calculate:[['name','New column name'],['left','Left numeric column'],['operator','Arithmetic',['add','subtract','multiply']],['right','Right numeric column']],
  join:[['dataset','Other dataset ID'],['left','Input key column'],['right','Other dataset key column'],['prefix','Prefix for other columns'],['kind','Join kind',['left','inner']]],
@@ -13,7 +16,7 @@ const fields={
 }
 export function newStep(op){
  const step={op}
- for(const [key,,type] of fields[op])step[key]=Array.isArray(type)?type[0]:type==='list'?[]:''
+ for(const [key,,type] of fields[op])step[key]=Array.isArray(type)?type[0]:['list','sort-list'].includes(type)?[]:''
  return step
 }
 export function renderGraph(box,steps,onChange){
@@ -29,13 +32,13 @@ export function renderGraph(box,steps,onChange){
   if(step.op==='pivot')item.append(element('p','Each group and pivot label must identify at most one value. Unknown labels and duplicate cells are refused.'))
   const controls=element('div',undefined,'fields')
   for(const [key,title,type] of fields[step.op]){
-   const label=element('label',title),input=element(Array.isArray(type)?'select':type==='list'?'textarea':'input')
+   const label=element('label',title),input=element(Array.isArray(type)?'select':['list','sort-list'].includes(type)?'textarea':'input')
    input.name=key;input.dataset.field=key;input.setAttribute('aria-label',`Step ${index+1}: ${title}`)
    if(Array.isArray(type))for(const value of type){const option=element('option',value);option.value=value;input.append(option)}
-   if(type==='list')input.rows=3
+   if(['list','sort-list'].includes(type))input.rows=3
    else if(!Array.isArray(type)){input.maxLength=key==='dataset'?64:128;input.required=true}
-   input.value=type==='list'?step[key].join('\n'):step[key]
-   input.addEventListener('input',()=>{step[key]=type==='list'?input.value.split('\n').filter(value=>value.length):input.value;onChange()})
+   input.value=type==='sort-list'?step[key].map(c=>c.column+':'+c.direction).join('\n'):type==='list'?step[key].join('\n'):step[key]
+   input.addEventListener('input',()=>{step[key]=type==='sort-list'?input.value.split('\n').filter(Boolean).map(line=>{const at=line.lastIndexOf(':');return {column:line.slice(0,at),direction:line.slice(at+1)}}):type==='list'?input.value.split('\n').filter(value=>value.length):input.value;onChange()})
    label.append(input);controls.append(label)
   }
   item.append(controls)
@@ -53,12 +56,16 @@ const quote=value=>'"'+String(value).replaceAll('"','""')+'"'
 const literal=value=>"'"+String(value).replaceAll("'","''")+"'"
 export function graphSQL(steps){
  return steps.map(step=>{
+  if(step.op==='rename')return `SELECT * RENAME (${quote(step.from)} AS ${quote(step.to)}) FROM INPUT`
+  if(step.op==='select'||step.op==='reorder')return `SELECT ${step.columns.map(quote).join(', ')} FROM INPUT${step.op==='reorder'?' REQUIRE COMPLETE':''}`
+  if(step.op==='remove')return `SELECT * EXCLUDE (${step.columns.map(quote).join(', ')}) FROM INPUT`
+  if(step.op==='sort')return `SELECT * FROM INPUT ORDER BY ${step.columns.map(c=>quote(c.column)+' '+String(c.direction).toUpperCase()).join(', ')}`
   if(step.op==='dedupe')return 'SELECT DISTINCT * FROM INPUT'
   if(step.op==='cast')return `SELECT * REPLACE (CAST(${quote(step.column)} AS ${step.type.toUpperCase()}) AS ${quote(step.column)}) FROM INPUT`
   if(step.op==='calculate')return `SELECT *, (${quote(step.left)} ${{add:'+',subtract:'-',multiply:'*'}[step.operator]} ${quote(step.right)}) AS ${quote(step.name)} FROM INPUT`
   if(step.op==='union')return `SELECT * FROM INPUT UNION ALL SELECT * FROM ${quote(step.dataset)}`
   if(['join','lookup'].includes(step.op))return `SELECT * FROM INPUT ${step.kind==='left'?'LEFT':'INNER'} JOIN ${quote(step.dataset)} AS ${quote(step.prefix)} ON INPUT.${quote(step.left)} = ${quote(step.prefix)}.${quote(step.right)}`
-  if(step.op==='unpivot')return `SELECT * FROM INPUT UNPIVOT INCLUDE NULLS (${quote(step.value)} FOR ${quote(step.name)} IN (${step.columns.map(quote).join(', ')}))`
+  if(step.op==='unpivot')return `SELECT * FROM INPUT UNPIVOT ${step.omitNulls?'EXCLUDE':'INCLUDE'} NULLS (${quote(step.value)} FOR ${quote(step.name)} IN (${step.columns.map(quote).join(', ')}))`
   if(step.op==='pivot')return `SELECT ${step.groupBy.map(quote).join(', ')}, ${step.values.map(quote).join(', ')} FROM INPUT PIVOT (SINGLE(${quote(step.value)}) FOR ${quote(step.column)} IN (${step.values.map(literal).join(', ')}))`
   throw Error('Unsupported preparation operation.')
  }).join(';\n')+(steps.length?';':'')

@@ -1,3 +1,4 @@
+import {provePreparationImports} from './preparation-import.mjs'
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
@@ -667,7 +668,7 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
 
 /** Emitted production Worker and native mail confirmation, with only the
  * official SendGrid Mail Send v3 network boundary replaced. */
-export async function proveNativePreparation({imports=false}={}){
+export async function proveNativePreparation({imports=false,flows=false}={}){
  const {createRequire}=await import('node:module'),{readdir,mkdir}=await import('node:fs/promises'),{resolve}=await import('node:path'),{createServer}=await import('node:net'),{chromium}=await import('@playwright/test')
  const persist=await mkdtemp(join(tmpdir(),'bifocal-native-preparation-')),socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
  const origin='https://127.0.0.1:'+port,headers={Origin:origin},messages=[]
@@ -699,9 +700,11 @@ export async function proveNativePreparation({imports=false}={}){
   const proveScreen=async(label)=>{
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
+  if(flows){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await context.close();return}
   await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
   await proveDBTExecution({origin,context,call,upload,signInMember})
-  if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
+  await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}})
+ if(imports){await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}
 }

@@ -1,3 +1,4 @@
+import { shapePreparation } from './shape'
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
 import { plus, times } from '../currency/decimal'
 import { preparationDecimal as decimal, exactDecimal } from './decimal'
@@ -6,15 +7,16 @@ import { fail, QueryError, type Source, type Cell } from '../query/types'
 import type { Column } from '../imports/files/csv'
 
 type Ref = { dataset:string; revision:string; column:string }
-type Frame = { columns:Column[]; rows:Cell[][]; lineage:Record<string,Ref[]> }
-export type Preparation = { version:1; dataset:string; steps:Record<string,unknown>[] }
+export type Frame = { columns:Column[]; rows:Cell[][]; lineage:Record<string,Ref[]> }
+export type Preparation = { version:1; dataset:string; steps:Record<string,unknown>[]; imported?:{project:string;revision:string;flow:string} }
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v)
 const keys=(v:Record<string,unknown>,allowed:string[])=>{if(Object.keys(v).some(k=>!allowed.includes(k)))fail('unsupported_preparation_input',400)}
 const name=(v:unknown):string=>{if(typeof v!=='string'||!v||v.length>128||/[\u0000-\u001f]/.test(v))fail('preparation_name_required',400);return v}
 const names=(v:unknown):string[]=>{if(!Array.isArray(v)||!v.length||v.length>64)fail('preparation_columns_required',400);const result=v.map(name);if(new Set(result).size!==result.length)fail('duplicate_preparation_column',400);return result}
 export function preparationInput(v:unknown):Preparation {
  if(!object(v))fail('preparation_document_required',400)
- keys(v,['version','dataset','steps'])
+ keys(v,['version','dataset','steps','imported'])
+ if(v.imported!==undefined){const ref=v.imported;if(!object(ref)||Object.keys(ref).some(k=>!['project','revision','flow'].includes(k))||!['project','revision','flow'].every(k=>typeof ref[k]==='string'&&String(ref[k]).length>0&&String(ref[k]).length<=512))fail('preparation_import_reference_required',400)}
  if(v.version!==1||typeof v.dataset!=='string'||!Array.isArray(v.steps)||v.steps.length>32||!v.steps.every(object))fail('bounded_preparation_document_required',400)
  const document=v as Preparation
  for(const id of preparationDatasets(document))if(!/^[a-z][a-z0-9-]{0,63}$/.test(id))fail('preparation_dataset_required',400)
@@ -41,7 +43,9 @@ export function executePreparation(document:Preparation,sources:Source[]) {
  for(const [index,s] of document.steps.entries()){
   const before=frame.rows.length,op=String(s.op)
   try {
-   if(op==='dedupe'){
+   if(shapePreparation(frame,s)){
+    // Shape operations have already preserved rows and lineage.
+   }else if(op==='dedupe'){
     keys(s,['op']);const seen=new Set<string>();frame.rows=frame.rows.filter(row=>{const k=typedKey(frame.columns,row);if(seen.has(k))return false;seen.add(k);return true})
    }else if(op==='cast'){
     keys(s,['op','column','type']);const i=column(frame,s.column)
@@ -66,10 +70,10 @@ export function executePreparation(document:Preparation,sources:Source[]) {
     for(const c of other.columns)frame.lineage[prefix+c.name]=refs(other.lineage[c.name],frame.lineage[String(s.left)],other.lineage[String(s.right)])
     frame.columns.push(...additions)
    }else if(op==='unpivot'){
-    keys(s,['op','columns','name','value']);const selected=names(s.columns),indices=selected.map(c=>column(frame,c)),label=name(s.name),value=name(s.value),keep=frame.columns.map((_,i)=>i).filter(i=>!indices.includes(i))
+    keys(s,['op','columns','name','value','omitNulls']);if(s.omitNulls!==undefined&&typeof s.omitNulls!=='boolean')fail('preparation_unpivot_null_policy_required',400);const selected=names(s.columns),indices=selected.map(c=>column(frame,c)),label=name(s.name),value=name(s.value),keep=frame.columns.map((_,i)=>i).filter(i=>!indices.includes(i))
     if(new Set(indices.map(i=>frame.columns[i].type)).size!==1||label===value||keep.some(i=>[label,value].includes(frame.columns[i].name)))fail('preparation_unpivot_schema_mismatch')
     if(frame.rows.length*indices.length>10000)fail('preparation_result_limit',413)
-    frame.rows=frame.rows.flatMap(row=>indices.map(i=>[...keep.map(j=>row[j]),frame.columns[i].name,row[i]]))
+    frame.rows=frame.rows.flatMap(row=>indices.filter(i=>!s.omitNulls||row[i]!==null).map(i=>[...keep.map(j=>row[j]),frame.columns[i].name,row[i]]))
     const lineage=refs(...selected.map(c=>frame.lineage[c]));frame.columns=[...keep.map(i=>frame.columns[i]),{name:label,type:'text'},{name:value,type:frame.columns[indices[0]].type}];frame.lineage=Object.fromEntries(frame.columns.map(c=>[c.name,c.name===label||c.name===value?lineage:frame.lineage[c.name]]))
    }else if(op==='pivot'){
     keys(s,['op','groupBy','column','value','values']);const group=names(s.groupBy),indices=group.map(c=>column(frame,c)),label=column(frame,s.column),value=column(frame,s.value),values=names(s.values)

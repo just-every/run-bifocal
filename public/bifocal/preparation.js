@@ -5,7 +5,7 @@ import {showPreparationReview} from './preparation-review.js'
 const $=id=>document.getElementById(id),form=$('preparation-form')
 if(form){
  const section=$('preparation'),mode=$('prep-mode'),dataset=$('prep-dataset'),sql=$('prep-sql')
- let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual'
+ let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual',imported=null
  const status=(message,error=false)=>{$('prep-status').textContent=message;$('prep-status').dataset.error=String(error)}
  const validId=(value,label)=>{if(!/^[a-z][a-z0-9-]{0,63}$/.test(value))throw Error('Enter a valid '+label+' using lowercase letters, digits and hyphens.');return value}
  const id=()=>validId($('prep-id').value,'preparation ID')
@@ -43,7 +43,7 @@ if(form){
   try{current=await call(preparation)}catch(error){if(error.status!==404)throw error;current={version:null,revisions:[]}}
   headId=preparation;version=current.version;revisions=current.revisions;history();return current
  }
- function useDocument(document){dataset.value=document.dataset;steps=structuredClone(document.steps);sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
+ function useDocument(document){imported=document.imported??null;dataset.value=document.dataset;steps=structuredClone(document.steps);sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
  function selectedRevision(){
   if(headId!==id())throw Error('Load the current preparation first.')
   const revision=revisions.find(item=>item.version===Number($('prep-revision').value))
@@ -53,7 +53,7 @@ if(form){
  async function review(restoreRevision){
   const preparation=id();validId(dataset.value,'source dataset ID')
   invalidate();if(headId!==preparation)await loadHead(preparation)
-  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,previousVersion:version}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps)},previousVersion:version}
+  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,previousVersion:version,...imported?{imported}:{}}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps),...imported?{imported}:{}},previousVersion:version}
   const value=await call(preparation,'review',payload)
   steps=structuredClone(value.document.steps);dataset.value=value.document.dataset;sql.value=value.sql;graph()
   reviewed={id:preparation,payload,digest:value.digest,version,compatible:value.compatible,restoreVersion:restoreRevision?.version}
@@ -94,5 +94,6 @@ if(form){
   const saved=await call(exact.id,action,body)
   invalidate();await loadHead(exact.id);status((action==='restore'?'Prior draft restored':'Draft saved')+' as revision '+saved.version+'. Sources, published models and charts are unchanged.')
  }))
+ document.addEventListener('bifocal-preparation-import',event=>perform(async()=>{const value=event.detail;$('prep-id').value=value.id;await loadHead(value.id);useDocument(value.document);editingMode('visual');status('Imported flow loaded with its exact project revision and column lineage. Edit and review before saving.')}))
  graph();history()
 }
