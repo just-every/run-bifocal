@@ -1,3 +1,4 @@
+import { portalResponse } from './bifocal/portal/server'
 import {collaborationResponse} from './bifocal/collaboration/server'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
@@ -77,6 +78,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)
     if (publicApi) return publicApi
+    const portal = await portalResponse(request, env)
+    if (portal) return portal
     const costs = await costResponse(request, env)
     if (costs) return costs
     const retentionPolicy = await retentionPolicyResponse(request, env)
