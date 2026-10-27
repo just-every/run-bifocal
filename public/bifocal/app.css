@@ -315,7 +315,8 @@ ul{padding-left:20px}
  .side{order:2;padding:20px 8px 28px;border-right:0;border-top:1px solid var(--app-line)}
  h1{font-size:28px}
  .answer-title{font-size:28px}
- .pagehead,.answerhead{flex-direction:column;gap:14px}
+ .pagehead{flex-direction:column;gap:14px}
+ .answerhead{gap:14px}
  .answer-actions{justify-content:flex-start}
  .cards,.fields,.places{grid-template-columns:minmax(0,1fr)}
  .panel{padding:18px}
