@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-export async function proveQualityLineage({origin,context,page,call,upload,dataset,good,us,proveScreen,report,dashboard}) {
+export async function proveQualityLineage({clock,origin,context,page,call,upload,dataset,good,us,proveScreen,report,dashboard}) {
  const rules=[['synthetic-bifocal-key',{name:'Invoice identity',kind:'unique',column:'invoice'}],['synthetic-bifocal-fresh',{name:'Recent source',kind:'freshness',maxAgeSeconds:3600}],['synthetic-bifocal-null',{name:'Customer required',kind:'not-null',column:'customer'}],['synthetic-bifocal-state',{name:'Recognized state',kind:'accepted-values',column:'state',values:['active','inactive']}],['synthetic-bifocal-count',{name:'Expected rows',kind:'count',expected:'3'}],['synthetic-bifocal-money',{name:'Revenue control total',kind:'money',column:'revenue',expected:'30.00'}]]
  for(const [id,definition] of rules)await call('/quality/rules',{id,dataset,definition})
  assert.equal((await call('/reports/'+report.id)).quality.state,'unknown')
@@ -17,7 +17,7 @@ export async function proveQualityLineage({origin,context,page,call,upload,datas
  const key=await call('/quality/rules/synthetic-bifocal-key/run',{});assert.equal(key.result.state,'failed');assert.deepEqual(key.result.failingRowNumbers,[2])
  const fresh=await call('/quality/rules/synthetic-bifocal-fresh/run',{});assert.equal(fresh.result.state,'failed')
  for(const path of ['/reports/'+report.id,'/dashboards/'+dashboard.id]){const a=await call(path);assert.equal(a.quality.state,'at risk');assert.equal(a.answer.totals.customers.value,'1');assert.ok(a.quality.tests.some(t=>t.ruleId==='synthetic-bifocal-key'&&t.runId===key.id&&t.href==='/app/quality#run-'+key.id&&t.sourceRevision===key.sourceRevision&&t.checkedAt===key.createdAt&&t.ownerId===a.context.ownerId));assert.deepEqual(a.quality.lastGood.answer,qualified.answer);assert.equal(a.quality.lastGood.createdAt,qualified.createdAt)}
- const until=new Date(Date.now()+2500).toISOString()
+ const until=new Date(clock.now()+2500).toISOString()
  await call('/quality/runs/'+key.id+'/waive',{reason:'Reviewed temporary exception',expiresAt:until,confirm:'waive'})
  let q=await call('/quality');assert.ok(q.quality.tests.find(t=>t.runId===key.id).waiver.active);assert.equal(q.quality.state,'at risk')
  await call('/quality/runs/'+fresh.id+'/waive',{reason:'Expired',expiresAt:'2000-01-01T00:00:00.000Z',confirm:'waive'},400)
@@ -29,7 +29,7 @@ export async function proveQualityLineage({origin,context,page,call,upload,datas
  await settings.hover();await tooltip.waitFor({state:'visible'});assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).transitionDelay),'0.3s')
  await page.mouse.move(0,0)
  for(const [kind,id] of [['reports',report.id],['dashboards',dashboard.id]]){await page.goto(origin+'/app/'+kind+'/'+id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#certification').innerText(),/Quality at risk/);await proveScreen('/app/'+kind+'/'+id,'quality-'+kind)}
- await new Promise(r=>setTimeout(r,2600))
+ await clock.set(new Date(clock.now()+2600).toISOString())
  q=await call('/quality');assert.equal(q.quality.tests.find(t=>t.runId===key.id).waiver.active,false);assert.equal(q.quality.state,'at risk');const waived=q.quality.tests.find(t=>t.runId===key.id).waiver;assert.equal(waived.ownerId,qualified.context.ownerId);assert.equal(waived.reason,'Reviewed temporary exception')
  assert.equal((await context.request.get(origin+'/api/operator/quality',{headers:{Cookie:''}})).status(),401)
  const signedOut=await page.context().browser().newContext();try{for(const path of ['/api/operator/quality','/api/operator/quality/impact/'+dataset+'?column=customer','/api/operator/reports/'+report.id]){const denied=await signedOut.request.get(origin+path);assert.equal(denied.status(),401);assert.ok(!(await denied.text()).includes('failingRowNumbers'))}}finally{await signedOut.close()}

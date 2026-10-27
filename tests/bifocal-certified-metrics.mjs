@@ -8,11 +8,13 @@ import {join} from 'node:path'
 import {chromium} from '@playwright/test'
 import {proveScorecards,proveEaselTargets} from './bifocal-scorecards.mjs'
 import {proveQualityLineage} from './bifocal-quality-lineage.mjs'
+import {entitlementClock} from './journeys/entitlement-clock.mjs'
 
 export async function proveCertifiedMetrics() {
 const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
 const origin=`http://127.0.0.1:${port}`,persist=await mkdtemp(join(tmpdir(),'bifocal-governance-')),headers={Origin:origin},setup='synthetic-bifocal-1'.repeat(3)
-const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/wrangler.json'],env={...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}
+const clock=await entitlementClock(persist);await clock.set('2026-10-27T12:00:00.000Z')
+const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/wrangler.json'],env={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false'}
 let output='',worker
 let browser
 try {
@@ -36,7 +38,7 @@ try {
   for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return p}
   assert.fail('Shared source apply did not complete')
  }
- const today=new Date().toISOString().slice(0,10),us=today.slice(5,7)+'/'+today.slice(8,10)+'/'+today.slice(0,4)
+ const today=new Date(clock.now()).toISOString().slice(0,10),us=today.slice(5,7)+'/'+today.slice(8,10)+'/'+today.slice(0,4)
  const good=`invoice,date,customer,revenue,state\n1,${us},c1,$10.01,active\n2,${us},c1,$20.02,active\n3,${us},c2,-$0.03,inactive\n`
  await upload(good)
  const query={version:1,dataset,joins:[],filters:[{column:'state',op:'eq',value:'active'}],groupBy:[],measures:[{id:'customers',op:'count-distinct',column:'customer',unit:'count',scale:0}],context:{modelVersion:'synthetic-bifocal-v1',metricVersion:'synthetic-bifocal-v1',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-calendar',version:1},rounding:'half-even'}}
@@ -65,7 +67,7 @@ try {
  await proveScreen('/app/metrics','metrics');await proveScreen('/app/metrics/synthetic-bifocal-customers','metric-history')
  const revenue=structuredClone(definition);revenue.name='USD revenue';revenue.unit='money';revenue.grain='invoice';revenue.query.filters=[];revenue.query.measures=[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'}]
  const rev=await call('/metrics',{id:'synthetic-bifocal-revenue',definition:revenue});await call('/metrics/synthetic-bifocal-revenue/approve',{revision:1,digest:rev.digest,confirm:'approve',annotation:'Revenue owner review'},200)
- const tools={origin,context,page,call,upload,dataset,good,us,today,proveScreen,report,dashboard}
+ const tools={clock,origin,context,page,call,upload,dataset,good,us,today,proveScreen,report,dashboard}
  await proveScorecards(tools)
  await proveQualityLineage(tools)
  const easelDataset=await proveEaselTargets(tools)
