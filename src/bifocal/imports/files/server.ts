@@ -1,3 +1,4 @@
+import { migrationImportResponse } from '../migrations/door.server'
 import {collaborationErasureCounts} from '../../collaboration/erasure'
 import { retentionAllowsErasure } from '../../retention/policy.server'
 import {definitionErasureCounts,eraseDefinitions} from '../../environments/erasure'
@@ -31,6 +32,8 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
  * grants stay closed; no request can turn source data into access or execution. */
 export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
+ const migrationImport=await migrationImportResponse(request,original)
+ if(migrationImport)return migrationImport
  const modelImport=await modelImportResponse(request,original)
  if(modelImport)return modelImport
  if (path.startsWith('/api/rer/import/')) return refuseRequest(request, { error: 'not_found' }, 404)
