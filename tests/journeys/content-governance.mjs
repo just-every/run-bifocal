@@ -1,5 +1,6 @@
 import {entitlementClock} from './entitlement-clock.mjs'
 import {provePortalTenants} from './portal-tenants.mjs'
+import {proveInputTables} from './conventions.mjs'
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess,proveEntitlements} from '../bifocal-exploration.mjs'
@@ -66,6 +67,8 @@ export async function proveContentGovernance(){
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
   if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
+  if(!process.env.BIFOCAL_FOCUS||process.env.BIFOCAL_FOCUS==='inputs')await proveInputTables(origin,owner,page,{reader,persist,environment})
+  if(process.env.BIFOCAL_FOCUS==='inputs'){await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}

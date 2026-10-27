@@ -1,6 +1,163 @@
 import assert from 'node:assert/strict'
 import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
+import { createHash, createHmac } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
+import { mkdir } from 'node:fs/promises'
+
+/** Regional analytical inputs through the actual reviewed import and input doors. */
+export async function proveInputTables(origin,context,page,custody) {
+ const dataset='synthetic-bifocal-inputs',root=origin+'/api/operator',headers={Origin:origin}
+ const call=async(path,data,expected=200)=>{const r=await context.request.fetch(root+path,{method:data===undefined?'GET':'POST',headers,data});assert.equal(r.status(),expected,await r.text());return r.json()}
+ const importSource=async(amount='100.00')=>{
+  const envelope={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:`id,region,amount\n1,West,$${amount}\n2,East,$250.00\n`}
+  const bytes=Buffer.from(JSON.stringify(envelope)),digest=createHash('sha256').update(bytes).digest('hex'),importHeaders={...headers,'X-Import-Dataset':dataset}
+  const post=async(action,data)=>{const r=await context.request.post(root+'/import/'+action,{headers:importHeaders,data});assert.equal(r.status(),200,await r.text());return r.json()}
+  const upload=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
+  const plan=await post('plan',{uploadId:upload.uploadId,...(amount!=='100.00'?{catchup:true}:{})})
+  for(let n=0;n<20;n++){const applied=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(applied.job.state==='completed')return call('/datasets/'+dataset)}
+  assert.fail('Input source import did not complete')
+ }
+ const source=await importSource(),owner=(await (await context.request.get(origin+'/auth/session')).json()).operator
+ const definition={dataset,sourceRevision:source.revision,keyColumn:'id',regionColumn:'region',region:'West',observedColumn:'amount'}
+ const base={rowKey:'1',previousVersion:0,adjustment:'25.50',note:'Reviewed regional forecast',effectiveOn:'2026-10-01',active:true}
+ assert.equal((await fetch(root+'/inputs')).status,401)
+ assert.equal((await context.request.post(root+'/inputs',{headers:{Origin:'https://foreign.example.test'},data:{id:'synthetic-bifocal-denied',name:'Denied',...definition}})).status(),401)
+ if(process.env.BIFOCAL_PROOF_DIR)await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true})
+ const shot=async(name,width)=>{for(const screenWidth of [1440,390]){await page.setViewportSize({width:screenWidth,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Input ${name} overflows ${width}`);assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/inputs-${name}-${screenWidth}.png`,fullPage:true})}await page.setViewportSize({width,height:1000})}
+ for(const width of [1440]){
+  const id='synthetic-bifocal-input-'+width,path='/inputs/'+id
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/inputs')
+  await shot('create',width)
+  for(const [label,value] of Object.entries({'Input table ID':id,'Table name':'West forecast '+width,'Dataset ID':dataset,'Reviewed source revision':source.revision,'Source key column':'id','Region column':'region','Allowed region':'West','Observed USD column':'amount'}))await page.getByLabel(label,{exact:true}).fill(value)
+  await page.getByRole('button',{name:'Create input table',exact:true}).click();await page.waitForURL(origin+'/app'+path)
+  const initial=await call(path)
+  assert.deepEqual(initial.rows,[{rowKey:'1',observed:'100.00',version:0,values:null,adjusted:'100.00'}])
+  assert.deepEqual(initial.columns.map(c=>[c.name,c.type]),[['adjustment','money'],['note','text'],['effectiveOn','date'],['active','boolean']])
+  await shot('empty',width)
+  await page.getByLabel('Adjustment (USD)',{exact:true}).fill('25.50');await page.getByLabel('Reason',{exact:true}).fill(base.note);await page.getByLabel('Effective date',{exact:true}).fill(base.effectiveOn)
+  await page.getByRole('button',{name:'Save adjustment',exact:true}).click();await page.waitForURL(origin+'/app'+path)
+  let state=await call(path)
+  assert.equal(state.rows.length,1);assert.equal(state.rows[0].observed,'100.00');assert.equal(state.rows[0].adjusted,'125.50');assert.equal(state.rows[0].version,1)
+  assert.deepEqual(state.history.map(h=>({row:h.rowKey,version:h.version,actor:h.actorId,before:h.before,after:h.after})),[{row:'1',version:1,actor:owner.id,before:null,after:{adjustment:'25.50',note:base.note,effectiveOn:base.effectiveOn,active:true}}])
+  assert.equal(state.history[0].actorName,owner.displayName)
+  assert.match(state.history[0].recordedAt,/^\d{4}-\d{2}-\d{2}T/)
+  await page.locator('summary').filter({hasText:'Before and after history'}).click();await shot('saved-audit',width)
+  await call(path+'/rows',{...base,rowKey:'2',previousVersion:0},403)
+  for(const invalid of [{adjustment:'1.001'},{adjustment:25.5},{effectiveOn:'2026-02-30'},{active:'yes'},{note:''},{extra:true}])await call(path+'/rows',{...base,previousVersion:1,...invalid},400)
+  await call(path+'/rows',base,409)
+  assert.deepEqual(await call(path),state,'Refused edits leave row and audit unchanged')
+  const requests=await Promise.all(['10.00','20.00'].map(adjustment=>context.request.post(root+path+'/rows',{headers,data:{...base,previousVersion:1,adjustment}})))
+  assert.deepEqual(requests.map(r=>r.status()).sort(),[200,409])
+  const winner=await requests.find(r=>r.status()===200).json();state=await call(path)
+  assert.equal(state.rows[0].version,2);assert.equal(state.historyCount,2)
+  assert.equal(state.history[0].before.adjustment,'25.50');assert.equal(state.history[0].after.adjustment,winner.values.adjustment)
+  await call(path+'/rows',{...base,previousVersion:2,adjustment:'-10.25',active:false})
+  state=await call(path);assert.equal(state.rows[0].adjusted,'100.00');assert.equal(state.rows[0].values.adjustment,'-10.25');assert.equal(state.historyCount,3)
+  assert.deepEqual(await call('/datasets/'+dataset),source,'Analytical adjustments never overwrite observed actuals')
+  await page.reload();await shot('inactive',width)
+  const conflict=await page.request.post(root+path+'/rows',{headers,form:{...base,previousVersion:'1',active:'true'}})
+  assert.equal(conflict.status(),409)
+  await page.goto(origin+'/app'+path);await page.getByLabel('Adjustment (USD)',{exact:true}).fill('1.001');await page.getByRole('button',{name:'Save adjustment',exact:true}).click()
+  await page.getByRole('alert').filter({hasText:'USD_two_decimal_places_required'}).waitFor();await shot('validation-refusal',width)
+ }
+ // Native memberships and sessions are obtained through the real local doors.
+ const {reader,persist,environment}=custody
+ const id='synthetic-bifocal-input-1440',path='/inputs/'+id,beforeAuthority=await call(path)
+ const refuse=async(client)=>{
+  for(const route of ['/inputs',path])assert.equal((await client.request.get(root+route)).status(),401)
+  for(const [route,data] of [['/inputs',{id:'synthetic-bifocal-denied',name:'Denied',...definition}],[path+'/rows',{...base,previousVersion:3}]])assert.equal((await client.request.post(root+route,{headers,data})).status(),401)
+  assert.equal((await client.request.get(origin+'/app'+path)).status(),401)
+ }
+ const readerSession=(await(await reader.request.get(origin+'/auth/session')).json())
+ assert.equal(readerSession.operator.role,'member')
+ await refuse(reader)
+ // A working analytical read grant and a working machine bearer still provide no input authority.
+ const calendar='synthetic-bifocal-input-calendar'
+ await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Input read boundary',kind:'fiscal',startMonth:1}},201)
+ const query={version:1,dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'amount',op:'sum',column:'amount',unit:'money',sourceCurrency:'USD',scale:2}],semantic:{grain:['id'],dimensions:[{column:'id',type:'number'},{column:'region',type:'text'}],hierarchies:[],slowlyChanging:'reject-duplicate-grain'},context:{modelVersion:'synthetic-bifocal-input-model',metricVersion:'draft',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+ const model=await call('/models',{definition:{views:[{id:'forecast',kind:'chart',query,rowRules:[]}],quality:[]}},201)
+ const branch='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(branch+'/validate',{})
+ await call(branch+'/approve',{digest:review.digest})
+ for(const environment of ['staging','production'])await call(branch+'/promote',{environment,digest:review.digest})
+ const filters=[{column:'region',op:'eq',value:'West'}],parameters={modelId:model.modelId,revision:model.revision,viewId:'forecast',groupBy:['region'],filters:[]}
+ const grantInput={operatorId:readerSession.operator.id,operatorVersion:readerSession.operator.version,modelId:model.modelId,revision:model.revision,viewId:'forecast',filters,dimensions:['region'],underlying:false,summaryExport:false,underlyingExport:false,expiresAt:new Date(Date.now()+300000).toISOString()}
+ const grantReview=await call('/explore/access/review',grantInput),grant=await call('/explore/access',{...grantInput,reviewedDigest:grantReview.digest},201)
+ const read=await reader.request.post(root+'/explore/run',{headers,data:{...parameters,grantId:grant.id}})
+ assert.equal(read.status(),201,await read.text());assert.equal((await read.json()).answer.totals.amount.value,'100.00')
+ await refuse(reader)
+ const scope={purpose:'Input authority boundary',modelId:model.modelId,revision:model.revision,viewId:'forecast',filters,dimensions:['region'],measures:['amount'],tools:['query'],expiresAt:new Date(Date.now()+300000).toISOString(),maxOperations:10}
+ const credentialReview=await call('/credentials/review',scope),credential=await call('/credentials',{...scope,reviewedDigest:credentialReview.digest},201)
+ const machineHeaders={...headers,Authorization:'Bearer '+credential.token}
+ const machine=await fetch(origin+'/api/v1/query',{method:'POST',headers:{...machineHeaders,'content-type':'application'+'/json'},body:JSON.stringify(parameters)})
+ assert.equal(machine.status,200);assert.equal((await machine.json()).totals.amount.value,'100.00')
+ for(const route of ['/inputs',path]){
+  assert.equal((await fetch(root+route,{headers:machineHeaders})).status,401)
+  assert.equal((await context.request.get(root+route,{headers:machineHeaders})).status(),401)
+ }
+ for(const [route,data] of [['/inputs',{id:'synthetic-bifocal-copied',name:'Copied owner context',...definition,operatorId:owner.id}],[path+'/rows',{...base,previousVersion:3}]]){
+  assert.equal((await context.request.post(root+route,{headers:machineHeaders,data})).status(),401)
+  assert.equal((await reader.request.post(root+route,{headers,data})).status(),401)
+ }
+ await call('/credentials/'+credential.id+'/revoke',{})
+ await call('/explore/access/'+grant.id+'/revoke',{})
+ const browser=page.context().browser(),admin=await browser.newContext()
+ try{
+  assert.equal((await admin.request.post(origin+'/__dev/key',{headers,data:{key:environment.RER_DEV_KEY}})).status(),204)
+  assert.equal((await context.request.post(origin+'/auth/invite',{headers,data:{email:'synthetic-bifocal-input-admin@example.test',displayName:'Synthetic input admin',role:'admin'}})).status(),202)
+  const people=await(await context.request.get(origin+'/auth/operators')).json(),person=people.find(p=>p.email==='synthetic-bifocal-input-admin@example.test')
+  await admin.request.get(new URL(person.signInUrl,origin).href)
+  assert.equal((await(await admin.request.get(origin+'/auth/session')).json()).operator.role,'admin')
+  await refuse(admin)
+ }finally{await admin.close()}
+ for(const route of ['/inputs',path])assert.equal((await context.request.get(root+route,{headers:{Authorization:'Bearer synthetic-bifocal-credential'}})).status(),401)
+ assert.equal((await context.request.post(root+path+'/rows',{headers:{...headers,Authorization:'Bearer synthetic-bifocal-credential'},data:{...base,previousVersion:3}})).status(),401)
+ assert.deepEqual(await call(path),beforeAuthority,'Non-owner and machine requests never alter inputs or history')
+ const cliHeaders={...headers,'x-rer-local-cli':createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('local-cli'+String.fromCharCode(0)+'sign-in').digest('hex')}
+ const nativeSignIn=async()=>assert.equal((await context.request.post(origin+'/auth/local/cli-session',{headers:cliHeaders,data:{returnTo:'/app'},maxRedirects:0})).status(),303)
+ await nativeSignIn()
+ assert.equal((await context.request.post(origin+'/auth/invite',{headers,data:{email:'synthetic-bifocal-input-owner@example.test',displayName:'Synthetic second input owner',role:'owner'}})).status(),202)
+ const second=await browser.newContext()
+ try{
+  assert.equal((await second.request.post(origin+'/__dev/key',{headers,data:{key:environment.RER_DEV_KEY}})).status(),204)
+  const people=await(await context.request.get(origin+'/auth/operators')).json(),person=people.find(p=>p.email==='synthetic-bifocal-input-owner@example.test')
+  await second.request.get(new URL(person.signInUrl,origin).href)
+  const stale=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')
+  assert.equal((await context.request.post(origin+'/auth/operator/status',{headers,data:{operatorId:owner.id,status:'inactive'}})).status(),200)
+  await refuse(context)
+  await nativeSignIn()
+  assert.equal((await context.request.post(origin+'/auth/operator/status',{headers,data:{operatorId:owner.id,status:'active'}})).status(),200)
+  for(const route of ['/inputs',path])assert.equal((await fetch(root+route,{headers:{cookie:stale}})).status,401,'Reactivation never revives prior input authority')
+  assert.equal((await context.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(owner.email),{maxRedirects:0})).status(),303)
+  assert.deepEqual(await call(path),beforeAuthority,'Authority loss and reactivation leave values and attributed history intact')
+ }finally{await second.close()}
+ const retention=root+'/retention/'+dataset
+ let previousRevision=null
+ for(const protection of [{legalHold:true,minimumRetainUntil:null},{legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z'}]){
+  const protectedResponse=await context.request.put(retention,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision,...protection,releaseHold:true}})
+  assert.equal(protectedResponse.status(),200,await protectedResponse.text());previousRevision=(await protectedResponse.json()).revision
+  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},423)
+  assert.deepEqual(await call(path),beforeAuthority,'Held erasure preserves input notes and value-bearing history')
+ }
+ const release=await context.request.put(retention,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
+ assert.equal(release.status(),200,await release.text())
+ const changed=await importSource('101.00')
+ for(const width of [1440]){
+  const path='/inputs/synthetic-bifocal-input-'+width
+  await call(path,undefined,409);await call(path+'/rows',{...base,previousVersion:3},409)
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app'+path);await page.getByRole('alert').filter({hasText:'source_changed_or_removed'}).waitFor();await shot('source-refusal',width)
+ }
+ const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision})
+ for(const [store,rows] of [['bf_input_tables',1],['bf_input_rows',1],['bf_input_history',3]])assert.equal(erased.stores.find(s=>s.store===store).rows,rows)
+ assert.deepEqual((await call('/inputs')).tables,[])
+ await call(path,undefined,404);await call(path+'/rows',{...base,previousVersion:3},404)
+ // Inspect the independent persisted store, including orphan rows the API could hide.
+ const inspect=command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',env:environment,stdio:['ignore','pipe','pipe']}))[0].results
+ for(const store of ['bf_input_tables','bf_input_rows','bf_input_history'])assert.deepEqual(inspect('SELECT count(*) AS n FROM '+store),[{n:0}],store+' retains no orphaned values, notes or history')
+ const receipt=await call('/erasure-receipts/'+erased.auditId)
+ for(const value of [dataset,base.note,owner.email,owner.displayName,'25.50','-10.25'])assert.equal(JSON.stringify(receipt).includes(value),false,'Minimal receipt must not retain erased values')
+ console.log('Input tables: typed separate USD adjustments, conflicts and attributed history; native member and admin, working analytical grant and machine credential refusal; owner suspension and stale-session refusal; held erasure, independent persisted note and history withdrawal and minimal receipt passed. Assertions at 1440; screens at 1440 and 390.')
+}
 export async function proveConventions(origin, context, page) {
  await proveCostControls(origin,context,page)
  const call = async (path, data, method = data === undefined ? 'GET' : 'POST', expected = method === 'POST' && ['/calendars','/rates','/schedules'].includes(path) ? 201 : 200) => {
