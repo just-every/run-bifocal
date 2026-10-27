@@ -1,4 +1,6 @@
 import { portalResponse } from './bifocal/portal/server'
+import { alertResponse } from './bifocal/alerts/server'
+import { alertPage } from './bifocal/alerts/page.server'
 import {collaborationResponse} from './bifocal/collaboration/server'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
@@ -76,6 +78,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const alertsDocument = await alertPage(request, env)
+    if (alertsDocument) return alertsDocument
+    const alerts = await alertResponse(request, env)
+    if (alerts) return alerts
     const collaboration = await collaborationResponse(request, env)
     if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)

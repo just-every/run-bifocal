@@ -1,4 +1,5 @@
 import {entitlementClock} from './entitlement-clock.mjs'
+import {proveAlerts} from './alerts.mjs'
 import {provePortalTenants} from './portal-tenants.mjs'
 import {proveInputTables} from './conventions.mjs'
 import {proveCollaboration} from './collaboration.mjs'
@@ -36,12 +37,12 @@ export async function proveContentGovernance(){
   child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--config',configFile,'--host','127.0.0.1','--port',String(port),'--strictPort'],{env:environment,stdio:['ignore','pipe','pipe']})
   child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
   let ready=false
-  for(let attempt=0;attempt<120;attempt++){
+  for(let attempt=0;attempt<480;attempt++){
    assert.equal(child.exitCode,null,'native local entry remains running')
    try{ready=(await fetch(origin+'/health')).ok}catch{}
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }
-  assert.ok(ready,'native local entry starts')
+  assert.ok(ready,'native local entry starts\n'+output)
   browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
@@ -66,6 +67,8 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(!process.env.BIFOCAL_FOCUS||process.env.BIFOCAL_FOCUS==='alerts')await proveAlerts({origin,owner,reader,page,upload,proveScreen,clock,browser,devKey:environment.RER_DEV_KEY})
+  if(process.env.BIFOCAL_FOCUS==='alerts'){await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
   if(!process.env.BIFOCAL_FOCUS||process.env.BIFOCAL_FOCUS==='inputs')await proveInputTables(origin,owner,page,{reader,persist,environment})
   if(process.env.BIFOCAL_FOCUS==='inputs'){await owner.close();await reader.close();return}

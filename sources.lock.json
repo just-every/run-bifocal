@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0688e503f400a73fed879bd734492422acb1a397a294845f53d50da06baacf4c",
+      "sha256": "e885c945feb1d9e9fa99696e0f008c5c6dbf0db7613e21d2e7101b042e570288",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ada22b007d1f1e23c2f91bb650003b4f573e4d4fded0a0acdd56d5bc5bffac5",
+      "sha256": "a4c4f464eaf9626677477e0ad0be07f5c0a637cb79013a28196a8cb54e66697a",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -740,6 +740,10 @@
       "sha256": "cfa6ceb83c584761706058c6677d79035a4f50de2c71715a016fb9732b3b0c05",
       "executable": false
     },
+    "migrations/core/0060_alerts.sql": {
+      "sha256": "76a7f9b235cf7d60871b99b8338c60591cefd78e1e0f4f99068b099c820c6513",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -770,6 +774,14 @@
     },
     "public/apple-touch-icon.png": {
       "sha256": "3faacbfcbd2dce83f99f150b0218f473b033157d5b6e44fc033542ddf31ee36e",
+      "executable": false
+    },
+    "public/bifocal/alerts.css": {
+      "sha256": "c18fa445b8371dffbab9f3bf29119283176f004e5283cfd6335031f6b3d34c7c",
+      "executable": false
+    },
+    "public/bifocal/alerts.js": {
+      "sha256": "0f60742e47aac95f46dd486ed72155bc40b195d57be3bf3255160e7f6604dd12",
       "executable": false
     },
     "public/bifocal/answers.js": {
@@ -1086,6 +1098,10 @@
     },
     "scripts/build-deployment-spec.mjs": {
       "sha256": "53d8c992e1c8e7972344c4a64a27bb4f0552e5af9bb74eb40cd078ac01e59e32",
+      "executable": false
+    },
+    "scripts/contract-docs.mjs": {
+      "sha256": "c8adde53d7ec230ae6bb0ce77f405e7fb470a86bd6dfe8438fdfeb28d467cbc9",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -1454,6 +1470,30 @@
     },
     "src/base/theme-frame.ts": {
       "sha256": "b65a43496156ee6ebe86ab9d0158ea0d18659146aa1d22aaa380ac14d83d64d0",
+      "executable": false
+    },
+    "src/bifocal/alerts/erasure.ts": {
+      "sha256": "cddee8b04029b9b7030a0995ca39f58aa9b7fd659f2f31f64ad83ef760cc767c",
+      "executable": false
+    },
+    "src/bifocal/alerts/page.server.ts": {
+      "sha256": "da86105c007f78f0763d2febf7964882c4635337b5649edeb067ccf5d10dbb01",
+      "executable": false
+    },
+    "src/bifocal/alerts/predicates.ts": {
+      "sha256": "4d530b2c651781a3caee147345fcfde9cc3f22c2cf2a6cc5db0c8bc26bc84043",
+      "executable": false
+    },
+    "src/bifocal/alerts/protocol.ts": {
+      "sha256": "06f8d317054181f5652c3718686e1f7754a785a23ba32bd88a095074c71ec8ae",
+      "executable": false
+    },
+    "src/bifocal/alerts/server.ts": {
+      "sha256": "1ed2d190354121c26119bb98622dbf98c5ca827e43f45de0fdf571b8cbd5b2a9",
+      "executable": false
+    },
+    "src/bifocal/alerts/store.server.ts": {
+      "sha256": "4353e5d6f9a3e343779b8f6a4258806452bd3ed3cb97635e1f33d46dc9ddd630",
       "executable": false
     },
     "src/bifocal/api/native.server.ts": {
@@ -2141,7 +2181,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "5013c0edf304f3c4a7481ae9f240efdfa6418b0b7bfda09688eda134316948a1",
+      "sha256": "3fdff1c7506d743b6bc87c200a10779a928cf563a1f0c327ec40dbd8ab48cf37",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -4461,7 +4501,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "df69dfe42b21ed540aa6966c9cb44fdea657f5ddf820a2ce9119941a1f2bd8f6",
+      "sha256": "51a6da14b8e4bdbae828eba484e470160fbe05cea92c1a92b09aeaed093ba64b",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -4684,6 +4724,14 @@
       "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
       "executable": false
     },
+    "tests/journeys/alert-boundaries.mjs": {
+      "sha256": "53ce99b930a9995cd39e446b641d975a7e6270d0f2c50b3d5c3613ec371fc16f",
+      "executable": false
+    },
+    "tests/journeys/alerts.mjs": {
+      "sha256": "6eefb6914e8c98950e10df06d3041ee4c3ef9e84770a2971a86b20c4cdfa6e49",
+      "executable": false
+    },
     "tests/journeys/analytics-boundaries.mjs": {
       "sha256": "9d73ef340d7cdf857aa1b403045e4c7f33808d1c0e15d653fb39f65537c1b9ca",
       "executable": false
@@ -4737,7 +4785,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "3fff2328b0836cdc61791a34b23797a400e450fabd0d17fc062dc6e9b39fcf5c",
+      "sha256": "6211c3afddb9d76fba5c7518ff7fa0ad8ff7e98e9f13fbf8e1ce6ffc485fd315",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
