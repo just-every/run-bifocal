@@ -8,7 +8,8 @@ import { discardBody, exactKeys, json, jsonBody } from '../models/validation/tra
 import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
 import { fail, QueryError } from '../query/types'
-import { chartPage } from './page.server'
+import { displayZone } from '../company/display-zone'
+import { chartPage, chartUnavailable } from './page.server'
 import { chartDocument } from './protocol'
 import { readChart } from './store.server'
 import { chartStyles } from './styles'
@@ -26,13 +27,13 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
   if(url.search)fail('query_parameters_not_supported',400)
   if(saved) {
    if(request.method!=='GET')fail('method_not_allowed',405)
-   const chart=await readChart(env,owner,ownerId,saved[2])
    if(saved[1]==='app') {
     const session=await operatorAuth(env).getSession(request)
     if(!session)fail('owner_required',401)
-    return chartPage(chart,session.operator)
+    try{return chartPage(await readChart(env,owner,ownerId,saved[2]),session.operator,await displayZone(env,session.operator.email))}
+    catch(error){if(error instanceof QueryError&&error.status===404)return chartUnavailable(session.operator);throw error}
    }
-   return json(chart)
+   return json(await readChart(env,owner,ownerId,saved[2]))
   }
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest'])

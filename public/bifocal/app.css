@@ -307,9 +307,15 @@ body[data-collaboration-kind] .main{width:100%}
 .thread-form{margin-top:20px;padding-top:20px;border-top:1px solid var(--app-line)}
 .panel form>.control+.control,details form>.control+.control{margin-top:18px}
 .form-error{margin:0 0 18px}
+/* Authenticated links: the rows sit inside the card's padding like the form above them, a field gap and a hairline
+   below Create; each row is the link over one quiet line, then its action. */
+details>.records{margin:24px 24px 0;padding-top:18px;border-top:1px solid var(--app-line)}
+details>.records .record{flex:1 1 16rem}
+details>.records .record>.row-meta{flex:none}
 /* The Answers tab: a new answer and a combined dashboard fold behind one disclosure under the list. */
 #new-answer form+form{margin-top:28px;padding-top:24px;border-top:1px solid var(--app-line)}
 #compose-form h3{margin:0 0 6px}
+#answer{scroll-margin-top:16px}
 
 @media (max-width:1280px){
  .layout{grid-template-columns:300px minmax(0,1fr)}
@@ -389,6 +395,7 @@ body[data-collaboration-kind] .main{width:100%}
  caption{padding:14px 16px 12px}
  summary{padding:14px 18px}
  details>:not(summary){margin-left:18px;margin-right:18px}
+ details>.records{margin-left:18px;margin-right:18px}
  .tabs{gap:8px 24px}
  .facts li{grid-template-columns:18px 1fr}
  .fact{grid-column:2;justify-self:start;text-align:left;margin-top:-6px}

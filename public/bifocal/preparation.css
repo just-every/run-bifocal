@@ -1,2 +1,23 @@
+/* Preparation drafts keep the owner forms' rhythm: each subsection opens on a hairline with its heading clear of the
+   field above, and the steps are rows parted by hairlines rather than cards inside the card. */
+#preparation .fields{margin-bottom:0}
+#preparation .prep-subhead{margin:28px 0 8px;padding-top:24px;border-top:1px solid var(--app-line);font-size:17px}
+#preparation .prep-subhead+.meta,#preparation .prep-subhead+.hint{margin:0 0 18px}
+#preparation .prep-graph-title{margin:28px 0 4px;font-size:16px}
+#preparation .prep-graph-title+.hint{margin:0 0 12px}
+#preparation .prep-steps{list-style:none;margin:0;padding:0}
+#preparation .prep-steps>li{padding:18px 0;border-top:1px solid var(--app-line)}
+#preparation .prep-steps>li:first-child{padding-top:4px;border-top:0}
+#preparation .prep-steps h4{margin:0;font-size:16px}
+#preparation .prep-steps .hint{margin:2px 0 12px}
+#preparation .prep-steps .actions{margin-top:18px}
+#preparation .prep-add{display:flex;align-items:flex-end;gap:12px;margin-top:18px;padding-top:18px;border-top:1px solid var(--app-line)}
+#preparation .prep-add .control{flex:0 1 420px}
+#preparation #prep-source>.metadata{margin:20px 0 0}
+#preparation #prep-review-report{margin-bottom:8px}
 #preparation .tablewrap{margin:12px 0 16px;max-width:100%}
 #preparation .preparation-impact table{min-width:760px}
+@media (max-width:1100px){
+ #preparation .prep-add{flex-direction:column;align-items:stretch}
+ #preparation .prep-add .control{flex:none}
+}

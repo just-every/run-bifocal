@@ -63,9 +63,11 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
     const query={version:1,dataset,joins:[],filters:[],groupBy:[group],measures:[{id:metric,op:'sum',column,unit,scale,...(unit==='money'?{sourceCurrency:'USD'}:{})}],context:{modelVersion:'native-business-v1',metricVersion:'owner-defined-v1',accountingBasis:unit==='money'?'accrual':'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
     await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
     const response=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click();const result=await (await response).json();assert.ok(result.snapshotId,JSON.stringify(result));snapshots.push(result)
-    await page.locator('#compose-form input[value="'+result.snapshotId+'"]').waitFor()
+    // A run folds New exact answer away to show its result; the new answer is still offered to combine.
+    await page.locator('#compose-form input[value="'+result.snapshotId+'"]').waitFor({state:'attached'})
    }
    assert.deepEqual(snapshots.map(snapshot=>Object.values(snapshot.answer.totals)[0].value),['61275.65','200','200','280'])
+   await page.getByText('New exact answer',{exact:true}).click()
    const compose=page.locator('#compose-form');await compose.getByLabel('Cross-system dashboard title').fill('Revenue, conversions and product adoption')
    for(const snapshot of snapshots)await compose.locator(`input[value="${snapshot.snapshotId}"]`).check()
    await shot('answer-selection',width)

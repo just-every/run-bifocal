@@ -1,4 +1,8 @@
 import {element,metadata,table} from './file-view.js'
+import {impactSentence,stepProblem} from './preparation-errors.js'
+import {operations} from './preparation-graph.js'
+
+const operation=op=>operations[op]??op
 
 export function showPreparationReview(box,value,previousVersion,restoreVersion){
  box.replaceChildren(metadata([
@@ -8,13 +12,14 @@ export function showPreparationReview(box,value,previousVersion,restoreVersion){
  ]))
  box.append(table('Exact input source revisions',['Dataset','Revision'],value.sources.map(source=>[source.dataset,source.revision])))
  box.append(table('Step row counts',['Step','Operation','Input rows','Output rows'],value.diagnostics.map(step=>[step.step,step.operation,step.inputRows,step.outputRows])))
- if(value.error)box.append(table('Preparation validation error',['Step','Operation','Error'],[[value.error.step,value.error.operation,value.error.code]]))
+ // The blocked step reads as its plain sentence; its code stays on the table as data.
+ if(value.error){const wrap=table('Preparation validation error',['Step','Operation','Error'],[[value.error.step,operation(value.error.operation),stepProblem(value.error.code,value.document?.steps[value.error.step-1])[1]]]);wrap.querySelector('table').dataset.code=value.error.code;box.append(wrap)}
  if(!value.error)box.append(element('p','No preparation validation errors.'))
  if(value.impact){
   const shown=value=>value===null?'Unavailable':Object.entries(value).map(([key,item])=>key+': '+(item.value??item.state)).join(', ')
   const impactTable=(...args)=>{const wrap=table(...args);wrap.classList.add('preparation-impact');return wrap}
-  box.append(impactTable('Certified metric impact',['Metric','Certified revision','Published value','Staged value','Error','Published changed'],value.impact.metrics.map(metric=>[metric.name,metric.revision,shown(metric.before),shown(metric.after),metric.error?.code??'None','No'])))
-  box.append(impactTable('Affected charts',['Chart','Published totals','Staged totals','Error','Published changed'],value.impact.charts.map(chart=>[chart.title,shown(chart.before),shown(chart.after),chart.error?.code??'None','No'])))
+  box.append(impactTable('Certified metric impact',['Metric','Certified revision','Published value','Staged value','Error','Published changed'],value.impact.metrics.map(metric=>[metric.name,metric.revision,shown(metric.before),shown(metric.after),metric.error?impactSentence(metric.error):'None','No'])))
+  box.append(impactTable('Affected charts',['Chart','Published totals','Staged totals','Error','Published changed'],value.impact.charts.map(chart=>[chart.title,shown(chart.before),shown(chart.after),chart.error?impactSentence(chart.error):'None','No'])))
  }
  if(value.output){
   const {columns,rows,lineage}=value.output

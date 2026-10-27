@@ -62,7 +62,13 @@ async function history() {
  if(!result.queries.length)list.append(element('p','No saved answers yet.','side-note'))
  current()
 }
-$('query-form').onsubmit=event=>{event.preventDefault();action(async()=>{let definition;try{definition=JSON.parse($('definition').value)}catch{throw Error('Enter a valid JSON query definition.')}render(await request('queries/run',definition));await history()})}
+// A new answer takes the screen: the writing folds away, the answer's title comes into view, and the address becomes
+// the answer's own so a reload opens it again.
+function arrived() {
+ $('new-answer').open=false;window.history.replaceState(null,'','/app/queries/'+snapshot.queryId)
+ const title=$('answer-title').getBoundingClientRect();if(title.top<0||title.bottom>innerHeight)$('answer').scrollIntoView({block:'start'})
+}
+$('query-form').onsubmit=event=>{event.preventDefault();action(async()=>{let definition;try{definition=JSON.parse($('definition').value)}catch{throw Error('Enter a valid JSON query definition.')}render(await request('queries/run',definition));await history();arrived()})}
 for(const kind of ['dashboard','report'])$(kind).onclick=()=>action(async()=>{
  if(!snapshot)throw Error('Run or open an answer first.');const title=$('title').value.trim();if(!title)throw Error('Enter a title for this saved result.')
  const artifact=await request(kind+'s',{queryId:snapshot.queryId,title}),link=element('a','Open saved '+kind);link.href='/app/'+kind+'s/'+artifact.id;const row=element('p');row.append(link);$('artifact-links').append(row);status(`Saved ${kind} with this exact immutable answer.`)

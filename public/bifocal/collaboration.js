@@ -15,9 +15,11 @@ const person=id=>current.members.find(p=>p.id===id)
 // A list reads as rows; when it is empty, one plain line stands in for it.
 function rowsOf(list,items,empty){list.replaceChildren(...items);list.hidden=!items.length;if(empty)byId(empty).hidden=!!items.length}
 function comment(item){const li=element('li'),mentioned=(item.mentions??[]).map(person).filter(Boolean).map(p=>p.displayName);li.append(element('p',person(item.authorId)?.displayName??'Former participant','thread-author'),element('p',item.body,'thread-body'),meta(item.point===null?'':'Data point '+(item.point+1),time(item.createdAt),mentioned.length?'Mentioned '+mentioned.join(', '):''));return li}
+// A link row reads as a thread row inside the card's padding: the link, one quiet line (its expiry stamp kept whole),
+// then its action.
 function shareLink(item){
- const li=element('li'),inactive=item.revoked||Date.parse(item.expiresAt)<=Date.now(),expires=element('span');expires.append('Expires ',time(item.expiresAt))
- li.append(link('Open authenticated link','/app/shared/'+item.id),meta('For '+(person(item.recipientId)?.displayName??'a former recipient'),inactive?'Inactive':expires))
+ const li=element('li'),record=element('div',undefined,'record'),inactive=item.revoked||Date.parse(item.expiresAt)<=Date.now(),expires=element('span',undefined,'nowrap');expires.append('Expires ',time(item.expiresAt))
+ record.append(link('Open authenticated link','/app/shared/'+item.id),meta('For '+(person(item.recipientId)?.displayName??'a former recipient'),inactive?'Inactive':expires));li.append(record)
  if(!inactive){const button=element('button','Revoke link');button.type='button';button.addEventListener('click',()=>act(byId('collaboration-link'),async()=>{await call('/links/'+item.id+'/revoke',{});await load()}));li.append(button)}
  return li
 }
@@ -26,7 +28,9 @@ async function load(){
  if(kind){
   current=await call('/resolve',{kind,id});byId('collaboration-title').textContent=current.subject.title.replaceAll(' · ',' · ');byId('collaboration-source').href=current.subject.href
   for(const [selector,blank] of [['#collaboration-comment select',true],['#collaboration-link select',false]]){const select=document.querySelector(selector),chosen=select.value;select.replaceChildren();if(blank){const option=element('option','No mention');option.value='';select.append(option)}for(const member of current.members){const option=element('option',member.displayName);option.value=member.id;select.append(option)}if([...select.options].some(option=>option.value===chosen))select.value=chosen}
-  if(rows!==null)byId('comment-point-hint').textContent=rows===1?'Optional. This answer has 1 row; enter 1 to comment on it.':`Optional. Enter a row of this answer, 1 to ${rows}.`
+  // A saved dashboard holds one retained answer: its rows are named as the dashboard's own.
+  const holder=kind==='dashboard'?'this dashboard':'this answer'
+  if(rows!==null)byId('comment-point-hint').textContent=rows===1?`Optional. ${holder[0].toUpperCase()+holder.slice(1)} has 1 row; enter 1 to comment on it.`:`Optional. Enter a row of ${holder}, 1 to ${rows}.`
   rowsOf(byId('collaboration-comments'),current.comments.map(comment),'collaboration-comments-empty')
   byId('collaboration-annotations-panel').hidden=!current.metric
   if(current.metric){byId('collaboration-metric-version').textContent='Certified revision '+current.metric.revision+' of '+current.metric.id;rowsOf(byId('collaboration-annotations'),current.annotations.map(item=>{const li=element('li');li.append(element('p',item.body,'thread-body'),meta(day(item.point)));return li}),'collaboration-annotations-empty');byId('collaboration-annotation').hidden=kind!=='metric'}
@@ -41,7 +45,8 @@ async function load(){
 function explain(form,error){
  const code=error.code
  if(form.id==='collaboration-comment'){
-  if(code==='comment_point_not_found')return ['point',rows===null?'Data points name a row of a single answer. Leave Data point empty.':rows===1?'This answer has 1 row. Enter 1, or leave Data point empty.':`This answer has ${rows} rows. Enter 1 to ${rows}, or leave Data point empty.`]
+  const holder=kind==='dashboard'?'This dashboard':'This answer'
+  if(code==='comment_point_not_found')return ['point',rows===null?'Data points name a row of a single answer. Leave Data point empty.':rows===1?`${holder} has 1 row. Enter 1, or leave Data point empty.`:`${holder} has ${rows} rows. Enter 1 to ${rows}, or leave Data point empty.`]
   if(code==='nonempty_text_required')return ['body','Write a comment before posting it.']
   if(code==='mention_recipients_required')return ['mention','Choose one member to mention, or No mention.']
   if(code==='collaboration_recipient_not_permitted')return ['mention','That member can no longer open this analysis, so they can’t be mentioned. Choose someone else, or No mention.']
