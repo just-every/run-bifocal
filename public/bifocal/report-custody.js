@@ -8,7 +8,7 @@ const $ = id => document.getElementById(id), runId = document.body.dataset.runId
 const root = '/api/operator/report-runs/' + encodeURIComponent(runId), json = value => JSON.stringify(value, null, 2)
 const downloadable = new Set(['approved', 'accepted', 'development'])
 let instance
-let run = null, people = [], grants = [], reviewed = null, busy = false
+let run = null, people = [], classifications = [], grants = [], reviewed = null, busy = false
 const messages = {
  session_required: 'Your native session ended. Sign in again to check report access.',
  report_not_found: 'This report is unavailable to your current account. A reviewer grant may have expired or been revoked.',
@@ -98,7 +98,7 @@ function render() {
 async function load() {
  invalidateReview(); const value = await request(root)
  let operatorList = [], grantList = []
- if (value.access.kind === 'owner' && !value.access.readOnly) { const results = await Promise.all([request('/auth/operators'), request(root + '/grants')]); operatorList = results[0]; grantList = results[1].grants }
+ if (value.access.kind === 'owner' && !value.access.readOnly) { const results = await Promise.all([request('/auth/operators'), request(root + '/grants'), request('/api/operator/approval-classifications')]); classifications = results[2].people; operatorList = results[0]; grantList = results[1].grants }
  run = value; people = operatorList; grants = grantList; render()
 }
 function grantInput() {
@@ -108,13 +108,14 @@ function grantInput() {
  if (!person) throw Error('Choose an active person from the native account list.')
  const expiry = new Date($('report-grant-expiry').value).getTime(), now = Date.now()
  if (!Number.isFinite(expiry) || expiry <= now || expiry > now + 7 * 86400000 || run.retainUntil && expiry > Date.parse(run.retainUntil)) throw Error('The expiry must be in the future, within seven days and within the retained artifact cutoff.')
- return { reviewerId: person.id, reviewerVersion: person.version, digest: run.digest, previousVersion: run.version, expiresAt: new Date(expiry).toISOString() }
+ const classificationRevisions=classifications.filter(value=>[run.artifact.securityScope.ownerId,person.id].includes(value.operatorId)).sort((a,b)=>a.operatorId.localeCompare(b.operatorId)).map(({operatorId,revision})=>({operatorId,revision}))
+ return { classificationRevisions, reviewerId: person.id, reviewerVersion: person.version, digest: run.digest, previousVersion: run.version, expiresAt: new Date(expiry).toISOString() }
 }
 $('report-refresh').onclick = () => act(load)
 $('report-grant-form').oninput = invalidateReview
 $('report-grant-form').onsubmit = event => { event.preventDefault(); act(async () => {
  const input = grantInput(); invalidateReview(); reviewed = input
- $('report-grant-summary').replaceChildren(metadata([['Named person', personName(input.reviewerId)], ['Person id', input.reviewerId], ['Person version', input.reviewerVersion], ['Report title', run.artifact.title], ['Report run', run.id], ['Artifact revision', run.revision], ['Exact artifact digest', input.digest], ['Custody version', input.previousVersion], ['Expiry', stamp(input.expiresAt, zone)], ['Exact UTC expiry', input.expiresAt]]))
+ $('report-grant-summary').replaceChildren(metadata([['Named person', personName(input.reviewerId)], ['Reviewed classifications', JSON.stringify(input.classificationRevisions)], ['Person id', input.reviewerId], ['Person version', input.reviewerVersion], ['Report title', run.artifact.title], ['Report run', run.id], ['Artifact revision', run.revision], ['Exact artifact digest', input.digest], ['Custody version', input.previousVersion], ['Expiry', stamp(input.expiresAt, zone)], ['Exact UTC expiry', input.expiresAt]]))
  $('report-grant-preview').hidden = false; status('Review the exact person, artifact digest and expiry, then explicitly approve the grant.')
 }) }
 $('report-grant-confirm').onchange = approvalControl

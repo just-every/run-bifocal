@@ -76,6 +76,7 @@ export default {
     "bf_report_dispatches",
     "bf_report_audit",
     "bf_report_reviewer_grants",
+    "bf_report_grant_reviews",
     "bf_explore_grants",
     "bf_explore_audit",
     "bf_report_grant_audit",

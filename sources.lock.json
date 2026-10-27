@@ -741,7 +741,7 @@
       "executable": false
     },
     "migrations/core/0060_report_instance_reviews.sql": {
-      "sha256": "c4951061adf64c956f2f709c6bb4df26abaa4bf629bf65f6e0f5433572c7dc43",
+      "sha256": "f89c5474d039dccf9138352189a191fe1e33a207d8bf02b58f262440bdca9de2",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -969,7 +969,7 @@
       "executable": false
     },
     "public/bifocal/report-custody.js": {
-      "sha256": "3295ce6f33a77d87200376c52323b70a027d78d268b65179c85b8b66d33578a8",
+      "sha256": "0f1c97e8f7a71739c09236a9baac627295735672b53eb0a09a443278f5e6f971",
       "executable": false
     },
     "public/bifocal/report-instance.js": {
@@ -1269,7 +1269,7 @@
       "executable": false
     },
     "scripts/installer/archive-policy.mjs": {
-      "sha256": "5daf1a5099fe49c411537595cb321b6ca76e96015ce2b1b16e62572560a46032",
+      "sha256": "0e2edec81f2e5ff63660ee3dc20557d28bd99d376f741249183a9a8e1ca66c76",
       "executable": false
     },
     "scripts/installer/local.mjs": {
@@ -1474,6 +1474,10 @@
     },
     "src/bifocal/approvals/classifications.server.ts": {
       "sha256": "025038c5f98159a2e3062fe5a9d4e5ed6f50e1b6f8b3505e16a2a0116e21dd1d",
+      "executable": false
+    },
+    "src/bifocal/approvals/grant-review.server.ts": {
+      "sha256": "4b038ad74ddb7832d1a71f0a267127bfe009a5cf5afa3281cf0db52da84d22c7",
       "executable": false
     },
     "src/bifocal/approvals/page.server.ts": {
@@ -2525,7 +2529,7 @@
       "executable": false
     },
     "src/bifocal/reports/grants.server.ts": {
-      "sha256": "e73cae70312f382d4d933c5ccc1beeb4046c0eb160bdb516da4b2a436c047d24",
+      "sha256": "665a5d6d9e85b1bd843e667cc4bc423196f4759b0bdb7977f463f9af3c9cdce5",
       "executable": false
     },
     "src/bifocal/reports/page.server.ts": {
@@ -4845,7 +4849,7 @@
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
-      "sha256": "2d5dd41154f3abe1d53b1b3a6c734e5ac8802d991366818d4ff49dfb131fe0ba",
+      "sha256": "628457cebf818f4d763b55da177a324015a3c7f61cbdf07157e7ee4f2d25fa83",
       "executable": false
     },
     "tests/journeys/reporting-app-reader.mjs": {

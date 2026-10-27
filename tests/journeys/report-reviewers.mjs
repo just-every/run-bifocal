@@ -11,11 +11,16 @@ export async function proveReportReviewers(origin,owner,reader,fixture,call){
  }
  try{
   const current=await call(api(fixture.first.id)),reviewerVersion=(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.id===reviewer.id).version
-  const grantBody={reviewerId:reviewer.id,reviewerVersion,digest:current.digest,previousVersion:current.version,expiresAt:new Date(Date.now()+300000).toISOString()}
+  const classRevisions=async()=> (await call('/approval-classifications')).people.filter(p=>[fixture.ownerId,reviewer.id].includes(p.operatorId)).sort((a,b)=>a.operatorId.localeCompare(b.operatorId)).map(({operatorId,revision})=>({operatorId,revision}))
+  const grantBody={classificationRevisions:await classRevisions(),reviewerId:reviewer.id,reviewerVersion,digest:current.digest,previousVersion:current.version,expiresAt:new Date(Date.now()+300000).toISOString()}
   await call(api(fixture.first.id)+'/grants',{...grantBody,digest:'0'.repeat(64)},409)
+  await call(api(fixture.first.id)+'/grants',{...grantBody,classificationRevisions:[]},409)
   assert.equal((await reader.request.get(origin+'/api/operator'+api(fixture.first.id))).status(),404)
   await readerPage.goto(url(fixture.first.id));await readerPage.getByRole('alert').waitFor();assert.equal(await readerPage.locator('#report-workspace').isVisible(),false);await screen(readerPage,'report-ungranted')
-  const originalGrant=await granted(fixture.first.id);await readDownload(fixture.first.id,fixture.originalBytes,'report-reviewer-original')
+  const originalGrant=await granted(fixture.first.id)
+  assert.equal(originalGrant.review.digest,current.digest);assert.deepEqual(originalGrant.review.recipient,{id:reviewer.id,version:reviewerVersion});assert.equal(originalGrant.grantsDeliveryAuthority,false)
+  const recorded=(await call(api(fixture.first.id)+'/grants')).grants.find(g=>g.id===originalGrant.id);assert.deepEqual(recorded.review,originalGrant.review)
+  await readDownload(fixture.first.id,fixture.originalBytes,'report-reviewer-original')
   assert.equal((await reader.request.get(origin+'/api/operator'+api(fixture.second.id))).status(),404,'one artifact grant does not authorize its correction')
   const correctionGrant=await granted(fixture.second.id);await readDownload(fixture.second.id,fixture.correctedBytes,'report-reviewer-correction');assert.ok((await readerPage.locator('#report-correction').innerText()).includes(fixture.first.id))
   for(const operation of ['render','approve','send']){const response=await reader.request.post(origin+'/api/operator'+api(fixture.second.id)+'/'+operation,{headers:{Origin:origin},data:{}});assert.equal(response.status(),403)}
@@ -51,7 +56,9 @@ export async function proveReportReviewers(origin,owner,reader,fixture,call){
   const reactivated=await owner.request.post(origin+'/auth/operator/status',{headers:{Origin:origin},data:{operatorId:reviewer.id,status:'active'}});assert.equal(reactivated.status(),200)
   const renewed=(await(await owner.request.get(origin+'/auth/operators')).json()).find(person=>person.id===reviewer.id);assert.ok(renewed.signInUrl);await reader.request.get(new URL(renewed.signInUrl,origin).href)
   assert.equal((await reader.request.get(origin+'/api/operator'+api(fixture.first.id)+'/download')).status(),404,'reactivation does not revive an old artifact grant')
-  await call(api(fixture.first.id)+'/grants',{...grantBody,reviewerVersion:renewed.version,expiresAt:new Date(Date.now()+300000).toISOString()})
+  const staleClass=(await call('/approval-classifications')).people.find(p=>p.operatorId===reviewer.id)
+  await call('/approval-classifications/'+reviewer.id,{previousRevision:staleClass.revision,operatorVersion:renewed.version,kind:'none',expiresAt:null},200,'PUT')
+  await call(api(fixture.first.id)+'/grants',{...grantBody,classificationRevisions:await classRevisions(),reviewerVersion:renewed.version,expiresAt:new Date(Date.now()+300000).toISOString()})
   const retained=await reader.request.get(origin+'/api/operator'+api(fixture.first.id)+'/download');assert.equal(retained.status(),200);assert.equal(await retained.text(),fixture.originalBytes)
   console.log('Named report reviewers: exact original and correction, native identity, audited downloads, no source or mutation authority, expiry, revocation and membership-cancelled pending rendering passed at 1440 and 390')
   return {async erased(){

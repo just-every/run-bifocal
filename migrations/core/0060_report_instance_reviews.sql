@@ -21,3 +21,7 @@ CREATE TRIGGER bf_report_review_membership AFTER UPDATE ON oa_operators
  WHEN new.version<>old.version OR new.status<>old.status OR new.role<>old.role BEGIN
  DELETE FROM bf_report_review_activation WHERE review_id IN (SELECT id FROM bf_report_instance_reviews WHERE actor_id=new.id);
 END;
+CREATE TABLE bf_report_grant_reviews (
+ grant_id TEXT PRIMARY KEY REFERENCES bf_report_reviewer_grants(id) ON DELETE CASCADE,
+ context_json TEXT NOT NULL CHECK(json_valid(context_json))
+);
