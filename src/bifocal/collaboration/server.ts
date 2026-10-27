@@ -23,7 +23,7 @@ export async function collaborationResponse(request:Request,original:Bindings):P
   }
   if(!actor)return json({error:'authentication_required'},401)
   if(url.search)fail('query_parameters_not_supported',400)
-  if(path.startsWith('/app/'))return collaborationPage(request,env,actor)
+  if(path.startsWith('/app/'))return await collaborationPage(request,env,actor)
   if(path===base+'/notifications'&&request.method==='GET'){
    const rows=(await env.DB.prepare('SELECT id,link_id,created_at FROM bf_collaboration_notifications WHERE recipient_id=? ORDER BY created_at DESC,id LIMIT 101').bind(actor.id).all<{id:string;link_id:string;created_at:string}>()).results
    if(rows.length>100)fail('notification_history_limit',413)
