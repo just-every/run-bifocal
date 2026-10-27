@@ -4741,7 +4741,7 @@
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "0d1515e03f914d23b4be794f91b7b0c7febf6e4c93dc202d675f3a7f6235b1be",
+      "sha256": "6a8db737d40d0a412df8630e70399cdb6daf6ca95c91befb8efe2a779842937b",
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {

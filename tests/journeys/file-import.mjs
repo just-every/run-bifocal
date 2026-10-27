@@ -144,6 +144,11 @@ export async function proveFileImports(origin, context, page, restartWorker) {
  const macro = await plan({ ...base, filename: 'synthetic-bifocal-3.xlsm' }, true)
  assert.equal(macro.counts.rejected, 1); assert.match(macro.rejected[0].reason, /FILE_TYPE/)
  await cancel(macro)
+ // Header-only input is not a claimed complete provider snapshot without
+ // explicit web metadata and full-snapshot review.
+ const emptyFile = await plan({ ...base, data: 'id,date,region,amount,note\n' }, true)
+ assert.equal(emptyFile.counts.rejected, 1); assert.match(emptyFile.rejected[0].reason, /CSV_EMPTY/)
+ assert.deepEqual(await read(), beforeRefusal); await cancel(emptyFile)
  const malformed = await plan({ ...base, data: 'id,date,region,amount,note\n5,"unclosed' }, true)
  assert.equal(malformed.counts.rejected, 1); assert.match(malformed.rejected[0].reason, /CSV_QUOTE/)
  await cancel(malformed)
