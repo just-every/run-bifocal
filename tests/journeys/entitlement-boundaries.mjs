@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 /** Continue the native entitlement journey against its real sources and grants. */
-export async function proveEntitlementBoundaries({owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision,map}){
+export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision,map,browser,devKey,contexts}){
  const rows=entries=>'principal,role,value,valid_from,valid_until\n'+entries.map(entry=>entry.join(',')).join('\n')+'\n'
  const row=(principal,value,from='01/01/2020',until='01/01/2099')=>[principal,'sales',value,from,until]
  const request=actor=>({...parameters,grantId:actor.grant.id})
@@ -54,6 +54,35 @@ export async function proveEntitlementBoundaries({owner,rep,next,actors,definiti
  await clock.set('2026-10-27T12:00:00.000Z')
  await upload(mapping,map(next.person.email),true);await publish()
  for(const actor of actors)actor.grant=await grant(actor.person)
+ const cookie=(await owner.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+ const arm=async(at,before,mutation)=>{
+  const response=await owner.request.post(origin+'/__entitlement-boundary',{data:{at:'/api/operator'+at,before,cookie,...mutation}})
+  assert.equal(response.status(),200);assert.equal((await response.json()).armed,true)
+ }
+ const publishPath='/explore/entitlements/publish'
+ const pendingSource=await review(),replacement=await upload(mapping,map(rep.person.email),true,true)
+ await arm(publishPath,'INSERT INTO bf_entitlement_snapshots',replacement)
+ await call(owner,publishPath,{definition,previousRevision:revision(),reviewedDigest:pendingSource.digest},409)
+ assert.equal((await call(owner,'/explore/entitlements/'+parameters.modelId+'/accounts')).revision,revision(),'A changed source cannot publish the previously reviewed policy')
+ await upload(mapping,map(next.person.email),true);await publish()
+ const extraOwner=await browser.newContext();contexts.push(extraOwner)
+ assert.equal((await extraOwner.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:devKey}})).status(),204)
+ const ownerPerson=(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.role==='owner')
+ await extraOwner.request.get(new URL(ownerPerson.signInUrl,origin).href)
+ const ownerSession=await(await extraOwner.request.get(origin+'/auth/session')).json()
+ const custodyReview=await call(extraOwner,'/explore/entitlements/review',{definition,previousRevision:revision()},200)
+ await arm(publishPath,'INSERT INTO bf_entitlement_snapshots',{path:'/auth/session/revoke',body:{sessionId:ownerSession.id}})
+ await call(extraOwner,publishPath,{definition,previousRevision:revision(),reviewedDigest:custodyReview.digest},409)
+ assert.equal((await extraOwner.request.get(origin+'/auth/session')).status(),401)
+ assert.equal((await call(owner,'/explore/entitlements/'+parameters.modelId+'/accounts')).revision,revision(),'Lost native owner authority cannot publish a policy')
+ const responseSource=await run(next,['one']),sourceMutation=await upload(mapping,map(rep.person.email),true,true)
+ await arm('/explore/'+responseSource.snapshotId+'/export','INSERT INTO bf_explore_audit',sourceMutation)
+ await call(next.context,'/explore/'+responseSource.snapshotId+'/export',{scope:'underlying',format:'csv'},409)
+ await upload(mapping,map(next.person.email),true);await publish()
+ const responseAuthority=await run(next,['one'])
+ await arm('/explore/'+responseAuthority.snapshotId+'/export','INSERT INTO bf_explore_audit',{path:'/api/operator/explore/access/'+next.grant.id+'/revoke',body:{}})
+ await call(next.context,'/explore/'+responseAuthority.snapshotId+'/export',{scope:'underlying',format:'csv'},409)
+ next.grant=await grant(next.person)
  const result=await run(next,['one']),pending=await review()
  // The reviewed source must still be current at publication. Already saved
  // answers, their labels and export plans must recheck current authority.

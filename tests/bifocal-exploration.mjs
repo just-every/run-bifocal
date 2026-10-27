@@ -319,7 +319,7 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  await call(reader,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},409)
  await run(actors[0],['five','two']);await run(rep,['two']);await run(next,['one']);await run(nextManager,['one'])
  assert.ok(!(await call(reader,'/explore')).questions.some(q=>q.id===managerRun.snapshotId),'Reassignment removes cached question metadata')
- await proveEntitlementBoundaries({owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision:()=>revision,map})
+ await proveEntitlementBoundaries({origin,owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision:()=>revision,map,browser,devKey,contexts})
  await upload(hierarchy,tree(true),true)
  assert.equal((await call(owner,'/explore/entitlements/review',{definition,previousRevision:revision},409)).error,'cyclic_entitlement_hierarchy')
  await upload(hierarchy,tree(),true);await upload(mapping,map(next.person.email),true)

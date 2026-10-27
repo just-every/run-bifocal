@@ -8,7 +8,7 @@ import {contentBrowser} from './content-browser.mjs'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { proveReportCustody } from './report-custody.mjs'
@@ -22,15 +22,16 @@ import { chromium } from '@playwright/test'
 export async function proveContentGovernance(){
  const persist=await mkdtemp(join(tmpdir(),'bifocal-content-governance-')),socket=createServer()
  await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
- const origin='http://127.0.0.1:'+port,varsFile=join(process.cwd(),'.dev.vars')
+ const origin='http://127.0.0.1:'+port,varsFile=join(process.cwd(),'.dev.vars'),configFile=join(process.cwd(),'.entitlement-test-vite.config.ts')
  const privateArchive=join(process.cwd(),'exports','synthetic-bifocal-private.json')
  let varsWritten=false,archiveWritten=false,child,browser,output=''
  const clock=await entitlementClock(persist)
  const environment={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false',RER_STATE_DIR:persist,RER_DEV_ORIGIN:origin,RER_DEV_KEY:'synthetic-bifocal-4'.repeat(3)}
  try{
+  await writeFile(configFile,(await readFile('vite.config.ts','utf8')).replace("main: './src/server.dev.ts'","main: './tests/journeys/entitlement-boundary-worker.mjs'"),{flag:'wx'})
   await writeFile(varsFile,`AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=synthetic-bifocal-1@example.test\nSESSION_SECRET=${'synthetic-bifocal-2'.repeat(3)}\nSETUP_TOKEN=${'synthetic-bifocal-3'.repeat(3)}\nINSTALLATION_KEY=${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`,{flag:'wx',mode:0o600});varsWritten=true
   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc'],{stdio:'pipe',env:{...environment,MINIFLARE_WORKERD_PATH:undefined},timeout:120000})
-  child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{env:environment,stdio:['ignore','pipe','pipe']})
+  child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--config',configFile,'--host','127.0.0.1','--port',String(port),'--strictPort'],{env:environment,stdio:['ignore','pipe','pipe']})
   child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
   let ready=false
   for(let attempt=0;attempt<120;attempt++){
@@ -54,10 +55,11 @@ export async function proveContentGovernance(){
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
   const readerSession=await(await reader.request.get(origin+'/auth/session')).json(),ownerSession=await(await owner.request.get(origin+'/auth/session')).json()
   assert.equal(readerSession.operator.role,'member')
-  const upload=async(dataset,data,replace=false)=>{
+  const upload=async(dataset,data,replace=false,stage=false)=>{
    const bytes=Buffer.from(JSON.stringify({version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data})),hash=createHash('sha256').update(bytes).digest('hex')
    const post=async(action,data)=>{const r=await owner.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
    const uploaded=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')}),plan=await post('plan',{uploadId:uploaded.uploadId,...replace?{catchup:true}:{}})
+   if(stage)return {path:'/api/operator/import/apply',headers:{'X-Import-Dataset':dataset},body:{planId:plan.planId,reviewedFingerprint:plan.fingerprint}}
    for(let i=0;i<20;i++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return
    assert.fail('Reviewed export-policy source import did not finish')
   }
@@ -88,6 +90,7 @@ export async function proveContentGovernance(){
  finally{
   await browser?.close()
   if(child){child.kill('SIGTERM');await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve))}
+  await rm(configFile,{force:true})
   if(varsWritten)await rm(varsFile)
   if(archiveWritten)await rm(privateArchive)
   await rm(persist,{recursive:true,force:true})
