@@ -31,6 +31,6 @@ export async function webEdgeResponse(request,state,origin) {
  if(phase==='private-next')next='https://127.0.0.1/private'
  if(phase==='foreign-next')next='https://synthetic-bifocal-foreign.workers.dev/items'
  if(phase==='repeated')next=origin+'/nested'
- if(phase==='endless'){await new Promise(resolve=>setTimeout(resolve,120));next=origin+'/nested?after='+state.webCalls}
+ if(phase==='endless'){if(second)await new Promise(resolve=>{state.releaseWebPage=resolve});next=origin+'/nested?after='+state.webCalls}
  return Response.json({data:{items:(second?[webRows[2]]:webRows.slice(0,2)).map(row=>({id:row.id,details:{...row}}))},next})
 }

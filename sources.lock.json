@@ -4833,11 +4833,11 @@
       "executable": false
     },
     "tests/journeys/web-source-edge.mjs": {
-      "sha256": "8d05a3ed6005b0b48a68430bc40261a0197d1be1a6b0a85cf3de4d2947c8fb51",
+      "sha256": "2bb2a756351c00e9da14fcd050e85a14ef67f754868c423a6946c046d52939e2",
       "executable": false
     },
     "tests/journeys/web-sources.mjs": {
-      "sha256": "431107e4881923abde09ec448b80c8b3cdfdcbf7a49d69cfcc861f2abd8ad469",
+      "sha256": "e6bbff8e34ef50d075b5b7a54e682598a7e43d878f29014fa184de66840ca8b7",
       "executable": false
     },
     "tests/runtime.mjs": {
