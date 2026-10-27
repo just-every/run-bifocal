@@ -14,6 +14,7 @@ import {provePolicyTooling} from './policy-tooling.mjs'
 import {proveBoardTooling} from './board-tooling.mjs'
 import {proveRecurringTooling} from './recurring-tooling.mjs'
 import {proveEnvironmentTooling} from './environment-tooling.mjs'
+import {proveCustomVisualInventory} from './custom-visual-import.mjs'
 
 export async function proveModelImports({origin,context,page,call,upload,proveScreen,signInMember}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
@@ -222,6 +223,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const pbipPlan=await prepare(pbip);assert.equal(pbipPlan.counts.rejected,0);assert.equal(pbipPlan.project.report.compatible,false);assert.deepEqual(pbipPlan.project.report.project.resources.map(r=>[r.id,r.dependencies]),[
   ['Sales.pbip',['Sales.Report/definition.pbir']],['Sales.Report/definition.pbir',['Sales.SemanticModel/definition.pbism']],['Sales.SemanticModel/definition.pbism',['Sales.SemanticModel/definition/tables/Sales.tmdl']],['Sales.SemanticModel/definition/tables/Sales.tmdl',[]]
  ]);assert.equal(pbipPlan.project.definition.views[0].query.measures[0].column,'revenue');assert.ok(pbipPlan.project.report.issues.some(i=>i.code==='pbip_report_translation_pending'));await apply(pbip.projectId,pbipPlan);const pbipRead=await call('/model-imports/'+pbip.projectId);assert.deepEqual(pbipRead.input.files,pbip.files);await call('/model-authoring/review',{document:dump(pbipRead.definition),importProject:pbip.projectId,importRevision:pbipRead.revision},409);dbtProjects.push({input:pbip,plan:pbipPlan})
+ dbtProjects.push(...await proveCustomVisualInventory({base:pbip,prepare,apply,call,page,origin,proveScreen}))
  const folder=await mkdtemp(join(tmpdir(),'bifocal-pbip-picker-'))
  try{
   for(const file of pbip.files){const target=join(folder,file.path);await mkdir(join(target,'..'),{recursive:true});await writeFile(target,file.content)}
@@ -398,6 +400,10 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
  const call=async(path,data,method=data===undefined?'GET':'POST')=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...(data===undefined?{}:{data})});assert.ok(response.ok(),await response.text());return response.json()}
  try{
   await writeFile(session,cookie,{mode:0o600});await writeFile(document,JSON.stringify(definition))
+  const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
+  await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
+  const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
+  if(process.env.BIFOCAL_CHART_ONLY){await readFile(provider);await proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf});return}
   const review=await cli('plan',['--file',document,'--plan-file',plan]);assert.equal(review.compatible,true)
   const savedPlan=await readFile(plan,'utf8');assert.ok(!savedPlan.includes(cookie));assert.ok(!savedPlan.includes('answer'));assert.ok(!savedPlan.includes('securityScope'))
   await cli('apply',['--plan-file',plan,'--approve','0'.repeat(64)],false)
@@ -408,11 +414,8 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const dashboardReview=await cli('dashboard-import',['--file',draft,'--plan-file',join(directory,'dashboard.plan.json')]),dashboard=await cli('dashboard-import',['--file',draft,'--approve',dashboardReview.digest]),dashboardExport=join(directory,'dashboard-export.native.json');await cli('dashboard-export',['--id',dashboard.id,'--output',dashboardExport])
   assert.deepEqual(JSON.parse(await readFile(dashboardExport,'utf8')),{version:1,title:'Fiscal revenue from git',definition:dashboard.definition})
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboards/'+dashboard.id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#totals').innerText(),/69\.06/);await proveScreen('model-cli-dashboard')}
-  const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
-  await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
   const tfDefinition=structuredClone(native);let resource,reviewSequence=0
   const writeConfig=async()=>{const source=join(directory,'tf-document.json');await writeFile(source,JSON.stringify(tfDefinition));const reviewed=await cli('plan',['--file',source,'--plan-file',join(directory,'tf-review-'+reviewSequence+++'.json'),...(resource?['--model',resource.model_id,'--branch',resource.branch_id]:[])]);return writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_model_branch:{main:{document:JSON.stringify(tfDefinition),review_digest:reviewed.digest}}}}))}
-  const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
   await readFile(provider);await writeConfig()
   await tfRun(['plan','-input=false','-no-color','-out=create.tfplan']);await tfRun(['apply','-input=false','-no-color','create.tfplan'])
   let state=JSON.parse(await readFile(join(directory,'terraform.tfstate'),'utf8'));resource=state.resources[0].instances[0].attributes

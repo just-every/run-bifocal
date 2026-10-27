@@ -12,6 +12,7 @@ import { chartPage } from './page.server'
 import { chartDocument } from './protocol'
 import { readChart } from './store.server'
 import { chartStyles } from './styles'
+import { chartView, type Selection } from './view'
 
 export async function chartResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname
@@ -23,14 +24,21 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
   const owner=await fileOwner(request,env)
   if(!owner)return json({error:'owner_required'},401)
   const ownerId=await ownerIdentity(env,owner)
-  if(url.search)fail('query_parameters_not_supported',400)
+  if(url.search&&(!saved||saved[1]!=='app'))fail('query_parameters_not_supported',400)
   if(saved) {
    if(request.method!=='GET')fail('method_not_allowed',405)
    const chart=await readChart(env,owner,ownerId,saved[2])
    if(saved[1]==='app') {
     const session=await operatorAuth(env).getSession(request)
     if(!session)fail('owner_required',401)
-    return chartPage(chart,session.operator)
+    let selection:Selection|undefined
+    if(url.search){
+     if([...url.searchParams.keys()].some(key=>key!=='selection')||url.searchParams.getAll('selection').length!==1)fail('chart_selection_required',400)
+     const selected=url.searchParams.get('selection'),view=chartView(chart),choices=[...new Set(view.rows.map(row=>row.label))]
+     if(!view.selection)fail('chart_selection_not_permitted',400)
+     if(selected!=='all'){if(!selected||!/^\d+$/.test(selected)||!Object.hasOwn(choices,Number(selected)))fail('chart_selection_not_permitted',400);selection={field:view.selection.field,value:choices[Number(selected)]}}
+    }
+    return chartPage(chart,session.operator,selection)
    }
    return json(chart)
   }
@@ -41,11 +49,11 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
   if(definition![1]==='review') {
    const answer=execute(document.definition,sources,context)
    await transact(env.DB,owner,guards.map(assertion))
-   return json({document,digest,answer})
+   return json({document,digest,answer,view:chartView({...document,answer,context})})
   }
   if(input.reviewedDigest!==digest)fail('exact_current_chart_review_required',409)
-  const {snapshot,changes}=prepareQuery(document.definition,context,sources),id=randomUUID(),createdAt=new Date().toISOString()
+  const {snapshot,changes}=prepareQuery(document.definition,context,sources),id=randomUUID(),createdAt=new Date().toISOString(),view=chartView({...document,answer:snapshot.answer,context})
   await transact(env.DB,owner,[...changes,sql('INSERT INTO bf_charts(id,snapshot_id,title,visual_json,owner_id,created_at) VALUES(?,?,?,?,?,?)',id,snapshot.snapshotId,document.title,canonicalJson(document.visual),ownerId,createdAt)])
-  return json({id,title:document.title,visual:document.visual,...snapshot,createdAt},201)
+  return json({id,title:document.title,visual:document.visual,...snapshot,createdAt,view},201)
  }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'chart_conflict'},409)}finally{await discardBody(request)}
 }

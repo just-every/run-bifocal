@@ -1,5 +1,6 @@
 import { issue, provenance, record, unknownKeys } from './common'
 import { readTMDL } from './tmdl'
+import { readCustomVisuals } from './custom-visuals'
 import type { Project, ProjectFile, ProjectResource } from './types'
 
 // Resolve descriptor references against the uploaded project only. No path is
@@ -70,6 +71,7 @@ export function readPBIP(p: Project, files: ProjectFile[]) {
   if (!modelRoots.has(root)) issue(p, at, file.path, 'unreferenced_pbip_model', 'The uploaded project must explicitly reference this semantic model.')
   if (!definitions.length) issue(p, at, file.path, 'pbip_tmdl_required', 'Include the referenced textual TMDL definitions; binary models are unsupported.')
  }
+ readCustomVisuals(p, files, resources, described)
  for (const file of files) {
   if (/\.tmdl$/i.test(file.path)) {
    const parent = resources.find(r => r.kind === 'pbip-model' && r.dependencies.includes(file.path))

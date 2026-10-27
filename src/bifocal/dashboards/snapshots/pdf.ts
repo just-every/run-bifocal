@@ -12,13 +12,16 @@ export function encodePdf(snapshot:Snapshot){
  for(const [index,page] of snapshot.pages.entries()){
   const pageId=reserve(),section=reserve(),tags:number[]=[],refs:string[]=[],annotations:number[]=[],commands:string[]=[];pageIds.push(pageId);sections.push(section)
   for(const [mcid,shape] of page.shapes.entries()){
-   const tag=reserve();tags.push(tag);put(tag,'<< /Type /StructElem /S /'+(shape.kind==='image'?'Figure':'P')+' /P '+section+' 0 R /Pg '+pageId+' 0 R /K '+mcid+' /Alt '+utf16(shape.label)+' >>')
-   commands.push('/'+(shape.kind==='image'?'Figure':'P')+' << /MCID '+mcid+' >> BDC')
+   const tag=reserve();tags.push(tag);put(tag,'<< /Type /StructElem /S /'+(shape.kind==='text'?'P':'Figure')+' /P '+section+' 0 R /Pg '+pageId+' 0 R /K '+mcid+' /Alt '+utf16(shape.label)+' >>')
+   commands.push('/'+(shape.kind==='text'?'P':'Figure')+' << /MCID '+mcid+' >> BDC')
    if(shape.kind==='text'){
     commands.push('BT /F1 '+shape.size+' Tf '+shape.x+' '+(HEIGHT-shape.y-shape.size)+' Td '+(shape.size*1.25)+' TL')
     for(const [i,line] of shape.lines.entries())commands.push((i?'T* ':'')+literal(line)+' Tj')
     commands.push('ET')
     if(shape.link)annotations.push(add('<< /Type /Annot /Subtype /Link /Rect ['+[shape.x,HEIGHT-shape.y-shape.h,shape.x+shape.w,HEIGHT-shape.y].join(' ')+'] /Border [0 0 0] /A << /S /URI /URI '+literal(shape.link)+' >> >>'))
+   }else if(shape.kind==='rect'||shape.kind==='ellipse'){
+    if(shape.kind==='rect')commands.push('q 0.08 0.25 0.45 rg '+shape.x+' '+(HEIGHT-shape.y-shape.h)+' '+shape.w+' '+shape.h+' re f Q')
+    else{const x=shape.x+shape.w/2,y=HEIGHT-shape.y-shape.h/2,rx=shape.w/2,ry=shape.h/2,k=.5522847498;commands.push('q 0.08 0.25 0.45 rg '+[x+rx,y,'m',x+rx,y+k*ry,x+k*rx,y+ry,x,y+ry,'c',x-k*rx,y+ry,x-rx,y+k*ry,x-rx,y,'c',x-rx,y-k*ry,x-k*rx,y-ry,x,y-ry,'c',x+k*rx,y-ry,x+rx,y-k*ry,x+rx,y,'c f Q'].join(' '))}
    }else{
     const image=pdfImage(shape.data),mask=image.alpha?stream('/Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+' /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode',image.alpha):null,id=stream('/Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+' /ColorSpace /'+(image.colors===1?'DeviceGray':'DeviceRGB')+' /BitsPerComponent '+image.bits+' /Filter /'+image.filter+(mask?' /SMask '+mask+' 0 R':''),image.bytes),name='Im'+mcid
     refs.push('/'+name+' '+id+' 0 R');const ratio=Math.min(shape.w/image.width,shape.h/image.height),w=image.width*ratio,h=image.height*ratio;commands.push('q '+w+' 0 0 '+h+' '+shape.x+' '+(HEIGHT-shape.y-h)+' cm /'+name+' Do Q')
