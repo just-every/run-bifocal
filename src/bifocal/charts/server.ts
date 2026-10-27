@@ -12,6 +12,8 @@ import { chartPage } from './page.server'
 import { chartDocument } from './protocol'
 import { readChart } from './store.server'
 import { chartStyles } from './styles'
+import {currentAuthority} from '../catalog/authority.server'
+import {subject} from '../collaboration/subjects.server'
 
 export async function chartResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname
@@ -20,17 +22,26 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
  if(!definition&&!saved)return null
  const env=runtimeBindings(original)
  try {
-  const owner=await fileOwner(request,env)
-  if(!owner)return json({error:'owner_required'},401)
-  const ownerId=await ownerIdentity(env,owner)
+  let owner=await fileOwner(request,env),ownerId:string,delegated=false
+  if(!owner){
+   const actor=saved?await currentAuthority(request,env):null
+   if(!actor)return json({error:'owner_required'},401)
+   let target
+   try{target=await subject(env,actor,'chart',saved![2])}
+   catch(error){if(error instanceof QueryError&&error.status===404)return json({error:'owner_required'},401);throw error}
+   const checks=[actor,...target.guards]
+   owner={email:actor.email,...sql(checks.map(check=>'('+check.sql+')').join(' AND '),...checks.flatMap(check=>check.params??[]))}
+   ownerId=target.ownerId;delegated=true
+  }else ownerId=await ownerIdentity(env,owner)
   if(url.search)fail('query_parameters_not_supported',400)
   if(saved) {
    if(request.method!=='GET')fail('method_not_allowed',405)
    const chart=await readChart(env,owner,ownerId,saved[2])
+   if(delegated){chart.answer.inputRows=chart.answer.filteredRows;chart.answer.joinDiagnostics=[]}
    if(saved[1]==='app') {
     const session=await operatorAuth(env).getSession(request)
     if(!session)fail('owner_required',401)
-    return chartPage(chart,session.operator)
+    return chartPage(chart,session.operator,!delegated)
    }
    return json(chart)
   }

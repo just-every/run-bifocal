@@ -8,7 +8,7 @@ async function load(){
  byId('collaboration-content')?.setAttribute('hidden','')
  if(shared)await call('/links/'+shared)
  if(kind){
-  current=await call('/resolve',{kind,id});byId('collaboration-title').textContent=current.subject.title;byId('collaboration-source').href=current.subject.href
+  current=await call('/resolve',{kind,id});byId('collaboration-title').textContent=current.subject.title;byId('collaboration-source').href=current.subject.href;byId('collaboration-source').hidden=current.subject.href.startsWith('/app/collaboration/')
   for(const [selector,blank] of [['#collaboration-comment select',true],['#collaboration-link select',false]]){const select=document.querySelector(selector);select.replaceChildren();if(blank){const option=element('option','No mention');option.value='';select.append(option)}for(const person of current.members){const option=element('option',person.displayName);option.value=person.id;select.append(option)}}
   const comments=byId('collaboration-comments');comments.replaceChildren(...current.comments.map(comment=>{const li=element('li'),author=current.members.find(p=>p.id===comment.authorId);li.append(element('strong',author?.displayName??'Former participant'),element('p',comment.body),element('p',(comment.point===null?'Analysis':'Data point '+(comment.point+1))+' · '+comment.createdAt));for(const recipient of comment.mentions??[]){const person=current.members.find(p=>p.id===recipient);if(person)li.append(element('p','@'+person.displayName))}return li}));if(!current.comments.length)comments.append(element('li','No comments yet.'))
   byId('collaboration-annotations-panel').hidden=!current.metric
