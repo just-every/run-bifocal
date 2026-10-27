@@ -189,17 +189,19 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.deepEqual(proposedView.revisions[1],metricRest.revisions[0],'A proposal preserves the complete certified revision')
  assert.equal((await graph('runMetric',{id:metricId})).context.metric.revision,1)
  assert.deepEqual((await graph('runMetric',{id:metricId})).answer,metricRun.answer)
+ const beforeRefusedReview=await graph('metric',{id:metricId})
+ await page.goto(origin+'/app/metrics/'+metricId);await page.getByRole('button',{name:'Certify revision 2',exact:true}).waitFor();await proveScreen('native-graphql-metric-proposal')
  const staleApproval=await graph('certifyMetric',certification,409);assert.equal(staleApproval.errors[0].message,'stale_metric_approval')
  await graph('certifyMetric',{...certification,revision:2,digest:proposedMetric.digest,confirm:'unreviewed'},403)
- assert.deepEqual(await graph('metric',{id:metricId}),proposedView,'Refused reviews leave metric history unchanged')
+ assert.deepEqual(await graph('metric',{id:metricId}),beforeRefusedReview,'Refused reviews leave metric history unchanged')
  const currentCertification={...certification,revision:2,digest:proposedMetric.digest}
  const concurrentCertification=await Promise.all([
   context.request.post(origin+'/api/v1/native/graphql',{headers:{Origin:origin},data:{query:'mutation($id:String!,$digest:String!){certifyMetric(id:$id,revision:2,digest:$digest,annotation:"Concurrent exact review",confirm:"approve")}',variables:{id:metricId,digest:proposedMetric.digest}}}),
   context.request.post(origin+'/api/v1/native/metrics/'+metricId+'/approve',{headers:{Origin:origin},data:{revision:2,digest:proposedMetric.digest,annotation:'Concurrent exact review',confirm:'approve'}})
  ])
  assert.deepEqual(concurrentCertification.map(r=>r.status()).sort(),[200,409]);for(const r of concurrentCertification)await r.body()
- const certifiedView=await graph('metric',{id:metricId});assert.equal(certifiedView.metric.published_revision,2);assert.equal(certifiedView.revisions.filter(r=>r.approved_at).length,2)
  const newRun=await graph('runMetric',{id:metricId});assert.equal(newRun.answer.totals.revenue.value,'30.30');assert.equal(newRun.context.metric.revision,2);assert.equal(newRun.context.metric.digest,proposedMetric.digest)
+ const certifiedView=await graph('metric',{id:metricId});assert.equal(certifiedView.metric.published_revision,2);assert.equal(certifiedView.revisions.filter(r=>r.approved_at).length,2)
  assert.deepEqual((await call('/queries/'+metricRun.queryId)).answer,metricRun.answer)
  await page.goto(origin+'/app/metrics/'+metricId);await page.locator('h1').waitFor();await proveScreen('native-graphql-metric-certified')
  const deprecation={id:metricId,revision:2,publishedRevision:2,digest:proposedMetric.digest,reason:'Replaced after exact owner review',confirm:'deprecate'}

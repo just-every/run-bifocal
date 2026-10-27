@@ -4825,7 +4825,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "d2c34e9e4424b306c88c217c549e966772de89817148559f83c840a4a8511e41",
+      "sha256": "d9dab3d4960776a8050bfd0a65195515dcef422a1cb379fc17adcf75c905124b",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
