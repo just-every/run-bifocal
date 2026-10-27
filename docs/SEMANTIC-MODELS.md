@@ -209,3 +209,21 @@ These drafts do not publish a model or change certified data.
 For directory-based semantic projects, choose **Original project folder**. Paths
 are retained relative to the selected folder, so local PBIP descriptor references
 and dbt dependencies can be inspected. Choose individual files for a flat project.
+
+Preparation reviews compare the staged output with current certified metrics
+and retained charts that use the source. The review shows published and staged
+totals separately. It never changes a certified definition or retained answer.
+A failed draft leaves a source-revision-bound warning on its affected charts;
+a successful review clears that warning. Source changes hide obsolete warnings,
+and source erasure removes their retained diagnostics.
+
+An owner can explicitly execute supported imported dbt definitions with
+`POST /api/operator/preparations/<id>/dbt-review`, supplying `projectId` and
+`bindings` from literal source resource identities to already imported dataset
+IDs. The result includes ordered dependencies, exact output rows, column
+lineage, generic column `not_null` and `unique` test outcomes, and the project
+and source revisions. A dependency or test failure makes the review incompatible.
+This native dialect supports one literal relation per model, projections,
+casts and exact arithmetic. It never evaluates Jinja or runs hooks, adapters,
+provider SQL or background jobs. Unsupported constructs stay diagnostic.
+Execution is ephemeral and does not publish a table or certify a metric.

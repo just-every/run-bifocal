@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {dump,load} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
-import {modelProjectFixtures} from './model-project-fixtures.mjs'
+import {modelProjectFixtures,proveDBTExecution} from './model-project-fixtures.mjs'
 import {proveMetricTooling} from './metric-tooling.mjs'
 import {proveChartTooling} from './chart-tooling.mjs'
 import {provePolicyTooling} from './policy-tooling.mjs'
@@ -444,11 +444,25 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const numericLookup='synthetic-bifocal-preparation-numeric',numericDuplicates='synthetic-bifocal-preparation-numeric-duplicates'
  await upload(numericLookup,'quantity,label\n2.0,Two\n3.00,Three\n');await upload(numericDuplicates,'id,value\n1,0.10\n1.0,0.100\n')
  const initial=await call('/datasets/'+dataset),path='/preparations/'+id
+ const calendar='synthetic-bifocal-preparation-calendar',metricId='synthetic-bifocal-preparation-metric'
+ await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Preparation calendar',kind:'fiscal',startMonth:1}})
+ const quantityQuery={version:1,dataset,joins:[],filters:[],groupBy:[],measures:[{id:'quantity',op:'sum',column:'quantity',unit:'number',scale:0}],context:{modelVersion:'preparation-impact',metricVersion:'preparation-impact',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+ const metricDraft=await call('/metrics',{id:metricId,definition:{name:'Published quantity',description:'Quantity before staged deduplication',grain:'item',unit:'number',timezone:'America/New_York',accountingBasis:'accrual',query:quantityQuery}})
+ await call('/metrics/'+metricId+'/approve',{revision:1,digest:metricDraft.digest,confirm:'approve',annotation:'Initial review'},200)
+ const metricBefore=await call('/metrics/'+metricId+'/run',{})
+ const chartDocument={version:1,title:'Published regional quantity',definition:{...quantityQuery,groupBy:['region']},visual:{kind:'bar',dimension:'region',measure:'quantity'}}
+ const chartReview=await call('/chart-definitions/review',{document:chartDocument},200),chart=await call('/chart-definitions/create',{document:chartDocument,reviewedDigest:chartReview.digest})
+ assert.equal(metricBefore.answer.totals.quantity.value,'11')
+
  const document={version:1,dataset,steps:[{op:'dedupe'},{op:'calculate',name:'amount',operator:'multiply',left:'quantity',right:'price'},{op:'lookup',dataset:right,left:'region',right:'region',prefix:'lookup-',kind:'left'}]}
  const preview=async(doc,version=null)=>call(path+'/review',{document:doc,previousVersion:version},200)
  const sqlPreview=async(sql,version=null)=>call(path+'/review',{dataset,sql,previousVersion:version},200)
  const review=await preview(document)
  assert.equal(review.compatible,true);assert.equal(review.published,false)
+ assert.deepEqual(review.impact.metrics.map(m=>[m.id,m.revision,m.before.quantity.value,m.after.quantity.value,m.publishedChanged]),[[metricId,1,'11','9',false]])
+ assert.deepEqual(review.impact.charts.map(c=>[c.id,c.before.quantity.value,c.after.quantity.value,c.publishedChanged]),[[chart.id,'11','9',false]])
+ assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11')
+
  assert.deepEqual(review.output.rows,[['a','West','2','0.10','12','0.2','West','Pacific'],['b','East','3','0.20','bad','0.6','East','Atlantic'],['c',null,'4',null,'14',null,null,null]])
  assert.deepEqual(review.diagnostics.map(s=>[s.inputRows,s.outputRows]),[[4,3],[3,3],[3,3]])
  assert.deepEqual(review.output.lineage.amount,[{dataset,revision:initial.revision,column:'quantity'},{dataset,revision:initial.revision,column:'price'}])
@@ -474,7 +488,13 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const badUnion=await preview({...document,steps:[{op:'union',dataset:right}]});assert.equal(badUnion.error.code,'preparation_union_schema_mismatch')
  const cast=await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]})
  assert.deepEqual(cast.error,{step:1,operation:'cast',code:'preparation_type_conversion_failed'});assert.equal(cast.output,null)
+ assert.equal(cast.impact.metrics[0].after,null);assert.equal(cast.impact.metrics[0].error.code,'preparation_type_conversion_failed')
+ const blockedChart=await call('/charts/'+chart.id)
+ assert.deepEqual(blockedChart.answer,chart.answer);assert.deepEqual(blockedChart.preparationErrors,[{preparationId:id,step:1,operation:'cast',code:'preparation_type_conversion_failed',publishedChanged:false}])
+ await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*preparation_type_conversion_failed/);await proveScreen('preparation-affected-chart')
+
  const validCast=await preview({...document,steps:[{op:'cast',column:'quantity',type:'text'}]});assert.equal(validCast.output.columns[2].type,'text');assert.deepEqual((await sqlPreview(validCast.sql)).output,validCast.output)
+ assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'A repaired review clears the failed-draft warning')
  const unpivot=await preview({...document,steps:[{op:'dedupe'},{op:'unpivot',columns:['quantity','price'],name:'field',value:'value'}]})
  assert.deepEqual(unpivot.output.rows.map(row=>row.slice(-2)),[['quantity','2'],['price','0.10'],['quantity','3'],['price','0.20'],['quantity','4'],['price',null]])
  assert.deepEqual((await sqlPreview(unpivot.sql)).output,unpivot.output)
@@ -504,6 +524,7 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  await page.getByRole('button',{name:'Review preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft reviewed'}).waitFor()
  assert.deepEqual(await browserRows(),[['a','West','2','0.10','12','0.2'],['b','East','3','0.20','bad','0.6'],['c','NULL','4','NULL','14','NULL']])
  const lineage=await page.getByRole('table',{name:'Output schema and column lineage',exact:true}).innerText();assert.ok(lineage.includes(initial.revision));assert.match(lineage,/quantity/);assert.match(lineage,/price/)
+ const metricImpactText=await page.getByRole('table',{name:'Certified metric impact',exact:true}).innerText();assert.match(metricImpactText,/quantity: 11/);assert.match(metricImpactText,/quantity: 9/);assert.match(await page.getByRole('table',{name:'Affected charts',exact:true}).innerText(),/Published regional quantity/)
  await proveScreen('preparation-visual-review')
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed draft',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft saved as revision 1'}).waitFor()
  await page.getByLabel('Editing form',{exact:true}).selectOption('sql');const originalSQL=await page.getByLabel('SQL statements',{exact:true}).inputValue()
@@ -517,6 +538,9 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  assert.match(await page.getByRole('table',{name:'Preparation validation error',exact:true}).innerText(),/preparation_type_conversion_failed/);assert.equal(await page.getByRole('button',{name:'Save reviewed draft',exact:true}).isDisabled(),true)
  assert.equal((await call('/preparations/'+browserID)).version,2)
  await proveScreen('preparation-conversion-error')
+ await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/preparation_type_conversion_failed/);assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11');await proveScreen('preparation-browser-affected-chart')
+ await page.goto(origin+'/app/import#preparation');await page.getByLabel('Preparation ID',{exact:true}).fill(browserID);await page.getByRole('button',{name:'Load saved preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Current saved draft loaded'}).waitFor()
+
  await page.getByLabel('Saved revision',{exact:true}).selectOption('1');await page.getByRole('button',{name:'Review selected revision for restore',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Prior revision reviewed'}).waitFor()
  assert.deepEqual((await browserRows()).map(row=>row[5]),['0.2','0.6','NULL'])
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Restore reviewed draft revision',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Prior draft restored as revision 3'}).waitFor()
@@ -534,11 +558,14 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
   assert.equal((await member.request.get(origin+'/api/operator'+path)).status(),401)
   for(const action of ['review','save','restore'])assert.equal((await member.request.post(origin+'/api/operator'+path+'/'+action,{headers:{Origin:origin},data:{document,previousVersion:3,restoreVersion:1,reviewedDigest:restoreReview.digest}})).status(),401)
  }finally{await member.close()}
- const stale=await preview(document,3);await upload(dataset,csv.replace('2,0.10','2,0.11'),true)
+ const stale=await preview(document,3)
+ await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]},3);assert.equal((await call('/charts/'+chart.id)).preparationErrors.length,1)
+ await upload(dataset,csv.replace('2,0.10','2,0.11'),true);assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'Obsolete draft warnings disappear when a pinned source changes')
  await call(path+'/save',{document,previousVersion:3,reviewedDigest:stale.digest},409)
  const currentRestoreReview=await preview(document,3)
  await call(path+'/restore',{restoreVersion:1,previousVersion:3,reviewedDigest:currentRestoreReview.digest},409)
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
+ await call('/charts/'+chart.id,undefined,404)
  await call(path,undefined,404);await call(path+'/restore',{restoreVersion:1,previousVersion:null,reviewedDigest:currentRestoreReview.digest},404)
  console.log('Native preparation: executable graph and edited SQL, exact values, explicit join and pivot refusals, lineage, reviewed revisions, non-owner isolation, source drift and erasure passed')
 }
@@ -575,9 +602,10 @@ export async function proveNativePreparation({imports=false}={}){
    const memberPage=await member.newPage();await memberPage.goto(link);await Promise.all([memberPage.waitForURL(origin+'/app'),memberPage.getByRole('button',{name:'Confirm',exact:true}).click()]);await memberPage.close()
   }
   const proveScreen=async(label)=>{
-   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
   await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
+  await proveDBTExecution({origin,context,call,upload,signInMember})
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}

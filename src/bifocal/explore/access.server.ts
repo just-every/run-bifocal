@@ -1,3 +1,4 @@
+import { entitlementScope } from '../entitlements/server'
 import { randomUUID } from 'node:crypto'
 import type { Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -26,7 +27,8 @@ export async function readGrant(env:Bindings,actor:Authority,id:unknown){
  const sources=[]
  for(const ref of definition.sources){const source=await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables WHERE id=? AND revision=?').bind(ref.id,ref.revision).first<{id:string;revision:string;value_json:string}>();if(!source||sha256(source.value_json)!==ref.digest)fail('exploration_source_changed',409);sources.push(sourceMatch({...source,table:JSON.parse(source.value_json)}))}
  await transact(env.DB,actor,[assertion(guard),...sources.map(assertion)])
- return {grant:{...row,definition},guards:[guard,...sources]}
+ const entitlements=await entitlementScope(env,actor,row.owner_id,definition.modelId,definition.viewId)
+ return {grant:{...row,definition},entitlements,guards:[guard,...sources,...entitlements.guards]}
 }
 export async function accessResponse(request:Request,env:Bindings,actor:Authority,path:string):Promise<Response|null>{
  if(!path.startsWith('/api/operator/explore/access'))return null
