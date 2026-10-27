@@ -58,6 +58,7 @@ try {
   assert.fail('Shared source apply did not complete')
  }
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
+ if(process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'){await proveModelImports({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_DASHBOARD_ONLY==='1'){await proveDashboardInteractions({origin,context,page,upload,proveScreen});await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await context.close();return}
  if(process.env.BIFOCAL_TV_ONLY==='1'){await proveDashboardTv({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_LARGE_EXPORT_ONLY==='1'){await proveLargeExploration({origin,context,page,call,upload,proveScreen});await context.close();return}
