@@ -663,7 +663,12 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  }finally{await member.close()}
  const stale=await preview(document,3)
  await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]},3);assert.equal((await call('/charts/'+chart.id)).preparationErrors.length,1)
+ const materializedFailure=await call('/charts/'+publishedChart.id)
+ assert.deepEqual(materializedFailure.preparationErrors,[{preparationId:id,step:1,operation:'cast',code:'preparation_type_conversion_failed',publishedChanged:false}])
+ assert.equal(materializedFailure.answer.totals.quantity.value,'9')
+ await page.goto(origin+'/app/charts/'+publishedChart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*preparation_type_conversion_failed/);await proveScreen('preparation-published-chart-failed-draft')
  await upload(dataset,csv.replace('2,0.10','2,0.11'),true);assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'Obsolete draft warnings disappear when a pinned source changes')
+ assert.deepEqual((await call('/charts/'+publishedChart.id)).preparationErrors,[])
  assert.equal((await call('/datasets/'+outputID)).preparation.current,false)
  assert.equal((await call('/datasets/'+childOutputID)).preparation.current,false,'Prepared input freshness reaches every ancestor')
  assert.deepEqual((await call('/datasets/'+outputID)).table.rows,review.output.rows,'Source drift preserves the dated last-good materialization')

@@ -14,10 +14,14 @@ export async function preparationCheckStatements(env:Bindings,ownerId:string,id:
  ]:[]]
 }
 export async function chartPreparationErrors(env:Bindings,ownerId:string,snapshotId:string) {
- return (await env.DB.prepare(`SELECT DISTINCT c.preparation_id,c.error_json FROM bf_preparation_checks c
-  JOIN bf_query_sources q ON q.dataset_id=c.dataset_id AND q.snapshot_id=?
+ return (await env.DB.prepare(`WITH RECURSIVE outputs(dataset_id,preparation_id) AS (
+  SELECT dataset_id,preparation_id FROM bf_preparation_outputs WHERE owner_id=?
+  UNION SELECT s.output_id,o.preparation_id FROM bf_preparation_output_sources s JOIN outputs o ON s.dataset_id=o.dataset_id
+ ) SELECT DISTINCT c.preparation_id,c.error_json FROM bf_preparation_checks c
+  JOIN bf_query_sources q ON q.snapshot_id=? AND (q.dataset_id=c.dataset_id OR EXISTS(
+   SELECT 1 FROM outputs o WHERE o.dataset_id=q.dataset_id AND o.preparation_id=c.preparation_id))
   WHERE c.owner_id=? AND NOT EXISTS(SELECT 1 FROM bf_preparation_check_sources s
    LEFT JOIN bf_file_tables f ON f.id=s.dataset_id AND f.revision=s.revision
    WHERE s.owner_id=c.owner_id AND s.preparation_id=c.preparation_id AND f.id IS NULL)
-  ORDER BY c.preparation_id LIMIT 100`).bind(snapshotId,ownerId).all<{preparation_id:string;error_json:string}>()).results.map(row=>({preparationId:row.preparation_id,...JSON.parse(row.error_json),publishedChanged:false}))
+  ORDER BY c.preparation_id LIMIT 100`).bind(ownerId,snapshotId,ownerId).all<{preparation_id:string;error_json:string}>()).results.map(row=>({preparationId:row.preparation_id,...JSON.parse(row.error_json),publishedChanged:false}))
 }
