@@ -5,7 +5,7 @@ import {proveRetainedExports} from './retained-export.mjs'
 import {proveDashboardAuthoring} from './dashboard-authoring.mjs'
 
 /** Ordered multi-answer definitions use the actual retained board surfaces. */
-export async function proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf}){
+export async function proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf,qualityOnly=false}){
  const dataset='synthetic-bifocal-board-tools',csv='invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n3,West,-$0.03\n'
  await upload(dataset,csv)
  const rules=[['synthetic-bifocal-board-identity',{name:'Board invoice identity',kind:'unique',column:'invoice'}],['synthetic-bifocal-board-freshness',{name:'Board source freshness',kind:'freshness',maxAgeSeconds:3600}]]
@@ -22,6 +22,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
   const created=await cli(kind+'-import',['--file',file,'--approve',review.digest]);assert.equal(created.cards.length,2)
   retainedIds.push(...created.cards.map(card=>card.queryId))
   await proveBoardQuality({origin,context,page,call,upload,proveScreen,dataset,csv,all,kind,created,rules,runQuality})
+  if(qualityOnly)continue
   review=await cli(kind+'-import',['--file',file,'--plan-file',join(directory,kind+'-board-quality-repaired.plan.json')])
   await proveRetainedExports({origin,context,snapshotId:created.cards[0].queryId,summary:[['30.00']],underlying:[['1','West','10.01'],['2','East','20.02'],['3','West','-0.03']]})
   await proveRetainedExports({origin,context,snapshotId:created.cards[1].queryId,summary:[['9.98']],underlying:[['1','West','10.01'],['3','West','-0.03']]})
@@ -46,7 +47,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
   await terraform(['destroy','-auto-approve','-input=false','-no-color'])
   await upload(dataset,csv,true)
  }
- await proveDashboardAuthoring({origin,context,page,upload,proveScreen,cli,tfRun,directory,tf})
+ if(!qualityOnly)await proveDashboardAuthoring({origin,context,page,upload,proveScreen,cli,tfRun,directory,tf})
  const source=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
  for(const id of retainedIds)assert.equal((await context.request.post(origin+'/api/operator/queries/'+id+'/export',{headers:{Origin:origin},data:{scope:'summary',format:'csv'}})).status(),404)
  console.log('Multi-answer native boards: real CLI and Terraform ordered definitions, atomic source drift refusal, exact values and retained history passed')

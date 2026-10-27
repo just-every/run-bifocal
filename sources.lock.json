@@ -4729,7 +4729,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "c8aaa1fb97404a20c60ad594cd01e78560d5d70baff4f1761ad9cc099428b3cb",
+      "sha256": "77d56131e033fc76fa9bedcc4bcb4afcdbc08ecfa8e7dbef200a758b7ab17924",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {
@@ -4869,7 +4869,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "33a4478085b4beeafeabe774e7ef2ce0055f42b4eeaf8e037b7e54905f91403e",
+      "sha256": "45aebc90bc9fd0e239aa301a93cfd5046445fea86b721e86926dda14450c2d07",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {

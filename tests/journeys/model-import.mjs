@@ -417,6 +417,7 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
   await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
   const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
+  if(process.env.BIFOCAL_BOARD_QUALITY_ONLY){await writeFile(join(directory,'metric-export.native.json'),JSON.stringify({definition:{query:definition.views[0].query}}));await proveBoardTooling({origin,context,page,call,upload,proveScreen,cli,directory,qualityOnly:true});return}
   if(process.env.BIFOCAL_CHART_ONLY){await readFile(provider);await proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf});return}
   const review=await cli('plan',['--file',document,'--plan-file',plan]);assert.equal(review.compatible,true)
   const savedPlan=await readFile(plan,'utf8');assert.ok(!savedPlan.includes(cookie));assert.ok(!savedPlan.includes('answer'));assert.ok(!savedPlan.includes('securityScope'))
