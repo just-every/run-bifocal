@@ -14,6 +14,7 @@ import { exactKeys, json, jsonBody } from '../../models/validation/transport'
 import { fail, QueryError } from '../../query/types'
 import { compileRdl } from './parse'
 import { rdlPreviewResponse } from './preview.server'
+import { RdlExecutionError } from './problems'
 import { retainRdl, readRdl, type StoredRdlProject } from './custody'
 import { rdlDestination, rdlImportTargets, type RdlRow } from './targets'
 
@@ -81,6 +82,6 @@ async function handle(request:Request,original:Bindings):Promise<Response|null>{
 }
 export async function rdlImportResponse(request:Request,env:Bindings):Promise<Response|null>{
  let response
- try{response=await handle(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code},error.status):json({error:'rdl_import_conflict',reason:'Reload the report draft and review its exact plan again.'},409)}
+ try{response=await handle(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code,...error instanceof RdlExecutionError?{issues:error.issues}:{}},error.status):json({error:'rdl_import_conflict',reason:'Reload the report draft and review its exact plan again.'},409)}
  return response?rejectedUpload(request,response):null
 }

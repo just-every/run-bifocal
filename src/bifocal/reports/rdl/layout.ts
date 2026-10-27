@@ -2,7 +2,7 @@ import type { Scene } from '../../dashboards/snapshots/scene'
 import { fail } from '../../query/types'
 import type { ReportCell } from './values'
 export type ReportRow = {cells: ReportCell[]; widths: number[]; location: string; page?: number}
-export type ReadableReport = {pages: Scene[]; rows: ReportRow[]; pageSize: {width: number; height: number}; furniture: {header: ReportRow[]; footer: ReportRow[]}; provenance: unknown; exportedAt: string; backLink: string}
+export type ReadableReport = {pages: Scene[]; rows: ReportRow[]; pageRows: ReportRow[][]; pageSize: {width: number; height: number}; pageMargins: {top: number; bottom: number; left: number; right: number}; furniture: {header: ReportRow[]; footer: ReportRow[]}; provenance: unknown; exportedAt: string; backLink: string}
 export function length(value: string, fallback: number) {
  if (!value) return fallback
  const match = /^(\d+(?:\.\d+)?)(in|cm|mm|pt|pc)$/.exec(value.trim())
@@ -10,7 +10,10 @@ export function length(value: string, fallback: number) {
  return Number(match[1]) * ({in: 72, cm: 72 / 2.54, mm: 72 / 25.4, pt: 1, pc: 12}[match[2]]!)
 }
 export function wrap(value: string, width: number, size = 13) {
- const result: string[] = [], max = Math.floor(width / (size * .6))
+ // This bound exceeds every supported standard-font glyph advance. A wide
+ // glyph such as W must never escape a column after a character-count wrap.
+ if ([...value].some(c => c !== '\n' && (c.charCodeAt(0) < 32 || c.charCodeAt(0) >= 127 && c.charCodeAt(0) <= 159 || c.charCodeAt(0) > 255 && !'€–—‘’“”…'.includes(c)))) fail('rdl_readable_character_unsupported')
+ const result: string[] = [], max = Math.floor(width / (size * 1.1))
  if (max < 1) fail('rdl_readable_column_too_narrow')
  for (const paragraph of value.split('\n')) {
   let line = ''
@@ -29,7 +32,7 @@ export function wrap(value: string, width: number, size = 13) {
 export function reportLayout(options: {width: number; height: number; left: number; right: number; top: number; bottom: number; header: ReportRow[]; footer: ReportRow[]}) {
  const {width, height, left, right, top, bottom, header, footer} = options, usable = width - left - right
  if (![width, height, left, right, top, bottom].every(Number.isFinite) || width < 200 || height < 250 || width > 1600 || height > 2400 || Math.min(left, right, top, bottom) < 0 || usable < 150) fail('rdl_page_geometry_unsupported')
- const pages: Scene[] = [], rows: ReportRow[] = []
+ const pages: Scene[] = [], rows: ReportRow[] = [], pageRows: ReportRow[][] = []
  const measure = (row: ReportRow) => {
   if (!row.cells.length || row.cells.length !== row.widths.length || row.widths.some(w => !Number.isFinite(w) || w <= 0)) fail('rdl_row_geometry_unsupported')
   const sum = row.widths.reduce((a, b) => a + b, 0), widths = row.widths.map(w => usable * w / sum)
@@ -50,9 +53,9 @@ export function reportLayout(options: {width: number; height: number; left: numb
  }
  const begin = () => {
   if (pages.length >= 200) fail('rdl_interactive_page_limit', 413)
-  page = {title: 'Report page ' + (pages.length + 1), tab: String(pages.length + 1), shapes: []}; pages.push(page); y = bodyTop; bodyRows = 0
+  page = {title: 'Report page ' + (pages.length + 1), tab: String(pages.length + 1), shapes: []}; pages.push(page); pageRows.push([]); y = bodyTop; bodyRows = 0
   let offset = top; for (const row of header) offset += draw(row, offset)
-  for (const row of repeat) {if (y + measure(row).height > bodyBottom - 40) fail('rdl_repeated_headings_do_not_fit'); y += draw(row, y)}
+  for (const row of repeat) {if (y + measure(row).height > bodyBottom - 40) fail('rdl_repeated_headings_do_not_fit'); y += draw(row, y); pageRows.at(-1)!.push({...row, page: pages.length})}
  }
  begin()
  return {
@@ -61,7 +64,7 @@ export function reportLayout(options: {width: number; height: number; left: numb
    const h = measure(row).height
    if (h > bodyBottom - bodyTop - repeat.reduce((n, r) => n + measure(r).height, 0)) fail('rdl_readable_row_does_not_fit')
    if (y + h > bodyBottom) begin()
-   y += draw(row, y); rows.push({...row, page: pages.length}); bodyRows++
+   y += draw(row, y); const positioned = {...row, page: pages.length}; rows.push(positioned); pageRows.at(-1)!.push(positioned); bodyRows++
   },
   repeat(rows: ReportRow[]) {repeat = rows},
   break() {if (bodyRows) begin()},
@@ -71,7 +74,7 @@ export function reportLayout(options: {width: number; height: number; left: numb
     for (const row of footer) offset += draw(row, offset)
     page.shapes.push({kind: 'text', x: left + 6, y: height - bottom - 20, w: usable - 12, h: 18, size: 13, lines: ['Page ' + (i + 1) + ' of ' + pages.length], label: 'Readable page number'})
    })
-   return {pages, rows, pageSize: {width, height}, furniture: {header, footer}}
+   return {pages, rows, pageRows, pageSize: {width, height}, pageMargins: {top, bottom, left, right}, furniture: {header, footer}}
   },
  }
 }

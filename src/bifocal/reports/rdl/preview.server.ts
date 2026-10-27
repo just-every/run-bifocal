@@ -29,9 +29,9 @@ export async function rdlPreviewResponse(request: Request, env: Bindings, owner:
  const provenance = {reportId: project.input.reportId, revision, sourceDigest: parsed.digest, layout: 'readable', parameters: rendered.parameters, bindings: bound.provenance}
  const run = {...rendered, exportedAt, backLink, provenance}, output = encodeReport(run, format)
  if (output.bytes.length > 16000000) fail('rdl_interactive_artifact_limit', 413)
- const digest = sha256(canonicalJson({run, format, ownerId, guards: [guard, ...bound.guards]}))
+ const artifactSha256 = sha256(output.bytes), digest = sha256(canonicalJson({run, format, artifactSha256, ownerId, guards: [guard, ...bound.guards]}))
  if (action === 'download' && input.reviewedDigest !== digest) fail('exact_rdl_preview_required', 409)
  await transact(env.DB, owner, [guard, ...bound.guards].map(assertion))
- if (action === 'preview') return json({digest, format, bytes: output.bytes.length, ...run, switchReady: false, sourceReconciliation: 'pending', delivery: 'inactive'})
+ if (action === 'preview') return json({digest, artifactSha256, format, bytes: output.bytes.length, ...run, switchReady: false, sourceReconciliation: 'pending', delivery: 'inactive'})
  return new Response(new Uint8Array(output.bytes).buffer, {headers: {...privateHeaders, 'content-type': output.type, 'content-disposition': `attachment; filename="report-${project.input.reportId}.${format}"`, 'content-length': String(output.bytes.length)}})
 }

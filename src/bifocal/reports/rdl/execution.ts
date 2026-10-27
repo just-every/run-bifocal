@@ -4,6 +4,7 @@ import { fail } from '../../query/types'
 import type { RdlNode, RdlProject } from './parse'
 import { child, children, text } from './tree'
 import { evaluateRdlExpression } from './expression-value'
+import { expressionProblem } from './problems'
 
 export type RdlTable = { schema: Schema; rows: InputRow[]; parameterFields: Record<string, string> }
 const own = (value: object, key: string) => Object.hasOwn(value, key)
@@ -101,7 +102,7 @@ export function createReportRuntime(project: RdlProject, tables: Record<string, 
     }
     row = table.rows[0]
    }
-   return calculation(() => evaluateRdlExpression(node.expression!, table, row, parameters))
+   try {return calculation(() => evaluateRdlExpression(node.expression!, table, row, parameters))} catch (error) {return expressionProblem(node, error)}
   }
 
   function values(node: RdlNode, declaration: RdlNode): Literal[] {

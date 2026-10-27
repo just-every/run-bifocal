@@ -37,5 +37,5 @@ export function encodePptx(snapshot:PrintableSnapshot){
   files['ppt/notesSlides/_rels/notesSlide'+number+'.xml.rels']=strToU8(relationships([{id:'slide',type:'slide',target:'../slides/slide'+number+'.xml'}]))
  }
  put('[Content_Types].xml','<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/>'+types.map(t=>'<Override PartName="'+t.part+'" ContentType="'+t.type+'"/>').join('')+'</Types>')
- return zipSync(files,{level:6})
+ return zipSync(files,{level:6,mtime:new Date(snapshot.exportedAt)})
 }

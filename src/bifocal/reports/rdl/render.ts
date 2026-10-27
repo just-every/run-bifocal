@@ -6,6 +6,7 @@ import { createReportRuntime, type RdlTable } from './execution'
 import { child, children, descendants, text } from './tree'
 import { length, reportLayout, type ReportRow } from './layout'
 import { reportCell } from './values'
+import { sortRdlGroups, sortRdlRows } from './sort'
 
 /** A native readable rendering is a separate reviewed layout, never a source
  * pagination or successful-switch claim. Unknown execution semantics refuse. */
@@ -81,8 +82,9 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
  function tablix(node: RdlNode, file: string, scope: Scope, inherited?: RdlTable, depth = 0) {
   const name = text(node, 'DataSetName')
   if (inherited && name) fail('rdl_nested_dataset_override_unsupported')
-  const table = name ? scope.dataset(name) : inherited
-  if (!table) fail('rdl_tablix_dataset_required')
+  const bound = name ? scope.dataset(name) : inherited
+  if (!bound) fail('rdl_tablix_dataset_required')
+  const table = sortRdlRows(scope, bound, child(node, 'SortExpressions'))
   const templates = children(child(child(node, 'TablixBody'), 'TablixRows'), 'TablixRow'), widths = children(child(child(node, 'TablixBody'), 'TablixColumns'), 'TablixColumn').map(column => length(text(column, 'Width'), 72))
   const roots = children(child(child(node, 'TablixRowHierarchy'), 'TablixMembers'), 'TablixMember')
   const leaves = new Map<RdlNode, RdlNode>(); let index = 0
@@ -117,7 +119,7 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
      partitions = [...grouped.values()]
     }
    }
-   if (child(member, 'SortExpressions') || child(node, 'SortExpressions')) fail('rdl_readable_sort_unsupported')
+   partitions = sortRdlGroups(scope, partitions, selected, child(member, 'SortExpressions'))
    partitions.forEach((rows, i) => {
     if (group) {pageBreak(group, 'before'); if (i) pageBreak(group, 'between')}
     const narrowed = {...selected, rows}
