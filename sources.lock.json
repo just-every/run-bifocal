@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e885c945feb1d9e9fa99696e0f008c5c6dbf0db7613e21d2e7101b042e570288",
+      "sha256": "1244971882f3c89b4900a12aede3fd8400ce716eec99acf24c0ac1b25a289cf4",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8adce6082012735f317f3a6fd83b94ad9c0d2c298adcd5e35a5dacbfd8f443ac",
+      "sha256": "f4dc7593ed46fc2dd32bd6c1093a35513c83ca967724e7f701cf84d454bf2457",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1493,7 +1493,7 @@
       "executable": false
     },
     "src/bifocal/alerts/store.server.ts": {
-      "sha256": "035f54439a51fcbeb044629e465fe987ee132c56ec8a8b2be8db061b321b160c",
+      "sha256": "05a2ce01135017d9ebf08c7a78b6cf72717d073efa9b122e769b670f3cbd0b87",
       "executable": false
     },
     "src/bifocal/api/native.server.ts": {
@@ -4725,7 +4725,7 @@
       "executable": false
     },
     "tests/journeys/alert-boundaries.mjs": {
-      "sha256": "837962cc0856512867bbc73c60f7267ecc5c3981cd5500fa1678f08d814fd551",
+      "sha256": "f6ae3df05576eb31ef97273f1410ecbe0982d899f37522bb8f0043321b6fece9",
       "executable": false
     },
     "tests/journeys/alerts.mjs": {

@@ -28,6 +28,14 @@ export async function proveAlertCommitFences({origin,owner,withdrawn,sessionId,r
   assert.deepEqual(await detail(rule),state,'Source drift at commit refuses '+action+' without changing custody')
   await replace(overdue);await healthy()
  }
+ // Commit the identical request just before this request reaches its own batch.
+ const duplicateBefore=await detail(rule),duplicateId=randomUUID()
+ await arm({path:'/api/operator/alerts/'+rule.id+'/evaluate',body:{requestId:duplicateId}})
+ const duplicate=await evaluate(rule,duplicateId),duplicateAfter=await detail(rule)
+ assert.equal(duplicateAfter.observations.length,duplicateBefore.observations.length+1)
+ assert.equal(duplicateAfter.episodes.length,duplicateBefore.episodes.length)
+ assert.equal((await evaluate(rule,duplicateId)).observation.id,duplicate.observation.id)
+ assert.deepEqual(await detail(rule),duplicateAfter,'Both duplicate paths retain one committed observation and unchanged episode identity')
  // A new unrun quality rule introduced at commit cannot be ignored.
  const qualityBefore=await detail(rule),qualityId='synthetic-bifocal-169'
  await arm({path:'/api/operator/quality/rules',body:{id:qualityId,dataset,definition:{name:'Invoice identity present',kind:'not-null',column:'invoice'}}})

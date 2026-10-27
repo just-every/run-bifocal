@@ -90,9 +90,14 @@ export async function priorEvaluation(env:Bindings,ruleId:string,requestId:strin
  const row=await env.DB.prepare('SELECT payload_json FROM bf_alert_observations WHERE rule_id=? AND request_id=?').bind(ruleId,requestId).first<{payload_json:string}>()
  return row?JSON.parse(row.payload_json) as Evaluation:null
 }
+async function replayEvaluation(env:Bindings,authority:Authority,ownerId:string,id:string,guards:D1Sql[],evaluation:Evaluation) {
+ const current=await readRule(env,ownerId,id)
+ await transact(env.DB,authority,[assertion(ruleGuard(current)),...guards.map(assertion),assertion(observationGuard(evaluation))])
+ return evaluation
+}
 export async function evaluateAlert(env:Bindings,authority:Authority,ownerId:string,id:string,requestId:string):Promise<Evaluation> {
  const row=await readRule(env,ownerId,id),{t,sources,context,quality,guards}=await currentInputs(env,authority,ownerId,row),duplicate=await priorEvaluation(env,id,requestId)
- if(duplicate){await transact(env.DB,authority,[assertion(ruleGuard(row)),...guards.map(assertion),assertion(observationGuard(duplicate))]);return duplicate}
+ if(duplicate)return replayEvaluation(env,authority,ownerId,id,guards,duplicate)
  const doc=ruleDocument(row)
  const answer=execute(t.snapshot.definition,sources,context),hash=resultHash(answer,t.snapshot.definition,sources,doc.comparison)
  const previous=row.last_observation_id?await env.DB.prepare('SELECT payload_json FROM bf_alert_observations WHERE id=? AND rule_id=?').bind(row.last_observation_id,id).first<{payload_json:string}>():null
@@ -123,7 +128,7 @@ export async function evaluateAlert(env:Bindings,authority:Authority,ownerId:str
  }catch(error) {
   // One read resolves a concurrent duplicate; other optimistic races refuse without retries.
   const committed=await priorEvaluation(env,id,requestId)
-  if(committed){const current=await readRule(env,ownerId,id);await transact(env.DB,authority,[assertion(ruleGuard(current)),...guards.map(assertion),assertion(observationGuard(committed))]);return committed}
+  if(committed)return replayEvaluation(env,authority,ownerId,id,guards,committed)
   throw error
  }
 }
