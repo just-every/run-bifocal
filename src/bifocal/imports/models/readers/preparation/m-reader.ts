@@ -24,7 +24,7 @@ function parseQueries(files: FlowFile[]): Query[] {
     } catch (error) { reason = errorMessage(error) }
    }
    for (const [index, binding] of bindings.entries()) {
-    if (ids.has(binding.name)) reason = `Duplicate M binding ${binding.name}; resolve ambiguous references before translation.`
+    if (ids.has(binding.name)) binding.reason = `Duplicate M binding ${binding.name}; resolve ambiguous references before translation.`
     else ids.set(binding.name, `${id}-step-${index + 1}`)
    }
    const alias = identifier(returned), result = alias !== null && ids.has(alias) ? ids.get(alias)! : `${id}-result`
@@ -58,7 +58,7 @@ function queryFlow(query: Query, previous: Map<string, Query>, allNames: Set<str
  const steps: FlowStep[] = []
  const emit = (binding: MPart, stepId: string) => {
   const dependencies = references(binding.tokens, resolve)
-  const translated = translateM(binding.tokens, resolve, part.name)
+  const translated = binding.reason ? { reason: binding.reason } : translateM(binding.tokens, resolve, part.name)
   const step: FlowStep = { id: stepId, name: binding.name, file: document.file.path, location: place(document, binding.offset), sourceExpression: binding.expression, dependencies, ...translated }
   const unresolvedQuery = binding.tokens.find(t => t.kind === 'id' && allNames.has(t.value) && !resolve(t.value))
   if (unresolvedQuery && (step.binding === unresolvedQuery.value || !step.reason)) {
@@ -75,7 +75,7 @@ function queryFlow(query: Query, previous: Map<string, Query>, allNames: Set<str
  }
  for (const [index, binding] of query.bindings.entries()) emit(binding, `${id}-step-${index + 1}`)
  if (query.result === `${id}-result`) {
-  emit({ name: part.name, tokens: query.returned, expression: tokenText(query.returned, document.content), offset: query.returned[0]?.start ?? part.offset }, query.result)
+  emit({ name: part.name, tokens: query.returned, expression: query.bindings.length ? tokenText(query.returned, document.content) : part.expression, offset: query.returned[0]?.start ?? part.offset }, query.result)
  }
  const parameterIds = new Set<string>()
  for (const previousQuery of previous.values()) {
@@ -96,8 +96,9 @@ export function readPowerQuery(files: FlowFile[], format: PreparationFormat): So
  const queries = parseQueries(files), previous = new Map<string, Query>(), allNames = new Set(queries.map(q => q.part.name)), flows: SourceFlow[] = []
  const duplicateNames = new Set(queries.filter((q, i) => queries.some((other, j) => j < i && other.part.name === q.part.name)).map(q => q.part.name))
  for (const query of queries) {
-  if (duplicateNames.has(query.part.name)) query.reason = `Duplicate M query name ${query.part.name}; references cannot be bound unambiguously.`
+  const duplicate = duplicateNames.has(query.part.name)
   const flow = queryFlow(query, previous, allNames, format)
+  if (duplicate) for (const step of flow.steps) { delete step.operations; delete step.binding; step.reason = `Duplicate M query name ${query.part.name}; references cannot be bound unambiguously.` }
   flows.push(flow)
   previous.set(query.part.name, { ...query, result: flow.result })
  }

@@ -78,7 +78,7 @@ function jsonDocuments(file: FlowFile): MDocument[] {
  const mashup = parsed['pbi:mashup']
  if (object(mashup) && typeof mashup.document === 'string') {
   const paths = policyPaths(parsed), content = mashup.document
-  const out = [document({ path: file.path, content }, { name: typeof parsed.name === 'string' ? parsed.name : basename(file.path), prefix: '$["pbi:mashup"].document decoded ', metadata: { container: 'dataflow-gen1', privacyAndCredentialsInactive: true } })]
+  const out = [document({ path: file.path, content }, { name: typeof parsed.name === 'string' ? parsed.name : basename(file.path), prefix: '$["pbi:mashup"].document decoded ', metadata: { container: 'dataflow-gen1', privacyAndCredentialsInactive: true, queriesMetadata: mashup.queriesMetadata } })]
   if (paths.length) out.push(problem(file, 'Dataflow incremental or destination metadata requires explicit native translation.', { metadata: { unsupportedMetadataPaths: paths } }))
   return out
  }
@@ -91,6 +91,7 @@ function tmdlDocuments(file: FlowFile): MDocument[] {
  let offset = 0
  for (const line of lines) { offsets.push(offset); offset += line.length }
  const out: MDocument[] = []
+ if (/^[\t ]*(?:refreshPolicy|sourceExpression|pollingExpression)\b/m.test(file.content)) out.push(problem(file, 'TMDL refresh policies and incremental source expressions require explicit snapshot and partition translation.'))
  let table: string | undefined
  for (let i = 0; i < lines.length; i++) {
   const trimmed = lines[i].trim(), tableMatch = /^table\s+('(?:[^']|'')+'|[^\s=]+)\s*$/.exec(trimmed)
@@ -128,6 +129,7 @@ function tmdlDocuments(file: FlowFile): MDocument[] {
   out.push(document(file, { name, base: start, content: file.content.slice(start, stop), metadata: { container: 'tmdl', ...(table ? { table } : {}), ...(partition ? { partition: name } : { namedExpression: true }) } }))
   i = end - 1
  }
+ if (!out.length && /^[\t ]*partition\b/m.test(file.content)) out.push(problem(file, 'No valid TMDL partition declaration and source could be extracted.'))
  return out
 }
 

@@ -7,12 +7,12 @@ import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenanc
 import { executeDBT } from './dbt-execution'
 
 export type Binding={dataset:string;grain:string[];columns?:Record<string,string>}
-export type ModelImportInput={version:1;projectId:string;format:ProjectFormat;files:ProjectFile[];bindings:Record<string,Binding>;context:Query['context'];formats:Record<string,{unit:Measure['unit'];scale:number;sourceCurrency?:string}>}
+export type ModelImportInput={version:1;projectId:string;format:ProjectFormat;files:ProjectFile[];bindings:Record<string,Binding>;context:Query['context'];sourceOutputs?:import('../../preparation/compare').SourceStepOutput[];formats:Record<string,{unit:Measure['unit'];scale:number;sourceCurrency?:string}>}
 export type CompiledProject={ownerId:string;input:ModelImportInput;digest:string;report:{project:ReturnType<typeof readProject>;issues:ReadIssue[];compatible:boolean;translations:{sourceObject:string;sourceExpression:string;view:string;measure:Measure}[]};preparation?:FlowReport[];definition:Definition|null;sources:{id:string;revision:string}[]}
 const nativeName=(name:string)=>{const normalized=name.toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-+|-+$/g,'');const id=/^[a-z]/.test(normalized)?normalized:'source-'+normalized;return id.length<=64?id:id.slice(0,50)+'-'+sha256(name).slice(0,12)}
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v)
 export function compileProject(value:unknown,id:string,ownerId:string,sources:Source[]):CompiledProject {
- if(!object(value)||Object.keys(value).some(k=>!['version','projectId','format','files','bindings','context','formats'].includes(k))||value.version!==1||value.projectId!==id||!object(value.bindings)||!object(value.formats)||!object(value.context))throw Error('MODEL_PROJECT_ENVELOPE_REQUIRED')
+ if(!object(value)||Object.keys(value).some(k=>!['version','projectId','format','files','bindings','context','formats','sourceOutputs'].includes(k))||value.version!==1||value.projectId!==id||!object(value.bindings)||!object(value.formats)||!object(value.context))throw Error('MODEL_PROJECT_ENVELOPE_REQUIRED')
  const input=value as unknown as ModelImportInput,project=readProject(input.format,input.files)
  if((preparationFormats as readonly string[]).includes(input.format)){
   const preparation=compilePreparation(input,sources),issues=[...project.issues]
@@ -21,6 +21,7 @@ export function compileProject(value:unknown,id:string,ownerId:string,sources:So
   const used=[...new Set(preparation.flatMap(f=>f.steps.flatMap(s=>s.document?[s.document.dataset,...s.document.steps.filter(op=>['join','lookup','union'].includes(String(op.op))).map(op=>String(op.dataset))]:[])).concat(Object.values(input.bindings).map(b=>b?.dataset)))].filter(id=>sources.some(s=>s.id===id))
   return {ownerId,input,digest:sha256(canonicalJson(input)),preparation,report:{project,issues,translations:[],compatible:preparation.length>0&&issues.length===0&&preparation.every(f=>f.compatible)},definition:null,sources:used.map(id=>({id,revision:sources.find(s=>s.id===id)!.revision}))}
  }
+ if(input.sourceOutputs!==undefined)throw Error('Source step outputs apply only to preparation formats.')
  executeDBT(project,input.bindings,sources)
  const issues=[...project.issues],used=new Map<string,string>(),views:Definition['views']=[],translations:CompiledProject['report']['translations']=[]
  // Even an unresolved source definition owes custody to every explicitly bound

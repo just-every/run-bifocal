@@ -81,6 +81,8 @@ export function translateM(tokens: MToken[], resolve: (name: string) => string |
  if (parameter) return parameter
  const alias = identifier(tokens)
  if (alias !== null) return resolve(alias) ? { operations: [] } : { binding: alias, operations: [], metadata: { inactiveSource: true, sourceKind: 'logical-name' } }
+ const shadowed = tokens.find((token, index) => token.kind === 'id' && symbol(tokens[index + 1], '(') && resolve(token.value))
+ if (shadowed) return { reason: `Custom M function ${shadowed.value} shadows a library name and requires a faithful native rewrite.` }
  if (inactiveConnector(tokens)) return { binding: queryName, operations: [], metadata: { inactiveSource: true, sourceKind: mCall(tokens)!.name } }
  const call = mCall(tokens)
  if (!call) return { reason: unsupported(tokens) }

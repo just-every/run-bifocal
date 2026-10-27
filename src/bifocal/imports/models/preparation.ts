@@ -1,3 +1,4 @@
+import { sourceStepOutputs, compareSourceStep, type StepComparison } from '../../preparation/compare'
 import { readPowerQuery } from './readers/preparation/m-reader'
 import { readPrep } from './readers/preparation/prep'
 import { prepDocuments } from './readers/preparation/archive'
@@ -7,10 +8,9 @@ import type { Source } from '../../query/types'
 import type { Binding, ModelImportInput } from './compile'
 import { executePreparation, preparationInput, type Preparation, type Frame } from '../../preparation/execute'
 import { preparationSQL } from '../../preparation/sql'
-import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 
 export const preparationFormats=['powerquery','dataflow-gen1','dataflow-gen2','prep'] as const
-export type StepReport = FlowStep & {status:'translated'|'unsupported'|'blocked'|'parameter';reason?:string;affectedDownstream:string[];remediationOwner:'installation-owner';inputSchema:Frame['columns']|null;outputSchema:Frame['columns']|null;executable:Record<string,unknown>[]|null;output:Frame|null;rowEquivalence:'not-supplied';document:Preparation|null}
+export type StepReport = FlowStep & {status:'translated'|'unsupported'|'blocked'|'parameter';reason?:string;affectedDownstream:string[];remediationOwner:'installation-owner';inputSchema:Frame['columns']|null;outputSchema:Frame['columns']|null;executable:Record<string,unknown>[]|null;output:Frame|null;rowEquivalence:StepComparison['state'];comparison?:StepComparison;document:Preparation|null}
 export type FlowReport={id:string;name:string;result:string;steps:StepReport[];compatible:boolean;document:Preparation|null;sql:string|null;output:Frame|null;metadata?:Record<string,unknown>}
 export function readPreparation(format:PreparationFormat,files:ProjectFile[]):SourceFlow[]{
  if(format!=='prep')return readPowerQuery(files,format)
@@ -30,6 +30,9 @@ function bindingDocument(binding:Binding|undefined,sources:Source[]):Preparation
 }
 export function compilePreparation(input:ModelImportInput,sources:Source[]):FlowReport[]{
  const flows=readPreparation(input.format as PreparationFormat,input.files)
+ if(flows.length>128||flows.reduce((n,f)=>n+f.steps.length,0)>512)throw Error('Preparation intake exceeds the bounded flow and step catalog.')
+ const references=sourceStepOutputs(input.sourceOutputs)
+ for(const ref of references)if(!flows.some(f=>f.name===ref.flow&&f.steps.some(s=>s.name===ref.step)))throw Error('Every source output must name a retained flow and source step.')
  return flows.map(flow=>{
   const reports=new Map<string,StepReport>(),visiting=new Set<string>(),steps=input.format==='prep'?flow.steps:flows.flatMap(f=>f.steps)
   const descendant=(id:string):string[]=>{const seen=new Set<string>(),pending=[id];while(pending.length){const at=pending.pop()!;for(const s of steps)if(s.dependencies.includes(at)&&!seen.has(s.id)){seen.add(s.id);pending.push(s.id)}}return [...seen]}
@@ -68,6 +71,8 @@ export function compilePreparation(input:ModelImportInput,sources:Source[]):Flow
      const result=executePreparation(document,sources)
      if(!result.compatible)throw Error('Native step refused: '+result.error!.code)
      report.status='translated';report.document=document;report.executable=operations;report.output=result.output;report.outputSchema=result.output!.columns
+     report.comparison=compareSourceStep(result.output!,document,sources,references.find(r=>r.flow===(input.format==='prep'?flow.name:flows.find(f=>f.steps.some(s=>s.id===step.id))?.name)&&r.step===step.name));report.rowEquivalence=report.comparison.state
+     if(['different','invalid'].includes(report.rowEquivalence)){report.status='blocked';report.reason=report.comparison.reason??'Source step output differs in schema, complete typed rows or required ordering.';report.document=null}
     }catch(error){report.reason=error instanceof Error?error.message:'Native preparation rejected.'}
    }
    visiting.delete(step.id);reports.set(step.id,report);return report
@@ -78,4 +83,3 @@ export function compilePreparation(input:ModelImportInput,sources:Source[]):Flow
   return {id:flow.id,name:flow.name,result:flow.result,steps:all,compatible,document,sql:document?preparationSQL(document):null,output:compatible?result!.output:null,...flow.metadata?{metadata:flow.metadata}:{}}
  })
 }
-export function preparationDigest(value:unknown){return sha256(canonicalJson(value))}

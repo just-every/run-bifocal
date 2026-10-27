@@ -29,13 +29,16 @@ in Long`
   envelope('synthetic-bifocal-gen2','dataflow-gen2',[{path:'definition.json',content:JSON.stringify({definition:{parts:[{path:'mashup.pq',payloadType:'InlineBase64',payload:Buffer.from('section Section1; shared Orders = '+m+';').toString('base64')},{path:'queryMetadata.json',payloadType:'InlineBase64',payload:Buffer.from(JSON.stringify({formatVersion:'202502',name:'Synthetic orders',queriesMetadata:{Orders:{queryName:'Orders',loadEnabled:true}},connections:[]})).toString('base64')}]}})}]),
   envelope('synthetic-bifocal-pbip-flow','powerquery',[{path:'Orders.SemanticModel/definition/tables/Orders.tmdl',content:'table Orders\n\tpartition Orders = m\n\t\tmode: import\n\t\tsource =\n'+m.split('\n').map(line=>'\t\t\t'+line).join('\n')+'\n'}])
  ]
+ const sourceRevision=(await call('/datasets/'+dataset)).revision,baseColumns=[{name:'id',type:'number'},{name:'a',type:'number'},{name:'b',type:'number'},{name:'label',type:'text'}],totalColumns=[...baseColumns,{name:'total',type:'number'}],renamedColumns=[...baseColumns.slice(0,3),{name:'region',type:'text'},{name:'total',type:'number'}],longColumns=[{name:'id',type:'number'},{name:'region',type:'text'},{name:'total',type:'number'},{name:'measure',type:'text'},{name:'value',type:'number'}]
+ const schemas=[baseColumns,baseColumns,baseColumns,totalColumns,renamedColumns,renamedColumns,renamedColumns,longColumns],stepNames=['Source','Typed','Unique','Total','Renamed','Selected','Sorted','Long']
+ variants[0].sourceOutputs=stepNames.map((step,i)=>({flow:'Orders',step,columns:schemas[i],rows:expected[i],ordered:true,sources:[{dataset,revision:sourceRevision}]}))
  const imported=[]
  for(const input of variants){
   const plan=await prepare(input);assert.equal(plan.counts.rejected,0,JSON.stringify(plan));assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues))
   const flows=plan.project.preparation;assert.equal(flows.length,1);const flow=flows[0];assert.deepEqual(flow.steps.map(s=>s.name),['Source','Typed','Unique','Total','Renamed','Selected','Sorted','Long'])
   for(const [i,step] of flow.steps.entries()){
    assert.equal(step.status,'translated');assert.equal(step.file.includes(input.files[0].path)||input.format==='dataflow-gen2',true);assert.ok(step.location.length);assert.ok(step.sourceExpression.length)
-   assert.deepEqual(step.output.rows,expected[i],step.name);assert.equal(step.rowEquivalence,'not-supplied');assert.equal(step.remediationOwner,'installation-owner')
+   assert.deepEqual(step.output.rows,expected[i],step.name);assert.equal(step.rowEquivalence,input===variants[0]?'matched':'not-supplied');if(input===variants[0])assert.deepEqual(step.comparison,{state:'matched',schemaEqual:true,multisetEqual:true,orderEqual:true,ordered:true,sourceRows:expected[i].length,nativeRows:expected[i].length});assert.equal(step.remediationOwner,'installation-owner')
    assert.deepEqual(step.executable,i===0?[]:flow.document.steps.slice(flow.steps[i-1].document.steps.length,step.document.steps.length))
   }
   assert.deepEqual(flow.steps[4].outputSchema.map(c=>c.name),['id','a','b','region','total']);assert.deepEqual(flow.steps[4].inputSchema.map(c=>c.name),['id','a','b','label','total'])
@@ -48,6 +51,22 @@ in Long`
   await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},409)
   imported.push({input,plan,current,flow,native})
  }
+ for(const mismatch of ['order','null','duplicate','type','snapshot']){
+  const input=structuredClone(variants[0]);input.projectId='synthetic-bifocal-compare-'+mismatch
+  const ref=input.sourceOutputs[0]
+  if(mismatch==='order')ref.rows.reverse()
+  if(mismatch==='null')ref.rows[1][1]='0'
+  if(mismatch==='duplicate')ref.rows.splice(2,1)
+  if(mismatch==='type')ref.columns[0].type='text'
+  if(mismatch==='snapshot')ref.sources[0].revision='synthetic-bifocal-stale'
+  const plan=await prepare(input),flow=plan.project.preparation[0];assert.equal(plan.project.report.compatible,false);assert.equal(flow.steps[0].rowEquivalence,mismatch==='snapshot'?'invalid':'different');assert.equal(flow.steps[0].status,'blocked');assert.equal(flow.steps[1].status,'blocked');assert.equal(flow.document,null)
+  if(mismatch==='order'){assert.equal(flow.steps[0].comparison.multisetEqual,true);assert.equal(flow.steps[0].comparison.orderEqual,false)}
+  if(mismatch==='duplicate'){assert.equal(flow.steps[0].comparison.sourceRows,3);assert.equal(flow.steps[0].comparison.nativeRows,4)}
+  if(mismatch==='type')assert.equal(flow.steps[0].comparison.schemaEqual,false)
+  await apply(input.projectId,plan);const current=await call('/model-imports/'+input.projectId);await call('/model-imports/'+input.projectId+'/preparation',{reviewedRevision:current.revision,flow:flow.id},409)
+ }
+ const unordered=structuredClone(variants[0]);unordered.projectId='synthetic-bifocal-unordered';unordered.sourceOutputs[0].rows.reverse();unordered.sourceOutputs[0].ordered=false
+ const multiset=await prepare(unordered);assert.equal(multiset.project.report.compatible,true);assert.equal(multiset.project.preparation[0].steps[0].comparison.multisetEqual,true);assert.equal(multiset.project.preparation[0].steps[0].comparison.orderEqual,false);assert.equal(multiset.project.preparation[0].steps[0].rowEquivalence,'matched')
  const first=imported[0],prepId='synthetic-bifocal-translated',path='/preparations/'+prepId,document=first.native.document
  const review=await call(path+'/review',{document,previousVersion:null},200);assert.equal(review.compatible,true);assert.deepEqual(review.output.rows,long)
  const sqlReview=await call(path+'/review',{dataset,sql:review.sql,imported:document.imported,previousVersion:null},200);assert.deepEqual(sqlReview.document,document);assert.deepEqual(sqlReview.output,review.output)
@@ -61,6 +80,12 @@ in Long`
  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();await proveScreen('preparation-import-translated')
  await page.getByRole('button',{name:/Edit translated flow:/}).click();await page.getByRole('status').filter({hasText:'Imported flow loaded'}).waitFor();await page.getByLabel('Step 4: Arithmetic',{exact:true}).selectOption('multiply');await page.getByRole('button',{name:'Review preparation',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft reviewed'}).waitFor();await proveScreen('preparation-import-native-edit')
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed draft',exact:true}).click();await page.getByRole('status').filter({hasText:'Draft saved'}).waitFor();assert.equal((await call('/preparations/'+projectId)).revisions[0].document.imported.revision,first.current.revision)
+ const dependencies=envelope('synthetic-bifocal-flow-dependencies','powerquery',[{path:'mashup.pq',content:'section Section1; shared Limit = 7 meta [IsParameterQuery=true, Type="Number"]; shared Raw = Csv.Document(File.Contents("synthetic-bifocal-1.csv")); shared Orders = let Source = Raw, Unique = Table.Distinct(Source) in Unique;'}]);dependencies.bindings={Raw:{dataset,grain:['id']}}
+ const dependencyPlan=await prepare(dependencies);assert.equal(dependencyPlan.project.report.compatible,true,JSON.stringify(dependencyPlan.project.report.issues));assert.deepEqual(dependencyPlan.project.preparation.map(f=>f.name),['Limit','Raw','Orders']);assert.deepEqual(dependencyPlan.project.preparation[0].steps[0].parameter,{type:'Number',value:7});assert.deepEqual(dependencyPlan.project.preparation[2].output.rows,unique);assert.deepEqual(dependencyPlan.project.preparation[2].steps[0].dependencies,[dependencyPlan.project.preparation[1].result])
+ for(const [name,expression,reason] of [['custom','(value) => value','Custom M functions'],['python','Python.Execute("raise Exception()")','Python'],['folder','Folder.Files("synthetic-bifocal-root")','Folder'],['connector','CustomConnector.Contents("synthetic-bifocal-1")','CustomConnector'],['privacy','Value.Firewall(Source)','Value.Firewall'],['integer','Table.TransformColumnTypes(Source, {{"a", Int64.Type}})','Int64'],['culture','Table.Sort(Source, {{"label", Order.Ascending}})','Culture-sensitive']]){
+  const input=envelope('synthetic-bifocal-unsupported-'+name,'powerquery',[{path:'Orders.pq',content:'let Source = Csv.Document(File.Contents("synthetic-bifocal-1.csv")), Unsupported = '+expression+', Output = Table.Distinct(Unsupported) in Output'}]),plan=await prepare(input),flow=plan.project.preparation[0]
+  assert.equal(plan.project.report.compatible,false);assert.equal(flow.steps.length,3);assert.equal(flow.steps[1].status,'unsupported');assert.ok(flow.steps[1].reason.includes(reason),flow.steps[1].reason);assert.equal(flow.steps[2].status,'blocked');assert.deepEqual(flow.steps[1].affectedDownstream,[flow.steps[2].id]);assert.equal(flow.document,null)
+ }
  // Every unsafe or unimplemented source construct stays in the denominator
  // and blocks all dependent output and the native transfer door.
  const bad=envelope('synthetic-bifocal-flow-blocked','powerquery',[{path:'Orders.pq',content:'let Source = Csv.Document(File.Contents("synthetic-bifocal-1.csv")), Unsafe = Web.Contents("https://example.test"), Output = Table.Distinct(Unsafe) in Output'}])
@@ -81,7 +106,7 @@ in Long`
  await apply(prepBad.projectId,prepPlan);const prepCurrent=await call('/model-imports/'+prepBad.projectId);await call('/model-imports/'+prepBad.projectId+'/preparation',{reviewedRevision:prepCurrent.revision,flow:prepPlan.project.preparation[0].id},409)
  // An unsafe archive never yields guessed source data or a draft.
  const unsafe=envelope('synthetic-bifocal-prep-unsafe','prep',[{path:'synthetic-bifocal-3.tflx',content:Buffer.from(zipSync({'../flow':strToU8(JSON.stringify(prep))})).toString('base64')}]);const refused=await prepare(unsafe);assert.equal(refused.project.report.compatible,false);assert.match(refused.project.report.issues[0].message,/unsafe/i)
- assert.equal((await fetch(origin+'/api/operator/model-imports/'+projectId)).status,401)
+ const signedOut=await context.browser().newContext({ignoreHTTPSErrors:true});try{assert.equal((await signedOut.request.get(origin+'/api/operator/model-imports/'+projectId)).status(),401)}finally{await signedOut.close()}
  const cross=await context.request.post(origin+'/api/operator/model-imports/'+projectId+'/preparation',{headers:{Origin:'https://foreign.example.test'},data:{reviewedRevision:first.current.revision,flow:first.flow.id}});assert.equal(cross.status(),401)
  const member=await context.browser().newContext({ignoreHTTPSErrors:true})
  try{const email='synthetic-bifocal-flow-member@example.test';assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email,displayName:'Flow member',role:'member'}})).status(),202);await signInMember(member,email);assert.equal((await member.request.get(origin+'/api/operator/model-imports/'+projectId)).status(),401);assert.equal((await member.request.post(origin+'/api/operator/model-imports/'+projectId+'/preparation',{headers:{Origin:origin},data:{reviewedRevision:first.current.revision,flow:first.flow.id}})).status(),401)}finally{await member.close()}

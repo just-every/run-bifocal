@@ -103,7 +103,8 @@ export function mBindings(tokens: MToken[], source: string): { parts: MPart[]; r
   const body = part.slice(2)
   const start = part[1].end, stop = groups[index + 1]?.[0]?.start ?? tokens[end].start
   const comma = tokens.find(t => t.kind === 'symbol' && t.value === ',' && t.start >= body.at(-1)!.end && t.start < stop)
-  return { name: part[0].value, tokens: body, expression: source.slice(start, comma?.start ?? stop).trim(), offset: body[0].start }
+  const raw = source.slice(start, comma?.start ?? stop)
+  return { name: part[0].value, tokens: body, expression: raw.trim(), offset: start + Math.max(0, raw.search(/\S/)) }
  })
  if (parts.length > 512) fail('M query exceeds the 512 step bound.')
  return { parts, result: tokens.slice(end + 1) }

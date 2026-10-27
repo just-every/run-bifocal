@@ -703,8 +703,7 @@ export async function proveNativePreparation({imports=false,flows=false}={}){
   if(flows){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await context.close();return}
   await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
   await proveDBTExecution({origin,context,call,upload,signInMember})
-  await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}})
- if(imports){await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
+  if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}
 }
