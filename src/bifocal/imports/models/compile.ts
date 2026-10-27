@@ -12,6 +12,9 @@ const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&
 export function compileProject(value:unknown,id:string,ownerId:string,sources:Source[]):CompiledProject {
  if(!object(value)||Object.keys(value).some(k=>!['version','projectId','format','files','bindings','context','formats'].includes(k))||value.version!==1||value.projectId!==id||!object(value.bindings)||!object(value.formats)||!object(value.context))throw Error('MODEL_PROJECT_ENVELOPE_REQUIRED')
  const input=value as unknown as ModelImportInput,project=readProject(input.format,input.files),issues=[...project.issues],used=new Map<string,string>(),views:Definition['views']=[],translations:CompiledProject['report']['translations']=[]
+ // Even an unresolved source definition owes custody to every explicitly bound
+ // dataset. Erasure must reach its originals before it can ever be executable.
+ for(const binding of Object.values(input.bindings))if(object(binding)&&typeof binding.dataset==='string'){const source=sources.find(s=>s.id===binding.dataset);if(source)used.set(source.id,source.revision)}
  const problem=(object:string,code:string,message:string,sourceExpression='')=>issues.push({file:'',object,code,message,sourceExpression})
  if(Object.keys(input.bindings).some(name=>!project.tables.some(t=>t.name===name)))problem('bindings','unknown_table_binding','Every binding must identify a source model table.')
  const bind=(tableName:string)=>{

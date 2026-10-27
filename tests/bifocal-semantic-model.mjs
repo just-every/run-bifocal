@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {proveMachineDoors} from './journeys/machine-doors.mjs'
 import {proveCalculations} from './journeys/calculations.mjs'
-import {proveModelImports,proveModelLifecycle} from './journeys/model-import.mjs'
+import {proveModelLifecycle,proveNativePreparation} from './journeys/model-import.mjs'
 import {proveExploration} from './bifocal-exploration.mjs'
 import {provePivotTooling} from './journeys/pivot-tooling.mjs'
 import {proveCompositionTooling} from './journeys/composition-tooling.mjs'
@@ -21,6 +21,7 @@ import {dump,load,JSON_SCHEMA} from 'js-yaml'
 
 
 export async function proveSemanticModels() {
+if(process.env.BIFOCAL_PREPARATION_ONLY==='1'||process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1')return proveNativePreparation({imports:process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'})
 const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
 const origin=`http://127.0.0.1:${port}`,persist=await mkdtemp(join(tmpdir(),'bifocal-semantics-')),headers={Origin:origin},setup='synthetic-bifocal-1'.repeat(3)
 const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/machine-boundary-wrangler.json'],env={...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}
@@ -151,7 +152,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await provePivotTooling({origin,context,page,call,upload,proveScreen})
  await proveCompositionTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
- await proveModelImports({origin,context,page,call,upload,proveScreen})
+ await proveNativePreparation({imports:true})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
