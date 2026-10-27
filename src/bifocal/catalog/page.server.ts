@@ -14,8 +14,10 @@ function sourceLink(value: unknown): string | null {
  if (value.startsWith('/') && !value.startsWith('//') && !/[?#\\]/.test(value)) return value
  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash ? url.href : null } catch { return null }
 }
+/** An in-app source reads as what it opens ("Saved dashboard"), never its raw path; outside links keep their URL. */
+const sourceName = (href: string) => /^\/app\/dashboards\/[^/]+$/.test(href) ? 'Saved dashboard' : /^\/app\/(reports|report-runs)\/[^/]+$/.test(href) ? 'Saved report' : /^\/app\/queries\/[^/]+$/.test(href) ? 'Exact answer' : href === '/app/queries' ? 'Exact answers' : href
 function links(item: Content): string {
- const permitted = (item.sourceLinks as unknown[]).flatMap(value => { const href = sourceLink(value); return href ? [`<li><a href="${h(href)}" rel="noreferrer">${h(href)}</a></li>`] : [] })
+ const permitted = (item.sourceLinks as unknown[]).flatMap(value => { const href = sourceLink(value); return href ? [`<li><a href="${h(href)}" rel="noreferrer">${h(sourceName(href))}</a></li>`] : [] })
  return permitted.length ? `<ul class="library-links">${permitted.join('')}</ul>` : '<p class="meta">No source links are registered.</p>'
 }
 function row(item: Content): string {

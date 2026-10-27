@@ -27,9 +27,11 @@ export function safeLink(value) {
  if (value.startsWith('/') && !value.startsWith('//') && !/[?#\\]/.test(value)) return value
  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash ? url.href : null } catch { return null }
 }
+// An in-app source reads as what it opens ("Saved dashboard"), never its raw path; outside links keep their URL.
+const sourceName = href => /^\/app\/dashboards\/[^/]+$/.test(href) ? 'Saved dashboard' : /^\/app\/(reports|report-runs)\/[^/]+$/.test(href) ? 'Saved report' : /^\/app\/queries\/[^/]+$/.test(href) ? 'Exact answer' : href === '/app/queries' ? 'Exact answers' : href
 export function sourceLinks(item) {
  const links = item.sourceLinks.map(safeLink).filter(Boolean)
- return links.length ? element('ul', { class: 'library-links' }, links.map(href => element('li', {}, element('a', { href, rel: 'noreferrer' }, href)))) : element('p', { class: 'meta' }, 'No source links are registered.')
+ return links.length ? element('ul', { class: 'library-links' }, links.map(href => element('li', {}, element('a', { href, rel: 'noreferrer' }, sourceName(href))))) : element('p', { class: 'meta' }, 'No source links are registered.')
 }
 export function metadata(form) {
  const values = new FormData(form), lines = name => String(values.get(name) ?? '').split('\n').map(value => value.trim()).filter(Boolean)

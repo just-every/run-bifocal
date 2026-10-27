@@ -56,6 +56,7 @@ for(const format of ['csv','xlsx'])$(format).onclick=()=>action(async()=>{export
 await action(async()=>{
  const catalog=await api('');exportLimits(catalog.limits);views=catalog.views;$('model').replaceChildren();views.forEach((v,i)=>$('model').add(new Option(v.viewId+' · '+v.modelId.slice(0,8)+(v.grantId?' · '+(v.permissions.underlying?'With underlying rows':'Summary only')+' · '+v.grantId.slice(0,8):''),String(i))));chooseView()
  $('questions').replaceChildren();for(const q of catalog.questions){const a=node('a'),time=node('time',when(q.createdAt,document.body.dataset.zone));time.dateTime=q.createdAt;time.className='row-meta';a.append(node('span',q.viewId),time);a.href='/app/questions/'+q.id;$('questions').append(a)}
+ if(!catalog.questions.length){const empty=node('p','No saved questions yet.');empty.className='side-note';$('questions').append(empty)}
  if(catalog.historyLimited)$('questions').append(node('p','Showing the latest 50 questions. Older saved links still work.'))
  if(!views.length){$('question').querySelector('button').disabled=true;status('No published models yet. Create and publish a semantic model first.');return}
  const combined=mountComposition(views);if(location.pathname.startsWith('/app/questions/compositions/')){await combined?.open(location.pathname.split('/')[4]);status('Ready to explore published models.');return}
