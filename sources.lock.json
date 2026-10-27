@@ -845,11 +845,11 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.css": {
-      "sha256": "83a8691e73137379fa45f299673cf44c32a38796ca868d7dbf532afdb82ae891",
+      "sha256": "33ae91f905079bc880ac2582c92d18f5a339237b1ca015ff3944b7c4c3654d4c",
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
-      "sha256": "44443977942afe60b46836fbc38abead7cc2ed306ee2bfa3f497bb43497805a4",
+      "sha256": "53394f52d1949246c875ac5d2c9548d5d04e4ea0621d61249d38246fbb08b9f1",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -1257,7 +1257,7 @@
       "executable": false
     },
     "src/app/people.ts": {
-      "sha256": "dd6ffc53a70bd42fe092f08aa2c62af3068af77b60b4934b570ad2ee26191eca",
+      "sha256": "b7889cc095bb97bcd26a8417900dd6ab3a7f50ef16897b6582c4a4c876eb0c40",
       "executable": false
     },
     "src/app/protection-settings.ts": {
@@ -1277,7 +1277,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "206d6ab793bc578f7c2220b02a1080aae62469b86f4a6de2bc40de9e8b37b57a",
+      "sha256": "18fca9816929595260bda2822fc1839ce6fe5b84e72a61f18565ed9ef07c9f11",
       "executable": false
     },
     "src/base/actor.ts": {
