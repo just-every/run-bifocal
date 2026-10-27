@@ -1381,7 +1381,7 @@
       "executable": false
     },
     "src/bifocal/api/native.server.ts": {
-      "sha256": "189240fd167128315bb8b3538428c04b6534066393b42cca10b5980ed60256ab",
+      "sha256": "45de45cd9179a25786bd5ab654c2f08f6c32aa827cf19e8d49856be0acca7e0e",
       "executable": false
     },
     "src/bifocal/api/server.ts": {
@@ -4365,7 +4365,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "602a0eaae0417a038e6380e65fa9767d74c42e4bd107452994a163c621b97a7a",
+      "sha256": "cadc18cfcb4c8b0868807a2e11e472173c34156a5f71ff50e38c0aefa559ff95",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -4493,7 +4493,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "6a6ef52058bd3b350899a0f50d358777ec7a9722f5afe39755001ae666e242be",
+      "sha256": "84cc2dccb442ef47b2b68eeac6e8270ada4fac0aafee853c9cbbe67061bb5439",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

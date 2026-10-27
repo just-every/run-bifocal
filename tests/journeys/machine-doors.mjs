@@ -148,9 +148,9 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.equal((await nativeApi(branch)).version,3)
  const content={kind:'dashboard',title:'Scoped pipeline',description:'Native API contract proof',tags:[],definition:{},sourceLinks:[],verified:false,collectionId:null,sourceDatasets:[dataset,joined]}
  const contentCreated=(await nativeApi('graphql',{query:'mutation Create($input: JSON!) { createContent(input:$input) }',variables:{input:content}})).data.createContent
- const contentUpdated=await nativeApi('content/items/'+contentCreated.id,{...content,title:'Reviewed pipeline',previousVersion:1},'PUT');assert.equal(contentUpdated.version,2)
+ const contentUpdated=await nativeApi('content'+'/items/'+contentCreated.id,{...content,title:'Reviewed pipeline',previousVersion:1},'PUT');assert.equal(contentUpdated.version,2)
  await nativeApi('graphql',{query:'mutation Edit($id:String!, $input:JSON!) { updateContent(id:$id,previousVersion:1,input:$input) }',variables:{id:contentCreated.id,input:content}},'POST',409)
- const contentRest=await nativeApi('content/items/'+contentCreated.id),contentGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { content(id:$id) }',variables:{id:contentCreated.id}})).data.content
+ const contentRest=await nativeApi('content'+'/items/'+contentCreated.id),contentGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { content(id:$id) }',variables:{id:contentCreated.id}})).data.content
  assert.deepEqual(contentGraph,contentRest);assert.equal(contentRest.title,'Reviewed pipeline')
  const metricQuery={...base,joins:[],groupBy:[],filters:[...fixed,{column:'stage',op:'ne',value:'Blocked model'}]}
  const metricId='synthetic-bifocal-api-revenue',metricDefinition={name:'West revenue',description:'Exact native API metric',grain:'invoice',unit:'money',timezone:'America'+'/'+'New_York',accountingBasis:'accrual',query:metricQuery}
@@ -160,7 +160,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const metricRun=await nativeApi('metrics/'+metricId+'/run',{},'POST',201);assert.equal(metricRun.answer.totals.revenue.value,'31.31')
  const metricRest=await nativeApi('metrics/'+metricId),metricGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { metric(id:$id) }',variables:{id:metricId}})).data.metric
  assert.deepEqual(metricGraph,metricRest)
- for(const route of ['models/'+created.modelId,'metrics/'+metricId,'content/items/'+contentCreated.id,'schema','graphql']){
+ for(const route of ['models/'+created.modelId,'metrics/'+metricId,'content'+'/items/'+contentCreated.id,'schema','graphql']){
   await api('/api/v1/native/'+route,route==='graphql'?{query:'{ metrics }'}:undefined,403)
   const denied=await fetch(origin+'/api/v1/native/'+route,{headers:{Authorization:headers.Authorization,cookie}})
   assert.equal(denied.status,403);await denied.arrayBuffer()

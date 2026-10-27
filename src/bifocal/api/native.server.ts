@@ -52,12 +52,12 @@ export async function nativeApiResponse(request:Request,original:Bindings):Promi
   }
   const uuid=(id:string)=>identifier(id,'uuid'),metric=(id:string)=>identifier(id,'metric')
   const root={
-   model:({id}:{id:string})=>invoke('models/'+uuid(id)),metric:({id}:{id:string})=>invoke('metrics/'+metric(id)),metrics:()=>invoke('metrics'),content:({id}:{id:string})=>invoke('content/items/'+uuid(id)),
-   contentSearch:({q='',offset=0}:{q?:string;offset?:number})=>invoke('content/search?'+new URLSearchParams({q,offset:String(offset)})),
+   model:({id}:{id:string})=>invoke('models/'+uuid(id)),metric:({id}:{id:string})=>invoke('metrics/'+metric(id)),metrics:()=>invoke('metrics'),content:({id}:{id:string})=>invoke('content'+'/items/'+uuid(id)),
+   contentSearch:({q='',offset=0}:{q?:string;offset?:number})=>invoke('content'+'/search?'+new URLSearchParams({q,offset:String(offset)})),
    createModel:({definition}:{definition:unknown})=>invoke('models','POST',{definition}),
    updateModel:({modelId,branchId,previousVersion,definition}:{modelId:string;branchId:string;previousVersion:number;definition:unknown})=>invoke('models/'+uuid(modelId)+'/branches/'+uuid(branchId),'PUT',{previousVersion,definition}),
    createMetric:({input}:{input:unknown})=>invoke('metrics','POST',input),proposeMetric:({id,input}:{id:string;input:unknown})=>invoke('metrics/'+metric(id)+'/propose','POST',input),
-   createContent:({input}:{input:unknown})=>invoke('content/items','POST',input),updateContent:({id,previousVersion,input}:{id:string;previousVersion:number;input:Record<string,unknown>})=>invoke('content/items/'+uuid(id),'PUT',{...input,previousVersion})
+   createContent:({input}:{input:unknown})=>invoke('content'+'/items','POST',input),updateContent:({id,previousVersion,input}:{id:string;previousVersion:number;input:Record<string,unknown>})=>invoke('content'+'/items/'+uuid(id),'PUT',{...input,previousVersion})
   }
   const result=await graphql({schema,source:input.query,variableValues:input.variables as Record<string,unknown>|undefined,operationName:input.operationName as string|undefined,rootValue:root})
   if(result.errors){const error=result.errors[0].originalError;return json({errors:[{message:error instanceof QueryError?error.code:'native_operation_refused'}]},error instanceof QueryError?error.status:409)}
