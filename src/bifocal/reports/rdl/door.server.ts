@@ -13,11 +13,12 @@ import { rejectedUpload } from '../../http/rejected'
 import { exactKeys, json, jsonBody } from '../../models/validation/transport'
 import { fail, QueryError } from '../../query/types'
 import { compileRdl } from './parse'
+import { rdlPreviewResponse } from './preview.server'
 import { retainRdl, readRdl, type StoredRdlProject } from './custody'
 import { rdlDestination, rdlImportTargets, type RdlRow } from './targets'
 
 async function handle(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/rdl-imports\/([a-z][a-z0-9-]{0,63})(?:\/(erase|accept))?$/.exec(path)
+ const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/rdl-imports\/([a-z][a-z0-9-]{0,63})(?:\/(erase|accept|preview|download))?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='rdl'))return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
@@ -37,6 +38,7 @@ async function handle(request:Request,original:Bindings):Promise<Response|null>{
   }
   if(!row||!project)fail('rdl_project_not_found',404)
   await transact(env.DB,owner,[assertion(sql('EXISTS(SELECT 1 FROM bf_rdl_imports WHERE id=? AND owner_id=? AND revision=?)',id,ownerId,row.revision))])
+  if(resource[2]==='preview'||resource[2]==='download')return rdlPreviewResponse(request,env,owner,ownerId,project,row.revision,sql('EXISTS(SELECT 1 FROM bf_rdl_imports WHERE id=? AND owner_id=? AND revision=? AND value_json=?)',id,ownerId,row.revision,row.value_json),resource[2])
   if(resource[2]==='accept'){
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['reviewedRevision'])

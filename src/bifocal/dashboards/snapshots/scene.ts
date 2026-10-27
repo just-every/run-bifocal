@@ -5,6 +5,7 @@ export type TextBox={kind:'text';x:number;y:number;w:number;h:number;size:number
 export type Picture={kind:'image';x:number;y:number;w:number;h:number;data:string;label:string}
 export type Scene={title:string;tab:string;shapes:(TextBox|Picture)[]}
 export type Snapshot={version:1;id:string;title:string;revision:number;filterState:'current'|'default';selection:Run['selection'];inherited:Run['inherited'];tabs:string[];layout:'desktop'|'phone'|'readable';exportedAt:string;backLink:string;pages:Scene[];provenance:unknown}
+export type PrintableSnapshot=Pick<Snapshot,'pages'|'provenance'|'exportedAt'|'backLink'> & {pageSize?:{width:number;height:number}}
 export const WIDTH=1280,HEIGHT=900
 const shown=(v:Value)=>v.state==='value'?String(v.value)+(v.unit==='percent'?' %':''):v.state.toUpperCase()
 function lines(text:string,width:number,size:number){const result:string[]=[];for(const paragraph of text.split('\n')){let line='';for(const word of paragraph.split(/\s+/)){if(word.length*size*.6>width)fail('dashboard_snapshot_text_does_not_fit',422);if((line+' '+word).length*size*.6>width){result.push(line);line=word}else line+=(line?' ':'')+word}result.push(line)}return result}
