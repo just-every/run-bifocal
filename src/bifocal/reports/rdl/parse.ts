@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { reportScopes } from './scopes'
 import { DOMParser, type Element } from '@xmldom/xmldom'
-import { translateFormula } from '../../imports/calculations'
+import { translateRdlExpression } from './expressions'
 import type { CalculationExpr } from '../../calculations/core'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 
@@ -65,13 +65,7 @@ export function compileRdl(value:unknown,id:string,ownerId:string):RdlProject {
    if(['ValueField','LabelField'].includes(name)&&el.parentNode?.nodeType===1){const parent=el.parentNode as Element,dataset=Array.from(parent.childNodes).find(n=>n.nodeType===1&&(n as Element).localName==='DataSetName')?.textContent?.trim()??'';if(!Object.hasOwn(scopes.fields(dataset),text.trim())){entry.disposition='unsupported';issue(location,'unresolved_parameter_field','The parameter lookup field is missing or ambiguous in its dataset.',dataset+':'+text,'Bind an existing field in the parameter lookup dataset.')}}
    if(text.trim().startsWith('=')&&!children.length&&!['CommandText','ConnectString','Code'].includes(name)){
     const {fields,dataset}=scopes.expressionScope(el)
-    const original=text.trim(),expression=original.slice(1),parameter=/^Parameters!([A-Za-z_][A-Za-z0-9_]*)\.Value$/.exec(expression)
-    let target:CalculationExpr|null=null
-    if(parameter&&parameters.has(parameter[1]))target={kind:'parameter',name:parameter[1]}
-    else if(/^(?:Fields![A-Za-z_][A-Za-z0-9_]*\.Value|(?:Sum|Min|Max)\(Fields![A-Za-z_][A-Za-z0-9_]*\.Value\)|-?\d+(?:\.\d+)?)$/i.test(expression)){
-     const translated=translateFormula('dax',expression.replace(/Fields!([A-Za-z_][A-Za-z0-9_]*)\.Value/g,(_,field)=>'['+field+']'),{fields})
-     target=translated.targetExpression
-    }
+    const original=text.trim(),expression=original.slice(1),target=translateRdlExpression(original,fields,new Set(parameters.keys()))
     if(target){node.expression=target;entry.expression=target;if(/Fields!/i.test(expression)&&dataset){node.dataset=dataset;entry.dataset=dataset;}if(entry.disposition!=='unsupported')entry.disposition='translated'}
     else{entry.disposition='unsupported';issue(location,'unsupported_expression','The expression has no proven exact native translation and remains inert.',original,'Implement its source semantics and assert the result before accepting the switch.')}
    }

@@ -1,8 +1,9 @@
-import { CalculationError, evaluateCalculatedField as nativeField, evaluateCalculations as nativeCalculations, type CalculationExpr, type CalculationValue, type DataType, type InputRow, type Literal, type Schema } from '../../calculations/core'
+import { CalculationError, evaluateCalculatedField as nativeField, type CalculationExpr, type CalculationValue, type DataType, type InputRow, type Literal, type Schema } from '../../calculations/core'
 import { ConventionsError } from '../../company/protocol'
 import { fail } from '../../query/types'
 import type { RdlNode, RdlProject } from './parse'
 import { child, children, text } from './tree'
+import { evaluateRdlExpression } from './expression-value'
 
 export type RdlTable = { schema: Schema; rows: InputRow[]; parameterFields: Record<string, string> }
 const own = (value: object, key: string) => Object.hasOwn(value, key)
@@ -14,7 +15,6 @@ function calculation<T>(run: () => T): T {
  }
 }
 const evaluateCalculatedField = (...args: Parameters<typeof nativeField>) => calculation(() => nativeField(...args))
-const evaluateCalculations = (...args: Parameters<typeof nativeCalculations>) => calculation(() => nativeCalculations(...args))
 const asLiteral = (value: CalculationValue): Literal => value.type === 'null' ? { kind: 'literal', type: 'null', value: null } : { kind: 'literal', type: value.type, value: value.type === 'number' ? value : value.value }
 const normalized = (value: Literal) => JSON.stringify(evaluateCalculatedField(value, {}, {}))
 function expressionNodes(expression: CalculationExpr): CalculationExpr[] {
@@ -90,12 +90,18 @@ export function createReportRuntime(project: RdlProject, tables: Record<string, 
    for (const expression of nodes) if (expression.kind === 'parameter') parameter(expression.name)
    if (!table && node.dataset) table = dataset(node.dataset)
    const schema = table?.schema ?? {}
-   if (nodes.some(expression => expression.kind === 'aggregate')) {
-    if (!table) fail('rdl_aggregate_dataset_required', 422)
-    return evaluateCalculations({ authorizedRows: table.rows, schema, filters: [], groupBy: [], parameters, measures: [{ id: 'value', expression: node.expression }] }).totals.value
+   const scalarFields = (expression: CalculationExpr): string[] => expression.kind === 'aggregate' ? [] : expression.kind === 'field' ? [expression.field] : expression.kind === 'binary' ? [...scalarFields(expression.left), ...scalarFields(expression.right)] : expression.kind === 'unary' ? scalarFields(expression.expression) : expression.kind === 'call' ? expression.args.flatMap(scalarFields) : []
+   const fields = scalarFields(node.expression)
+   if (fields.length && !row) {
+    if (!table) fail('rdl_field_row_context_required', 422)
+    if (!table.rows.length) return {type: 'null'}
+    for (const field of fields) {
+     const values = new Set(table.rows.map(row => JSON.stringify(evaluateCalculatedField({kind: 'field', field}, row, schema))))
+     if (values.size !== 1) fail('rdl_ambiguous_group_field', 422)
+    }
+    row = table.rows[0]
    }
-   if (nodes.some(expression => expression.kind === 'field') && !row) fail('rdl_field_row_context_required', 422)
-   return evaluateCalculatedField(node.expression, row ?? {}, schema, parameters)
+   return calculation(() => evaluateRdlExpression(node.expression!, table, row, parameters))
   }
 
   function values(node: RdlNode, declaration: RdlNode): Literal[] {

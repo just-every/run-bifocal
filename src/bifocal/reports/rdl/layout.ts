@@ -1,8 +1,8 @@
 import type { Scene, TextBox } from '../../dashboards/snapshots/scene'
 import { fail } from '../../query/types'
 import type { ReportCell } from './values'
-export type ReportRow = {cells: ReportCell[]; widths: number[]; location: string}
-export type ReadableReport = {pages: Scene[]; rows: ReportRow[]; pageSize: {width: number; height: number}; provenance: unknown; exportedAt: string; backLink: string}
+export type ReportRow = {cells: ReportCell[]; widths: number[]; location: string; page?: number}
+export type ReadableReport = {pages: Scene[]; rows: ReportRow[]; pageSize: {width: number; height: number}; furniture: {header: ReportRow[]; footer: ReportRow[]}; provenance: unknown; exportedAt: string; backLink: string}
 export function length(value: string, fallback: number) {
  if (!value) return fallback
  const match = /^(\d+(?:\.\d+)?)(in|cm|mm|pt|pc)$/.exec(value.trim())
@@ -63,13 +63,13 @@ export function reportLayout(options: {width: number; height: number; left: numb
    const h = measure(row).height
    if (h > bodyBottom - bodyTop - repeat.reduce((n, r) => n + measure(r).height, 0)) fail('rdl_readable_row_does_not_fit')
    if (y + h > bodyBottom) begin()
-   y += draw(row, y); rows.push(row); bodyRows++
+   y += draw(row, y); rows.push({...row, page: pages.length}); bodyRows++
   },
   repeat(rows: ReportRow[]) {repeat = rows},
   break() {if (bodyRows) begin()},
   finish() {
    pages.forEach((p, i) => {(p.shapes.find(s => s.label === 'Readable page number') as TextBox).lines = ['Page ' + (i + 1) + ' of ' + pages.length]})
-   return {pages, rows, pageSize: {width, height}}
+   return {pages, rows, pageSize: {width, height}, furniture: {header, footer}}
   },
  }
 }

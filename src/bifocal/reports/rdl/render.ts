@@ -41,7 +41,7 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
   return children(child(furniture, 'ReportItems'), 'Textbox').map(node => ({cells: [textbox(node, rootScope)], widths: [1], location: node.location}))
  }
  const layout = reportLayout({width: length(text(page, 'PageWidth'), 612), height: length(text(page, 'PageHeight'), 792), left: length(text(page, 'LeftMargin'), 36), right: length(text(page, 'RightMargin'), 36), top: length(text(page, 'TopMargin'), 36), bottom: length(text(page, 'BottomMargin'), 36), header: furniture('PageHeader'), footer: furniture('PageFooter')})
- let operations = 0
+ let operations = 0, repeated: ReportRow[] = []
  const tick = () => {if (++operations > 20000) fail('rdl_interactive_execution_limit', 413)}
  function pageBreak(node: RdlNode, when: 'before'|'between'|'after') {
   const rule = child(node, 'PageBreak')
@@ -79,7 +79,9 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
   }
  }
  function tablix(node: RdlNode, file: string, scope: Scope, inherited?: RdlTable, depth = 0) {
-  const name = text(node, 'DataSetName'), table = name ? scope.dataset(name) : inherited
+  const name = text(node, 'DataSetName')
+  if (inherited && name) fail('rdl_nested_dataset_override_unsupported')
+  const table = name ? scope.dataset(name) : inherited
   if (!table) fail('rdl_tablix_dataset_required')
   const templates = children(child(child(node, 'TablixBody'), 'TablixRows'), 'TablixRow'), widths = children(child(child(node, 'TablixBody'), 'TablixColumns'), 'TablixColumn').map(column => length(text(column, 'Width'), 72))
   const roots = children(child(child(node, 'TablixRowHierarchy'), 'TablixMembers'), 'TablixMember')
@@ -97,7 +99,12 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
    return {cells: cells.map(cell => textbox(child(child(cell, 'CellContents'), 'Textbox')!, scope, selected, row)), widths, location: template.location}
   }
   const repeating = roots.filter(member => !child(member, 'Group') && !child(member, 'TablixMembers') && text(member, 'RepeatOnNewPage') === 'true' && text(member, 'KeepWithGroup') === 'After').map(member => rowValue(leaves.get(member)!, table))
-  layout.repeat(repeating)
+  const previousRepeats = repeated; repeated = [...repeated, ...repeating]; layout.repeat(repeated)
+  const emitRow = (template: RdlNode, selected: RdlTable, row?: InputRow) => {
+   const cells = children(child(template, 'TablixCells'), 'TablixCell'), contents = cells.length === 1 ? child(cells[0], 'CellContents') : undefined
+   if (contents?.children.length === 1 && ['Tablix', 'Rectangle', 'Subreport'].includes(contents.children[0].name)) reportItems(contents, file, scope, selected, row, depth + 1)
+   else layout.row(rowValue(template, selected, row))
+  }
   function emit(member: RdlNode, selected: RdlTable) {
    tick()
    const group = child(member, 'Group'), members = children(child(member, 'TablixMembers'), 'TablixMember'), expressions = children(child(group, 'GroupExpressions'), 'GroupExpression')
@@ -115,11 +122,11 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
     if (group) {pageBreak(group, 'before'); if (i) pageBreak(group, 'between')}
     const narrowed = {...selected, rows}
     if (members.length) members.forEach(member => emit(member, narrowed))
-    else layout.row(rowValue(leaves.get(member)!, narrowed, rows.length === 1 ? rows[0] : undefined))
+    else emitRow(leaves.get(member)!, narrowed, rows.length === 1 ? rows[0] : undefined)
     if (group) pageBreak(group, 'after')
    })
   }
-  roots.forEach(member => emit(member, table)); layout.repeat([])
+  roots.forEach(member => emit(member, table)); repeated = previousRepeats; layout.repeat(repeated)
  }
  reportItems(child(child(section, 'Body'), 'ReportItems'), root.file, rootScope)
  return {...layout.finish(), parameters: rootScope.parameters, layout: 'readable' as const}
