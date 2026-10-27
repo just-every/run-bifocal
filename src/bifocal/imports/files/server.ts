@@ -1,3 +1,4 @@
+import { rdlImportResponse } from '../../reports/rdl/door.server'
 import { preparationResponse } from '../../preparation/server'
 import {collaborationErasureCounts} from '../../collaboration/erasure'
 import { retentionAllowsErasure } from '../../retention/policy.server'
@@ -32,6 +33,8 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
  * grants stay closed; no request can turn source data into access or execution. */
 export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
+ const rdlImport=await rdlImportResponse(request,original)
+ if(rdlImport)return rdlImport
  const preparation=await preparationResponse(request,original)
  if(preparation)return preparation
  const modelImport=await modelImportResponse(request,original)
