@@ -71,6 +71,12 @@ async function healthyQuality(env:Bindings,ownerId:string,sources:Source[]) {
  }
  return {guards,evidence}
 }
+async function currentInputs(env:Bindings,authority:Authority,ownerId:string,row:RuleRow) {
+ const t=await template(env,authority,ownerId,row.query_id),sources=await readSources(env,t.snapshot.definition),context=await queryContext(env,t.snapshot.definition,ownerId),quality=await healthyQuality(env,ownerId,sources)
+ if(context.currency!==t.snapshot.context.currency)fail('alert_query_currency_changed',409)
+ return {t,sources,context,quality,guards:[...t.guards,...sources.map(sourceMatch),...(context.guards??[]),...quality.guards]}
+}
+const observationGuard=(e:Evaluation)=>sql('EXISTS(SELECT 1 FROM bf_alert_observations WHERE id=? AND rule_id=? AND request_id=? AND payload_json=?)',e.observation.id,e.observation.ruleId,e.observation.requestId,canonicalJson(e))
 const openEpisode=async(env:Bindings,ruleId:string)=>{
  const row=await env.DB.prepare("SELECT document_json FROM bf_alert_episodes WHERE rule_id=? AND state='open'").bind(ruleId).first<{document_json:string}>()
  return row?JSON.parse(row.document_json) as Episode:null
@@ -85,16 +91,15 @@ export async function priorEvaluation(env:Bindings,ruleId:string,requestId:strin
  return row?JSON.parse(row.payload_json) as Evaluation:null
 }
 export async function evaluateAlert(env:Bindings,authority:Authority,ownerId:string,id:string,requestId:string):Promise<Evaluation> {
- const row=await readRule(env,ownerId,id),duplicate=await priorEvaluation(env,id,requestId)
- if(duplicate){await transact(env.DB,authority,[assertion(ruleGuard(row))]);return duplicate}
- const doc=ruleDocument(row),t=await template(env,authority,ownerId,row.query_id),sources=await readSources(env,t.snapshot.definition),context=await queryContext(env,t.snapshot.definition,ownerId),quality=await healthyQuality(env,ownerId,sources)
- if(context.currency!==t.snapshot.context.currency)fail('alert_query_currency_changed',409)
+ const row=await readRule(env,ownerId,id),{t,sources,context,quality,guards}=await currentInputs(env,authority,ownerId,row),duplicate=await priorEvaluation(env,id,requestId)
+ if(duplicate){await transact(env.DB,authority,[assertion(ruleGuard(row)),...guards.map(assertion),assertion(observationGuard(duplicate))]);return duplicate}
+ const doc=ruleDocument(row)
  const answer=execute(t.snapshot.definition,sources,context),hash=resultHash(answer,t.snapshot.definition,sources,doc.comparison)
  const previous=row.last_observation_id?await env.DB.prepare('SELECT payload_json FROM bf_alert_observations WHERE id=? AND rule_id=?').bind(row.last_observation_id,id).first<{payload_json:string}>():null
  if(row.last_observation_id&&!previous)fail('alert_baseline_unavailable',409)
  const baseline=!row.baseline_observation_id,prior=previous?(JSON.parse(previous.payload_json) as Evaluation).observation:null,condition=qualifies(doc.predicate,answer,hash,prior?.resultHash??hash),qualifying=!baseline&&condition
  let episode=await openEpisode(env,id)
- const now=new Date().toISOString(),snoozed=!!episode?.snoozedUntil&&Date.parse(episode.snoozedUntil)>Date.parse(now),triggered=qualifying&&!snoozed&&(doc.behavior==='every'||!row.qualifying),{guards:contextGuards=[],...frozenContext}=context
+ const now=new Date().toISOString(),snoozed=!!episode?.snoozedUntil&&Date.parse(episode.snoozedUntil)>Date.parse(now),triggered=qualifying&&!snoozed&&(doc.behavior==='every'||!row.qualifying),{guards:ignored,...frozenContext}=context
  const refs:AlertRefs={queryId:t.snapshot.snapshotId,queryDigest:t.snapshot.digest,definitionHash:answer.definitionHash,sourceWatermarks:answer.sourceWatermarks,context:frozenContext,quality:quality.evidence}
  const observation:Observation={id:randomUUID(),ruleId:id,requestId,generation:row.generation+1,baseline,qualifying,triggered,resultHash:hash,answer,refs,createdAt:now}
  const changes:D1Sql[]=[],transitions:Transition[]=[]
@@ -113,12 +118,12 @@ export async function evaluateAlert(env:Bindings,authority:Authority,ownerId:str
  }
  const evaluation={observation,episode}
  try {
-  await transact(env.DB,authority,[assertion(ruleGuard(row)),...t.guards.map(assertion),...sources.map(sourceMatch).map(assertion),...contextGuards.map(assertion),...quality.guards.map(assertion),sql('INSERT INTO bf_alert_observations(id,rule_id,request_id,generation,result_hash,payload_json,created_at) VALUES(?,?,?,?,?,?,?)',observation.id,id,requestId,observation.generation,hash,canonicalJson(evaluation),now),...changes,...transitions.map(saveTransition),sql('UPDATE bf_alert_rules SET generation=?,baseline_observation_id=?,last_observation_id=?,qualifying=? WHERE id=?',observation.generation,row.baseline_observation_id??observation.id,observation.id,qualifying?1:0,id)])
+  await transact(env.DB,authority,[assertion(ruleGuard(row)),...guards.map(assertion),sql('INSERT INTO bf_alert_observations(id,rule_id,request_id,generation,result_hash,payload_json,created_at) VALUES(?,?,?,?,?,?,?)',observation.id,id,requestId,observation.generation,hash,canonicalJson(evaluation),now),...changes,...transitions.map(saveTransition),sql('UPDATE bf_alert_rules SET generation=?,baseline_observation_id=?,last_observation_id=?,qualifying=? WHERE id=?',observation.generation,row.baseline_observation_id??observation.id,observation.id,qualifying?1:0,id)])
   return evaluation
  }catch(error) {
   // One read resolves a concurrent duplicate; other optimistic races refuse without retries.
   const committed=await priorEvaluation(env,id,requestId)
-  if(committed){await transact(env.DB,authority,[assertion(sql('EXISTS(SELECT 1 FROM bf_alert_rules WHERE id=? AND owner_id=?)',id,ownerId))]);return committed}
+  if(committed){const current=await readRule(env,ownerId,id);await transact(env.DB,authority,[assertion(ruleGuard(current)),...guards.map(assertion),assertion(observationGuard(committed))]);return committed}
   throw error
  }
 }
@@ -126,7 +131,7 @@ export async function evaluateAlert(env:Bindings,authority:Authority,ownerId:str
 export async function alertAction(env:Bindings,authority:Authority,ownerId:string,id:string,action:'reset'|'acknowledge'|'snooze',episodeId:string|null,until:string|null) {
  const row=await readRule(env,ownerId,id),episode=await openEpisode(env,id),now=new Date().toISOString()
  if(action!=='reset'&&(!episode||episode.id!==episodeId))fail('alert_open_episode_required',409)
- const t=await template(env,authority,ownerId,row.query_id),sources=await readSources(env,t.snapshot.definition),context=await queryContext(env,t.snapshot.definition,ownerId),quality=await healthyQuality(env,ownerId,sources)
+ const {t,sources,context,quality,guards}=await currentInputs(env,authority,ownerId,row)
  const previous=row.last_observation_id?await env.DB.prepare('SELECT payload_json FROM bf_alert_observations WHERE id=? AND rule_id=?').bind(row.last_observation_id,id).first<{payload_json:string}>():null
  const observation=previous?(JSON.parse(previous.payload_json) as Evaluation).observation:null,changes:D1Sql[]=[]
  if(row.last_observation_id&&!observation)fail('alert_baseline_unavailable',409)
@@ -141,6 +146,6 @@ export async function alertAction(env:Bindings,authority:Authority,ownerId:strin
  const audit=transition(row,ownerId,action==='acknowledge'?'acknowledged':action==='snooze'?'snoozed':'reset',updated,observation,now,until)
  const {guards:ignored,...frozenContext}=context
  audit.actionRefs={queryId:t.snapshot.snapshotId,queryDigest:t.snapshot.digest,definitionHash:t.snapshot.answer.definitionHash,sourceWatermarks:sources.map(s=>({dataset:s.id,revision:s.revision,updatedAt:s.table.updatedAt,sha256:sha256(s.value_json)})),context:frozenContext,quality:quality.evidence}
- await transact(env.DB,authority,[assertion(ruleGuard(row)),...t.guards.map(assertion),...sources.map(sourceMatch).map(assertion),...(context.guards??[]).map(assertion),...quality.guards.map(assertion),...(previous?[assertion(sql('EXISTS(SELECT 1 FROM bf_alert_observations WHERE id=? AND rule_id=? AND payload_json=?)',row.last_observation_id,id,previous.payload_json))]:[]),...changes,saveTransition(audit)])
+ await transact(env.DB,authority,[assertion(ruleGuard(row)),...guards.map(assertion),...(previous?[assertion(sql('EXISTS(SELECT 1 FROM bf_alert_observations WHERE id=? AND rule_id=? AND payload_json=?)',row.last_observation_id,id,previous.payload_json))]:[]),...changes,saveTransition(audit)])
  return updated
 }

@@ -17,7 +17,7 @@ export async function alertPage(request: Request, original: Bindings): Promise<R
  if (!match) return null
  if (request.method !== 'GET') return new Response(null, {status: 405})
  const env = runtimeBindings(original), authority = await fileOwner(request, env)
- if (!authority) return new Response('Current installation owner required.', {status: 403, headers: {'cache-control': 'no-store'}})
+ if (!authority || request.headers.has('authorization')) return new Response('Current installation owner required.', {status: 403, headers: {'cache-control': 'no-store'}})
  const viewer = (await operatorAuth(env).getSession(request))!.operator, ownerId = await ownerIdentity(env, authority)
  let main: string, title = 'Query alerts', status = 200
  try {

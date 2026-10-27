@@ -13,6 +13,7 @@ export async function alertResponse(request:Request,original:Bindings):Promise<R
  if(!match)return url.pathname.startsWith('/api/operator/alerts/')?json({error:'not_found'},404):null
  let response:Response
  try {
+  if(request.headers.has('authorization'))fail('native_owner_session_required',403)
   const env=runtimeBindings(original),authority=await fileOwner(request,env)
   if(!authority)fail('owner_required',401)
   const ownerId=await ownerIdentity(env,authority),id=match[1]?uuid(match[1]):null,action=match[2]

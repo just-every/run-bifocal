@@ -38,7 +38,7 @@ export async function proveContentGovernance(){
   child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
   let ready=false
   for(let attempt=0;attempt<480;attempt++){
-   assert.equal(child.exitCode,null,'native local entry remains running')
+   assert.equal(child.exitCode,null,'native local entry remains running\n'+output)
    try{ready=(await fetch(origin+'/health')).ok}catch{}
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }

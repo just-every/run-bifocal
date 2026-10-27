@@ -33,8 +33,14 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
   assert.equal(o.baseline,baseline);assert.equal(o.triggered,triggered);assert.equal(o.qualifying,qualifying)
   assert.equal(o.answer.totals.amount.value,total)
   if(rows)assert.deepEqual(o.answer.rows.map(r=>[Number(r.dimensions[0]),r.dimensions[1],r.values.amount.value]).sort((a,b)=>a[0]-b[0]||a[1].localeCompare(b[1])),rows)
-  assert.equal(o.refs.queryId,o.ruleId===threshold?.id||o.ruleId===every?.id?scalar.queryId:table.queryId)
-  assert.ok(o.refs.sourceWatermarks.some(s=>s.dataset===dataset))
+  const query=o.ruleId===threshold?.id||o.ruleId===every?.id?scalar:table
+  assert.equal(o.refs.queryId,query.queryId);assert.equal(o.refs.queryDigest,query.digest)
+  assert.equal(o.refs.definitionHash,o.answer.definitionHash)
+  assert.deepEqual(o.refs.context.securityScope,{kind:'installation-owner',ownerId:query.context.ownerId})
+  assert.deepEqual(o.refs.sourceWatermarks,o.answer.sourceWatermarks)
+  assert.deepEqual(o.refs.sourceWatermarks.map(s=>s.dataset),[dataset])
+  assert.deepEqual(o.refs.quality.map(q=>q.ruleId).sort(),[...qualityIds].sort())
+  for(const evidence of o.refs.quality){assert.equal(evidence.sourceRevision,o.refs.sourceWatermarks[0].revision);assert.equal(evidence.result.state,'passed');assert.equal(evidence.live.state,'passed');assert.ok(evidence.runId)}
   return evaluation
  }
  let threshold,every,table,scalar
@@ -86,6 +92,10 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
   assert.deepEqual(threshold.predicate,{kind:'threshold',measure:'amount',op:'gt',value:'120'})
   every=await create('Outstanding amount every check',{kind:'threshold',measure:'amount',op:'gte',value:'120.00'},scalar.queryId,{kind:'multiset'},'every')
   const rules=[rowsRule,changed,keyed,noRows,threshold,every]
+  const machineBefore=await detail(rowsRule),machineHeaders={...headers,Authorization:'Bearer synthetic-bifocal-170'}
+  for(const path of ['/api/operator/alerts','/api/operator/alerts/'+rowsRule.id,'/app/alerts','/app/alerts/'+rowsRule.id])assert.equal((await owner.request.get(origin+path,{headers:machineHeaders})).status(),403)
+  for(const [path,data] of [['',ruleDefinition('Refused machine alert',{kind:'rows-exist'})],['/'+rowsRule.id+'/evaluate',{requestId:randomUUID()}],['/'+rowsRule.id+'/reset',{}],['/'+rowsRule.id+'/acknowledge',{episodeId:randomUUID()}],['/'+rowsRule.id+'/snooze',{episodeId:randomUUID(),until:new Date(now+3600000).toISOString()}]])assert.equal((await owner.request.post(origin+'/api/operator/alerts'+path,{headers:machineHeaders,data})).status(),403)
+  assert.deepEqual(await detail(rowsRule),machineBefore,'A bearer cannot borrow native owner cookies for alert authority')
   for(const rule of rules) {
    await call('/alerts/'+rule.id,undefined,401,'GET',reader)
    await call('/alerts/'+rule.id+'/evaluate',{requestId:randomUUID()},401,'POST',reader)
@@ -127,6 +137,17 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
   const until=new Date(now+3600000).toISOString()
   await page.getByLabel('Snooze until',{exact:true}).fill(until);await click('Snooze episode')
   assert.equal((await detail(rowsRule)).episodes.find(e=>e.id===firstEpisode).snoozedUntil,until)
+  const followed=await detail(rowsRule),followedObservation=followed.observations[0],followedSource=await call('/datasets/'+dataset)
+  for(const kind of ['acknowledged','snoozed']) {
+   const transition=followed.transitions.find(t=>t.kind===kind)
+   assert.ok(transition);assert.equal(transition.episodeId,firstEpisode);assert.equal(transition.observationId,followedObservation.id)
+   assert.deepEqual(transition.refs,followedObservation.refs)
+   assert.equal(transition.actorId,table.context.ownerId)
+   assert.equal(transition.actionRefs.queryId,table.queryId);assert.equal(transition.actionRefs.queryDigest,table.digest)
+   assert.deepEqual(transition.actionRefs.context.securityScope,table.context.securityScope)
+   assert.equal(transition.actionRefs.sourceWatermarks[0].revision,followedSource.revision)
+   assert.deepEqual(transition.actionRefs.quality.map(q=>q.ruleId).sort(),[...qualityIds].sort())
+  }
   await call('/alerts/'+every.id+'/snooze',{episodeId:everyOpen.id,until},200)
   const snoozed=observed(await evaluate(every),{total:'150.00',qualifying:true})
   assert.equal(snoozed.episode.id,everyOpen.id)
@@ -134,6 +155,14 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
   // Time alone makes a previously passed freshness rule ineligible.
   await tick(61000)
   for(const rule of rules)await unchangedOnRefusal(rule)
+  const staleReplay=await detail(every)
+  assert.equal((await call('/alerts/'+every.id+'/evaluate',{requestId:snoozed.observation.requestId},409)).error,'alert_quality_unhealthy')
+  assert.deepEqual(await detail(every),staleReplay,'Request replay requires current healthy evidence without changing the saved observation')
+  for(const [action,data] of [['reset',{}],['acknowledge',{episodeId:firstEpisode}],['snooze',{episodeId:firstEpisode,until:new Date(now+3600000).toISOString()}]]) {
+   const before=await detail(rowsRule)
+   assert.equal((await call('/alerts/'+rowsRule.id+'/'+action,data,409)).error,'alert_quality_unhealthy')
+   assert.deepEqual(await detail(rowsRule),before,'Stale quality cannot change episode follow-up or reset the baseline')
+  }
   await page.goto(origin+'/app/alerts/'+rowsRule.id)
   await page.getByRole('button',{name:'Check now',exact:true}).click()
   await page.getByRole('status').filter({hasText:'baseline and episode are unchanged'}).waitFor()
@@ -190,7 +219,7 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
    const ownerEmail=(await(await owner.request.get(origin+'/auth/session')).json()).operator.email
    assert.equal((await withdrawn.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(ownerEmail),{maxRedirects:0})).status(),303)
    const session=await(await withdrawn.request.get(origin+'/auth/session')).json()
-   await proveAlertCommitFences({origin,owner,withdrawn,sessionId:session.id,rule:rowsRule,dataset,detail,evaluate,replace,healthy,overdue})
+   await proveAlertCommitFences({origin,owner,withdrawn,sessionId:session.id,rule:rowsRule,dataset,detail,evaluate,replace,healthy,overdue,qualityIds,now})
    await unchangedOnRefusal(rowsRule,401,withdrawn)
   } finally {await withdrawn.close()}
   // A changed money unit cannot silently reinterpret an existing threshold or baseline.
