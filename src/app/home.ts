@@ -15,6 +15,6 @@ function place(id: string, title: string, rows: PlaceRow[], empty: string, more:
 export function homePage(apps: HomeApp[] = [], places: OwnerPlaces | null = null) {
  const links = `<p class="links"><a href="/docs">Installation guide</a> <span class="dot">·</span><a href="/">Lobby</a> <span class="dot">·</span><a href="${escapeHtml(identity.runSite!)}/run">Run and installation guide</a> <span class="nowrap"><span class="dot">·</span><a href="${escapeHtml(identity.runSite!)}/contract">Product contract</a></span></p>`
  const body = places ? `<div class="places">${place('dashboards', 'Dashboards', places.dashboards, 'No saved dashboards yet. Save one from an answer.', ['Open the Library', '/app/library'])}${place('answers', 'Retained answers', places.answers, 'No answers yet.', ['All answers', '/app/queries'])}${place('files', 'Files', places.files, 'No datasets yet.', ['Import a file', '/app/import#prepare'])}</div>`
-  : appsPanel(apps) || `<section class="panel"><h2 class="cardhead">Your apps</h2><p>No apps are shared with you yet. <a href="/app/library">Open the Library</a> for shared dashboards and reports.</p></section>`
+  : appsPanel(apps) || `<p class="lead"><a href="/app/library">Open the Library</a> for the dashboards and reports shared with you.</p>`
  return `<div class="pagehead"><div><h1>App home</h1></div></div>${body}${links}`
 }
