@@ -4533,7 +4533,7 @@
       "executable": false
     },
     "tests/bifocal-exploration.mjs": {
-      "sha256": "65f4dcf1ad93823e1b0278eeb93a2e30244cebb1b692070efeae56807c9d6163",
+      "sha256": "38a053871758d79e15cca12045503e0f49fb062ec81ba6a53d5267d90145b559",
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
@@ -4617,7 +4617,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "30c7a11b3f23c91d76a3337866f4c930ecf00104fb5ab794ce720b1671175f41",
+      "sha256": "5f4dbc69a30ab4c96fde488ef5fcc1930e01a5374dba28a56b3bd3edc41c934b",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -4645,11 +4645,11 @@
       "executable": false
     },
     "tests/journeys/entitlement-boundaries.mjs": {
-      "sha256": "37819c6decf3da486a6f26b213d4d8b0ac236a3e15112f16989ce7187d0e602d",
+      "sha256": "a79fac0967ec7e6af9d4e9b8d845d52b1c072e0f61ae3ee52994820c5b627b93",
       "executable": false
     },
     "tests/journeys/entitlement-boundary-worker.mjs": {
-      "sha256": "905f06fcf9d02a7156a2441be0e1744194dcee9eeee0fa8a6bc6486bb9406170",
+      "sha256": "0c794a4887ca4759e854a6bc2ffe94e2b66ad0e5e8697f959de96c0815f0b764",
       "executable": false
     },
     "tests/journeys/entitlement-clock.mjs": {
