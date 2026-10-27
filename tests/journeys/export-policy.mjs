@@ -149,7 +149,42 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   const expectedScope={filters:[{column:'region',op:'ne',value:'Hidden'},{column:'region',op:'eq',value:'West'}],fiscal:null}
   assert.equal(exported.scope.rowScopeDigest,createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('bifocal-security-v1\n'+canonical(expectedScope)).digest('hex'))
   assert.ok(evidence.events.some(e=>e.action==='query'&&e.queryId===question.snapshotId&&e.actorId===readerId))
-  const text=JSON.stringify(evidence);for(const forbidden of [secret,'West','Hidden','10.01','20.02','synthetic-bifocal-2'.repeat(3),'cookie','authorization','value_json'])assert.ok(!text.includes(forbidden),'Audit excludes raw values and credentials')
+  // These reads use POST to carry a scope, but never change a definition.
+  const beforeReads=evidence.head.sequence
+  await call('/explore/'+question.snapshotId+'/page',{scope:'summary',offset:0},reader)
+  const subject={modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['region'],filters:[]}
+  const combined=await call('/explore/compositions/run',{left:subject,right:subject,operation:'append',join:'full'},owner,201)
+  const combinedPath='/explore/compositions/'+combined.id
+  assert.equal(combined.rows.length,4)
+  const combinedPage=await call(combinedPath+'/page',{scope:'underlying',offset:0})
+  assert.equal(combinedPage.totalRows,4)
+  for(const scope of ['summary','underlying'])for(const format of ['csv','xlsx']){
+   const response=await owner.request.post(origin+'/api/operator'+combinedPath+'/export',{headers,data:{scope,format}})
+   assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['x-bifocal-row-count'],'4')
+  }
+  const combinedAudit=await audit();assert.equal(combinedAudit.valid,true)
+  const failures=[]
+  try{
+   const readEvents=combinedAudit.events.filter(e=>e.sequence>beforeReads&&[question.snapshotId,combined.id].includes(e.queryId)&&e.action==='view')
+   assert.deepEqual(readEvents.map(e=>e.queryId),[question.snapshotId,combined.id],'POST page reads must be recorded as views')
+   assert.equal(readEvents[0].actorId,readerId);assert.equal(readEvents[1].actorId,ownerEvent.actorId)
+  }catch(error){failures.push(error)}
+  try{
+   const combinedExports=combinedAudit.events.filter(e=>e.sequence>beforeReads&&e.action==='export'&&e.outcome==='allowed')
+   assert.equal(combinedExports.length,4)
+   assert.deepEqual(combinedExports.map(e=>e.queryId),[combined.id,combined.id,combined.id,combined.id],'Every composition export must identify its immutable query')
+   assert.deepEqual(combinedExports.map(e=>e.scope.exportScope),['summary','summary','underlying','underlying'])
+   const digest=value=>createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('bifocal-security-v1\n'+canonical(value)).digest('hex')
+   for(const event of combinedExports){
+    assert.equal(event.actorId,ownerEvent.actorId);assert.equal(event.scope.kind,'installation-owner');assert.equal(event.scope.ownerId,ownerEvent.actorId);assert.equal(event.scope.exportRows,4)
+    assert.equal(event.httpStatus,200);assert.match(event.recordedAt,/^\d{4}-\d{2}-\d{2}T/)
+    assert.equal(event.scope.rowScopeDigest,digest({left:{filters:[{column:'region',op:'ne',value:'Hidden'}],fiscal:null},right:{filters:[{column:'region',op:'ne',value:'Hidden'}],fiscal:null}}))
+    for(const side of ['left','right']){assert.equal(event.scope[side].modelId,model.modelId);assert.equal(event.scope[side].modelRevision,model.revision);assert.equal(event.scope[side].viewId,'sales');assert.equal(event.scope[side].grantId,null);assert.match(event.scope[side].queryId,/^[a-f0-9-]{36}$/)}
+   }
+   assert.equal(combinedExports[0].scope.queryDigest,combinedExports[3].scope.queryDigest,'Scope and format changes retain the same immutable combined query')
+  }catch(error){failures.push(error)}
+  if(failures.length)throw new AggregateError(failures,failures.map(error=>error.message).join('\n'))
+  const text=JSON.stringify(combinedAudit);for(const forbidden of [secret,'West','Hidden','10.01','20.02','synthetic-bifocal-2'.repeat(3),'cookie','authorization','value_json'])assert.ok(!text.includes(forbidden),'Audit excludes raw values and credentials')
   assert.deepEqual(await fixture('audit-mutation-guards'),{updateRefused:true,deleteRefused:true})
   await page.goto(origin+'/app/settings/security');await page.getByRole('status').filter({hasText:'Audit chain verified.'}).waitFor();await proveScreen('security-audit-verified')
   await fixture('audit-corrupt')

@@ -1,3 +1,4 @@
+import { noteComposition } from '../../security/audit.server'
 import type { Bindings } from '../../../auth.server'
 import type { Authority } from '../../catalog/authority.server'
 import { assertion, transact } from '../../../modules/import-kit/src/door/store.ts'
@@ -17,15 +18,19 @@ export async function compositionResponse(request:Request,env:Bindings,actor:Aut
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request);exactKeys(input,['left','right','operation','join'])
   if(!['join','append'].includes(String(input.operation))||!['left','inner','full'].includes(String(input.join)))fail('composition_operation_required',400)
-  return json(await saveComposition(env,actor,input as unknown as Definition),201)
+  const composition=await saveComposition(env,actor,input as unknown as Definition)
+  noteComposition(request,env,composition.document.id,composition.digest,composition.subjects)
+  return json(composition.document,201)
  }
  const match=/^\/api\/operator\/explore\/compositions\/([a-f0-9-]{36})(?:\/(page|export|export-plan|full-export))?$/.exec(path)
  if(!match)fail('not_found',404)
  if(request.method!==(match[2]?'POST':'GET'))fail('method_not_allowed',405)
  const composition=await readComposition(env,actor,match[1])
+ noteComposition(request,env,composition.document.id,composition.digest,composition.subjects)
  if(!match[2]){await transact(env.DB,actor,composition.guards);return json(composition.document)}
  const input=await jsonBody(request);exactKeys(input,match[2]==='page'?['scope','offset']:['scope','format',...match[2]==='full-export'?['offset','planDigest']:[]])
  if(input.scope!=='summary'&&input.scope!=='underlying')fail('explicit_export_scope_required',400)
+ noteComposition(request,env,composition.document.id,composition.digest,composition.subjects,{exportScope:input.scope})
  const table=input.scope==='summary'?composition.document:composition.underlying
  if(match[2]==='page') {
   if(!Number.isSafeInteger(input.offset)||Number(input.offset)<0||Number(input.offset)>table.rows.length)fail('invalid_page_offset',400)

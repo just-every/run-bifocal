@@ -47,11 +47,22 @@ export async function inspectAudit(env:Bindings,authority:D1Sql){
  return {valid,complete:true,head:{sequence:before.sequence,hash:before.hash},events:valid?events:[],earlierEvents:Math.max(0,sequence-100)}
 }
 const scopes=new WeakMap<Request,{queryId:string;scope:Record<string,unknown>}>()
-export function noteQuery(request:Request,env:Bindings,snapshot:Snapshot,extra:Record<string,unknown>={}){
+function snapshotScope(env:Bindings,snapshot:Snapshot){
  const exploration=snapshot.context.exploration
- scopes.set(request,{queryId:snapshot.snapshotId,scope:{kind:snapshot.context.securityScope.kind,ownerId:snapshot.context.ownerId,
+ return {kind:snapshot.context.securityScope.kind,ownerId:snapshot.context.ownerId,
   modelId:exploration?.modelId??null,modelRevision:exploration?.revision??null,viewId:exploration?.viewId??null,grantId:exploration?.grantId??null,
   entitlementRevision:exploration?.entitlementRevision??null,entitlementDay:exploration?.entitlementDay??null,
-  rowScopeDigest:fingerprint(env,{filters:snapshot.definition.filters,fiscal:snapshot.definition.fiscal??null}),queryDigest:fingerprint(env,snapshot.definition),...extra}})
+  rowScopeDigest:fingerprint(env,{filters:snapshot.definition.filters,fiscal:snapshot.definition.fiscal??null}),queryDigest:fingerprint(env,snapshot.definition)}
+}
+export function noteQuery(request:Request,env:Bindings,snapshot:Snapshot,extra:Record<string,unknown>={}){
+ scopes.set(request,{queryId:snapshot.snapshotId,scope:{...snapshotScope(env,snapshot),...extra}})
+}
+/** A composition retains both authoritative subjects without copying filter values. */
+export function noteComposition(request:Request,env:Bindings,id:string,digest:string,subjects:readonly [Snapshot,Snapshot],extra:Record<string,unknown>={}){
+ const [left,right]=subjects
+ const rowScope=(snapshot:Snapshot)=>({filters:snapshot.definition.filters,fiscal:snapshot.definition.fiscal??null})
+ scopes.set(request,{queryId:id,scope:{kind:'installation-owner',ownerId:left.context.ownerId,
+  left:{queryId:left.snapshotId,...snapshotScope(env,left)},right:{queryId:right.snapshotId,...snapshotScope(env,right)},
+  rowScopeDigest:fingerprint(env,{left:rowScope(left),right:rowScope(right)}),queryDigest:fingerprint(env,{compositionDigest:digest}),...extra}})
 }
 export const queryNote=(request:Request)=>scopes.get(request)

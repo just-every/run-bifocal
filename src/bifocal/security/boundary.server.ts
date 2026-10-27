@@ -26,7 +26,7 @@ export async function securityBoundary(request:Request,original:Bindings,next:()
   if(!ipPermitted(request,current)){await response.body?.cancel();return refusal(request,403,'ip_not_allowed')}
   if(audited){
    const reference=/^\/api\/operator\/(?:queries|explore)\/([a-f0-9-]{36})(?:\/|$)/.exec(path)?.[1]
-   const note=queryNote(request)??(reference?{queryId:reference}:undefined),segment=path.split('/').at(-1)??'',action=['export','full-export','export-snapshot'].includes(segment)?'export':segment==='export-plan'?'export-plan':request.method==='GET'?'view':segment==='run'||segment==='rerun'?'query':'definition-change'
+   const note=queryNote(request)??(reference?{queryId:reference}:undefined),segment=path.split('/').at(-1)??'',action=['export','full-export','export-snapshot'].includes(segment)?'export':segment==='export-plan'?'export-plan':request.method==='GET'||segment==='page'?'view':segment==='run'||segment==='rerun'?'query':'definition-change'
    // A native refusal contains no analytical result. Retain its observed actor
    // after session revocation without authorizing any data read or mutation.
    const refused=[400,401,403,404,405,409,410,422].includes(response.status)

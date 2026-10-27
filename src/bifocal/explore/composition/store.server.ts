@@ -15,7 +15,7 @@ export async function saveComposition(env:Bindings,actor:Authority,definition:De
  const [left,right]=await Promise.all([prepareSubject(env,actor,definition.left),prepareSubject(env,actor,definition.right)])
  const {result}=compose(left,right,definition),id=randomUUID(),fingerprint=digest(definition,result,left.snapshot.digest,right.snapshot.digest)
  await transact(env.DB,actor,[...left.changes,...right.changes,sql('INSERT INTO bf_exploration_compositions(id,owner_id,left_snapshot,right_snapshot,definition_json,result_json,digest,created_at) VALUES(?,?,?,?,?,?,?,?)',id,actor.id,left.snapshot.snapshotId,right.snapshot.snapshotId,canonicalJson(definition),canonicalJson(result),fingerprint,new Date().toISOString())])
- return {id,definition,...result}
+ return {document:{id,definition,...result},digest:fingerprint,subjects:[left.snapshot,right.snapshot] as const}
 }
 export async function readComposition(env:Bindings,actor:Authority,id:string) {
  const row=await env.DB.prepare('SELECT * FROM bf_exploration_compositions WHERE id=? AND owner_id=?').bind(id,actor.id).first<Row>()
@@ -36,5 +36,5 @@ export async function readComposition(env:Bindings,actor:Authority,id:string) {
  }
  const definition=JSON.parse(row.definition_json) as Definition,built=compose(left,right,definition)
  if(canonicalJson(built.result)!==row.result_json||digest(definition,built.result,left.snapshot.digest,right.snapshot.digest)!==row.digest)fail('composition_integrity_failed',409)
- return {document:{id,definition,...built.result},underlying:built.underlying,guards:guards.map(assertion)}
+ return {document:{id,definition,...built.result},underlying:built.underlying,guards:guards.map(assertion),digest:row.digest,subjects:[left.snapshot,right.snapshot] as const}
 }
