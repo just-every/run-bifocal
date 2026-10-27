@@ -609,7 +609,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `9def61710ba41bab1492d373fe5c6da94c92e6c1` (28 October 2026). The BIF-053 native classification and exact-instance report journeys and typecheck pass at this code revision. Subsequent status synchronization changes no relevant code or test bytes; newer main evidence is retained per clause. This bounded proof is not a DONE judgment.
+Judged from the code and tests at commit `38646f9e6633734a51a09986f99081fc156571b7` (28 October 2026). The BIF-053 native classification and exact-instance report journeys and typecheck pass at this code revision. Subsequent status synchronization changes no relevant code or test bytes; newer main evidence is retained per clause. This bounded proof is not a DONE judgment.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
