@@ -702,7 +702,7 @@ export async function proveNativePreparation({imports=false,flows=false}={}){
     await page.setViewportSize({width,height:1000})
     const settings=page.locator('.menu>summary'),tip=page.getByRole('tooltip',{name:'Open settings'})
     await page.mouse.move(0,0);await settings.evaluate(node=>node.blur());assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'0')
-    await settings.hover();await page.waitForTimeout(350);assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'1')
+    await settings.hover();assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'0');await page.waitForTimeout(350);assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'1')
     await page.mouse.move(0,0);assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'0')
     await settings.focus();assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'1')
     if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'preparation-settings-tooltip-'+width+'.png')})}
