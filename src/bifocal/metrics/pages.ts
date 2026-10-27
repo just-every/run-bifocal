@@ -37,10 +37,13 @@ export function metricMain({ row, revisions, head, doc, impact }: MetricView, ow
   + hidden('revision', row.head_revision) + hidden('digest', head.digest) + hidden('publishedRevision', row.published_revision)
   + control('deprecate', 'reason', 'Deprecation reason', { refusal })
   + checkbox('deprecate', 'confirm', 'deprecate', 'I reviewed this definition and its dependent content', refusal, same && refusal?.values.publishedRevision === String(row.published_revision)) + actions('Deprecate metric', false), refusal) : ''
+ const chart = live && row.published_revision ? formPanel('series-review', 'Chart this certified metric', `/api/operator/metrics/${id}/series-review`,
+  hidden('revision', row.published_revision) + control('series-review', 'title', 'Chart title', { refusal })
+  + control('series-review', 'dateColumn', 'Date column', { refusal, hint: 'A date column of this metric’s dataset. The chart groups the certified measure by it.' }) + actions('Review date series', false), refusal) : ''
  const history = revisions.map(r => ({ revision: r.revision, definition: JSON.parse(r.document_json), digest: r.digest, createdAt: r.created_at, approvedAt: r.approved_at, annotation: r.annotation }))
  return `${row.published_revision && live ? collaborationLink('metric', id) : ''}<p class="lead">${escapeHtml(doc.description)}</p><p class="meta">${state}${SEP}${row.head_revision !== row.published_revision ? 'Draft revision ' : 'Latest revision '}${row.head_revision}</p>`
   + `<p class="meta">${['Owner ' + ownerEmail, doc.grain, doc.unit, doc.timezone, doc.accountingBasis].map(escapeHtml).join(SEP)}</p>`
   + refusalLine(refusal, 'page') + details('Change impact and dependent content', impact)
   + (row.deprecated_at ? `<p role="status">Deprecated on ${escapeHtml(row.deprecated_at)}. ${escapeHtml(row.deprecated_reason ?? '')}</p>` : '')
-  + approve + propose + deprecate + details('Immutable revision history', history)
+  + approve + propose + deprecate + chart + details('Immutable revision history', history)
 }

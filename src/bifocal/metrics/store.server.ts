@@ -51,7 +51,7 @@ export async function runMetric(env:Bindings,owner:NonNullable<Awaited<ReturnTyp
  return saveQuery(env,owner,evaluation.query,{...evaluation.context,metric:{id,revision:rev.revision,digest:rev.digest},guards:[...evaluation.context.guards??[],metricGuard(row),sql('EXISTS(SELECT 1 FROM bf_metric_revisions WHERE metric_id=? AND revision=? AND digest=? AND approved_at IS NOT NULL)',id,rev.revision,rev.digest)]},evaluation.sources)
 }
 async function handleMetricResponse(request:Request,original:Bindings):Promise<Response|null> {
- const url=new URL(request.url),page=url.pathname.startsWith('/app/metrics'),match=/^\/(?:api\/operator|app)\/metrics(?:\/([a-z][a-z0-9-]{0,63}))?(?:\/(propose|approve|run|impact|deprecate))?$/.exec(url.pathname)
+ const url=new URL(request.url),page=url.pathname.startsWith('/app/metrics'),match=/^\/(?:api\/operator|app)\/metrics(?:\/([a-z][a-z0-9-]{0,63}))?(?:\/(propose|approve|run|impact|deprecate|series-review|series-create))?$/.exec(url.pathname)
  if(!match)return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
@@ -62,6 +62,10 @@ async function handleMetricResponse(request:Request,original:Bindings):Promise<R
   if(url.search)fail('query_parameters_not_supported',400)
   if(request.method==='POST') {
    data=await input(request)
+   if(id&&action?.startsWith('series-')){
+    const {metricSeries}=await import('./series.server')
+    return await metricSeries(request,env,owner,ownerId,viewer,id,action,data)
+   }
    if(!id||action==='propose') {
     exact(data,!id?['id','definition']:['previousRevision','definition'])
     const {prepareMetricDraft,saveMetricDraft}=await import('./drafts.server')

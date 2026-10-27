@@ -51,6 +51,15 @@ export function metricRefusal(form: string, code: string, values: Values): Refus
   if (code === 'metric_timezone_changed') return at(null, ZONE_CHANGED)
   return at(null, form === 'approve' ? 'This definition doesn’t produce a value from the current data, so it can’t be certified yet.' : 'This metric couldn’t be deprecated because it or its data changed. Review the current version, then try again.')
  }
+ if (form === 'series-review' || form === 'series-create') {
+  // The review page's create form carries no fields of its own, so its sentence returns to the chart form.
+  const chart = (field: string | null, message: string) => refusal('series-review', values, code, field, message)
+  if (code === 'nonempty_text_required') return value(values, 'title') ? chart('dateColumn', 'Enter the name of a date column.') : chart('title', 'Enter a chart title.')
+  if (code === 'metric_date_column_required') return chart('dateColumn', `${value(values, 'dateColumn')} isn’t a date column of this metric’s dataset. Enter the name of a date column, for example date.`)
+  if (code === 'certified_metric_changed' || code === 'exact_current_metric_chart_review_required') return chart(null, 'The certified metric or its data changed after your review, so no chart was made. Review the date series again.')
+  if (code === 'metric_not_certified') return chart(null, 'Certify a revision of this metric before charting it.')
+  return chart(null, 'That chart couldn’t be made because the metric or its data changed. Review the date series again.')
+ }
  if (code === 'metric_not_found') return at(null, 'There’s no metric with this ID. It may have been erased.')
  if (code === 'query_parameters_not_supported') return at(null, 'This page doesn’t take query parameters.')
  if (code === 'metric_not_certified') return at(null, 'Certify a revision of this metric before running it.')

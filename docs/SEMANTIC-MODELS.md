@@ -57,3 +57,128 @@ Source language references: [LookML measure types](https://docs.cloud.google.com
 [Cube YAML](https://docs.cube.dev/reference/data-modeling/cube),
 [TMDL](https://learn.microsoft.com/en-us/analysis-services/tmdl/tmdl-overview),
 and [DAX DISTINCTCOUNT](https://learn.microsoft.com/en-us/dax/distinctcount-function-dax).
+
+## dbt project inventory
+
+Choose the dbt format to review a Core project with `dbt_project.yml`, SQL model
+files and schema YAML, or a Core or Cloud `manifest.json` artifact (manifest
+schema versions 9 through 12). The same public project envelope and reviewed
+import routes apply. Do not upload connection profiles or credentials.
+
+The compatibility report retains model SQL, schema declarations, column tests,
+source references and dependency identities in `report.project.resources`.
+Manifest node identities are preserved exactly. Source-only projects inventory
+literal `ref` and `source` calls; they do not compile Jinja. Missing dependencies,
+cycles, unsupported files and execution obligations stay explicit. Project
+configuration, hooks, packages, macros and SQL are never run or fetched.
+
+This is an inert project inventory, not executable dbt preparation. Importing a
+test does not run it. Such a project cannot publish a native model. Bind model
+names to reviewed file datasets to track source custody; source erasure reaches
+the project and its retained originals. Reimport uses an exact reviewed revision,
+and shared Undo restores the earlier project. The bounded inventory accepts at
+most 512 resources within the existing file and byte limits. SQL transformation,
+validation execution, dependency schedules and automatic flow translation remain
+unfinished under BIF-005 and BIF-070.
+
+## Other native project inventories
+
+Choose PBIP and upload the project descriptor, report `definition.pbir`, semantic
+model `definition.pbism` and textual TMDL files with their original relative
+paths. Descriptor references resolve only inside the uploaded project. The
+existing TMDL reader translates supported table definitions; report layout and
+interaction translation remain explicit gaps and prevent project publication.
+Missing descriptors, remote connection references and paths outside the uploaded
+project are diagnosed, never fetched.
+
+Choose Metabase for serialization YAML or individual Card, Table, Field and
+Database API response objects. Original identities, queries, field metadata and
+source dependencies remain in the inventory. MBQL, native SQL, source permission
+and visualization execution remain unproved; these objects cannot publish a
+native model. Collection and dashboard serialization metadata is also retained.
+
+Choose Tableau for textual TWB or TDS files, or a TWBX archive. The browser
+encodes the archive for the same project envelope; API clients supply its
+`content` as base64. Data sources, column calculations, worksheets, dashboards,
+stories and their source references are retained. DTD and entity declarations,
+unsafe archive paths, more than 64 archive entries, any expanded file above
+256 KiB or total expanded content above 1 MiB are refused. The encoded archive
+must still fit the ordinary project file limit (the browser accepts 192 KiB
+before encoding). Extracts, binary contents and scripts are named unsupported
+items. Nothing is extracted to disk, evaluated or fetched. Source and content
+execution remain explicit gaps; inventory is not a translated workbook.
+
+Every explicitly bound source dataset retains erasure custody even when a
+project has no executable definition or has an invalid source object. The exact
+reviewed import can retain that diagnostic project for inspection, but cannot
+promote it. The Files report lists source objects and dependencies before the
+full technical report. These bounded readers do not provide file-service
+connections, background refresh, network-share access or full incumbent parity.
+
+## Native preparation drafts
+
+The owner API prepares reviewed file datasets synchronously. It does not publish
+prepared data or alter certified metrics. The browser transform editor and
+original Power Query and Tableau Prep flow translation remain unfinished.
+
+`POST /api/operator/preparations/{id}/review` accepts `previousVersion` (`null`
+for a new draft) and a `document` with `version: 1`, `dataset` and ordered `steps`.
+Supported steps are:
+
+- `dedupe`: remove identical complete rows; no arbitrary winner among conflicts.
+- `cast`: an existing `column` and a target `type` of text, number, money, date or
+  boolean. Failed conversions identify the step and return no partial output.
+- `calculate`: a new `name`, numeric `left` and `right` columns and `operator`
+  add, subtract or multiply. Decimal arithmetic is exact; nulls propagate.
+- `union`: an imported `dataset` with the identical ordered typed schema.
+- `join` or `lookup`: an imported `dataset`, `left` and `right` keys, output
+  `prefix` and `kind` inner or left. Duplicate right keys refuse; null never
+  matches null. This bounded door does not allow implicit multiplying joins.
+- `unpivot`: same-type `columns`, a new field `name` and new `value` column.
+  Null cells remain rows.
+- `pivot`: explicit `groupBy`, field `column`, `value` column and complete
+  `values` domain. Duplicate cells and unknown domain values refuse; missing
+  cells remain null. There is no implicit aggregate or silent dropped value.
+
+The response contains exact output rows, typed columns, per-step row counts,
+source revisions, output-column lineage and an executable `sql` form. Instead
+of `document`, review and save accept `dataset` and `sql`. This is a closed
+native preparation dialect: each statement consumes the previous `INPUT`;
+`REPLACE`, `UNPIVOT INCLUDE NULLS` and `PIVOT SINGLE` have the explicit semantics
+above. A join alias is the output column prefix. `SINGLE` refuses multiple rows
+for a pivot cell. Quoted identifiers and literals are inert. Arbitrary SQL,
+comments, provider functions, external reads and database writes are refused;
+this is not a general SQL notebook or a dbt runtime.
+
+`POST /api/operator/preparations/{id}/save` takes the same input and the exact
+`reviewedDigest`. Saving checks the current source bytes, source revisions,
+native session and previous draft version atomically. Only successful reviews
+can save. `GET /api/operator/preparations/{id}` lists immutable definitions,
+source pins, retained typed column lineage and revision history. `POST /api/operator/preparations/{id}/restore`
+takes `restoreVersion`, `previousVersion` and the digest obtained by reviewing
+that earlier document against the current head. Restoration appends a revision;
+it never replaces history, and changed original source pins refuse restoration.
+
+There are at most 32 steps, 64 output columns, 10,000 working rows, 1.5 MB of
+working values and lineage, and 100 revisions per draft. These bounds refuse
+rather than truncate. Prepared rows are not persisted. Erasing any source used
+by any revision removes the dependent draft and all revision definitions.
+Current native owner-only custody applies to review, save, history and restore;
+there is no new source grant or delegated preparation permission.
+
+Native draft execution does not prove automatic original-flow translation,
+dbt execution and tests, a visual editor, chart error propagation, analytical
+store publication or dependency scheduling. Scheduling requires Base BIF-058;
+the original-flow corpus and automatic translation remain BIF-070 obligations.
+
+
+The owner can open **Preparation drafts** on `/app/import`, choose a dataset,
+add and reorder transformation steps, and inspect their exact rows and column
+lineage. Switch to native SQL to edit equivalent executable statements. Saving
+requires confirming the exact reviewed digest. Load an earlier revision and
+review it before restoring it as a new draft; source changes refuse restoration.
+These drafts do not publish a model or change certified data.
+
+For directory-based semantic projects, choose **Original project folder**. Paths
+are retained relative to the selected folder, so local PBIP descriptor references
+and dbt dependencies can be inspected. Choose individual files for a flat project.

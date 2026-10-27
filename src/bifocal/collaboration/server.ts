@@ -8,6 +8,7 @@ import {fail,QueryError} from '../query/types'
 import {subject,permittedMembers,subjectChanges} from './subjects.server'
 import {prepareLink,readLink,audit} from './links.server'
 import {collaborationPage,collaborationUnavailable} from './page.server'
+import {metricAnnotations} from './annotations.server'
 const base='/api/operator/collaboration'
 export async function collaborationResponse(request:Request,original:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -81,8 +82,7 @@ export async function resolve(env:Bindings,actor:Authority,target:Awaited<Return
  for(const comment of comments){const recipients=(await env.DB.prepare('SELECT DISTINCT recipient_id FROM bf_collaboration_notifications WHERE comment_id=?').bind(comment.id).all<{recipient_id:string}>()).results;comment.mentions=recipients.filter(row=>members.some(person=>person.id===row.recipient_id)).map(row=>row.recipient_id)}
  const links=(await env.DB.prepare('SELECT id,recipient_id AS recipientId,expires_at AS expiresAt,revoked FROM bf_collaboration_links WHERE subject_key=? AND issuer_id=? ORDER BY created_at DESC,id LIMIT 101').bind(target.key,actor.id).all()).results
  if(comments.length>100||links.length>100)fail('collaboration_history_limit',413)
- const ref=target.metricRef,annotations=ref?(await env.DB.prepare('SELECT id,point,body,revision,created_at AS createdAt FROM bf_collaboration_annotations WHERE metric_id=? AND revision=? AND digest=? ORDER BY point,id LIMIT 101').bind(ref.id,ref.revision,ref.digest).all()).results:[]
- if(annotations.length>100)fail('annotation_history_limit',413)
+ const ref=target.metricRef,annotations=ref?await metricAnnotations(env,ref):[]
  await transact(env.DB,actor,subjectChanges(target))
  return {subject:{kind:target.kind,id:target.id,title:target.title,href:target.href},members:members.map(({id,displayName})=>({id,displayName})),comments,annotations,links,metric:ref}
 }

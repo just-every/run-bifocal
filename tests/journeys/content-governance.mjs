@@ -37,7 +37,7 @@ export async function proveContentGovernance(){
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }
   assert.ok(ready,'native local entry starts')
-  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+  browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
   const bootstrap=await owner.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-3'.repeat(3),displayName:'Synthetic content owner',returnTo:'/app'},maxRedirects:0})

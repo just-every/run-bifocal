@@ -47,7 +47,8 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
    const rev=await revision(env,id,row.published_revision);if(!rev?.approved_at)fail('metric_not_certified',409)
    const evaluated=await metricValue(env,actor.id,row,rev)
    guards.push(metricGuard(row),...evaluated.context.guards??[],...evaluated.sources.map(sourceMatch));evaluated.sources.forEach(s=>datasets.add(s.id))
-   metricRef={id,revision:rev.revision,digest:rev.digest};suffix=':'+rev.revision;title=evaluated.doc.name;href='/app/metrics/'+id
+   const legacy=await env.DB.prepare('SELECT active FROM bf_collaboration_subjects WHERE key=?').bind('metric:'+id+':'+rev.revision).first<{active:number}>()
+   metricRef={id,revision:rev.revision,digest:rev.digest};suffix=':'+rev.revision+(legacy?.active?'':':'+sha256(canonicalJson(evaluated.sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)})))));title=evaluated.doc.name;href='/app/metrics/'+id
   }else if(kind==='authored-dashboard'){
    const published=await publishedDashboard(env,actor,actor.id,id);guards.push(...published.guards);suffix=':'+published.revision.revision;title=published.revision.document.title;href='/app/dashboard-authoring/'+id+'/view'
    for(const ref of published.manifest.refs)await addSnapshot(ref.snapshot_id,actor.id)
