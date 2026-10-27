@@ -255,6 +255,8 @@ th.num{text-align:right}
 .history-item button{margin:6px 12px 0 0}
 .history-item a{margin-right:16px}
 #plan-summary{margin-top:12px}
+/* A review's sections are a plain row of jump links, not tabs: every section stays on the page. */
+.jump{display:flex;flex-wrap:wrap;gap:4px 24px;margin:16px 0;font-weight:500}
 .panel>.subhead{margin:28px 0 12px;padding-top:24px;border-top:1px solid var(--app-line)}
 ul{padding-left:20px}
 
