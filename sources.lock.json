@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "7c5cae7a4764a344a5ab42f6749a0239891b454609d01f03c1e8839b43a73973",
+      "sha256": "be9b5fda68c5b5b0e23d0340954ee53b1507c9875f2ac2d410b9a3e0c0a80503",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9c5d2df3e8bf45153ddbf8dbb4b5e9d294afa2f866b1baf0cb809bce0aace9eb",
+      "sha256": "0c6b34a2f3283b859d3cb65a2cef632ca43c2e7f97624828cf2f44efe443a923",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -733,7 +733,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "1c42f47eefedd69b9c9b4422fa7f55c9b48677b5f0f6068901efb9673fc337b8",
+      "sha256": "34e414e37852955482746bb5c88736d57144064978a9de05730b13973b5636d4",
       "executable": false
     },
     "package.json": {
@@ -4709,7 +4709,7 @@
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {
-      "sha256": "1478d151c790cc8175a49181448ac4215aff1450ddfd38262ddb2e2d2c752f0c",
+      "sha256": "3f630cbe907507ae591724be8b3f551db5ddc97eb2b89fa1782b061bf94c2db6",
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
