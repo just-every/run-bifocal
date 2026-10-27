@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "28b526deb796d5486ed49b1b0fccda6b1cd3a1a83ea24e11e113ed8b477c9ee8",
+      "sha256": "c6ca24ba25c37afa66a2c13651b42053d7f28ff4ed918701058611b16598e061",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bf119a26e890cb00b99dd92eeb3c35ccc40fc47eb3557c9c91c40521cf28448b",
+      "sha256": "afbca858839d39db45140e6502f424bbeb3776ec88a963fc36ed4e3096f6dbee",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -401,7 +401,7 @@
       "executable": false
     },
     "docs/ENTITLEMENTS.md": {
-      "sha256": "de8d46bd18d958d46a78c04c4fdace8308440479e6fb20b4713f2341940721fb",
+      "sha256": "502d3bc53bd78235e68ae963c68a70ee0779ef00214309281b21e0582d95f068",
       "executable": false
     },
     "docs/EXACT-QUERIES.md": {
@@ -1869,7 +1869,7 @@
       "executable": false
     },
     "src/bifocal/entitlements/server.ts": {
-      "sha256": "fda3019ed601faecea0040eb6a14032bc4d504401a3bee1e0a9130300f75d928",
+      "sha256": "5bc4c954276f5adbb8dd0044cb7dd6127ea0cd5e7be876b1afc4de00a027c660",
       "executable": false
     },
     "src/bifocal/environments/dependencies.server.ts": {
@@ -4653,11 +4653,11 @@
       "executable": false
     },
     "tests/journeys/entitlement-boundaries.mjs": {
-      "sha256": "a79fac0967ec7e6af9d4e9b8d845d52b1c072e0f61ae3ee52994820c5b627b93",
+      "sha256": "6d6a6353fd5101bafb682bdf35c0b8c9e0da6efd86baf3434a58c6c5a5e2c653",
       "executable": false
     },
     "tests/journeys/entitlement-boundary-worker.mjs": {
-      "sha256": "0c794a4887ca4759e854a6bc2ffe94e2b66ad0e5e8697f959de96c0815f0b764",
+      "sha256": "91aa1fe62b3e54ca7f0247e4a1de8f46eeb5e7f517e9c89abbfbaa31d64ba3cb",
       "executable": false
     },
     "tests/journeys/entitlement-clock.mjs": {
