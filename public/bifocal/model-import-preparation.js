@@ -1,9 +1,11 @@
 import {element,table} from './file-view.js'
 
+export function sourceComparisonState(project){const steps=project.preparation?.flatMap(flow=>flow.steps.filter(step=>step.status==='translated'))??[];return steps.length&&steps.every(step=>step.rowEquivalence==='matched')?'Supplied source rows matched':'Source comparisons incomplete'}
+
 export function showPreparationImports(box,project){
  if(!project.preparation)return
  for(const flow of project.preparation){
-  const section=element('section'),title=element('h3',flow.name)
+  const section=element('section',undefined,'preparation-import-report'),title=element('h3',flow.name)
   section.append(title,table('Preparation step translations',['Source step','Source location','Status','Source rows','Reason','Affected downstream items'],flow.steps.map(s=>[s.name,s.location,s.status,s.rowEquivalence,s.reason??'',s.affectedDownstream.join(', ')])))
   for(const step of flow.steps){
    const detail=element('details'),summary=element('summary',step.name+' · '+step.status),expression=element('pre',step.sourceExpression)

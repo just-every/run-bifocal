@@ -1,2 +1,5 @@
 #preparation .tablewrap{margin:12px 0 16px;max-width:100%}
 #preparation .preparation-impact table{min-width:760px}
+
+.preparation-import-report table{min-width:900px}
+.preparation-import-report .tablewrap{margin:12px 0 16px;max-width:100%}
