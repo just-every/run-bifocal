@@ -13,7 +13,7 @@ export async function classificationPage(request:Request,original:Bindings):Prom
  if(actor.role!=='owner')return new Response('Only the owner can manage approval classifications.',{status:403,headers})
  const session=await operatorAuth(env).getSession(request)
  if(!session)return new Response(null,{status:401,headers})
- const document=appDocument({title:'Approval classifications · Bifocal',viewer:session.operator,place:'settings',side:accountSide(actor.role,'settings'),head:'<script type="module" src="/bifocal/approval-classifications.js"></script>',main:`<div class="pagehead"><div><h1>Approval classifications</h1><p class="lead">Record which active people belong to leadership or the board.</p></div></div>
+ const document=appDocument({title:'Approval classifications · Bifocal',viewer:session.operator,place:'settings',side:accountSide(actor.role,'settings'),head:'<link rel="stylesheet" href="/bifocal/approval-tooltips.css"><script type="module" src="/bifocal/approval-classifications.js"></script>',main:`<div class="pagehead"><div><h1>Approval classifications</h1><p class="lead">Record which active people belong to leadership or the board.</p></div></div>
 <p class="note">A classification describes a person for publication review. It grants no data access or approval authority. Only the owner can approve publication. Leadership and board classifications expire within seven days and must be reviewed again after membership changes.</p>
 <p class="status" id="classification-status" role="status" aria-live="polite">Loading active people…</p>
 <section class="panel"><h2>Active people</h2><div id="classification-people"></div></section>

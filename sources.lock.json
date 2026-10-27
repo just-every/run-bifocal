@@ -785,7 +785,15 @@
       "executable": false
     },
     "public/bifocal/approval-classifications.js": {
-      "sha256": "b8cde2c68677e80130ddea2403c7c41afc46d294c926520d4ea6f1fcb064e9e5",
+      "sha256": "8f4597fce00d44906ae165010c99dd033b4ea43c3e43357d245146df1106eaeb",
+      "executable": false
+    },
+    "public/bifocal/approval-tooltips.css": {
+      "sha256": "2ed97091e66db9ea3fea2e5fd881a938b39872e9ab9759a9558008cb94cd5c6e",
+      "executable": false
+    },
+    "public/bifocal/approval-tooltips.js": {
+      "sha256": "2863932d2e7914d1188f5c7dfcf5ba9838febc9af253d3d175ec2280c726a33d",
       "executable": false
     },
     "public/bifocal/apps.css": {
@@ -961,7 +969,7 @@
       "executable": false
     },
     "public/bifocal/report-custody.js": {
-      "sha256": "d66bcd9ca29d0bf1325cc62f22c0e777a81a19d59da3b9e20e05867a6e98f02c",
+      "sha256": "3295ce6f33a77d87200376c52323b70a027d78d268b65179c85b8b66d33578a8",
       "executable": false
     },
     "public/bifocal/report-instance.js": {
@@ -1469,7 +1477,7 @@
       "executable": false
     },
     "src/bifocal/approvals/page.server.ts": {
-      "sha256": "042a78bd9699c70cc9ae463307f845c0e683791036332ef9d66acaae3c24c447",
+      "sha256": "97185e5b63735d62c46ac08df0e67edac28c35cc1c850445109d0cb9aed0674d",
       "executable": false
     },
     "src/bifocal/approvals/reviews.server.ts": {
@@ -2521,7 +2529,7 @@
       "executable": false
     },
     "src/bifocal/reports/page.server.ts": {
-      "sha256": "4a6d8bdfb5c662a82fc340ac4b824eb7bf4c6e35485f1e678cb6edb8e7ddae7f",
+      "sha256": "3c3037ac0ee905c21a31f961e487f245eef456a29dad85892647e15fac6cb632",
       "executable": false
     },
     "src/bifocal/reports/recipients.server.ts": {
@@ -4829,7 +4837,7 @@
       "executable": false
     },
     "tests/journeys/report-custody.mjs": {
-      "sha256": "0a62b570b45b311437a4bf86cc481e4ddd46639307dccb46ae6bec047a85bd74",
+      "sha256": "16dac0d8776a388f584ea29757109dae9777f70af544e1e109736f7b36002241",
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {
@@ -4837,7 +4845,7 @@
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
-      "sha256": "48d239745148564afaf3ba5d6c7a5109f000229a95acc6bdcd33ac8919b7e2b0",
+      "sha256": "2d5dd41154f3abe1d53b1b3a6c734e5ac8802d991366818d4ff49dfb131fe0ba",
       "executable": false
     },
     "tests/journeys/reporting-app-reader.mjs": {

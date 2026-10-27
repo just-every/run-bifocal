@@ -80,7 +80,13 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  await create(v2.queryId,second.id,false,409)
  const stale=await create(v2.queryId,second.id,true),staleArtifact=await call('/report-runs/'+stale.id+'/render',{},200)
  assert.equal(staleArtifact.freshness,'stale');assert.match(staleArtifact.staleLabel,/Stale snapshot/)
- const queued=await create(v2.queryId,stale.id,true)
+ const staleReview=await call('/report-runs/'+stale.id+'/review',{expiresAt:new Date(Date.now()+300000).toISOString()})
+ const thirdQuery={...correctedQuery,context:{...correctedQuery.context,metricVersion:certified.id+':3'}}
+ await call('/library/items/'+certified.id,{...certifiedEntry,previousVersion:2,definition:{query:thirdQuery}},200,'PUT')
+ const metricChanged=await call('/report-runs/'+stale.id+'/approve',{digest:staleArtifact.digest,previousVersion:staleArtifact.version,reviewId:staleReview.id},409);assert.equal(metricChanged.error,'current_certified_metric_required')
+ // The queued erasure case uses the new current certification, independently of the old retained artifact.
+ const v3=await call('/queries/run',thirdQuery);references.set(v3.queryId,{id:certified.id,version:3})
+ const queued=await create(v3.queryId,stale.id,true)
  return {firstId:first.id,queuedId:queued.id,originalFacts,firstLink,async erased(){
   await reviewers?.erased()
   const historical=await call('/report-runs/'+first.id)

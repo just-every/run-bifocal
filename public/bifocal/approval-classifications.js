@@ -1,3 +1,5 @@
+import { approvalTooltips } from './approval-tooltips.js'
+approvalTooltips()
 const endpoint='/api/operator/approval-classifications'
 const status=document.querySelector('#classification-status'),peopleList=document.querySelector('#classification-people')
 const form=document.querySelector('#classification-form'),personSelect=document.querySelector('#classification-person'),kindSelect=document.querySelector('#classification-kind'),expiry=document.querySelector('#classification-expiry'),save=document.querySelector('#classification-save'),review=document.querySelector('#classification-review')
