@@ -23,7 +23,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const nativeBefore=await call('/models/'+model.modelId)
  await cli('promote',[...flags,'--digest',unconfigured.digest,'--environment','staging'],false)
  assert.deepEqual(await call('/models/'+model.modelId),nativeBefore,'A newly configured unchecked rule cannot mutate native promotion state')
- const unchecked=await cli('validate',flags);assert.equal(unchecked.compatible,false);assert.equal(unchecked.qualityImpact.state,'unknown');assert.equal(unchecked.qualityImpact.blocking,true)
+ const unchecked=await cli('validate',flags,'incompatible');assert.equal(unchecked.compatible,false);assert.equal(unchecked.qualityImpact.state,'unknown');assert.equal(unchecked.qualityImpact.blocking,true)
  assert.equal(unchecked.qualityImpact.tests.find(test=>test.ruleId===qualityRule).state,'unknown')
  await cli('approve',[...flags,'--digest',unchecked.digest],false)
  await nativeQualityScreen(model.branchId,'unknown','model-quality-unknown-refusal')
@@ -130,11 +130,26 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const unknown=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(unknown.compatible,false);assert.equal(unknown.qualityImpact.state,'unknown');assert.equal(unknown.qualityImpact.blocking,true)
  await cli('environment-approve',[...envFlags,'--version','3','--digest',unknown.digest],false)
  await page.goto(origin+'/app/environments/'+document.id);assert.match(await page.locator('[data-environment="development"] [data-quality-impact]').innerText(),/Current quality: unknown/);await proveScreen('environment-unknown-quality-refusal')
- await upload(dataset,csv.replace('2,East','1,East').replace('$10.01','$11.01'),true)
+ await upload(dataset,'invoice,region,revenue,private-note\n1,West,$11.01,Confidential payroll detail\n1,East,$20.02,Other confidential payroll detail\n',true)
  const failedRun=await runQuality();assert.equal(failedRun.result.state,'failed');assert.deepEqual(failedRun.result.failingRowNumbers,[2])
  const failed=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(failed.compatible,false);assert.equal(failed.qualityImpact.state,'at risk');assert.equal(failed.qualityImpact.blocking,true)
  const failedTest=failed.qualityImpact.tests.find(test=>test.ruleId===qualityRule);assert.equal(failedTest.runId,failedRun.id);assert.equal(failedTest.state,'failed');assert.equal(failedTest.href,'/app/quality#run-'+failedRun.id);assert.equal(failedTest.ownerId,stagedModel.owner_id);assert.equal(failedTest.sourceRevision,failedRun.sourceRevision);assert.equal(failedTest.checkedAt,failedRun.createdAt)
- const failedNative=await cli('validate',['--model',model.modelId,'--branch',branch.branchId]);assert.equal(failedNative.compatible,false);assert.equal(failedNative.qualityImpact.state,'at risk')
+ const mailHeaders={Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'},email='synthetic-bifocal-quality-member@example.test'
+ assert.equal((await context.request.post(origin+'/auth/invite',{headers:mailHeaders,data:{email,displayName:'Quality restricted member',role:'member'}})).status(),202)
+ const restricted=await context.browser().newContext()
+ try {
+  const messages=await(await context.request.get(origin+'/__model-mail')).json(),message=messages.find(item=>item.to.includes(email));assert.ok(message)
+  const token=new URL(message.text.match(/https?:[^\s]+/)[0]).searchParams.get('token');assert.ok(token)
+  assert.equal((await restricted.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0})).status(),303)
+  const session=await restricted.request.get(origin+'/auth/session');assert.equal(session.status(),200);assert.equal((await session.json()).operator.role,'member')
+  for(const path of ['/quality','/quality/impact/'+dataset+'?column=invoice','/queries/'+report.cards[0].queryId,'/reports/'+report.id]) {
+   const denied=await restricted.request.get(origin+'/api/operator'+path);assert.equal(denied.status(),401)
+   const body=await denied.text();assert.ok(!body.includes('failingRowNumbers'));assert.ok(!body.includes('Confidential payroll detail'));assert.ok(!body.includes(failedRun.id))
+  }
+  assert.equal((await restricted.request.get(origin+'/app/quality')).status(),403)
+ } finally {await restricted.close()}
+ assert.ok(!JSON.stringify(await call('/quality')).includes('Confidential payroll detail'),'Quality evidence retains row positions without raw sensitive values')
+ const failedNative=await cli('validate',['--model',model.modelId,'--branch',branch.branchId],'incompatible');assert.equal(failedNative.compatible,false);assert.equal(failedNative.qualityImpact.state,'at risk')
  await cli('approve',['--model',model.modelId,'--branch',branch.branchId,'--digest',failedNative.digest],false)
  await nativeQualityScreen(branch.branchId,'at risk','model-quality-failed-refusal')
  assert.equal(await page.locator('#publication-quality').getByRole('link',{name:'Inspect exact quality evidence',exact:true}).getAttribute('href'),'/app/quality#run-'+failedRun.id)

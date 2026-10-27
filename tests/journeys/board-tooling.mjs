@@ -59,6 +59,28 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  assert.deepEqual(baseline.cards.map(card=>card.quality.state),['healthy','healthy'])
  assert.deepEqual(baseline.cards.map(card=>card.quality.lastGood.answer.totals.revenue.value),['30.00','9.98'])
  for(const card of baseline.cards){assert.equal(card.quality.lastGood.queryId,card.queryId);assert.equal(card.quality.lastGood.createdAt,card.createdAt);assert.ok(Number.isFinite(Date.parse(card.quality.lastGood.checkedAt)))}
+ const readers=[]
+ if(kind==='dashboard')for(const interactive of [false,true]) {
+  const cards=created.cards.map((card,index)=>({key:'card-'+index,definition:card.definition})),layout={desktop:cards.map((card,index)=>({key:card.key,x:index*6,y:0,w:6,h:14})),phone:cards.map((card,index)=>({key:card.key,x:0,y:index*14,w:1,h:14}))}
+  const document={version:2,title:interactive?'Quality interactive dashboard':'Quality published dashboard',cards,layout,...interactive?{interactions:{tabs:[{id:'main',label:'Dashboard',cards:cards.map(card=>card.key),tiles:[]}],tiles:[],tileLayout:{desktop:[],phone:[]},recordActions:[],dimensions:[],fieldParameters:[],fiscalParameters:[],whatIfParameters:[],states:[],stories:[],actions:[],duplicateAllowed:false}}:{}}
+  const review=await call('/dashboard-authoring/review',{document}),draft=await call('/dashboard-authoring/apply',{document,reviewedDigest:review.digest})
+  const publish=await call('/dashboard-authoring/'+draft.id+'/publication/review',{revision:1,previousGeneration:0,action:'publish'})
+  const saved=await call('/dashboard-authoring/'+draft.id+'/publish',{revision:1,previousGeneration:0,reviewedDigest:publish.digest})
+  readers.push({saved,interactive})
+ }
+ const readerProof=async(state,phase)=>{
+  for(const {saved,interactive} of readers) {
+   const values=interactive?(await call('/dashboard-authoring/'+saved.id+'/run',{selection:{}})).cards:(await call('/dashboards/'+saved.published.boardId)).cards
+   assert.equal(values.length,2);assert.deepEqual(values.map(card=>card.quality.state),[state,state]);assert.deepEqual(values.map(card=>card.quality.lastGood.answer.totals.revenue.value),['30.00','9.98'])
+   await page.goto(origin+'/app/dashboard-authoring/'+saved.id+'/view');await page.getByRole('status').filter({hasText:interactive?'Published revision':'Published layout'}).waitFor()
+   assert.equal(await page.locator('#published-dashboard .quality-notice').filter({hasText:'Quality '+state}).count(),2);await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
+  }
+  if(kind==='dashboard'){
+   const refreshed=await call('/dashboards/'+created.id+'/refresh',{maxAgeSeconds:3600});assert.equal(refreshed.cards.length,2);assert.deepEqual(refreshed.cards.map(card=>card.quality.state),[state,state])
+   await page.goto(origin+'/app/dashboards/'+created.id+'/tv');await page.locator('#tv-status').filter({hasText:'Dashboard refreshed'}).waitFor();assert.equal(await page.locator('#tv-cards .quality-notice').filter({hasText:'Quality '+state}).count(),2);await proveScreen('quality-tv-'+phase)
+  }
+ }
+ await readerProof('healthy','healthy')
  const unrelated=await call('/queries/run',{...all,semantic:undefined,measures:[{id:'rows',op:'count',unit:'count',scale:0}]})
  const impact=await call('/quality/impact/'+dataset+'?column=revenue')
  assert.deepEqual(impact.cards.filter(card=>card.id===created.id).sort((a,b)=>a.position-b.position).map(card=>({position:card.position,snapshot:card.snapshot_id})),created.cards.map((card,position)=>({position,snapshot:card.queryId})))
@@ -66,6 +88,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  const lookup='synthetic-bifocal-board-lookup-'+kind
  await upload(lookup,'invoice,region\n1,Pacific\n2,Atlantic\n3,Pacific\n')
  const joined=await call('/queries/run',{...all,semantic:undefined,joins:[{dataset:lookup,as:'labels',left:'base.invoice',right:'invoice',duplicates:'reject'}],filters:[{column:'labels.region',op:'eq',value:'Pacific'}]})
+ assert.equal(joined.answer.totals.revenue.value,'9.98')
  const rightImpact=await call('/quality/impact/'+lookup+'?column=region')
  assert.deepEqual(rightImpact.queries,[joined.queryId]);assert.deepEqual(rightImpact.answers[0].columns,[{dataset,columns:['invoice','revenue']},{dataset:lookup,columns:['invoice','region']}].sort((a,b)=>a.dataset.localeCompare(b.dataset)))
  const leftImpact=await call('/quality/impact/'+dataset+'?column=region')
@@ -76,7 +99,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  const unknown=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(unknown.cards.map(card=>card.quality.state),['unknown','unknown'])
  assert.deepEqual(unknown.cards.map(card=>card.answer),baseline.cards.map(card=>card.answer))
- await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor();assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality unknown'}).count(),2);await proveScreen('quality-multi-'+kind+'-unknown')
+ await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor();assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality unknown'}).count(),2);await proveScreen('quality-multi-'+kind+'-unknown');await readerProof('unknown','unknown')
  const runs=[]
  for(const [id] of rules)runs.push(await call('/quality/rules/'+id+'/run',{}))
  assert.deepEqual(runs.map(run=>run.result.state),['failed','failed']);assert.deepEqual(runs[0].result.failingRowNumbers,[2])
@@ -87,11 +110,18 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality at risk'}).count(),2)
  assert.equal(await page.getByRole('link',{name:'Board invoice identity · failed',exact:true}).count(),2)
  assert.equal(await page.getByRole('link',{name:'Retained last-good result',exact:true}).count(),2)
- await proveScreen('quality-multi-'+kind+'-failed')
+ await proveScreen('quality-multi-'+kind+'-failed');await readerProof('at risk','failed')
+ await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor()
  await page.getByRole('link',{name:'Board invoice identity · failed',exact:true}).first().click();await page.locator('#run-'+runs[0].id).waitFor();assert.match(await page.locator('#run-'+runs[0].id).innerText(),/Board invoice identity/)
  const outsider=await page.context().browser().newContext();try{const denied=await outsider.request.get(origin+'/api/operator/'+kind+'s/'+created.id);assert.equal(denied.status(),401);assert.ok(!(await denied.text()).includes('failingRowNumbers'))}finally{await outsider.close()}
+ if(kind==='dashboard') {
+  await upload(dataset,'invoice,region\n1,West\n2,East\n3,West\n',true);await runQuality()
+  const dropped=await call('/dashboards/'+created.id);assert.deepEqual(dropped.cards.map(card=>card.quality.state),['unknown','unknown'])
+  for(const card of dropped.cards)assert.ok(card.quality.tests.some(test=>test.reason==='column_unavailable'&&test.column==='revenue'))
+  const dropImpact=await call('/quality/impact/'+dataset+'?column=revenue');assert.deepEqual(dropImpact.cards.filter(card=>card.id===created.id).map(card=>card.position).sort(),[0,1])
+ }
  await upload(dataset,csv,true);await runQuality()
  const repaired=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(repaired.cards.map(card=>card.quality.state),['healthy','healthy']);assert.deepEqual(repaired.cards.map(card=>card.answer),baseline.cards.map(card=>card.answer));assert.deepEqual(repaired.cards.map(card=>card.quality.lastGood),baseline.cards.map(card=>card.quality.lastGood))
- await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor();assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality healthy'}).count(),2);await proveScreen('quality-multi-'+kind+'-repaired')
+ await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor();assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality healthy'}).count(),2);await proveScreen('quality-multi-'+kind+'-repaired');await readerProof('healthy','repaired')
 }

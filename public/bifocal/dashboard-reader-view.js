@@ -1,3 +1,4 @@
+import {qualityNotice} from './quality.js'
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
@@ -18,10 +19,11 @@ export function dashboardReaderView({grid,config,document,zone,onFilter,onAction
   for(const tile of config.tiles)section(tile.key).hidden=!tab.tiles.includes(tile.key)
   for(const card of result.cards){
    const node=section(card.key);node.hidden=!tab.cards.includes(card.key)
-   if(!node.children.length){node.append(element('h2',card.key));const state=element('p',undefined,'meta');state.className+=' reader-tile-state';state.setAttribute('role','status');const data=element('div',undefined,'reader-values'),cross=element('details'),actions=element('div',undefined,'actions'),exports=element('div',undefined,'reader-exports');cross.className='reader-cross';cross.append(element('summary','Cross-filter from this tile'),element('div',undefined,'actions'));actions.className+=' reader-actions';node.append(state,data,cross,actions,exports);for(const action of config.actions.filter(a=>a.card===card.key))actions.append(readerButton(action.label,()=>onAction(action.id)));for(const action of config.recordActions??[])if(action.card===card.key)actions.append(readerButton(action.label,()=>onRecords(action.id)))}
+   if(!node.children.length){node.append(element('h2',card.key));const state=element('p',undefined,'meta');state.className+=' reader-tile-state';state.setAttribute('role','status');const data=element('div',undefined,'reader-values'),cross=element('details'),actions=element('div',undefined,'actions'),exports=element('div',undefined,'reader-exports');cross.className='reader-cross';cross.append(element('summary','Cross-filter from this tile'),element('div',undefined,'actions'));actions.className+=' reader-actions';const quality=element('div',undefined,'reader-quality');node.append(state,quality,data,cross,actions,exports);for(const action of config.actions.filter(a=>a.card===card.key))actions.append(readerButton(action.label,()=>onAction(action.id)));for(const action of config.recordActions??[])if(action.card===card.key)actions.append(readerButton(action.label,()=>onRecords(action.id)))}
    node.dataset.state=loading?'loading':card.status
    const state=node.querySelector('.reader-tile-state'),data=node.querySelector('.reader-values'),cross=node.querySelector('.reader-cross')
    if(loading){state.textContent='Loading current results';continue}
+   node.querySelector('.reader-quality').replaceChildren(qualityNotice(card.quality,zone))
    if(card.status==='failed'){
     const last=lastGood.get(card.key);state.textContent='Failed · '+card.error+(last?' · Last successful '+stamp(last.at,zone):'')
     // Access and custody failures always withdraw copies. Other execution errors

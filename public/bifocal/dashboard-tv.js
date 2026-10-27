@@ -1,3 +1,4 @@
+import {qualityNotice} from './quality.js'
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
@@ -62,8 +63,8 @@ function tileView(id){
  const data=element('div',undefined,'tv-data'),observed=element('p',undefined,'meta'),totals=element('dl',undefined,'tv-totals'),tableBox=element('div',undefined,'tv-table'),watermarks=element('ul',undefined,'tv-watermarks')
  const cross=element('details',undefined,'tv-cross'),exports=exportBox(id)
  section.dataset.tileId=id;state.dataset.tileStatus='';watermarks.dataset.watermarks='';cross.append(element('summary','Cross-filter from this tile'))
- data.append(observed,totals,tableBox,watermarks,exports.box,cross);section.append(title,state,notes,last,data)
- const view={section,title,state,notes,last,data,observed,totals,tableBox,watermarks,cross,exports}
+ data.append(observed,totals,tableBox,watermarks,exports.box,cross);const quality=element('div',undefined,'tv-quality');section.append(title,state,quality,notes,last,data)
+ const view={section,title,state,quality,notes,last,data,observed,totals,tableBox,watermarks,cross,exports}
  views.set(id,view);return view
 }
 function updateTile(tile){
@@ -71,6 +72,7 @@ function updateTile(tile){
  section.dataset.state=tile.status;section.setAttribute('aria-busy',String(tile.status==='loading'));section.setAttribute('aria-label',tile.title)
  setText(view.title,tile.title)
  if(tile.status==='loading')return view
+ view.quality.replaceChildren(qualityNotice(tile.quality,zone))
  setText(view.state,names[tile.status]);view.state.dataset.state=tile.status
  const data=tile.data,notes=[]
  section.dataset.error=tile.error??''
@@ -179,7 +181,7 @@ async function refresh(background=false){
   const next=new Map()
   for(const card of result.cards){
    if(!['fresh','stale','empty','failed'].includes(card.status))throw Error('Unknown dashboard tile state')
-   const previous=tiles.get(card.id),tile={id:card.id,title:card.title,status:card.status,error:card.error,withdraw:card.withdraw===true,data:previous?.data,successAt:previous?.successAt}
+   const previous=tiles.get(card.id),tile={quality:card.quality,id:card.id,title:card.title,status:card.status,error:card.error,withdraw:card.withdraw===true,data:previous?.data,successAt:previous?.successAt}
    if(tile.withdraw){tile.data=null;tile.successAt=null}
    else if(card.status!=='failed'){
     if(!card.answer||!card.context||!card.definition)throw Error('Dashboard tile answer could not be read')

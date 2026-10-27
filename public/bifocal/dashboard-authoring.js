@@ -1,3 +1,4 @@
+import {qualityNotice} from './quality.js'
 import {mountDashboardSnapshots} from './dashboard-snapshots.js'
 import {mountDashboardReader} from './dashboard-reader.js'
 import {element,table} from './file-view.js'
@@ -98,6 +99,7 @@ async function published(){
   const retained=board.cards[index],section=element('section',undefined,'panel published-tile');section.dataset.cardKey=card.key
   for(const layout of ['desktop','phone']){const placement=document.layout[layout].find(item=>item.key===card.key);for(const name of ['x','y','w','h'])section.style.setProperty('--'+layout+'-'+name,String(placement[name]))}
   section.append(element('h2',card.key),element('p',retained.definition.dataset+' · retained '+stamp(retained.createdAt,zone),'meta'))
+  section.append(qualityNotice(retained.quality,zone))
   const measures=Object.keys(retained.answer.totals),shown=value=>value.state==='value'?figure(value.value,value.unit,retained.context.currency):value.state.toUpperCase(),totals=element('dl',undefined,'published-totals')
   for(const measure of measures){const item=element('div');item.append(element('dt',label(measure)),element('dd',shown(retained.answer.totals[measure])));totals.append(item)}
   section.append(totals)

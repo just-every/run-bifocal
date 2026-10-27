@@ -11,10 +11,11 @@ export type QualityTest={dataset:string;state:string;reason:string;sourceRevisio
 /** The same exact evidence feeds retained readers and publication approvals.
  * No failing row values leave this owner-only inspection. */
 export async function inspectQuality(env:Bindings,datasets:string[],ownerId?:string) {
- const tests:QualityTest[]=[],guards:D1Sql[]=[]
+ const tests:QualityTest[]=[],guards:D1Sql[]=[],schemas:{dataset:string;revision:string;columns:string[]}[]=[]
  let configured=false
  for(const dataset of [...new Set(datasets)].sort()) {
   const source=await env.DB.prepare('SELECT revision,value_json FROM bf_file_tables WHERE id=?').bind(dataset).first<SourceRow>()
+  if(source)schemas.push({dataset,revision:source.revision,columns:JSON.parse(source.value_json).columns.map((column:{name:string})=>column.name)})
   guards.push(source?sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=? AND value_json=?)',dataset,source.revision,source.value_json):sql('NOT EXISTS(SELECT 1 FROM bf_file_tables WHERE id=?)',dataset))
   const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE dataset_id=? AND (? IS NULL OR owner_id=?) ORDER BY id').bind(dataset,ownerId??null,ownerId??null).all<Rule>()).results
   guards.push(sql('(SELECT count(*) FROM bf_quality_rules WHERE dataset_id=? AND (? IS NULL OR owner_id=?))=?',dataset,ownerId??null,ownerId??null,rules.length))
@@ -39,6 +40,6 @@ export async function inspectQuality(env:Bindings,datasets:string[],ownerId?:str
    tests.push({dataset,sourceRevision:source?.revision??null,ruleId:rule.id,ownerId:rule.owner_id,name:def.name,...(def.column?{column:def.column}:{}),runId:run?.id??null,checkedAt:run?.created_at??null,state,reason,href:run?'/app/quality#run-'+run.id:'/app/quality#rule-'+rule.id,waiver:waiver?{ownerId:waiver.owner_id,reason:waiver.reason,expiresAt:waiver.expires_at,createdAt:waiver.created_at,active:Date.parse(waiver.expires_at)>Date.now()}:null})
   }
  }
- return {quality:{state:tests.some(t=>t.state==='failed')?'at risk':!tests.length||tests.some(t=>t.state==='unknown')?'unknown':'healthy',configured,tests},guards}
+ return {quality:{state:tests.some(t=>t.state==='failed')?'at risk':!tests.length||tests.some(t=>t.state==='unknown')?'unknown':'healthy',configured,tests},guards,schemas}
 }
 export async function qualityState(env:Bindings,datasets:string[],ownerId?:string) {return (await inspectQuality(env,datasets,ownerId)).quality}

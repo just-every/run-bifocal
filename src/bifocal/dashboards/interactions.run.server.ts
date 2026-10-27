@@ -4,6 +4,7 @@ import type {D1Sql} from '../../modules/import-kit/src/d1/types.ts'
 import {canonicalJson} from '../../modules/import-kit/src/provenance/identity.ts'
 import {readQuery,readSources,sourceMatch} from '../data/snapshots/store'
 import {queryContext} from '../query/context'
+import {retainedQuality} from '../query/quality.server'
 import {queryInput} from '../query/validate'
 import {modelScope} from '../query/model-scope.server'
 import {execute} from '../query/execute'
@@ -35,9 +36,11 @@ export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId
  // Inherited context is a protected intersection, not a removable reader filter.
  const protectedRows=[...restrictions.rows,...inherited?.filters??[]],periods={...selection.fiscal,...inherited?.fiscal??{}},guards:D1Sql[]=[...published.guards],cards=[]
  for(const [index,card] of revision.document.cards.entries()){
+  let quality:Awaited<ReturnType<typeof retainedQuality>>|undefined
   try{
    const retained=await readQuery(env,actor,ownerId,manifest.refs[index].snapshot_id),snapshot=retained.snapshot
    if(canonicalJson(snapshot.definition)!==canonicalJson(card.definition))fail('published_dashboard_custody_changed',409)
+   if(actor.role==='owner'&&actor.id===ownerId)quality=await retainedQuality(env,actor,ownerId,snapshot)
    guards.push(retained.guard,...await refreshBindings(env,ownerId,snapshot))
    const model=await modelScope(env,ownerId,card.definition);guards.push(...model.guards)
    const field=config.fieldParameters.find(p=>p.card===card.key),choice=field?.choices.find(c=>c.id===selection.fields[field.id]),fiscal=config.fiscalParameters.find(p=>p.cards.includes(card.key))
@@ -51,8 +54,8 @@ export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId
    const whatIf=config.whatIfParameters.find(p=>p.card===card.key),scenario=whatIf?await dashboardScenario(env,ownerId,whatIf,selection,protectedQuery,context,sources,selection.filters,restrictions.columns):null
    if(scenario)guards.push(...scenario.guards)
    const {guards:privateGuards,...publicContext}=context,stale=Date.now()-oldest>86400000
-   cards.push({key:card.key,snapshotId:snapshot.snapshotId,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',answer,definition,context:publicContext,observedAt:new Date(oldest).toISOString(),...(scenario?{scenario:{answer:scenario.answer,binding:scenario.binding}}:{})})
-  }catch(error){cards.push({key:card.key,status:'failed',error:error instanceof QueryError?error.code:'dashboard_tile_unavailable'})}
+   cards.push({quality,key:card.key,snapshotId:snapshot.snapshotId,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',answer,definition,context:publicContext,observedAt:new Date(oldest).toISOString(),...(scenario?{scenario:{answer:scenario.answer,binding:scenario.binding}}:{})})
+  }catch(error){cards.push({quality,key:card.key,status:'failed',error:error instanceof QueryError?error.code:'dashboard_tile_unavailable'})}
  }
  return {published,guards,result:{id,title:revision.document.title,revision:revision.revision,boardId:revision.boardId,document:revision.document,config,selection,inherited:inherited??{filters:[],fiscal:{}},refreshedAt:new Date().toISOString(),cards}}
 }

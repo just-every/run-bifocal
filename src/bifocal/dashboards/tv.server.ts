@@ -5,13 +5,14 @@ import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.
 import { readQuery, readSources, sourceMatch } from '../data/snapshots/store'
 import { discardBody, exactKeys, json, jsonBody } from '../models/validation/transport'
 import { queryContext } from '../query/context'
+import { retainedQuality } from '../query/quality.server'
 import { execute } from '../query/execute'
 import { fail, QueryError, type Answer, type Context, type Query } from '../query/types'
 import { dashboardFields, dashboardFilters, filteredDashboardQuery } from './filters'
 import { refreshBindings, sameRefreshConventions } from './tv-bindings.server'
 
 type Owner=Parameters<typeof readQuery>[1]
-type Card={id:string;title:string;status:'fresh'|'stale'|'empty'|'failed';answer?:Answer;context?:Omit<Context,'guards'>;definition?:Query;availableDimensions?:string[];watermarks?:unknown[];observedAt?:string;error?:string;withdraw?:boolean;freshness?:'fresh'|'stale'}
+type Card={quality?:Awaited<ReturnType<typeof retainedQuality>>;id:string;title:string;status:'fresh'|'stale'|'empty'|'failed';answer?:Answer;context?:Omit<Context,'guards'>;definition?:Query;availableDimensions?:string[];watermarks?:unknown[];observedAt?:string;error?:string;withdraw?:boolean;freshness?:'fresh'|'stale'}
 type Manifest={id:string;title:string;refs:{snapshot_id:string;position:number}[];guards:D1Sql[]}
 
 /** Read immutable board membership without requiring every tile to compile. */
@@ -41,10 +42,11 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
   if(!manifest){await transact(env.DB,owner,[]);return json({error:'dashboard_withdrawn',withdraw:true},404)}
   const guards=[...manifest.guards],cards:Card[]=[]
   for(const ref of manifest.refs) {
-   let title='Unavailable query'
+   let title='Unavailable query',quality:Awaited<ReturnType<typeof retainedQuality>>|undefined
    try {
     const retained=await readQuery(env,owner,ownerId,ref.snapshot_id),snapshot=retained.snapshot
     title=snapshot.definition.dataset;guards.push(retained.guard)
+    quality=await retainedQuality(env,owner,ownerId,snapshot)
     guards.push(...await refreshBindings(env,ownerId,snapshot))
     const definition=filteredDashboardQuery(snapshot.definition,filters,fields)
     const current=await queryContext(env,definition,ownerId)
@@ -59,10 +61,10 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
     const answer=execute(definition,sources,current),{guards:privateGuards,...context}=current
     // Recheck imported-source provenance as well as its frozen conventions.
     if(canonicalJson(snapshot.context.modelImport??null)!==canonicalJson(current.modelImport??null))fail('published_model_changed',409)
-    cards.push({id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition,availableDimensions:snapshot.definition.groupBy,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
+    cards.push({quality,id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition,availableDimensions:snapshot.definition.groupBy,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
    }catch(error) {
     const code=error instanceof QueryError?error.code:'dashboard_tile_refresh_unavailable'
-    cards.push({id:ref.snapshot_id,title,status:'failed',error:code,withdraw:withdrawErrors.has(code)})
+    cards.push({quality,id:ref.snapshot_id,title,status:'failed',error:code,withdraw:withdrawErrors.has(code)})
    }
   }
   await transact(env.DB,owner,guards.map(assertion))

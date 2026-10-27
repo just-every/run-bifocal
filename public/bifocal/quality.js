@@ -1,5 +1,5 @@
-import {element} from './file-view.js'
-import {stamp} from './format.js'
+import {element,table} from './file-view.js'
+import {stamp,figure,label} from './format.js'
 
 /** Shared quality disclosure for an answer and every retained board card. */
 export function qualityNotice(quality,zone) {
@@ -9,6 +9,7 @@ export function qualityNotice(quality,zone) {
  if(quality.lastGood) {
   const last=quality.lastGood,link=element('a','Retained last-good result');link.href='/app/queries/'+last.queryId
   const dated=element('p',undefined,'meta');dated.append(link,' · saved '+stamp(last.createdAt,zone)+' · checked '+stamp(last.checkedAt,zone));notice.append(dated)
+  const values=element('details');values.append(element('summary','Last-good values'),table('Retained last-good totals',['Measure','Value'],Object.entries(last.answer.totals).map(([id,value])=>[label(id),value.state==='value'?figure(value.value,value.unit,last.currency):value.state])));notice.append(values)
  } else notice.append(element('p','No qualified last-good result has been retained for this answer.','meta'))
  const tests=element('ul')
  for(const test of quality.tests.filter(test=>test.state!=='passed')) {
