@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "35345f45c079d08ed5aa57e5a0b38550cba22a4bb257a96ee34f4fe8dc727cfe",
+      "sha256": "14ec631c73b31f67fcfc480c72119f34d50f771946afd1501206ba780edad0bf",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1f7e738db38df062b045334baaf088f77f8d269a2e0166db54b8b76cc99ef645",
+      "sha256": "b6ec12dd3e6a2f4e008281789ae62a45652dc2c5b55e3c404503d1a0d65aaa23",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1613,7 +1613,7 @@
       "executable": false
     },
     "src/bifocal/charts/server.ts": {
-      "sha256": "74b302ad24adedd474c5d1bdd8bc4a7e0e6780129ee8a07a1b9ac3969cf0a3bb",
+      "sha256": "d582e0ba1c8cff1232ffa67418de3cfc61f2695800725815e01125fe874fe972",
       "executable": false
     },
     "src/bifocal/charts/store.server.ts": {
@@ -1641,11 +1641,11 @@
       "executable": false
     },
     "src/bifocal/collaboration/server.ts": {
-      "sha256": "4b2cdc1a20175f5723977702db3f74c7b41647e4233c91feabcaca336d01d124",
+      "sha256": "b79c59ea790b9780fe65f62a70226b7bd7d9cfc53c8cd065bd32ba6b059ddd4d",
       "executable": false
     },
     "src/bifocal/collaboration/subjects.server.ts": {
-      "sha256": "0776938a49aca03c1e4d171286e2fd09cb2cc84fc6dad396e11da36c711c38d7",
+      "sha256": "d6edc2cea907c449a153d2d195266dc0735cce07a278599b4c2891a165db5619",
       "executable": false
     },
     "src/bifocal/company/display-zone.ts": {
@@ -4449,7 +4449,7 @@
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "3fc4a385ca9943382cb42dd80667c00c856492073fae3e8d95543da50be3377a",
+      "sha256": "e199bd3818963d89d4bedb13f642ea0ac1a6629e12da59e9e974cf81d9d369dd",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
@@ -4469,7 +4469,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "ae44c365878786d493f29b61656326df4331da0b41150c938029a05e76a2341b",
+      "sha256": "749a69ca5297b32d815e2396adf6a072f8fe74d8c4cf640fa92d17914a8832cb",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
