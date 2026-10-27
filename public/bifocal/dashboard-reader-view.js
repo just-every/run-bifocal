@@ -1,4 +1,4 @@
-import {qualityNotice} from './quality.js'
+import {updateQualityNotice} from './quality.js'
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
@@ -23,7 +23,7 @@ export function dashboardReaderView({grid,config,document,zone,onFilter,onAction
    node.dataset.state=loading?'loading':card.status
    const state=node.querySelector('.reader-tile-state'),data=node.querySelector('.reader-values'),cross=node.querySelector('.reader-cross')
    if(loading){state.textContent='Loading current results';continue}
-   node.querySelector('.reader-quality').replaceChildren(qualityNotice(card.quality,zone))
+   updateQualityNotice(node.querySelector('.reader-quality'),card.quality,zone)
    if(card.status==='failed'){
     const last=lastGood.get(card.key);state.textContent='Failed · '+card.error+(last?' · Last successful '+stamp(last.at,zone):'')
     // Access and custody failures always withdraw copies. Other execution errors
@@ -35,7 +35,7 @@ export function dashboardReaderView({grid,config,document,zone,onFilter,onAction
    const measures=Object.keys(card.answer.totals),totals=element('dl',undefined,'published-totals')
    for(const id of measures){const item=element('div');item.append(element('dt',label(id)),element('dd',shown(card.answer.totals[id],card.context.currency)));totals.append(item)}
    const box=element('div',undefined,'published-table');box.append(table('Exact '+card.key+' results',[...card.definition.groupBy.map(label),...measures.map(label)],card.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],card.context.currency))])))
-   const provenance=element('details');provenance.append(element('summary','Definition and source versions'),element('pre',JSON.stringify({definition:card.definition,watermarks:card.answer.sourceWatermarks},null,2)))
+   const provenance=element('details');provenance.open=data.querySelector('details')?.open??false;provenance.append(element('summary','Definition and source versions'),element('pre',JSON.stringify({definition:card.definition,watermarks:card.answer.sourceWatermarks},null,2)))
    data.replaceChildren(totals,box,provenance)
 
    if(card.scenario){const scenario=element('section',undefined,'dashboard-scenario');scenario.append(element('h3','What-if scenario'),element('p',card.scenario.binding.parameter+' = '+card.scenario.binding.value));const values=card.scenario.answer.formatted;scenario.append(table('Scenario '+card.key,[...card.definition.groupBy.map(label),...Object.keys(values.totals).map(label)],values.rows.map(row=>[...row.dimensions.map(String),...Object.keys(values.totals).map(id=>valuesValue(row.values[id]))])));const dl=element('dl',undefined,'published-totals');for(const [id,value] of Object.entries(values.totals)){const item=element('div');item.append(element('dt',label(id)),element('dd',valuesValue(value)));dl.append(item)}scenario.append(dl,element('p','Source actuals above remain unchanged.'));data.append(scenario)}

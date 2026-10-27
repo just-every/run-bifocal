@@ -13,7 +13,7 @@ import { qualityRefusal } from '../metrics/refusals'
 import { qualityMain } from './page'
 import { sourceImpact } from '../models/lineage/server'
 import { evaluate, type RuleDefinition, type SourceRow } from './evaluate'
-import { qualityState } from './evidence.server'
+import { inspectQuality, qualityState } from './evidence.server'
 const document = sectionDocument('quality')
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
 function parse(v:unknown):RuleDefinition {
@@ -55,10 +55,13 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
    }
    if(match?.[3]) {
     exact(v,['reason','expiresAt','confirm']);if(v.confirm!=='waive')fail('owner_waiver_confirmation_required',400)
-    const run=await env.DB.prepare('SELECT r.result_json FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE r.id=? AND q.owner_id=?').bind(match[3],ownerId).first<{result_json:string}>()
-    if(!run||JSON.parse(run.result_json).state!=='failed')fail('failed_run_required',409)
+    const run=await env.DB.prepare('SELECT r.rule_id,r.source_revision,r.result_json,q.dataset_id FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE r.id=? AND q.owner_id=?').bind(match[3],ownerId).first<{rule_id:string;source_revision:string|null;result_json:string;dataset_id:string}>()
+    if(!run)fail('failed_run_required',409)
+    const inspected=await inspectQuality(env,[run.dataset_id],ownerId)
+    const current=inspected.quality.tests.find(test=>test.ruleId===run.rule_id&&test.runId===match[3]&&test.sourceRevision===run.source_revision)
+    if(JSON.parse(run.result_json).state!=='failed'&&!(current?.state==='failed'&&current.currentEvidence))fail('failed_run_required',409)
     const expiresAt=text(v.expiresAt,40),expiry=Date.parse(expiresAt);if(!Number.isFinite(expiry)||expiry<=Date.now()||expiry>Date.now()+2592000000)fail('future_expiry_within_30_days_required',400)
-    await transact(env.DB,owner,[sql('INSERT INTO bf_quality_waivers(run_id,owner_id,reason,expires_at,created_at) VALUES(?,?,?,?,?)',match[3],ownerId,text(v.reason,1000),new Date(expiry).toISOString(),new Date().toISOString())])
+    await transact(env.DB,owner,[...inspected.guards.map(assertion),sql('INSERT INTO bf_quality_waivers(run_id,owner_id,reason,expires_at,created_at) VALUES(?,?,?,?,?)',match[3],ownerId,text(v.reason,1000),new Date(expiry).toISOString(),new Date().toISOString())])
     return result(request,{runId:match[3],expiresAt:new Date(expiry).toISOString()},'/app/quality')
    }
    fail('method_not_allowed',405)

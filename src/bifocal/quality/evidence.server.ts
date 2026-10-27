@@ -6,7 +6,7 @@ import { evaluate, type RuleDefinition, type SourceRow } from './evaluate'
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
 type Run={id:string;source_revision:string|null;result_json:string;created_at:string}
 type Waiver={owner_id:string;reason:string;expires_at:string;created_at:string}
-export type QualityTest={dataset:string;state:string;reason:string;sourceRevision:string|null;ruleId?:string;ownerId?:string;name?:string;column?:string;runId?:string|null;runSourceRevision?:string|null;checkedAt?:string|null;href?:string;waiver?:{ownerId:string;reason:string;expiresAt:string;createdAt:string;active:boolean}|null}
+export type QualityTest={dataset:string;state:string;reason:string;sourceRevision:string|null;ruleId?:string;ownerId?:string;name?:string;column?:string;runId?:string|null;runSourceRevision?:string|null;checkedAt?:string|null;href?:string;currentEvidence?:{checkedAt:string;result:ReturnType<typeof evaluate>};waiver?:{ownerId:string;reason:string;expiresAt:string;createdAt:string;active:boolean}|null}
 
 /** The same exact evidence feeds retained readers and publication approvals.
  * No failing row values leave this owner-only inspection. */
@@ -28,16 +28,19 @@ export async function inspectQuality(env:Bindings,datasets:string[],ownerId?:str
    const def=JSON.parse(rule.rule_json) as RuleDefinition,saved=run?JSON.parse(run.result_json):null
    let state=source&&run&&run.source_revision===source.revision?saved.state:'unknown'
    let reason=!source?'source_unavailable':state==='unknown'?'source_changed_or_unchecked':saved.reason
+   let currentEvidence:QualityTest['currentEvidence']
    if(source&&def.kind==='freshness'&&state==='passed') {
     const live=evaluate(def,source);state=live.state;reason=live.reason
+    if(state!==saved.state)currentEvidence={checkedAt:new Date().toISOString(),result:live}
     const observed=live.observedAt??null
     // Recheck the clock in the mutation transaction, rather than freezing a
     // passing freshness result at review time.
     if(state==='passed')guards.push(sql("julianday(?) <= julianday('now') AND (julianday('now')-julianday(?))*86400 <= ?",observed,observed,def.maxAgeSeconds))
    }
+   if(run&&state!==saved.state&&!currentEvidence)currentEvidence={checkedAt:new Date().toISOString(),result:{state,reason,failingRowNumbers:[]}}
    const waiver=run?await env.DB.prepare('SELECT owner_id,reason,expires_at,created_at FROM bf_quality_waivers WHERE run_id=?').bind(run.id).first<Waiver>():null
    if(run)guards.push(waiver?sql('EXISTS(SELECT 1 FROM bf_quality_waivers WHERE run_id=? AND owner_id=? AND reason=? AND expires_at=? AND created_at=?)',run.id,waiver.owner_id,waiver.reason,waiver.expires_at,waiver.created_at):sql('NOT EXISTS(SELECT 1 FROM bf_quality_waivers WHERE run_id=?)',run.id))
-   tests.push({dataset,sourceRevision:source?.revision??null,ruleId:rule.id,ownerId:rule.owner_id,name:def.name,...(def.column?{column:def.column}:{}),runId:run?.id??null,runSourceRevision:run?.source_revision??null,checkedAt:run?.created_at??null,state,reason,href:run?'/app/quality#run-'+run.id:'/app/quality#rule-'+rule.id,waiver:waiver?{ownerId:waiver.owner_id,reason:waiver.reason,expiresAt:waiver.expires_at,createdAt:waiver.created_at,active:Date.parse(waiver.expires_at)>Date.now()}:null})
+   tests.push({dataset,sourceRevision:source?.revision??null,ruleId:rule.id,ownerId:rule.owner_id,name:def.name,...(def.column?{column:def.column}:{}),runId:run?.id??null,runSourceRevision:run?.source_revision??null,checkedAt:currentEvidence?.checkedAt??run?.created_at??null,state,reason,...(currentEvidence?{currentEvidence}:{}),href:currentEvidence?'/app/quality#evidence-'+rule.id:run?'/app/quality#run-'+run.id:'/app/quality#rule-'+rule.id,waiver:waiver?{ownerId:waiver.owner_id,reason:waiver.reason,expiresAt:waiver.expires_at,createdAt:waiver.created_at,active:Date.parse(waiver.expires_at)>Date.now()}:null})
   }
  }
  return {quality:{state:tests.some(t=>t.state==='failed')?'at risk':!tests.length||tests.some(t=>t.state==='unknown')?'unknown':'healthy',configured,tests},guards,schemas}

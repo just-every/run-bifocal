@@ -869,7 +869,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-reader-view.js": {
-      "sha256": "3c3b72780a4e10ea9257451846e6ceeb61710551bb8b86ce5e2ba9765b1237b2",
+      "sha256": "b3ac9be8c6141d02067ef1c9d14ad6805e150f1922784a5a163bf9730f7fd8bc",
       "executable": false
     },
     "public/bifocal/dashboard-reader.js": {
@@ -885,7 +885,7 @@
       "executable": false
     },
     "public/bifocal/dashboard-tv.js": {
-      "sha256": "8e3591e8fad05a4233227e36b609d5d4f168ed109e03cbe3cda09ee9d019a39d",
+      "sha256": "5253bd6044b27f44fcdffeb8e820a095b4485c00b67e1e49487472b24341f063",
       "executable": false
     },
     "public/bifocal/explore.css": {
@@ -965,7 +965,7 @@
       "executable": false
     },
     "public/bifocal/quality.js": {
-      "sha256": "4d40072491d8457b30c8f4566c73a7a6f809094b72533d5721faae787fad1478",
+      "sha256": "6c90b69cb1d8687d3e21eab88b140023a78aad607f7448800e9bdca2f75bd6fb",
       "executable": false
     },
     "public/bifocal/report-custody.css": {
@@ -2313,11 +2313,15 @@
       "executable": false
     },
     "src/bifocal/models/lineage/dependencies.ts": {
-      "sha256": "033fae0ede5d96eed00fddccbad3bedf77b7e1a935aea0655ab746a92d361200",
+      "sha256": "63929492fef28e2855484fd0114dee761fa95668b8e8d79bfc49385ae9b4b5db",
+      "executable": false
+    },
+    "src/bifocal/models/lineage/schemas.server.ts": {
+      "sha256": "07d1879d7812493f1bf75efb1bcc8b13762d2641e97b8a65bc2c5115ce1b0525",
       "executable": false
     },
     "src/bifocal/models/lineage/server.ts": {
-      "sha256": "745dd941b3b44d750a7265ba462e5f73aed1e460077d42a3578045eeded789aa",
+      "sha256": "1ade1d853e1f2c259d8c83f12eeecd92a597656c61652f5c583b0e68f4b75059",
       "executable": false
     },
     "src/bifocal/models/page.server.ts": {
@@ -2457,15 +2461,15 @@
       "executable": false
     },
     "src/bifocal/quality/evidence.server.ts": {
-      "sha256": "15e78aa8a7f258e1c60e3254bf59f85cca4f0e3a28fce7794cd728de9d8d8d62",
+      "sha256": "db521f34e7fab7d5861ebd99dbb09fe9f6452415bb694ba65ef89dfab6304a73",
       "executable": false
     },
     "src/bifocal/quality/page.ts": {
-      "sha256": "ec16a28a66ebe88a6bfb7147ac9cd58e3daa142834864d92d24f65492b496dbe",
+      "sha256": "52dda1dc604c9b511d07c81f0ab41d6f0fe77481d19ac347da7006f489378e66",
       "executable": false
     },
     "src/bifocal/quality/server.ts": {
-      "sha256": "28d5225c63a6bdab131eae09814e9ba83f3f402bccc5f2d07c1e8925da001085",
+      "sha256": "03eff1610c3421f8ba261754412961fcf46af24aacba43b2827b1ada21c4bf1c",
       "executable": false
     },
     "src/bifocal/query/context.ts": {
@@ -2473,7 +2477,7 @@
       "executable": false
     },
     "src/bifocal/query/execute.ts": {
-      "sha256": "db601b330f1d7cd6c379ccdc0d35169fc2d1603b90ea2f3e0d782b38d66ea6d1",
+      "sha256": "7dd8cfa7ef2eacd6ba103b73fb4e533abd9b4f8f14f5f48e0451ad59c55ce889",
       "executable": false
     },
     "src/bifocal/query/export-table.ts": {
@@ -2497,7 +2501,11 @@
       "executable": false
     },
     "src/bifocal/query/quality.server.ts": {
-      "sha256": "c5b0ac5ba4c16f3b36f4703216978fd4a48aa188d1a7a8e7378ebdd998a2ca7f",
+      "sha256": "f8f7737dcda90d48686031762a424410bac0826a2e4c69d8764c84de19dc0259",
+      "executable": false
+    },
+    "src/bifocal/query/references.ts": {
+      "sha256": "3a7e296455049df3ab4246dbb2dc07258fe2c245c1613d6cfddaa1afac08bc26",
       "executable": false
     },
     "src/bifocal/query/server.ts": {
@@ -4685,7 +4693,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "7d61300cea01f7570d0619044a8a9d9c24a33ff739f1c17d1611e07d7ef0c9c9",
+      "sha256": "2b3402174ead40c05ae5c5a27f544fb607b31e2723d7269c5a0a43d149d479f2",
       "executable": false
     },
     "tests/bifocal-questions.mjs": {
@@ -4721,7 +4729,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "f3bd27fa8796903871fbc80c8b5c51adf8c53d2c1c5de3b9fbc540c39811137b",
+      "sha256": "c8aaa1fb97404a20c60ad594cd01e78560d5d70baff4f1761ad9cc099428b3cb",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {

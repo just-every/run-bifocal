@@ -80,12 +80,12 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
     const lineages=page.locator('.quality-notice details').filter({has:page.getByText('Source columns and definition lineage',{exact:true})})
     assert.deepEqual(await lineages.locator('li:first-child').allTextContents(),[dataset+': invoice, region, revenue',dataset+': invoice, region, revenue'])
    }
-   if(interactive&&phase==='healthy')await proveDisclosureRefresh({page,proveScreen,container:page.locator('#published-dashboard'),settings:'Bookmarks, stories and display',interval:'Refresh interval seconds',start:'Start TV refresh',pause:'Pause TV refresh',endpoint:'/dashboard-authoring/'+saved.id+'/run',label:'quality-interactive-disclosure'})
+   if(interactive&&phase==='healthy')await proveDisclosureRefresh({page,proveScreen,changeEvidence:runQuality,container:page.locator('#published-dashboard'),settings:'Bookmarks, stories and display',interval:'Refresh interval seconds',start:'Start TV refresh',pause:'Pause TV refresh',endpoint:'/dashboard-authoring/'+saved.id+'/run',label:'quality-interactive-disclosure'})
    await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
   }
   if(kind==='dashboard'){
    const refreshed=await call('/dashboards/'+created.id+'/refresh',{maxAgeSeconds:3600});assert.equal(refreshed.cards.length,2);assert.deepEqual(refreshed.cards.map(card=>card.quality.state),[state,state])
-   await page.goto(origin+'/app/dashboards/'+created.id+'/tv');await page.locator('#tv-status').filter({hasText:'Dashboard refreshed'}).waitFor();assert.equal(await page.locator('#tv-cards .quality-notice').filter({hasText:'Quality '+state}).count(),2);if(phase==='healthy')await proveDisclosureRefresh({page,proveScreen,container:page.locator('#tv-cards'),settings:'Display settings',interval:'Refresh interval (seconds)',start:'Start',pause:'Pause',endpoint:'/dashboards/'+created.id+'/refresh',label:'quality-tv-disclosure'});await proveScreen('quality-tv-'+phase)
+   await page.goto(origin+'/app/dashboards/'+created.id+'/tv');await page.locator('#tv-status').filter({hasText:'Dashboard refreshed'}).waitFor();assert.equal(await page.locator('#tv-cards .quality-notice').filter({hasText:'Quality '+state}).count(),2);if(phase==='healthy')await proveDisclosureRefresh({page,proveScreen,changeEvidence:runQuality,container:page.locator('#tv-cards'),settings:'Display settings',interval:'Refresh interval (seconds)',start:'Start',pause:'Pause',endpoint:'/dashboards/'+created.id+'/refresh',label:'quality-tv-disclosure'});await proveScreen('quality-tv-'+phase)
   }
  }
  await readerProof('healthy','healthy')
@@ -129,7 +129,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
 }
 
 /** Refresh updates quality evidence while retaining each reader disclosure choice. */
-async function proveDisclosureRefresh({page,proveScreen,container,settings,interval,start,pause,endpoint,label}) {
+async function proveDisclosureRefresh({page,proveScreen,changeEvidence,container,settings,interval,start,pause,endpoint,label}) {
  for(const width of [1440,390]) {
   await page.setViewportSize({width,height:1000})
   const disclosures=container.locator('.quality-notice details').filter({has:page.getByText('Source columns and definition lineage',{exact:true})})
@@ -139,7 +139,10 @@ async function proveDisclosureRefresh({page,proveScreen,container,settings,inter
   if(!await settingsDisclosure.evaluate(node=>node.parentElement.open))await settingsDisclosure.click()
   await page.getByLabel(interval,{exact:true}).fill('1')
   await Promise.all([page.waitForResponse(response=>response.url().endsWith(endpoint)&&response.ok()),page.getByRole('button',{name:start,exact:true}).click()])
+  await changeEvidence()
+  await disclosures.first().locator('summary').focus()
   await page.waitForResponse(response=>response.url().endsWith(endpoint)&&response.ok())
+  assert.equal(await disclosures.first().locator('summary').evaluate(node=>node===document.activeElement),true,label+' retains keyboard focus')
   await page.getByRole('button',{name:pause,exact:true}).click()
   assert.deepEqual(await disclosures.evaluateAll(nodes=>nodes.map(node=>node.open)),[true,false],label+' preserves open and closed state after automatic refresh at '+width)
   await proveScreen(label,{widths:[width],resize:false})

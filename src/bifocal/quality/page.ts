@@ -1,12 +1,13 @@
 // The Data quality page: overall state, the rules with their run actions, then the add-rule form and each failed run's
 // waiver in its own card. A refused submit comes back through the same builder with the person's values.
+import type { QualityTest } from './evidence.server'
 import { escapeHtml } from '../../app/shell'
 import { details, hidden } from '../metrics/transport'
 import { actions, control, formPanel, refusalLine, SEP, type Refusal } from '../metrics/forms'
 
 type RuleRow = { id: string; dataset_id: string; rule_json: string }
 type History = { id: string; rule_id: string; source_revision: string|null; created_at: string; result: { state: string } }
-type Quality = { state: string; tests: Record<string, unknown>[] }
+type Quality = { state: string; tests: QualityTest[] }
 
 const STATES: Record<string, string> = { passed: 'Passed', failed: 'Failed', unknown: 'Not checked on current data' }
 
@@ -16,9 +17,12 @@ export function qualityMain(rules: RuleRow[], histories: History[], quality: Qua
  const rule = `<div class="fields">${control('rule', 'id', 'Rule ID', { refusal, hint: 'Lowercase letters, digits and hyphens, for example orders-not-null.' })}${control('rule', 'dataset', 'Dataset ID', { refusal, hint: 'An imported dataset, as named at Files.' })}</div>`
   + control('rule', 'definition', 'Rule definition (JSON)', { refusal, rows: 6, hint: 'Kinds: freshness, not-null, unique, accepted-values, count, money. Supply a name and the relevant column, expected value, accepted values or maximum age in seconds.' })
  const names = new Map(rules.map(r => [r.id, (JSON.parse(r.rule_json) as { name: string }).name]))
- const waivers = histories.filter(r => r.result.state === 'failed').map(r => formPanel(`waive-${r.id}`, `Review waiver for ${names.get(r.rule_id) ?? r.rule_id}`, `/api/operator/quality/runs/${r.id}/waive`,
-  `<p class="meta">Failed run ${r.id}</p><p class="hint">A waiver records an exception until it expires; it never turns a failure into healthy data.</p><div class="fields">${control(`waive-${r.id}`, 'reason', 'Exception reason', { refusal })}${control(`waive-${r.id}`, 'expiresAt', 'Expiry (ISO timestamp)', { refusal, hint: 'Within the next 30 days, for example 2026-11-15T17:00:00Z.' })}</div>${hidden('confirm', 'waive')}` + actions('Record expiring waiver', false), refusal)).join('')
+ const current=quality.tests.filter(test=>test.currentEvidence).map(test=>({id:test.runId!,rule_id:test.ruleId!,source_revision:test.sourceRevision,created_at:test.currentEvidence!.checkedAt,result:test.currentEvidence!.result}))
+ const waiverRuns=[...new Map([...histories.filter(r=>r.result.state==='failed'),...current.filter(r=>r.result.state==='failed')].map(run=>[run.id,run])).values()]
+ const waivers = waiverRuns.map(r => formPanel(`waive-${r.id}`, `Review waiver for ${names.get(r.rule_id) ?? r.rule_id}`, `/api/operator/quality/runs/${r.id}/waive`,
+  `<p class="meta">${current.some(check=>check.id===r.id)?'Current failed freshness evidence for run':'Failed run'} ${r.id}</p><p class="hint">A waiver records an exception until it expires; it never turns a failure into healthy data.</p><div class="fields">${control(`waive-${r.id}`, 'reason', 'Exception reason', { refusal })}${control(`waive-${r.id}`, 'expiresAt', 'Expiry (ISO timestamp)', { refusal, hint: 'Within the next 30 days, for example 2026-11-15T17:00:00Z.' })}</div>${hidden('confirm', 'waive')}` + actions('Record expiring waiver', false), refusal)).join('')
  return `<p class="meta">Overall: ${escapeHtml(quality.state[0].toUpperCase()+quality.state.slice(1))}</p>${refusalLine(refusal, 'page')}${details('Current tests and expiry', quality)}<section class="panel"><h2>Rules</h2>${refusalLine(refusal, 'run')}${list}</section>`
   + formPanel('rule', 'Add a quality rule', '/api/operator/quality/rules', rule + actions('Save rule'), refusal)
+  + `<section class="panel"><h2>Current quality evidence</h2>${current.map(check=>`<article id="evidence-${check.rule_id}"><h3>${escapeHtml(names.get(check.rule_id)??check.rule_id)} · ${escapeHtml(STATES[check.result.state]??check.result.state)}</h3><p class="meta">Checked ${escapeHtml(check.created_at)} · source ${escapeHtml(check.source_revision??'unavailable')}</p>${details('Exact current evidence',check)}<p><a href="#run-${check.id}">Original recorded run</a></p></article>`).join('')||'<p>No changed quality evidence.</p>'}</section>`
   + `<section class="panel"><h2>Run history</h2>${histories.map(run=>`<article id="run-${run.id}"><h3>${escapeHtml(names.get(run.rule_id)??run.rule_id)} · ${escapeHtml(STATES[run.result.state]??run.result.state)}</h3><p class="meta">${escapeHtml(run.created_at)} · source ${escapeHtml(run.source_revision??'unavailable')}</p>${details('Exact run and failing row numbers',run)}</article>`).join('')}</section>` + waivers
 }

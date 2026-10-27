@@ -1,13 +1,17 @@
+import { queryReference } from '../../query/references'
 import type { Query } from '../../query/types'
 
 /** Resolve source identities using the executable query's alias semantics. */
-export function queryDependencies(query:Query) {
+export type DependencySchema={dataset:string;columns:string[]}
+export function queryDependencies(query:Query,schemas:DependencySchema[]) {
+ const references=new Map<string,{dataset:string;column:string}>()
+ for(const {dataset,as} of [{dataset:query.dataset,as:'base'},...query.joins])for(const column of schemas.find(source=>source.dataset===dataset)?.columns??[])references.set(as+'.'+column,{dataset,column})
  const dependencies=new Map<string,Set<string>>()
  const add=(dataset:string,column:string)=>{const columns=dependencies.get(dataset)??new Set<string>();columns.add(column);dependencies.set(dataset,columns)}
  const column=(name:unknown)=>{
   if(typeof name!=='string')return
-  const at=name.indexOf('.'),join=at<0?null:query.joins.find(j=>j.as===name.slice(0,at))
-  if(join)add(join.dataset,name.slice(at+1));else add(query.dataset,name.startsWith('base.')?name.slice(5):name)
+  const physical=references.get(queryReference(name,references))
+  if(physical)add(physical.dataset,physical.column)
  }
  dependencies.set(query.dataset,new Set())
  for(const join of query.joins){column(join.left);add(join.dataset,join.right);if(join.effective){column(join.effective.asOf);add(join.dataset,join.effective.from);add(join.dataset,join.effective.to)}}

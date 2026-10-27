@@ -1,4 +1,4 @@
-import {qualityNotice} from './quality.js'
+import {updateQualityNotice} from './quality.js'
 import {element,table} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
@@ -72,7 +72,7 @@ function updateTile(tile){
  section.dataset.state=tile.status;section.setAttribute('aria-busy',String(tile.status==='loading'));section.setAttribute('aria-label',tile.title)
  setText(view.title,tile.title)
  if(tile.status==='loading')return view
- view.quality.replaceChildren(qualityNotice(tile.quality,zone))
+ updateQualityNotice(view.quality,tile.quality,zone)
  setText(view.state,names[tile.status]);view.state.dataset.state=tile.status
  const data=tile.data,notes=[]
  section.dataset.error=tile.error??''

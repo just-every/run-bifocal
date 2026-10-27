@@ -1,3 +1,4 @@
+import { dependencySchemas } from '../models/lineage/schemas.server'
 import type { Bindings } from '../../auth.server'
 import type { D1Sql } from '../../modules/import-kit/src/d1/types.ts'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -10,7 +11,7 @@ import { queryDependencies } from '../models/lineage/dependencies'
  * a newer answer or promotes a source, model or metric. */
 export async function retainedQuality(env:Bindings,authority:D1Sql,ownerId:string,snapshot:Snapshot) {
  const {quality,guards,schemas}=await inspectQuality(env,snapshot.answer.sourceWatermarks.map(s=>s.dataset),ownerId)
- const lineage=queryDependencies(snapshot.definition)
+ const lineage=queryDependencies(snapshot.definition,await dependencySchemas(env,snapshot.snapshotId))
  for(const dependency of lineage){const source=schemas.find(source=>source.dataset===dependency.dataset);if(source)for(const column of dependency.columns)if(!source.columns.includes(column)){quality.tests.push({dataset:dependency.dataset,column,state:'unknown',reason:'column_unavailable',sourceRevision:source.revision});if(quality.state!=='at risk')quality.state='unknown'}}
  const matches=quality.tests.every(test=>snapshot.answer.sourceWatermarks.some(s=>s.dataset===test.dataset&&s.revision===test.sourceRevision))
  if(quality.state==='healthy'&&matches) {

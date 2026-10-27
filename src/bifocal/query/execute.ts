@@ -1,3 +1,4 @@
+import { queryReference } from './references'
 import { fiscalFilters, validateGrain } from '../models/semantics'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { plus as add, decimal, divide, times as multiply, rational, rounded, type Rational } from '../currency/decimal'
@@ -11,7 +12,7 @@ export function execute(query: Query, sources: Source[], context: Context, captu
  const tableFor = (dataset: string) => sources.find(s => s.id === dataset)!.table
  function register(dataset: string, alias: string) { for (const c of tableFor(dataset).columns) columns.set(`${alias}.${c.name}`, { type: c.type, alias }) }
  register(query.dataset, 'base'); for (const j of query.joins) register(j.dataset, j.as)
- const resolve = (ref: string) => { const normalized = columns.has(ref) ? ref : `base.${ref}`; if (!columns.has(normalized)) fail('unknown_column'); return normalized }
+ const resolve = (ref: string) => { const normalized = queryReference(ref,columns); if (!columns.has(normalized)) fail('unknown_column'); return normalized }
  const col = (ref: string) => columns.get(resolve(ref))!
  const numeric = (ref: string) => { if (!['number','money'].includes(col(ref).type)) fail('numeric_column_required'); if (col(ref).alias !== 'base') fail('measure_grain_base_required') }
  validateGrain(query,base,columns,resolve)

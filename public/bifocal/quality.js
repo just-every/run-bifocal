@@ -9,7 +9,7 @@ export function qualityNotice(quality,zone) {
  if(quality.lastGood) {
   const last=quality.lastGood,link=element('a','Retained last-good result');link.href='/app/queries/'+last.queryId
   const dated=element('p',undefined,'meta');dated.append(link,' · saved '+stamp(last.createdAt,zone)+' · checked '+stamp(last.checkedAt,zone));notice.append(dated)
-  const values=element('details');values.append(element('summary','Last-good values'),table('Retained last-good totals',['Measure','Value'],Object.entries(last.answer.totals).map(([id,value])=>[label(id),value.state==='value'?figure(value.value,value.unit,last.currency):value.state])));notice.append(values)
+  const values=element('details');values.dataset.qualityDisclosure='last-good';values.append(element('summary','Last-good values'),table('Retained last-good totals',['Measure','Value'],Object.entries(last.answer.totals).map(([id,value])=>[label(id),value.state==='value'?figure(value.value,value.unit,last.currency):value.state])));notice.append(values)
  } else notice.append(element('p','No qualified last-good result has been retained for this answer.','meta'))
  const tests=element('ul')
  for(const test of quality.tests.filter(test=>test.state!=='passed')) {
@@ -26,7 +26,7 @@ export function qualityNotice(quality,zone) {
   for(const source of quality.lineage)list.append(element('li',source.dataset+': '+(source.columns.join(', ')||'row count')))
   list.append(element('li','Model revision: '+quality.modelRevision))
   if(quality.metric)list.append(element('li','Metric: '+quality.metric.id+' · revision '+quality.metric.revision))
-  detail.append(summary,list);notice.append(detail)
+  detail.dataset.qualityDisclosure='lineage';detail.append(summary,list);notice.append(detail)
  }
  return notice
 }
@@ -42,4 +42,21 @@ export function promotionNotice(quality) {
  }
  panel.append(tests,element('p','Retained answers keep their original dated results.'))
  return panel
+}
+
+/** Background evidence updates keep each disclosure choice and keyboard focus. */
+export function updateQualityNotice(container,quality,zone) {
+ const key=JSON.stringify(quality)
+ if(container.dataset.quality===key)return
+ const disclosures=new Map([...container.querySelectorAll('details[data-quality-disclosure]')].map(node=>[node.dataset.qualityDisclosure,node]))
+ const next=qualityNotice(quality,zone),focused=document.activeElement
+ let restoreFocus=null
+ for(const detail of next.querySelectorAll('details[data-quality-disclosure]')) {
+  const previous=disclosures.get(detail.dataset.qualityDisclosure)
+  if(!previous)continue
+  detail.open=previous.open
+  if(previous.contains(focused))restoreFocus=detail.querySelector('summary')
+ }
+ container.replaceChildren(next);container.dataset.quality=key
+ restoreFocus?.focus({preventScroll:true})
 }
