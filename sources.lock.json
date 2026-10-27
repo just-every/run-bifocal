@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "db6b55f32b9211993e2a386dfda6bfeeca65e4fe055ba32ba0a52aef7edb8ffc",
+      "sha256": "c0d9ab75e800e9bd92d0a89adf91b97391a67fbb468ec9c2d43d03a42cda88c8",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1a1d12f79e9f6f00231c16325f66f091feb87099f6053be37ac2c1b35351968f",
+      "sha256": "94089af35a73e2e8566e0a9d5dffce83b49c23eed2a62f1ab544036064411ae7",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -453,7 +453,7 @@
       "executable": false
     },
     "docs/SEMANTIC-MODELS.md": {
-      "sha256": "d4007c4a659dbc1cec32c12c46e238b7626cac0fc8828f0dc545123ae8568001",
+      "sha256": "996040fef5b0f256519501383c3951a7c964ea96cd10ea216d68bf774af743c3",
       "executable": false
     },
     "docs/sign-in.md": {
@@ -917,7 +917,7 @@
       "executable": false
     },
     "public/bifocal/model-import.js": {
-      "sha256": "cfb0b5a37f9e34d262f77ccbf417e6f64a711c676a38e93ba91bacb4f786b865",
+      "sha256": "42aaf58cef28a1fd19759b4a2c000375fed954badbca461aa3326a4a3ef3620d",
       "executable": false
     },
     "public/bifocal/models.js": {
@@ -4769,7 +4769,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "c0ae731ec3474f6679a91a1413fb3090e7f33c57eb61728750b273e8f94b5024",
+      "sha256": "50dd853aa3d93fbd14e319b9a6c4fb9c2723e311426e1c2d62a456d3829a8a29",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
