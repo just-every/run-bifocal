@@ -14,14 +14,15 @@ export function prepExpressions(text: string): Map<string, string> {
   }
   return JSON.parse(text.slice(start, at)) as string
  }
- const value = (path: string): void => {
+ const value = (path: string, depth = 0): void => {
+  if(depth>64||spans.size>20000)throw Error('Preparation JSON nesting or item count exceeds the reader bounds.')
   space()
   const start = at
   if (text[at] === '{') {
    at++; space()
    while (text[at] !== '}') {
     const key = string(); space(); at++
-    value(`${path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`)
+    value(`${path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`,depth+1)
     space()
     if (text[at] !== ',') break
     at++; space()
@@ -31,13 +32,14 @@ export function prepExpressions(text: string): Map<string, string> {
    at++; space()
    let index = 0
    while (text[at] !== ']') {
-    value(`${path}/${index++}`); space()
+    value(`${path}/${index++}`,depth+1); space()
     if (text[at] !== ',') break
     at++
    }
    at++
   } else if (text[at] === '"') string()
   else while (at < text.length && !/[\s,\]}]/.test(text[at])) at++
+  if(spans.has(path))throw Error('Duplicate preparation JSON property.')
   spans.set(path, { start, end: at })
  }
  value('')

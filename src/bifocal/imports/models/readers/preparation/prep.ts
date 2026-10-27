@@ -153,6 +153,7 @@ export function readPrep(files: FlowFile[]): SourceFlow[] {
   catch { return candidate ? [unsupported(file, 'Tableau Prep flow document is not valid JSON; packaged flows must be decoded before reading.')] : [] }
   const document = prepObject(parsed)
   if (!candidate && (!/\.json$/i.test(file.path) || !document || !('nodes' in document))) return []
-  return document ? readDocument(file, document) : [unsupported(file, 'Tableau Prep flow document must be an object.')]
+  if(!document)return [unsupported(file, 'Tableau Prep flow document must be an object.')]
+  try{return readDocument(file,document)}catch{return [unsupported(file,'Tableau Prep JSON has duplicate properties or exceeds bounded nesting and item counts.')]}
  })
 }

@@ -53,7 +53,7 @@ in Long`
  }
  for(const mismatch of ['order','null','duplicate','type','snapshot']){
   const input=structuredClone(variants[0]);input.projectId='synthetic-bifocal-compare-'+mismatch
-  const ref=input.sourceOutputs[0]
+  const ref=input.sourceOutputs[0];ref.rows=ref.rows.map(row=>[...row]);ref.columns=ref.columns.map(column=>({...column}))
   if(mismatch==='order')ref.rows.reverse()
   if(mismatch==='null')ref.rows[1][1]='0'
   if(mismatch==='duplicate')ref.rows.splice(2,1)
@@ -65,7 +65,7 @@ in Long`
   if(mismatch==='type')assert.equal(flow.steps[0].comparison.schemaEqual,false)
   await apply(input.projectId,plan);const current=await call('/model-imports/'+input.projectId);await call('/model-imports/'+input.projectId+'/preparation',{reviewedRevision:current.revision,flow:flow.id},409)
  }
- const unordered=structuredClone(variants[0]);unordered.projectId='synthetic-bifocal-unordered';unordered.sourceOutputs[0].rows.reverse();unordered.sourceOutputs[0].ordered=false
+ const unordered=structuredClone(variants[0]);unordered.projectId='synthetic-bifocal-unordered';unordered.sourceOutputs[0].rows=[...unordered.sourceOutputs[0].rows].reverse();unordered.sourceOutputs[0].ordered=false
  const multiset=await prepare(unordered);assert.equal(multiset.project.report.compatible,true);assert.equal(multiset.project.preparation[0].steps[0].comparison.multisetEqual,true);assert.equal(multiset.project.preparation[0].steps[0].comparison.orderEqual,false);assert.equal(multiset.project.preparation[0].steps[0].rowEquivalence,'matched')
  const first=imported[0],prepId='synthetic-bifocal-translated',path='/preparations/'+prepId,document=first.native.document
  const review=await call(path+'/review',{document,previousVersion:null},200);assert.equal(review.compatible,true);assert.deepEqual(review.output.rows,long)
@@ -104,6 +104,7 @@ in Long`
  const unsupported=structuredClone(prep);unsupported.nodes.input.nextNodes=[{nextNodeId:'script'}];unsupported.nodes.script={id:'script',name:'Python',nodeType:'.v1.Script',baseType:'transform',script:'raise Exception("must stay inert")',nextNodes:[{nextNodeId:'output'}]}
  const prepBad=envelope('synthetic-bifocal-prep-blocked','prep',[{path:'synthetic-bifocal-2.tfl',content:JSON.stringify(unsupported)}]),prepPlan=await prepare(prepBad);assert.equal(prepPlan.project.report.compatible,false);assert.deepEqual(prepPlan.project.preparation[0].steps.map(s=>[s.name,s.status]),[['Orders','translated'],['Result','blocked'],['Python','unsupported']]);assert.match(prepPlan.project.preparation[0].steps.find(s=>s.name==='Python').reason,/Script/)
  await apply(prepBad.projectId,prepPlan);const prepCurrent=await call('/model-imports/'+prepBad.projectId);await call('/model-imports/'+prepBad.projectId+'/preparation',{reviewedRevision:prepCurrent.revision,flow:prepPlan.project.preparation[0].id},409)
+ const duplicate=envelope('synthetic-bifocal-prep-duplicate','prep',[{path:'synthetic-bifocal-4.tfl',content:'{"nodes":{"input":{"id":"input","name":"Orders","nodeType":".v1.LoadCsv","baseType":"input"},"input":{"id":"input","name":"Other","nodeType":".v1.LoadCsv","baseType":"input"}},"initialNodes":["input"]}'}]);const duplicatePlan=await prepare(duplicate);assert.equal(duplicatePlan.project.report.compatible,false);assert.match(duplicatePlan.project.report.issues[0].message,/duplicate/i)
  // An unsafe archive never yields guessed source data or a draft.
  const unsafe=envelope('synthetic-bifocal-prep-unsafe','prep',[{path:'synthetic-bifocal-3.tflx',content:Buffer.from(zipSync({'../flow':strToU8(JSON.stringify(prep))})).toString('base64')}]);const refused=await prepare(unsafe);assert.equal(refused.project.report.compatible,false);assert.match(refused.project.report.issues[0].message,/unsafe/i)
  const signedOut=await context.browser().newContext({ignoreHTTPSErrors:true});try{assert.equal((await signedOut.request.get(origin+'/api/operator/model-imports/'+projectId)).status(),401)}finally{await signedOut.close()}

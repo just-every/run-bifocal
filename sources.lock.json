@@ -2161,7 +2161,7 @@
       "executable": false
     },
     "src/bifocal/imports/models/readers/preparation/m-documents.ts": {
-      "sha256": "7fb66ce1262554984eccd4b038d472eadbe8815abb32da3af13d5a54367066e7",
+      "sha256": "db496a7bec435d964044a6a9a9a85ebb6da0866d4a14fe0d40772c33a29a738d",
       "executable": false
     },
     "src/bifocal/imports/models/readers/preparation/m-operations.ts": {
@@ -2177,11 +2177,11 @@
       "executable": false
     },
     "src/bifocal/imports/models/readers/preparation/prep-json.ts": {
-      "sha256": "a653f913f925f9a7adae5eaa0795f22b149ad3a873c57d50deda800d836a9850",
+      "sha256": "974639c23c115a1dd9dfe4ba91d56748d0c6b55d0f73de59fc97fb9bbe0b8dbf",
       "executable": false
     },
     "src/bifocal/imports/models/readers/preparation/prep.ts": {
-      "sha256": "7d5630736c8caa4d258703ef5b5572ca8e62639165673505c54926d471693b3c",
+      "sha256": "c8668c35e0082bc4fd68334cc0fb9f941ac682402a39921976e4ad7d000f22b1",
       "executable": false
     },
     "src/bifocal/imports/models/readers/preparation/types.ts": {
@@ -4793,7 +4793,7 @@
       "executable": false
     },
     "tests/journeys/preparation-import.mjs": {
-      "sha256": "20bcdc3d82916c91c20af3e462964881f5ebe75ef0484290b7a4b2da1a303830",
+      "sha256": "7802d4389a6a6465e2750b4fdf64b5c6e9c0d780c17a72ca657658f0d95ae56c",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {

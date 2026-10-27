@@ -1,6 +1,8 @@
+import { prepExpressions } from './prep-json'
 import type { FlowFile } from './types'
 
 export type MDocument = { file: FlowFile; content: string; name: string; base: number; prefix: string; reason?: string; metadata?: Record<string, unknown> }
+const parseJSON=(text:string):unknown=>{const value:unknown=JSON.parse(text);prepExpressions(text);return value}
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 const basename = (path: string) => path.split(/[\\/]/).at(-1)!.replace(/\.[^.]+$/, '')
 const document = (file: FlowFile, extra: Partial<MDocument> = {}): MDocument => ({ file, content: file.content, name: basename(file.path), base: 0, prefix: '', ...extra })
@@ -52,12 +54,12 @@ function gen2(file: FlowFile, value: Record<string, unknown>): MDocument[] | nul
   if (part.path === 'mashup.pq') { mashup = true; out.push(document(virtual, { prefix: prefix + 'mashup.pq ', metadata: { definitionPart: part.path } })); continue }
   if (part.path === 'queryMetadata.json') {
    metadata = true
-   try { const parsed: unknown = JSON.parse(content); out.push(...metadataDocument(virtual, parsed, prefix)) } catch { out.push(problem(virtual, 'Dataflow queryMetadata.json is malformed.', { prefix })) }
+   try { const parsed: unknown = parseJSON(content); out.push(...metadataDocument(virtual, parsed, prefix)) } catch { out.push(problem(virtual, 'Dataflow queryMetadata.json is malformed.', { prefix })) }
    continue
   }
   if (part.path === '.platform') {
    try {
-    const platform: unknown = JSON.parse(content)
+    const platform: unknown = parseJSON(content)
     if (!object(platform) || !object(platform.metadata) || platform.metadata.type !== 'Dataflow') out.push(problem(virtual, 'Dataflow platform metadata has an unsupported item type.', { prefix }))
    } catch { out.push(problem(virtual, 'Dataflow platform metadata is malformed.', { prefix })) }
    continue
@@ -71,7 +73,7 @@ function gen2(file: FlowFile, value: Record<string, unknown>): MDocument[] | nul
 
 function jsonDocuments(file: FlowFile): MDocument[] {
  let parsed: unknown
- try { parsed = JSON.parse(file.content) } catch { return [problem(file, 'Malformed JSON preparation container.') ] }
+ try { parsed = parseJSON(file.content) } catch { return [problem(file, 'Malformed JSON preparation container.') ] }
  if (!object(parsed)) return [problem(file, 'Preparation JSON container must be an object.')]
  const envelope = gen2(file, parsed)
  if (envelope) return envelope
@@ -142,12 +144,12 @@ export function mDocuments(files: FlowFile[]): MDocument[] {
   if (/\.(?:pq|m)$/i.test(file.path)) {
    const doc = document(file), metadata = metadataFiles.get(file.path.replace(/[^/]*$/, ''))
    if (metadata) {
-    try { const parsed: unknown = JSON.parse(metadata.content); doc.metadata = { container: 'dataflow-gen2', ...(object(parsed) ? { documentLocale: parsed.documentLocale, queriesMetadata: parsed.queriesMetadata } : {}) } } catch { /* The metadata file receives its own diagnostic. */ }
+    try { const parsed: unknown = parseJSON(metadata.content); doc.metadata = { container: 'dataflow-gen2', ...(object(parsed) ? { documentLocale: parsed.documentLocale, queriesMetadata: parsed.queriesMetadata } : {}) } } catch { /* The metadata file receives its own diagnostic. */ }
    }
    out.push(doc)
   } else if (/\.tmdl$/i.test(file.path)) out.push(...tmdlDocuments(file))
   else if (/(?:^|\/)queryMetadata\.json$/i.test(file.path)) {
-   try { const parsed: unknown = JSON.parse(file.content); out.push(...metadataDocument(file, parsed, 'queryMetadata.json ')) } catch { out.push(problem(file, 'Dataflow query metadata is malformed.')) }
+   try { const parsed: unknown = parseJSON(file.content); out.push(...metadataDocument(file, parsed, 'queryMetadata.json ')) } catch { out.push(problem(file, 'Dataflow query metadata is malformed.')) }
   } else if (/\.json$/i.test(file.path)) out.push(...jsonDocuments(file))
   else out.push(problem(file, 'Unsupported preparation file; supply textual M, TMDL M partitions or a documented dataflow definition.'))
  }
