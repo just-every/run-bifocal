@@ -81,7 +81,9 @@ p{margin:0 0 12px;text-wrap:pretty}
 .dot{margin:0 8px;color:var(--app-muted)}
 .section{margin:40px 0 4px}
 .hint,.muted{color:var(--app-muted);font-size:15px}
-label .hint{font-weight:400}
+/* A field with a hint: the label (its name stays just the label text), then the hint, tied by aria-describedby. */
+.field{display:grid;align-content:start;gap:6px}
+.field>.hint{margin:0}
 .note{margin:20px 0;padding:16px 20px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text-2);font-size:15px}
 /* A wrapped links line breaks before its "·", never after it, with room for 24 px targets. */
 .links{margin-top:24px;font-size:16px;line-height:2}
