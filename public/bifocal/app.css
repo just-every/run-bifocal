@@ -56,6 +56,7 @@ h3{font-size:17px;line-height:1.4;font-weight:700}
 p{margin:0 0 12px;text-wrap:pretty}
 .main>h1{margin-bottom:12px}
 .pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:24px}
+.pagehead>button{flex:none;white-space:nowrap}
 .lead,.meta{margin:8px 0 0;color:var(--app-text-2);font-size:16px}
 .dot{margin:0 8px;color:var(--app-muted)}
 .section{margin:40px 0 4px}
@@ -183,11 +184,12 @@ body[data-kind]:not([data-id=""]) .main>h1{font:500 15px/1.4 var(--font-ui);lett
 .tablepanel{padding:0;overflow:hidden}
 .tablewrap{overflow-x:auto;max-width:100%}
 .tablewrap:focus-visible{outline-offset:-2px}
-table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums;overflow-wrap:break-word}
 caption{padding:18px 24px 14px;text-align:left;font:700 18px/1.35 var(--font-sans);color:var(--app-text)}
 th{padding:10px 24px;background:var(--app-sunk);color:var(--app-text-2);font-size:14px;font-weight:600;text-align:left;white-space:nowrap;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}
 td{padding:12px 24px;border-bottom:1px solid var(--app-line);color:var(--app-text);vertical-align:top;max-width:320px}
 tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
 td.num{text-align:right;font-family:var(--font-mono);font-size:14px;white-space:nowrap;overflow-wrap:normal}
 th.num{text-align:right}
 .panel:not(.tablepanel) .tablewrap{margin:12px -28px -24px}
@@ -236,9 +238,16 @@ ul{padding-left:20px}
 @media (max-width:760px){
  body{font-size:16px}
  .topbar{padding:12px 16px 0}
- .lockup{font-size:24px;gap:10px}
- .lockup img{width:60px;height:29px}
+ .lockup{font-size:22px;gap:10px}
+ .lockup img{width:54px;height:26px}
  .avatar{width:36px;height:36px}
+ /* A demo's Run link sits beside the lockup; the bar keeps one row by setting the lockup smaller and leaving out the
+    decorative initials disc (Sign out stays). */
+ .topbar:has([data-rer-demo-exit]){gap:0 10px}
+ .topbar:has([data-rer-demo-exit]) .lockup{font-size:20px;gap:8px}
+ .topbar:has([data-rer-demo-exit]) .lockup img{width:46px;height:22px}
+ .topbar:has([data-rer-demo-exit]) .avatar{display:none}
+ .account button.quiet{padding:6px 8px}
  .account{gap:8px}
  /* Every tool stays in view on a phone: the row wraps instead of scrolling a tool off the edge. */
  .tools{flex:0 0 calc(100% + 32px);flex-wrap:wrap;margin:10px -16px 0;padding:0 16px;gap:0 20px;overflow:visible}
@@ -252,15 +261,22 @@ ul{padding-left:20px}
  .answer-actions{justify-content:flex-start}
  .cards,.fields{grid-template-columns:minmax(0,1fr)}
  .panel{padding:18px}
+ .tablepanel{padding:0}
  .panel:not(.tablepanel) .tablewrap{margin:12px -18px -18px}
  .people{padding:0 18px}
  .person{grid-template-columns:40px minmax(0,1fr)}
  .person form{grid-column:2}
  .inline-form{flex-direction:column;align-items:stretch}
  .inline-form label{max-width:none}
- .kpi{padding:16px 18px}
- .kpi+.kpi{border-left:0;border-top:1px solid var(--app-line)}
- .kpi-value{font-size:28px}
+ /* Figures pair up two to a row on a phone, each cell parted by a hairline. */
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .kpi{padding:16px}
+ .kpi+.kpi{border-left:0}
+ .kpi:nth-child(even){border-left:1px solid var(--app-line)}
+ .kpi:nth-child(n+3){border-top:1px solid var(--app-line)}
+ .kpi-value{font-size:24px}
+ .kpi-label{font-size:16px}
+ .kpi-id{font-size:14px}
  .warning{padding:16px 16px 16px 52px}
  .warning::before{left:16px;top:15px}
  .actions button{flex:1 1 auto}
