@@ -19,7 +19,7 @@ export const field=(name:string,label:string,value='',kind='text')=>`<label>${es
 export const hidden=(name:string,value:unknown)=>`<input type="hidden" name="${name}" value="${escapeHtml(String(value))}">`
 export const details=(label:string,value:unknown)=>`<details class="panel"><summary>${escapeHtml(label)}</summary><pre>${escapeHtml(JSON.stringify(value,null,2))}</pre></details>`
 // The Governed data side list marks its section as the current page: a metric's pages light Metrics, a goal's Goals.
-const governed:[string,string,string][]=[['metrics','/app/metrics','Metrics'],['goals','/app/goals','Goals'],['quality','/app/quality','Data quality']]
+const governed:[string,string,string][]=[['metrics','/app/metrics','Metrics'],['goals','/app/goals','Goals'],['inputs','/app/inputs','Input tables'],['quality','/app/quality','Data quality']]
 export const sectionDocument=(section:'metrics'|'goals'|'quality')=>(title:string,viewer:{displayName:string;role:string},main:string,status=200)=>
  new Response(appDocument({title:title+' · Bifocal',viewer,place:'metrics',side:`<nav class="sidelist" aria-label="Governed data">${governed.map(([id,href,label])=>`<a href="${href}"${id===section?' aria-current="page"':''}>${label}</a>`).join('')}<a href="/app/queries">Exact answers</a></nav>`,main:`<h1>${escapeHtml(title)}</h1>${main}`}),{status,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'strict-origin','content-security-policy':`default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; ${appPolicy}`}})
 export const document=sectionDocument('metrics')
