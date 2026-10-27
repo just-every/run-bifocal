@@ -5,6 +5,22 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  assert.equal((await call('/reports/'+report.id)).quality.state,'unknown')
  for(const [id] of rules){const r=await call('/quality/rules/'+id+'/run',{});assert.equal(r.result.state,'passed')}
  const qualified=await call('/reports/'+report.id);assert.equal(qualified.quality.state,'healthy');assert.equal(qualified.quality.lastGood.queryId,qualified.queryId);assert.ok(Number.isFinite(Date.parse(qualified.quality.lastGood.checkedAt)));assert.deepEqual(qualified.quality.lastGood.answer,qualified.answer)
+ const checkedTime=clock.now()
+ await clock.set(new Date(checkedTime+3601000).toISOString())
+ const expired=(await call('/reports/'+report.id)).quality.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh')
+ assert.equal(expired.state,'failed')
+ await page.goto(origin+expired.href)
+ const evidence=page.locator(new URL(origin+expired.href).hash)
+ await evidence.waitFor();assert.match(await evidence.innerText(),/Recent source · Failed/,'Expired freshness links to failed current evidence')
+ assert.equal((await call('/quality')).histories.find(run=>run.id===expired.runId).result.state,'passed','Historical run remains immutable')
+ await call('/quality/runs/'+expired.runId+'/waive',{reason:'Reviewed expired observation',expiresAt:new Date(clock.now()+1000).toISOString(),confirm:'waive'})
+ let expiredQuality=(await call('/reports/'+report.id)).quality
+ assert.equal(expiredQuality.state,'at risk');assert.equal(expiredQuality.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh').waiver.active,true)
+ await proveScreen('/app/quality','quality-expired-freshness')
+ await clock.set(new Date(clock.now()+1001).toISOString())
+ expiredQuality=(await call('/reports/'+report.id)).quality
+ assert.equal(expiredQuality.state,'at risk');assert.equal(expiredQuality.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh').waiver.active,false)
+ await clock.set(new Date(checkedTime).toISOString())
  await call('/dashboards/'+dashboard.id)
  const impact=await call('/quality/impact/'+dataset+'?column=customer');assert.ok(impact.artifacts.some(a=>a.id===report.id));assert.ok(impact.metrics.some(m=>m.id==='synthetic-bifocal-customers'))
  const failedData=`invoice,date,customer,revenue,state\n1,${us},c1,$10.01,active\n1,${us},c1,$20.02,active\n3,${us},c2,-$0.03,inactive\n`
@@ -39,5 +55,22 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  const repaired=await call('/queries/'+qualified.queryId);assert.equal(repaired.quality.state,'healthy');assert.deepEqual(repaired.answer,qualified.answer);assert.deepEqual(repaired.quality.lastGood.answer,qualified.answer)
  await proveScreen('/app/queries/'+qualified.queryId,'quality-answer-repaired')
  await proveScreen('/app/quality','quality-repaired')
+ // Physical dotted source names and logical result IDs have separate identities.
+ const dotted=good.trimEnd().split('\n').map((line,index)=>line+','+(index===0?'base.amount,labels.amount':[['7','13'],['-2','0'],['0','-1']][index-1].join(','))).join('\n')+'\n'
+ await upload(dotted,true);for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
+ const dottedQuery={...repaired.definition,filters:[],groupBy:[],semantic:undefined,measures:[{id:'logical-total',op:'sum',column:'base.amount',unit:'number',scale:0}]}
+ const dottedAnswer=await call('/queries/run',dottedQuery)
+ assert.equal(dottedAnswer.answer.totals['logical-total'].value,'5')
+ const dottedRead=await call('/queries/'+dottedAnswer.queryId)
+ assert.equal(dottedRead.quality.state,'healthy','An executable dotted physical column is available to quality')
+ assert.deepEqual(dottedRead.quality.lineage,[{dataset,columns:['base.amount']}])
+ const dottedImpact=await call('/quality/impact/'+dataset+'?column=base.amount')
+ assert.ok(dottedImpact.queries.includes(dottedAnswer.queryId),'Dropping the physical dotted column includes its retained answer')
+ assert.ok(!(await call('/quality/impact/'+dataset+'?column=amount')).queries.includes(dottedAnswer.queryId))
+ const aliasAnswer=await call('/queries/run',{...dottedQuery,joins:[{dataset,as:'labels',left:'invoice',right:'invoice',duplicates:'reject'}],measures:[{...dottedQuery.measures[0],column:'labels.amount'}]})
+ assert.equal(aliasAnswer.answer.totals['logical-total'].value,'12')
+ assert.deepEqual((await call('/queries/'+aliasAnswer.queryId)).quality.lineage,[{dataset,columns:['invoice','labels.amount']}])
+ await proveScreen('/app/queries/'+dottedAnswer.queryId,'quality-dotted-physical-column')
+ await upload(good,true);for(const [id] of rules)await call('/quality/rules/'+id+'/run',{})
  console.log('Quality and lineage: six rule types, duplicate and freshness failures, immutable at-risk results, column impact, expiring reviewed waiver, repaired-input history and denied raw reads passed')
 }

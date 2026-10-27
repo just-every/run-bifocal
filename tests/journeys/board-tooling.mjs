@@ -80,11 +80,12 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
     const lineages=page.locator('.quality-notice details').filter({has:page.getByText('Source columns and definition lineage',{exact:true})})
     assert.deepEqual(await lineages.locator('li:first-child').allTextContents(),[dataset+': invoice, region, revenue',dataset+': invoice, region, revenue'])
    }
+   if(interactive&&phase==='healthy')await proveDisclosureRefresh({page,proveScreen,container:page.locator('#published-dashboard'),settings:'Bookmarks, stories and display',interval:'Refresh interval seconds',start:'Start TV refresh',pause:'Pause TV refresh',endpoint:'/dashboard-authoring/'+saved.id+'/run',label:'quality-interactive-disclosure'})
    await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
   }
   if(kind==='dashboard'){
    const refreshed=await call('/dashboards/'+created.id+'/refresh',{maxAgeSeconds:3600});assert.equal(refreshed.cards.length,2);assert.deepEqual(refreshed.cards.map(card=>card.quality.state),[state,state])
-   await page.goto(origin+'/app/dashboards/'+created.id+'/tv');await page.locator('#tv-status').filter({hasText:'Dashboard refreshed'}).waitFor();assert.equal(await page.locator('#tv-cards .quality-notice').filter({hasText:'Quality '+state}).count(),2);await proveScreen('quality-tv-'+phase)
+   await page.goto(origin+'/app/dashboards/'+created.id+'/tv');await page.locator('#tv-status').filter({hasText:'Dashboard refreshed'}).waitFor();assert.equal(await page.locator('#tv-cards .quality-notice').filter({hasText:'Quality '+state}).count(),2);if(phase==='healthy')await proveDisclosureRefresh({page,proveScreen,container:page.locator('#tv-cards'),settings:'Display settings',interval:'Refresh interval (seconds)',start:'Start',pause:'Pause',endpoint:'/dashboards/'+created.id+'/refresh',label:'quality-tv-disclosure'});await proveScreen('quality-tv-'+phase)
   }
  }
  await readerProof('healthy','healthy')
@@ -125,4 +126,23 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  const repaired=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(repaired.cards.map(card=>card.quality.state),['healthy','healthy']);assert.deepEqual(repaired.cards.map(card=>card.answer),baseline.cards.map(card=>card.answer));assert.deepEqual(repaired.cards.map(card=>card.quality.lastGood),baseline.cards.map(card=>card.quality.lastGood))
  await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor();assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality healthy'}).count(),2);await proveScreen('quality-multi-'+kind+'-repaired');await readerProof('healthy','repaired')
+}
+
+/** Refresh updates quality evidence while retaining each reader disclosure choice. */
+async function proveDisclosureRefresh({page,proveScreen,container,settings,interval,start,pause,endpoint,label}) {
+ for(const width of [1440,390]) {
+  await page.setViewportSize({width,height:1000})
+  const disclosures=container.locator('.quality-notice details').filter({has:page.getByText('Source columns and definition lineage',{exact:true})})
+  await disclosures.first().locator('summary').click()
+  assert.deepEqual(await disclosures.evaluateAll(nodes=>nodes.map(node=>node.open)),[true,false])
+  const settingsDisclosure=page.getByText(settings,{exact:true})
+  if(!await settingsDisclosure.evaluate(node=>node.parentElement.open))await settingsDisclosure.click()
+  await page.getByLabel(interval,{exact:true}).fill('1')
+  await Promise.all([page.waitForResponse(response=>response.url().endsWith(endpoint)&&response.ok()),page.getByRole('button',{name:start,exact:true}).click()])
+  await page.waitForResponse(response=>response.url().endsWith(endpoint)&&response.ok())
+  await page.getByRole('button',{name:pause,exact:true}).click()
+  assert.deepEqual(await disclosures.evaluateAll(nodes=>nodes.map(node=>node.open)),[true,false],label+' preserves open and closed state after automatic refresh at '+width)
+  await proveScreen(label,{widths:[width],resize:false})
+  await disclosures.first().locator('summary').click()
+ }
 }
