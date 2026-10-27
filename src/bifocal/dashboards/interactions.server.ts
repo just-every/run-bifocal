@@ -20,7 +20,7 @@ export async function dashboardInteractionsResponse(request:Request,env:Bindings
   if(actor.role!=='owner')fail('owner_required',403)
   const bookmarkRead=match[2].startsWith('reader-bookmarks')&&request.method==='GET'
   if(!bookmarkRead&&request.method!=='POST')fail('method_not_allowed',405)
-  const input=bookmarkRead?{}:await jsonBody(request),context=await readDashboardContext(env,actor,actor.id,match[1],input.contextId),run=await runPublishedDashboard(env,actor,actor.id,match[1],input.selection,undefined,context?.inherited)
+  const input=bookmarkRead?{}:await jsonBody(request),context=await readDashboardContext(env,actor,actor.id,match[1],input.contextId),run=await runPublishedDashboard(env,actor,actor.id,match[1],input.selection,undefined,context?.inherited,undefined,true)
   if(context&&context.targetRevision!==run.result.revision)fail('dashboard_context_target_changed',409)
   const fences=[...run.guards,...context?.guards??[]]
   if(match[2]==='run'){exactKeys(input,['selection','contextId']);await transact(env.DB,actor,fences.map(assertion));return json(run.result)}
@@ -29,7 +29,7 @@ export async function dashboardInteractionsResponse(request:Request,env:Bindings
   if(match[2]==='source-records'){exactKeys(input,['selection','contextId','actionId','record','offset']);const records=await dashboardSourceRecords(env,actor,actor.id,run,input.actionId,input.record,input.offset);await transact(env.DB,actor,[...records.guards,...context?.guards??[]].map(assertion));return json(records.result)}
   if(match[2]==='action'){
    exactKeys(input,['selection','contextId','actionId'])
-   const prepared=await prepareDashboardAction(env,actor,actor.id,run,input.actionId),targetRun=await runPublishedDashboard(env,actor,actor.id,prepared.target.state.id,{},undefined,prepared.inherited)
+   const prepared=await prepareDashboardAction(env,actor,actor.id,run,input.actionId),targetRun=await runPublishedDashboard(env,actor,actor.id,prepared.target.state.id,{},undefined,prepared.inherited,undefined,true)
    if(prepared.action.kind==='tooltip'){await transact(env.DB,actor,[...fences,...prepared.guards,...targetRun.guards].map(assertion));return json({kind:'tooltip',...targetRun.result})}
    const context=await prepareDashboardContext(env,actor,prepared,run);await transact(env.DB,actor,[...[...fences,...prepared.guards,...targetRun.guards].map(assertion),...context.changes]);return json({kind:'dashboard',...context.result},201)
   }

@@ -7,7 +7,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const dataset='synthetic-bifocal-estate-source',csv='invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n'
  await upload(dataset,csv)
  const base=JSON.parse(await readFile(join(directory,'metric-export.native.json'),'utf8')).definition.query
- const query={...base,dataset,filters:[],groupBy:[]};delete query.fiscal
+ const query={...base,dataset,filters:[],groupBy:[]};delete query.fiscal;delete query.semantic
  const definition={views:[{id:'revenue',kind:'report',query,rowRules:[]}],quality:[]},model=await call('/models',{definition}),flags=['--model',model.modelId,'--branch',model.branchId]
  const nativeQualityScreen=async(branchId,state,label)=>{
   await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor()
@@ -130,7 +130,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const unknown=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(unknown.compatible,false);assert.equal(unknown.qualityImpact.state,'unknown');assert.equal(unknown.qualityImpact.blocking,true);const uncheckedSource=unknown.qualityImpact.tests.find(test=>test.ruleId===qualityRule);assert.notEqual(uncheckedSource.runSourceRevision,uncheckedSource.sourceRevision)
  await cli('environment-approve',[...envFlags,'--version','3','--digest',unknown.digest],false)
  await page.goto(origin+'/app/environments/'+document.id);assert.match(await page.locator('[data-environment="development"] [data-quality-impact]').innerText(),/Current quality: unknown/);await proveScreen('environment-unknown-quality-refusal')
- await upload(dataset,'invoice,region,revenue,private-note\n1,West,$11.01,Confidential payroll detail\n1,East,$20.02,Other confidential payroll detail\n',true)
+ await upload(dataset,'invoice,region,revenue\n1,West,$11.01\n1,Confidential payroll detail,$20.02\n',true)
  const failedRun=await runQuality();assert.equal(failedRun.result.state,'failed');assert.deepEqual(failedRun.result.failingRowNumbers,[2])
  const failed=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(failed.compatible,false);assert.equal(failed.qualityImpact.state,'at risk');assert.equal(failed.qualityImpact.blocking,true)
  const failedTest=failed.qualityImpact.tests.find(test=>test.ruleId===qualityRule);assert.equal(failedTest.runId,failedRun.id);assert.equal(failedTest.state,'failed');assert.equal(failedTest.href,'/app/quality#run-'+failedRun.id);assert.equal(failedTest.ownerId,stagedModel.owner_id);assert.equal(failedTest.sourceRevision,failedRun.sourceRevision);assert.equal(failedTest.checkedAt,failedRun.createdAt)

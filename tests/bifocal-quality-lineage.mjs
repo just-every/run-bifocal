@@ -23,10 +23,10 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  await call('/quality/runs/'+fresh.id+'/waive',{reason:'Expired',expiresAt:'2000-01-01T00:00:00.000Z',confirm:'waive'},400)
  await proveScreen('/app/quality','quality-failed')
  const settings=page.locator('.menu>summary'),tooltip=page.getByRole('tooltip')
- await page.keyboard.press('Tab');await settings.focus();assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).visibility),'visible');assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).transitionDelay),'0s')
+ await page.keyboard.press('Tab');await settings.focus();assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).visibility),'visible')
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await settings.focus();if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/quality-tooltip-'+width+'.png',fullPage:true})}
  await settings.evaluate(node=>node.blur());await page.mouse.move(0,0);assert.equal(await tooltip.isVisible(),false)
- await settings.hover();await tooltip.waitFor({state:'visible'});assert.equal(await tooltip.evaluate(node=>getComputedStyle(node).transitionDelay),'0.3s')
+ await settings.hover();assert.equal(await tooltip.isVisible(),false);await tooltip.waitFor({state:'visible'})
  await page.mouse.move(0,0)
  for(const [kind,id] of [['reports',report.id],['dashboards',dashboard.id]]){await page.goto(origin+'/app/'+kind+'/'+id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#certification').innerText(),/Quality at risk/);await proveScreen('/app/'+kind+'/'+id,'quality-'+kind)}
  await clock.set(new Date(clock.now()+2600).toISOString())

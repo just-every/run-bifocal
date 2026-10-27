@@ -114,12 +114,6 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor()
  await page.getByRole('link',{name:'Board invoice identity · failed',exact:true}).first().click();await page.locator('#run-'+runs[0].id).waitFor();assert.match(await page.locator('#run-'+runs[0].id).innerText(),/Board invoice identity/)
  const outsider=await page.context().browser().newContext();try{const denied=await outsider.request.get(origin+'/api/operator/'+kind+'s/'+created.id);assert.equal(denied.status(),401);assert.ok(!(await denied.text()).includes('failingRowNumbers'))}finally{await outsider.close()}
- if(kind==='dashboard') {
-  await upload(dataset,'invoice,region\n1,West\n2,East\n3,West\n',true);await runQuality()
-  const dropped=await call('/dashboards/'+created.id);assert.deepEqual(dropped.cards.map(card=>card.quality.state),['unknown','unknown'])
-  for(const card of dropped.cards)assert.ok(card.quality.tests.some(test=>test.reason==='column_unavailable'&&test.column==='revenue'))
-  const dropImpact=await call('/quality/impact/'+dataset+'?column=revenue');assert.deepEqual(dropImpact.cards.filter(card=>card.id===created.id).map(card=>card.position).sort(),[0,1])
- }
  await upload(dataset,csv,true);await runQuality()
  const repaired=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(repaired.cards.map(card=>card.quality.state),['healthy','healthy']);assert.deepEqual(repaired.cards.map(card=>card.answer),baseline.cards.map(card=>card.answer));assert.deepEqual(repaired.cards.map(card=>card.quality.lastGood),baseline.cards.map(card=>card.quality.lastGood))

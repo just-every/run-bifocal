@@ -30,7 +30,7 @@ const usedColumns=(query:Query)=>[...query.groupBy,...query.filters.map(f=>f.col
 /** Receiving-door bridge: the caller supplies current native authority AND its
  * current source and data restrictions, then commits every returned guard with its
  * audience and version guards before disclosing the result. This function grants none. */
-export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId:string,id:string,value:unknown,restrictions:DashboardRestrictions={rows:[],columns:null},inherited?:{filters:Filter[];fiscal:ReaderSelection['fiscal']},pinnedRevision?:number){
+export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId:string,id:string,value:unknown,restrictions:DashboardRestrictions={rows:[],columns:null},inherited?:{filters:Filter[];fiscal:ReaderSelection['fiscal']},pinnedRevision?:number,nativeQuality=false){
  const published=await publishedDashboard(env,actor,ownerId,id,pinnedRevision),{revision,manifest,config}=published,selection=readerSelection(value,config)
  if(inherited){for(const filter of inherited.filters)if(!config.dimensions.includes(filter.column))fail('dashboard_inherited_dimension_unavailable',403);for(const parameter of Object.keys(inherited.fiscal))if(!config.fiscalParameters.some(p=>p.id===parameter))fail('dashboard_inherited_period_unavailable',403)}
  // Inherited context is a protected intersection, not a removable reader filter.
@@ -40,7 +40,7 @@ export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId
   try{
    const retained=await readQuery(env,actor,ownerId,manifest.refs[index].snapshot_id),snapshot=retained.snapshot
    if(canonicalJson(snapshot.definition)!==canonicalJson(card.definition))fail('published_dashboard_custody_changed',409)
-   if(actor.role==='owner'&&actor.id===ownerId)quality=await retainedQuality(env,actor,ownerId,snapshot)
+   if(nativeQuality&&actor.role==='owner'&&actor.id===ownerId)quality=await retainedQuality(env,actor,ownerId,snapshot)
    guards.push(retained.guard,...await refreshBindings(env,ownerId,snapshot))
    const model=await modelScope(env,ownerId,card.definition);guards.push(...model.guards)
    const field=config.fieldParameters.find(p=>p.card===card.key),choice=field?.choices.find(c=>c.id===selection.fields[field.id]),fiscal=config.fiscalParameters.find(p=>p.cards.includes(card.key))
