@@ -1,7 +1,7 @@
 import {element} from './file-view.js'
 
-const operations={dedupe:'Deduplicate complete rows',cast:'Repair column type',calculate:'Calculate column',join:'Join dataset',lookup:'Look up dataset',union:'Union dataset',pivot:'Pivot',unpivot:'Unpivot'}
-const fields={
+export const operations={dedupe:'Deduplicate complete rows',cast:'Repair column type',calculate:'Calculate column',join:'Join dataset',lookup:'Look up dataset',union:'Union dataset',pivot:'Pivot',unpivot:'Unpivot'}
+export const fields={
  dedupe:[],
  cast:[['column','Column'],['type','Target type',['text','number','money','date','boolean']]],
  calculate:[['name','New column name'],['left','Left numeric column'],['operator','Arithmetic',['add','subtract','multiply']],['right','Right numeric column']],
@@ -16,29 +16,32 @@ export function newStep(op){
  for(const [key,,type] of fields[op])step[key]=Array.isArray(type)?type[0]:type==='list'?[]:''
  return step
 }
+// The steps read as rows parted by hairlines inside the card, each field a control with its own id so a refusal can
+// name it; with no steps, one plain line stands in for the list.
 export function renderGraph(box,steps,onChange){
- box.replaceChildren()
- if(!steps.length){box.append(element('li','No transformation steps. The output contains the unchanged source rows.'));return}
+ if(!steps.length){box.replaceChildren(element('p','No transformation steps. The output contains the unchanged source rows.','muted'));return}
+ const list=element('ol',undefined,'prep-steps');list.setAttribute('aria-label','Preparation steps')
  steps.forEach((step,index)=>{
-  const item=element('li',undefined,'panel'),heading=element('h4',`Step ${index+1}: ${operations[step.op]}`)
+  const item=element('li'),heading=element('h4',`Step ${index+1}: ${operations[step.op]}`)
   item.dataset.step=String(index+1)
-  item.append(heading,element('p',`Input: ${index?'step '+index:'source dataset'} → output: ${index===steps.length-1?'draft output':'step '+(index+2)}`,'muted'))
+  item.append(heading,element('p',`Input: ${index?'step '+index:'source dataset'} → output: ${index===steps.length-1?'draft output':'step '+(index+2)}`,'hint'))
   if(step.op==='dedupe')item.append(element('p','Remove identical complete rows. Numeric values compare exactly.'))
   if(['join','lookup'].includes(step.op))item.append(element('p','The other key must be unique. Duplicate matching keys are refused; a left join keeps unmatched input rows with NULL values.'))
   if(step.op==='union')item.append(element('p','Both datasets must have the same ordered column names and types.'))
   if(step.op==='pivot')item.append(element('p','Each group and pivot label must identify at most one value. Unknown labels and duplicate cells are refused.'))
   const controls=element('div',undefined,'fields')
   for(const [key,title,type] of fields[step.op]){
-   const label=element('label',title),input=element(Array.isArray(type)?'select':type==='list'?'textarea':'input')
+   const control=element('div',undefined,'control'),label=element('label',title),input=element(Array.isArray(type)?'select':type==='list'?'textarea':'input')
+   input.id=`prep-step-${index+1}-${key}`;label.htmlFor=input.id
    input.name=key;input.dataset.field=key;input.setAttribute('aria-label',`Step ${index+1}: ${title}`)
    if(Array.isArray(type))for(const value of type){const option=element('option',value);option.value=value;input.append(option)}
    if(type==='list')input.rows=3
    else if(!Array.isArray(type)){input.maxLength=key==='dataset'?64:128;input.required=true}
    input.value=type==='list'?step[key].join('\n'):step[key]
    input.addEventListener('input',()=>{step[key]=type==='list'?input.value.split('\n').filter(value=>value.length):input.value;onChange()})
-   label.append(input);controls.append(label)
+   control.append(label,input);controls.append(control)
   }
-  item.append(controls)
+  if(fields[step.op].length)item.append(controls)
   const actions=element('div',undefined,'actions')
   for(const [title,target] of [['Move up',index-1],['Move down',index+1],['Remove step',null]]){
    const button=element('button',title);button.type='button';button.setAttribute('aria-label',`${title} ${index+1}`)
@@ -46,8 +49,9 @@ export function renderGraph(box,steps,onChange){
    button.addEventListener('click',()=>{if(target===null)steps.splice(index,1);else [steps[index],steps[target]]=[steps[target],steps[index]];onChange();renderGraph(box,steps,onChange)})
    actions.append(button)
   }
-  item.append(actions);box.append(item)
+  item.append(actions);list.append(item)
  })
+ box.replaceChildren(list)
 }
 const quote=value=>'"'+String(value).replaceAll('"','""')+'"'
 const literal=value=>"'"+String(value).replaceAll("'","''")+"'"

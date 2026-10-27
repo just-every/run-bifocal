@@ -8,9 +8,12 @@ import { decimal, plus, rational } from '../currency/decimal'
 import type { Table } from '../imports/files/csv'
 import { fail, QueryError } from '../query/types'
 import { randomUUID } from 'node:crypto'
-import { escapeHtml } from '../../app/shell'
-import { details, document, exact, field, hidden, ident, input, json, object, result, text } from '../metrics/transport'
+import { sectionDocument, exact, ident, input, json, object, result, text } from '../metrics/transport'
+import { refusalLine } from '../metrics/forms'
+import { qualityRefusal } from '../metrics/refusals'
+import { qualityMain } from './page'
 import { sourceImpact } from '../models/lineage/server'
+const document = sectionDocument('quality')
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
 type RuleDefinition={name:string;kind:'freshness'|'not-null'|'unique'|'accepted-values'|'count'|'money';column?:string;maxAgeSeconds?:number;values?:unknown[];expected?:string}
 type SourceRow={revision:string;value_json:string}
@@ -73,9 +76,10 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),viewer=(await operatorAuth(env).getSession(request))!.operator
+ let v:Record<string,unknown>={}
  try {
   if(request.method==='POST') {
-   const v=await input(request)
+   v=await input(request)
    if(url.pathname==='/api/operator/quality/rules') {
     exact(v,['id','dataset','definition']);const id=ident(v.id),dataset=ident(v.dataset),def=parse(v.definition)
     const source=await env.DB.prepare('SELECT revision,value_json FROM bf_file_tables WHERE id=?').bind(dataset).first<SourceRow>();if(!source)fail('dataset_not_found',404)
@@ -107,13 +111,29 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
    await transact(env.DB,owner,[]);return json(impact)
   }
   if(url.search)fail('query_parameters_not_supported',400)
-  const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE owner_id=? ORDER BY id').bind(ownerId).all<Rule>()).results
-  const histories=(await env.DB.prepare('SELECT r.* FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE q.owner_id=? ORDER BY r.rowid DESC LIMIT 100').bind(ownerId).all<{id:string;rule_id:string;source_revision:string|null;result_json:string;created_at:string}>()).results.map(r=>({...r,result:JSON.parse(String(r.result_json)),result_json:undefined}))
-  const quality=await qualityState(env,rules.map(r=>r.dataset_id))
-  await transact(env.DB,owner,[])
+  const {rules,histories,quality}=await qualityView(env,owner,ownerId)
   if(!page)return json({rules:rules.map(r=>({...r,definition:JSON.parse(r.rule_json),rule_json:undefined})),histories,quality})
-  return document('Data quality',viewer,`<p>Run bounded source checks synchronously. A waiver records an exception; it never turns a failure into healthy data. No background analytical job is claimed.</p><p class="status">${escapeHtml(quality.state)}</p>${details('Current tests and expiry',quality)}${rules.map(r=>`<section class="panel"><h2>${escapeHtml((JSON.parse(r.rule_json) as RuleDefinition).name)}</h2><p>${r.dataset_id} · ${r.id}</p><form method="post" action="/api/operator/quality/rules/${r.id}/run"><button type="submit">Run ${escapeHtml(r.id)}</button></form></section>`).join('')}<h2>Add a quality rule</h2><form method="post" action="/api/operator/quality/rules">${field('id','Rule ID')}${field('dataset','Dataset ID')}<label>Rule definition (JSON)<textarea name="definition" rows="6" required></textarea></label><p class="hint">Kinds: freshness, not-null, unique, accepted-values, count, money. Supply a name and the relevant column, expected value, accepted values or maximum age in seconds.</p><button type="submit">Save rule</button></form>${details('Run history with source revision and failing row numbers',histories)}${histories.filter(r=>r.result.state==='failed').map(r=>`<form class="panel" method="post" action="/api/operator/quality/runs/${r.id}/waive"><h2>Review waiver for ${r.id}</h2>${field('reason','Exception reason')}${field('expiresAt','Expiry (ISO timestamp)')}${hidden('confirm','waive')}<button type="submit">Record expiring waiver</button></form>`).join('')}`)
- }catch(e){const error=e instanceof QueryError?e:new QueryError('quality_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Quality check unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/quality">Return to data quality</a>`,error.status):json({error:error.code},error.status)}
+  return document('Data quality',viewer,qualityMain(rules,histories,quality))
+ }catch(e){
+  const error=e instanceof QueryError?e:new QueryError('quality_conflict',409)
+  if(!page&&!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return json({error:error.code},error.status)
+  // A refused page or form re-renders the same page with the person's values and a plain sentence; the status stays.
+  const form=request.method!=='POST'?'page':url.pathname==='/api/operator/quality/rules'?'rule':match?.[2]?'run':match?.[3]?'waive-'+match[3]:'page'
+  const refusal=qualityRefusal(form,error.code,v)
+  try {
+   const {rules,histories,quality}=await qualityView(env,owner,ownerId)
+   return document('Data quality',viewer,qualityMain(rules,histories,quality,refusal),error.status)
+  }catch{return document('Data quality',viewer,refusalLine({...refusal,form:'page',field:null},'page')+'<p><a href="/app/quality">Return to Data quality</a></p>',error.status)}
+ }
+}
+
+/** The owner's rules, recent runs and current quality state, read under the owner's authority. */
+async function qualityView(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string) {
+ const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE owner_id=? ORDER BY id').bind(ownerId).all<Rule>()).results
+ const histories=(await env.DB.prepare('SELECT r.* FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE q.owner_id=? ORDER BY r.rowid DESC LIMIT 100').bind(ownerId).all<{id:string;rule_id:string;source_revision:string|null;result_json:string;created_at:string}>()).results.map(r=>({...r,result:JSON.parse(String(r.result_json)),result_json:undefined}))
+ const quality=await qualityState(env,rules.map(r=>r.dataset_id))
+ await transact(env.DB,owner,[])
+ return {rules,histories,quality}
 }
 
 export async function qualityResponse(request:Request,env:Bindings):Promise<Response|null> {

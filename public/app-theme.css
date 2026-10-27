@@ -1,7 +1,7 @@
 /* Bifocal's tokens, defined once. The installed app links this file; the run site's tokens.css imports it and sets the
    site's own --rer-* values over it. The look is the owner's hero H and logo 4 (design desk, 20 Oct 2026) and the
-   desk's approved app look (h1, 21 Oct 2026): cobalt, golden yellow, ink and white; Mona Sans for headings, numerals
-   and the wordmark; the system UI face for app text; mono only for queries, ids and rows. Never Inter.
+   owner's approved app look A (round 2, h1; 26 Oct 2026): cobalt, golden yellow, ink and white; Mona Sans for headings,
+   numerals and the wordmark; the system UI face for app text; mono only for queries and rows. Never Inter.
    Base's sign-in, first-run setup, Lobby and local key page read the --rer-* names below. */
 :root {
   --cobalt: #2e7dfd;
@@ -31,11 +31,15 @@
   --app-accent: var(--cobalt-text);
   --app-accent-hover: #174cb3;
   --app-on-accent: #ffffff;
-  --app-select: #eaf2ff;
+  --app-select: #edf3fe;
+  --app-soft: var(--app-select);
+  --app-avatar: #dee1e8;
+  /* h1's outline buttons: a firm grey edge, darker than a field's. */
+  --app-button-line: #959aa6;
   --app-disabled: #dce7fb;
   --app-disabled-text: #4b5b78;
   --app-held: var(--yellow);
-  --app-held-tint: #fff8db;
+  --app-held-tint: #fffaed;
   --app-danger: #a3221b;
   --app-danger-tint: #fef3f2;
   --app-danger-line: #f1b5b0;
@@ -77,6 +81,8 @@
     --app-accent: #2e6fe0;
     --app-accent-hover: #3d7ff0;
     --app-select: #17284a;
+    --app-avatar: #262d38;
+    --app-button-line: #5b6678;
     --app-disabled: #253044;
     --app-disabled-text: #b4bfd0;
     --app-held-tint: #2b2306;

@@ -9,9 +9,10 @@ import branding from './branding.json'
 import { homePage } from './app/home'
 import { currentAuthority } from './bifocal/catalog/authority.server'
 import { homeEntries } from './bifocal/apps/reader.server'
+import { ownerPlaces } from './bifocal/home/places.server'
 import { accountSide, appDocument, appPolicy, type Place, type Viewer } from './app/shell'
 import { installedDocs } from './app/docs'
-import { peoplePage, peopleUnavailable, inviteNotice } from './app/people'
+import { peoplePage, peopleUnavailable, inviteNotice, type InviteRefusal } from './app/people'
 import { settingsPage, nameNotice, sessionNotice, type AccountSession } from './app/settings'
 import { displayZone } from './bifocal/company/display-zone'
 
@@ -68,8 +69,22 @@ export function operatorAuth(env: Bindings) {
 const privateHeaders = { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff', 'x-robots-tag': 'noindex, nofollow' }
 // Every app page wears the frame (src/app/shell.ts); the installed guide wears it signed out too, without tools.
 function html(main: string, title: string, viewer: Viewer | null, place: Place, status = 200) {
- const side = viewer ? accountSide(viewer.role, place) : ''
+ const side = viewer && place !== 'home' ? accountSide(viewer.role, place) : ''
  return new Response(appDocument({ title, viewer, place, side, main, head: place === 'home' ? '<link rel="stylesheet" href="/bifocal/apps.css">' : place === 'settings' && viewer?.role === 'owner' ? '<script type="module" src="/bifocal/protection-settings.js"></script>' : '' }), { status, headers: { ...privateHeaders, 'referrer-policy': 'strict-origin', 'content-type': 'text/html; charset=utf-8', 'content-security-policy': `default-src 'none'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}; ${place === 'settings' ? "script-src 'self'; connect-src 'self'" : ''}` } })
+}
+
+// What a refused invite form carried, read no further than the native door's own 8 KiB input bound.
+async function typedForm(body: ReadableStream<Uint8Array> | null) {
+ const reader = body?.getReader(), decoder = new TextDecoder()
+ let text = '', length = 0
+ while (reader) {
+  const next = await reader.read()
+  if (next.done) break
+  length += next.value.byteLength
+  if (length > 8192) { await reader.cancel(); return new URLSearchParams() }
+  text += decoder.decode(next.value, { stream: true })
+ }
+ return new URLSearchParams(text + decoder.decode())
 }
 
 async function handleAuthResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -107,16 +122,18 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   const sessions = response?.ok ? await response.json() as AccountSession[] : null
   return html(settingsPage(session.operator, sessions, session.id, await displayZone(env, session.operator.email), notice), `Your settings · ${branding.name}`, session.operator, 'settings', status)
  }
- const peopleResponse = async (notice = '', status = 200) => {
+ const peopleResponse = async (notice = '', status = 200, refusal?: InviteRefusal) => {
   const auth = operatorAuth(env)
   const session = await auth.getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin?returnTo=%2Fapp%2Fpeople' } })
   // Use the same native read adapter as /auth/operators; no UI-only access grant.
   const response = await createAuthHandler(auth)(new Request(new URL('/auth/operators', url), { headers: request.headers }))
   if (!response?.ok) return html(peopleUnavailable(), `People unavailable · ${branding.name}`, session.operator, 'people', response?.status ?? 503)
-  return html(peoplePage(await response.json(), session.operator, notice), `People · ${branding.name}`, session.operator, 'people', status)
+  return html(peoplePage(await response.json(), session.operator, notice, refusal), `People · ${branding.name}`, session.operator, 'people', status)
  }
  if (url.pathname.startsWith('/auth/')) {
+  // A refused invitation comes back with what the person typed, so keep a copy of the form the native door reads.
+  const typed = url.pathname === '/auth/invite' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded') ? request.clone() : null
   const response = await createAuthHandler(operatorAuth(env))(request)
   // Keep native authorization, origin checks and cookie revocation. A browser
   // form receives a useful destination; API clients retain the native 204.
@@ -125,10 +142,14 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
    headers.set('location', '/signin')
    return new Response(null, { status: 303, headers })
   }
-  if (url.pathname === '/auth/invite' && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
-   if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people?invited=1' } })
+  if (typed) {
+   if (response?.ok) {
+    await typed.body?.cancel()
+    return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people?invited=1' } })
+   }
    const error = await response?.json() as { error?: string } | undefined
-   return peopleResponse(inviteNotice(error?.error ?? ''), response?.status ?? 503)
+   const form = await typedForm(typed.body)
+   return peopleResponse('', response?.status ?? 503, { code: error?.error ?? '', displayName: form.get('displayName') ?? '', email: form.get('email') ?? '', role: form.get('role') ?? '' })
   }
   if (['/auth/invite/cancel', '/auth/operator/status'].includes(url.pathname) && request.method === 'POST' && request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')) {
    if (response?.ok) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/app/people?updated=1' } })
@@ -163,7 +184,7 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
   const session = await operatorAuth(env).getSession(request)
   if (!session) return new Response(null, { status: 303, headers: { ...privateHeaders, location: '/signin' } })
   const actor = await currentAuthority(request, env)
-  return html(homePage(session.operator, actor && actor.role !== 'owner' ? await homeEntries(env, actor) : []), `App home · ${branding.name}`, session.operator, 'home')
+  return html(homePage(actor && actor.role !== 'owner' ? await homeEntries(env, actor) : [], actor?.role === 'owner' ? await ownerPlaces(env, actor) : null), `App home · ${branding.name}`, session.operator, 'home')
  }
  return null
 }
