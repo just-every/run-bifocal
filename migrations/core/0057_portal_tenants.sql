@@ -20,7 +20,7 @@ CREATE TABLE bf_portal_usage (
 );
 CREATE TABLE bf_portal_jobs (
  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL REFERENCES bf_portal_tenants(id), generation INTEGER NOT NULL,
- parameters_json TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('queued','processing','completed','cancelled'))
+ release_version INTEGER NOT NULL, parameters_json TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('queued','processing','completed','cancelled'))
 );
 CREATE TABLE bf_portal_audit (
  id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL, generation INTEGER NOT NULL, recorded_at TEXT NOT NULL
@@ -40,7 +40,10 @@ CREATE TRIGGER bf_portal_source_erased BEFORE DELETE ON bf_file_tables BEGIN
   SELECT t.id FROM bf_portal_tenants t JOIN bf_portal_releases r ON r.tenant_id=t.id AND r.version=t.published,
   json_each(r.document_json,'$.sources') s WHERE json_extract(s.value,'$.id')=OLD.id
  );
- DELETE FROM bf_portal_jobs WHERE tenant_id IN (SELECT r.tenant_id FROM bf_portal_releases r,json_each(r.document_json,'$.sources') s WHERE json_extract(s.value,'$.id')=OLD.id);
+ DELETE FROM bf_portal_jobs WHERE EXISTS (
+  SELECT 1 FROM bf_portal_releases r,json_each(r.document_json,'$.sources') s
+  WHERE r.tenant_id=bf_portal_jobs.tenant_id AND r.version=bf_portal_jobs.release_version AND json_extract(s.value,'$.id')=OLD.id
+ );
  DELETE FROM bf_portal_releases WHERE EXISTS (SELECT 1 FROM json_each(document_json,'$.sources') s WHERE json_extract(s.value,'$.id')=OLD.id);
  UPDATE bf_portal_tenants SET published=NULL,status='suspended',generation=generation+1 WHERE status<>'erased' AND published IS NOT NULL AND NOT EXISTS (SELECT 1 FROM bf_portal_releases r WHERE r.tenant_id=bf_portal_tenants.id AND r.version=bf_portal_tenants.published);
  DELETE FROM bf_portal_cache WHERE tenant_id NOT IN (SELECT tenant_id FROM bf_portal_activation);

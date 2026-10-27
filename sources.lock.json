@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cffcb9298988648a985728fc609e6166a399dd4e583e4aecfe1c592477d9e48b",
+      "sha256": "c07b5f331500f1a7f351f9e77b108b296cea5a733f2922505f07d930da35d0e3",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "43af48fc462d1799bdcbef1b0586b72ed32d15101c2eb08c0f5a21caba6e5346",
+      "sha256": "5beb0255ec07d34f6d5aa271bc9b9372474702d065edb51b503c6d3643ce47ba",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -433,7 +433,7 @@
       "executable": false
     },
     "docs/PORTAL-PREVIEW.md": {
-      "sha256": "6f96e02c2794c2df0dfbda21208360ae1fa12d116d63308bb6913a3117eb5641",
+      "sha256": "ca36c4aaf26873e05163c263f4a74d4fb77ad537ce21b6b0b350349e77bf7d96",
       "executable": false
     },
     "docs/QUESTIONS.md": {
@@ -713,7 +713,7 @@
       "executable": false
     },
     "migrations/core/0057_portal_tenants.sql": {
-      "sha256": "1887c701fa79363bcc7b28d932134d815bff243b34eaafecf8dedba73e5c2b86",
+      "sha256": "ae8f9999d58fd3789c3337ce4e08ff7005c67ff2458e1ed65e34e65dac24811a",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2181,7 +2181,7 @@
       "executable": false
     },
     "src/bifocal/portal/server.ts": {
-      "sha256": "1a409cface5daa260be31dc661ea49f4272183ae17058273368aef18fea75955",
+      "sha256": "59ba3fdf33ec7d8cffba34d363a5ccb1533f91574bd1da653f8b6cae185ede7a",
       "executable": false
     },
     "src/bifocal/portal/store.server.ts": {
@@ -4417,11 +4417,11 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "cadc18cfcb4c8b0868807a2e11e472173c34156a5f71ff50e38c0aefa559ff95",
+      "sha256": "30533ee0eed50d287d63f8950d6f953a5a39b9b24d9f1dea8da6943b55392987",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "3dbcde1e4c68b480853677f2a377adcb8b64e1b530b9bf22c3260e92c4b80c60",
+      "sha256": "30e49b7071c38e966afc1eac0a17b6653af89f2707b380e3ac893a19e97634e4",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -4545,11 +4545,11 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "7d7910a702dc56574adc19a99d1006ba7e1f517c204ffb543efb7921e02ed769",
+      "sha256": "efd7f07b8588f1dc041fe120a483d4c654cf9f902b36bc7f44a31ad8f9e34722",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "84cc2dccb442ef47b2b68eeac6e8270ada4fac0aafee853c9cbbe67061bb5439",
+      "sha256": "4157d64637f5b318a99d1113342d6ed88cec294675d115f616a21824e85bbbe0",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
@@ -4573,7 +4573,7 @@
       "executable": false
     },
     "tests/journeys/portal-tenants.mjs": {
-      "sha256": "fad40219162e7db5649378a3c7c3c2319e697544c6cfc452ec4ddd5001377d03",
+      "sha256": "48a1d568cac1600a537ba1eb2c2574e29d7b675c9426b6f308dca3b09ff3394e",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {

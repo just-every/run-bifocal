@@ -109,7 +109,7 @@ async function scopedRequest(request:Request,env:Bindings,actor:Authority,t:Tena
   sql('UPDATE bf_portal_tokens SET used=1 WHERE nonce=?',token.nonce),audit(t,actor,action+'-admitted')])
  const changes=[assertion(guard(t)),assertion(liveGuard(t)),assertion(token.consumedGuard),audit(t,actor,action+'-completed')]
  if(action==='queue'){
-  const id=randomUUID();changes.push(sql("INSERT INTO bf_portal_jobs VALUES(?,?,?,?,'queued')",id,t.id,t.generation,canonicalJson(normalized)))
+  const id=randomUUID();changes.push(sql("INSERT INTO bf_portal_jobs VALUES(?,?,?,?,?,'queued')",id,t.id,t.generation,t.published,canonicalJson(normalized)))
   await transact(env.DB,actor,changes);return json({id,tenantId:t.id,state:'queued',delivery:'disabled'},201)
  }
  if(jobId)changes.push(assertion(sql("EXISTS(SELECT 1 FROM bf_portal_jobs WHERE id=? AND tenant_id=? AND generation=? AND state='processing')",jobId,t.id,t.generation)),sql("UPDATE bf_portal_jobs SET state='completed' WHERE id=?",jobId))
