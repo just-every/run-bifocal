@@ -21,7 +21,7 @@ export async function dashboardSnapshotResponse(request:Request,env:Bindings,act
   if(input.filterState!=='current'&&input.filterState!=='default')fail('dashboard_snapshot_filter_state_required',400)
   if(input.format!=='pdf'&&input.format!=='pptx')fail('dashboard_snapshot_format_required',400)
   if(input.layout!=='desktop'&&input.layout!=='phone'&&input.layout!=='readable')fail('dashboard_snapshot_layout_required',400)
-  const context=await readDashboardContext(env,actor,actor.id,match[1],input.contextId),run=await runPublishedDashboard(env,actor,actor.id,match[1],input.filterState==='default'?{}:input.selection,undefined,context?.inherited)
+  const context=await readDashboardContext(env,actor,actor.id,match[1],input.contextId),run=await runPublishedDashboard(env,actor,actor.id,match[1],input.filterState==='default'?{}:input.selection,undefined,context?.inherited,undefined,true)
   if(context&&context.targetRevision!==run.result.revision)fail('dashboard_context_target_changed',409)
   if(input.filterState==='current'&&input.displayedDigest!==displayedSnapshotDigest(run.result))fail('dashboard_displayed_result_changed',409)
   if(!Array.isArray(input.tabs)||!input.tabs.length||input.tabs.length>8||input.tabs.some(t=>typeof t!=='string'||!run.result.config.tabs.some(tab=>tab.id===t))||new Set(input.tabs).size!==input.tabs.length)fail('dashboard_snapshot_selected_tabs_required',400)

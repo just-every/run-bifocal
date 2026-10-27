@@ -73,7 +73,9 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
    const values=interactive?(await call('/dashboard-authoring/'+saved.id+'/run',{selection:{}})).cards:(await call('/dashboards/'+saved.published.boardId)).cards
    assert.equal(values.length,2);assert.deepEqual(values.map(card=>card.quality.state),[state,state]);assert.deepEqual(values.map(card=>card.quality.lastGood.answer.totals.revenue.value),['30.00','9.98'])
    await page.goto(origin+'/app/dashboard-authoring/'+saved.id+'/view');await page.getByRole('status').filter({hasText:interactive?'Published revision':'Published layout'}).waitFor()
-   assert.equal(await page.locator('#published-dashboard .quality-notice').filter({hasText:'Quality '+state}).count(),2);await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
+   assert.equal(await page.locator('#published-dashboard .quality-notice').filter({hasText:'Quality '+state}).count(),2)
+   if(state==='at risk'){for(const summary of await page.getByText('Last-good values',{exact:true}).all())await summary.click();assert.deepEqual(await page.getByRole('table',{name:'Retained last-good totals',exact:true}).evaluateAll(tables=>tables.map(table=>Array.from(table.querySelectorAll('tbody td'),cell=>cell.textContent))),[['Revenue','$30.00'],['Revenue','$9.98']])}
+   await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
   }
   if(kind==='dashboard'){
    const refreshed=await call('/dashboards/'+created.id+'/refresh',{maxAgeSeconds:3600});assert.equal(refreshed.cards.length,2);assert.deepEqual(refreshed.cards.map(card=>card.quality.state),[state,state])
