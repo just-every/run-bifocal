@@ -1,0 +1,18 @@
+import type { D1TargetAdapter } from '../../../modules/import-kit/src/d1/types.ts'
+import type { TargetRow } from '../../../modules/import-kit/src/types.ts'
+import { canonicalJson } from '../../../modules/import-kit/src/provenance/identity.ts'
+import { sql, assertion } from '../../../modules/import-kit/src/door/store.ts'
+import type { MigrationProject } from './compile'
+export type ImportRow={id:string;owner_id:string;revision:string;value_json:string}
+export const migrationImportDestination=(id:string)=>'bifocal:migration-projects:'+id
+const valid=(destination:string,kind:string,id:string)=>/^[a-z][a-z0-9-]{0,63}$/.test(id)&&destination===migrationImportDestination(id)&&kind==='migration-project'
+const native=(r:ImportRow):TargetRow=>({destination:migrationImportDestination(r.id),targetKind:'migration-project',targetId:r.id,revision:r.revision,value:JSON.parse(r.value_json)})
+export const migrationImportTargets:D1TargetAdapter={
+ async read(db,destination,kind,id){if(!valid(destination,kind,id))return;const row=await db.prepare('SELECT * FROM bf_migration_projects WHERE id=?').bind(id).first<ImportRow>();return row?native(row):undefined},
+ matches(row,destination,kind,id){if(!valid(destination,kind,id))return sql('0');return row?sql('EXISTS(SELECT 1 FROM bf_migration_projects WHERE id=? AND revision=? AND value_json=?)',id,row.revision,canonicalJson(row.value)):sql('NOT EXISTS(SELECT 1 FROM bf_migration_projects WHERE id=?)',id)},
+ matchesCount(count,destination){const id=destination.slice('bifocal:migration-projects:'.length);return valid(destination,'migration-project',id)?sql('(SELECT count(*) FROM bf_migration_projects WHERE id=?)=?',id,count):sql('0')},
+ matchesMany(rows,destination){const id=destination.slice('bifocal:migration-projects:'.length);return !valid(destination,'migration-project',id)||rows.some(r=>r.targetId!==id||r.targetKind!=='migration-project'||r.destination!==destination)?[sql('0')]:[migrationImportTargets.matchesCount!(rows.length,destination),...rows.map(r=>migrationImportTargets.matches(r,destination,'migration-project',id))]},
+ write(row){if(!valid(row.destination,row.targetKind,row.targetId))throw Error('MIGRATION_PROJECT_TARGET_SCOPE');const v=row.value as unknown as MigrationProject;return [assertion(sql("COALESCE((SELECT revision FROM bf_migration_workspaces WHERE id=?),'')=? OR EXISTS(SELECT 1 FROM bf_migration_workspaces w JOIN bf_migration_projects p ON p.id=w.id WHERE w.id=? AND w.revision=p.revision)",row.targetId,v.expectedWorkspace??'',row.targetId)),sql('INSERT INTO bf_migration_projects(id,owner_id,value_json,revision) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET value_json=excluded.value_json,revision=excluded.revision',row.targetId,v.ownerId,canonicalJson(row.value),row.revision),sql('INSERT INTO bf_migration_workspaces(id,owner_id,revision,value_json) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,value_json=excluded.value_json',row.targetId,v.ownerId,row.revision,canonicalJson(row.value)),sql('INSERT OR IGNORE INTO bf_migration_project_edits(project_id,revision,action,value_json) VALUES(?,?,?,?)',row.targetId,row.revision,'import',canonicalJson(row.value))]},
+ remove(destination,kind,id){return valid(destination,kind,id)?[assertion(sql('EXISTS(SELECT 1 FROM bf_migration_workspaces w JOIN bf_migration_projects p ON p.id=w.id WHERE w.id=? AND w.revision=p.revision)',id)),sql('DELETE FROM bf_migration_projects WHERE id=?',id)]:[sql('SELECT 0')]},
+ async list(db,destination){const id=destination.slice('bifocal:migration-projects:'.length);if(!valid(destination,'migration-project',id))return [];return (await db.prepare('SELECT * FROM bf_migration_projects WHERE id=?').bind(id).all<ImportRow>()).results.map(native)},
+}

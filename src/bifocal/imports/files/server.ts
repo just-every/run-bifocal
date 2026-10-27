@@ -1,4 +1,5 @@
 import { preparationResponse } from '../../preparation/server'
+import { migrationImportResponse } from '../migrations/door.server'
 import {collaborationErasureCounts} from '../../collaboration/erasure'
 import { retentionAllowsErasure } from '../../retention/policy.server'
 import {definitionErasureCounts,eraseDefinitions} from '../../environments/erasure'
@@ -34,6 +35,8 @@ export async function fileImportResponse(request: Request, original: Bindings): 
  const path = new URL(request.url).pathname
  const preparation=await preparationResponse(request,original)
  if(preparation)return preparation
+ const migrationImport=await migrationImportResponse(request,original)
+ if(migrationImport)return migrationImport
  const modelImport=await modelImportResponse(request,original)
  if(modelImport)return modelImport
  if (path.startsWith('/api/rer/import/')) return refuseRequest(request, { error: 'not_found' }, 404)

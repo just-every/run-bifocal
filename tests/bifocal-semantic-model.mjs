@@ -1,3 +1,4 @@
+import {proveMigrationProjects} from './journeys/migration-projects.mjs'
 import assert from 'node:assert/strict'
 import {proveMachineDoors} from './journeys/machine-doors.mjs'
 import {proveCalculations} from './journeys/calculations.mjs'
@@ -58,8 +59,8 @@ try {
   for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return p}
   assert.fail('Shared source apply did not complete')
  }
+ if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
- if(process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'){await proveModelImports({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_DASHBOARD_ONLY==='1'){await proveDashboardInteractions({origin,context,page,upload,proveScreen});await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await context.close();return}
  if(process.env.BIFOCAL_TV_ONLY==='1'){await proveDashboardTv({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_LARGE_EXPORT_ONLY==='1'){await proveLargeExploration({origin,context,page,call,upload,proveScreen});await context.close();return}
@@ -154,6 +155,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveCompositionTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveNativePreparation({imports:true})
+ await proveMigrationProjects({origin,context,call})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
