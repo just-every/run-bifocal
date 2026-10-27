@@ -13,8 +13,8 @@ export function showPreparationReview(box,value,previousVersion,restoreVersion){
  if(value.impact){
   const shown=value=>value===null?'Unavailable':Object.entries(value).map(([key,item])=>key+': '+(item.value??item.state)).join(', ')
   const impactTable=(...args)=>{const wrap=table(...args);wrap.classList.add('preparation-impact');return wrap}
-  box.append(impactTable('Certified metric impact',['Metric','Certified revision','Published value','Staged value','Error','Published changed'],value.impact.metrics.map(metric=>[metric.name,metric.revision,shown(metric.before),shown(metric.after),metric.error?.code??'None','No'])))
-  box.append(impactTable('Affected charts',['Chart','Published totals','Staged totals','Error','Published changed'],value.impact.charts.map(chart=>[chart.title,shown(chart.before),shown(chart.after),chart.error?.code??'None','No'])))
+  box.append(impactTable('Certified metric impact',['Metric','Certified revision','Published value','Current data error','Staged value','Staged error','Published changed'],value.impact.metrics.map(metric=>[metric.name,metric.revision,shown(metric.before),metric.beforeError?.code??'None',shown(metric.after),metric.error?.code??'None','No'])))
+  box.append(impactTable('Affected charts',['Chart','Published totals','Current data error','Staged totals','Staged error','Published changed'],value.impact.charts.map(chart=>[chart.title,shown(chart.before),chart.beforeError?.code??'None',shown(chart.after),chart.error?.code??'None','No'])))
  }
  if(value.output){
   const {columns,rows,lineage}=value.output

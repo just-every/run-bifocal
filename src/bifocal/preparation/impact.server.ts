@@ -14,12 +14,15 @@ export async function preparationImpact(env:Bindings,ownerId:string,document:Pre
  const guards=sources.map(sourceMatch),base=sources.find(s=>s.id===document.dataset)!
  const substitute=(all:Source[])=>all.map(source=>source.id===base.id&&result.output?{...source,table:{...source.table,columns:result.output.columns,rows:result.output.rows}}:source)
  const evaluate=(query:Query,context:Context,all:Source[])=>{
-  const before=execute(query,all,context)
-  if(!result.compatible)return {before:before.totals,after:null,error:result.error,changed:false,publishedChanged:false}
+  // Current source drift must not prevent review of a valid staged repair.
+  let before:ReturnType<typeof execute>|null=null,beforeError:{code:string}|null=null
+  try{before=execute(query,all,context)}catch(error){if(!(error instanceof QueryError))throw error;beforeError={code:error.code}}
+  const current={before:before?.totals??null,beforeError,publishedChanged:false}
+  if(!result.compatible)return {...current,after:null,error:result.error,changed:false}
   try{
    const after=execute(query,substitute(all),context)
-   return {before:before.totals,after:after.totals,error:null,changed:canonicalJson(before)!==canonicalJson(after),publishedChanged:false}
-  }catch(error){if(!(error instanceof QueryError))throw error;return {before:before.totals,after:null,error:{code:error.code},changed:false,publishedChanged:false}}
+   return {...current,after:after.totals,error:null,changed:before?canonicalJson(before)!==canonicalJson(after):null}
+  }catch(error){if(!(error instanceof QueryError))throw error;return {...current,after:null,error:{code:error.code},changed:false}}
  }
  const metrics=(await env.DB.prepare('SELECT m.*,r.document_json,r.digest FROM bf_metrics m JOIN bf_metric_revisions r ON r.metric_id=m.id AND r.revision=m.published_revision WHERE m.owner_id=? AND m.deprecated_at IS NULL AND r.dataset_id=? ORDER BY m.id LIMIT 101').bind(ownerId,base.id).all<MetricRow&{document_json:string;digest:string}>()).results
  if(metrics.length>100)fail('preparation_metric_impact_limit',413)
