@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "51455a1b6ae14c90a348b3d18d41a42aa65fff2120bd2c27fed4ecbb085904d7",
+      "sha256": "35345f45c079d08ed5aa57e5a0b38550cba22a4bb257a96ee34f4fe8dc727cfe",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "74f28d76612ab90b7a9524eb7639694319bff98c8104736d388e3ecbe1d233f3",
+      "sha256": "1f7e738db38df062b045334baaf088f77f8d269a2e0166db54b8b76cc99ef645",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1645,7 +1645,7 @@
       "executable": false
     },
     "src/bifocal/collaboration/subjects.server.ts": {
-      "sha256": "aa5d27b77f1ef214faa25254b08444579a0ed654a2ed3f0ab91c66d610792fb5",
+      "sha256": "0776938a49aca03c1e4d171286e2fd09cb2cc84fc6dad396e11da36c711c38d7",
       "executable": false
     },
     "src/bifocal/company/display-zone.ts": {
