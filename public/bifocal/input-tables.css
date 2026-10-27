@@ -1,0 +1,5 @@
+body[data-input-tables] .digest{overflow-wrap:anywhere}
+body[data-input-tables] textarea[name=schemaJson]{font:14px/1.6 var(--font-mono);min-height:180px}
+body[data-input-tables] .menu>summary::before{content:'Open settings';position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:max-content;height:auto;padding:7px 10px;border:1px solid var(--app-line);border-radius:var(--app-radius);background:var(--app-surface);color:var(--app-text);font-size:13px;font-weight:500;transform:none;opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0s .3s,visibility 0s .3s}
+body[data-input-tables] .menu>summary:hover::before,body[data-input-tables] .menu>summary:focus-visible::before{opacity:1;visibility:visible}
+body[data-input-tables] .menu>summary:focus-visible::before{transition-delay:0s}
