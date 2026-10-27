@@ -593,7 +593,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `abd19dfc5e869b0fdbb474f87bdec952cdbca014` (28 October 2026). BIF-011 records the bounded native four-type chart slice; its code and tests are unchanged from commit `f1c17c03f05bdd067c22de3619f43156914431dc`. BIF-081 and BIF-030 retain their newer main evidence and every existing CT ruling. This local proof makes no new DONE judgment; the complete chart and map library remains partial.
+Judged from the code and tests at commit `1ef7e0340eaeeaaa442a51f95fcfb3fe908623fa` (28 October 2026). BIF-011 records the bounded native four-type chart slice; its code and tests are unchanged from commit `f1c17c03f05bdd067c22de3619f43156914431dc`. BIF-081 and BIF-030 retain their newer main evidence and every existing CT ruling. The native chart journey has been re-run through the emitted Worker with real migrated D1, with all chart states inspected at both widths. This local proof makes no new DONE judgment; the complete chart and map library remains partial.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
