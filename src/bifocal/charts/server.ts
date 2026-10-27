@@ -65,7 +65,7 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
   if(definition![1]==='review') {
    const answer=execute(document.definition,sources,context)
    await transact(env.DB,owner,guards.map(assertion))
-   return json({document,digest,answer,view:chartView({...document,answer,context})})
+   return json({document,digest,answer,currency:context.currency,view:chartView({...document,answer,context})})
   }
   if(input.reviewedDigest!==digest)fail('exact_current_chart_review_required',409)
   const {snapshot,changes}=prepareQuery(document.definition,context,sources),id=randomUUID(),createdAt=new Date().toISOString(),view=chartView({...document,answer:snapshot.answer,context})

@@ -228,7 +228,8 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
 }
 
 /** Four native charts are created with real controls over independently checked USD rows. */
-export async function proveNativeChartBuilder({origin,context,page,call,upload,proveScreen}) {
+export async function proveNativeChartBuilder({origin,context,page,upload,proveScreen}) {
+ const call=async(path,data)=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{Origin:origin},...(data===undefined?{}:{data})});assert.ok(response.ok(),await response.text());return response.json()}
  page.setDefaultTimeout(20000)
  const dataset='synthetic-bifocal-native-charts',calendar='synthetic-bifocal-native-chart-calendar'
  const csv='id,segment,amount\n1,1 Sales,$12.00\n2,2 Unreported,\n3,3 Refunds,-$4.00\n4,4 No sales,$0.00\n5,5 Support,$2.00\n'
@@ -253,7 +254,7 @@ export async function proveNativeChartBuilder({origin,context,page,call,upload,p
   if(kind==='line'||kind==='stepped-line')await page.getByLabel('Value scale',{exact:true}).selectOption('auto')
   await page.getByRole('button',{name:'Review current chart',exact:true}).focus();await page.keyboard.press('Enter')
   await page.getByRole('status').filter({hasText:'Current exact values reviewed'}).waitFor()
-  assert.equal(await page.getByRole('table',{name:'Current exact rows and complete query totals'}).locator('tbody tr').count(),5)
+  const reviewTable=page.getByRole('table',{name:'Current exact rows and complete query totals'});assert.equal(await reviewTable.locator('tbody tr').count(),5);assert.match(await reviewTable.locator('tbody td').first().innerText(),/^USD 12.00/)
   await proveScreen('native-builder-'+kind+'-'+width,{widths:[width],resize:false})
   await page.getByLabel('Chart title',{exact:true}).fill('Reviewed finance '+kind+' '+width)
   assert.equal(await page.getByRole('button',{name:'Create reviewed chart',exact:true}).isDisabled(),true,'Any edit invalidates the review')
@@ -284,6 +285,7 @@ export async function proveNativeChartBuilder({origin,context,page,call,upload,p
   await page.getByRole('region',{name:'Exact chart values',exact:true}).focus();await page.keyboard.press('ArrowRight')
   const menu=page.locator('.menu > summary'),tooltip=page.locator('#settings-menu-tooltip')
   await menu.hover();await tooltip.waitFor({state:'visible'});await page.mouse.move(0,0);await tooltip.waitFor({state:'hidden'});await menu.focus();assert.equal(await tooltip.isVisible(),true)
+  assert.ok(await figure.locator('.plot-scroll').evaluate(element=>element.scrollWidth<=element.clientWidth),'The complete plot fits the phone and desktop viewport')
   await proveScreen('native-viewer-'+kind+'-'+width,{widths:[width],resize:false})
   await page.getByLabel('Chart selection',{exact:true}).selectOption({label:'3 Refunds'})
   await page.getByRole('button',{name:'Apply selection',exact:true}).focus();await page.keyboard.press('Enter');await page.waitForURL(url=>url.searchParams.has('selection'))
@@ -323,9 +325,17 @@ export async function proveNativeChartBuilder({origin,context,page,call,upload,p
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/charts/'+chart.id);await page.getByRole('status').filter({hasText:'No matching groups.'}).waitFor();assert.equal(await page.locator('.series-marks').count(),0);assert.equal(await page.getByRole('table').locator('tbody tr').count(),0);await proveScreen('native-empty-'+kind+'-'+width,{widths:[width],resize:false})}
   for(const format of ['png','pdf']){const exported=await call('/charts/'+chart.id+'/snapshot/review',{format});assert.deepEqual(exported.provenance.view.rows,[]);assert.ok(exported.pages.flatMap(page=>page.shapes).some(shape=>shape.kind==='text'&&shape.lines.join(' ').includes('No result groups')))}
  }
+ await page.goto(origin+'/app/charts/new?query='+answer.queryId)
+ await page.getByRole('status').filter({hasText:'Choose chart settings'}).waitFor()
+ await page.getByRole('button',{name:'Review current chart',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Current exact values reviewed'}).waitFor()
  const stale=await call('/chart-definitions/review',{document:base}),before=await call('/queries')
  await upload(dataset,csv.replace('$12.00','$13.00'),true)
  assert.equal((await post('/chart-definitions/create',{document:base,reviewedDigest:stale.digest})).status(),409)
+ await page.getByRole('button',{name:'Create reviewed chart',exact:true}).click()
+ await page.getByRole('alert').filter({hasText:'Review the current chart again'}).waitFor()
+ assert.equal(await page.getByRole('button',{name:'Create reviewed chart',exact:true}).isDisabled(),true)
+ await proveScreen('native-builder-source-changed')
  assert.deepEqual(await call('/queries'),before,'Stale chart review creates neither answer nor chart')
  for(const {endpoint,data} of reviews)assert.equal((await post(endpoint+'/download',data)).status(),409,'A source change requires fresh snapshot review')
  assert.deepEqual((await call('/queries/'+answer.queryId)).answer,answer.answer,'The historical answer remains byte-equivalent after source changes')
@@ -335,5 +345,6 @@ export async function proveNativeChartBuilder({origin,context,page,call,upload,p
  for(const chart of charts){assert.equal((await context.request.get(origin+'/api/operator/charts/'+chart.id)).status(),404);for(const action of ['review','download'])assert.equal((await post('/charts/'+chart.id+'/snapshot/'+action,{format:'png',exportedAt:new Date().toISOString(),reviewedDigest:'erased'})).status(),404)}
  assert.equal((await context.request.get(origin+'/api/operator/queries/'+emptyAnswer.queryId)).status(),404)
  for(const {endpoint,data} of reviews)assert.equal((await post(endpoint+'/download',data)).status(),404,'Erasure withdraws previously reviewed static files')
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/charts/'+charts[0].id);await page.getByRole('alert').filter({hasText:'This chart isn’t available'}).waitFor();await proveScreen('native-chart-withdrawn-'+width,{widths:[width],resize:false})}
  console.log('Native four chart builder: desktop and phone creation, signed exact USD, explicit order, gaps, empty states, keyboard, selection, protected PNG and PDF, source drift and erasure passed')
 }

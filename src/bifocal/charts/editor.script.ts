@@ -86,10 +86,10 @@ if(form){
   if(!source)throw new Error('Choose a saved answer with one grouping dimension first.');
   return {version:1,title:title.value.trim(),definition:structuredClone(source.definition),visual:{kind:kind.value,dimension:dimension.value,measure:measure.value,order:{field:orderField.value,direction:direction.value,nulls:nulls.value},missing:'gap',scale:{zero:scale.value==='zero',reverse:false},selection:{field:selection.value,label:'Chart selection'}}};
  }
- function exactValue(value){
+ function exactValue(value,currency){
   if(!value)throw new Error('The reviewed answer is missing a bound measure. Choose another answer or review again.');
   if(value.state!=='value'||value.value===null)return value.state+(value.reason?' · '+value.reason:'')+' · '+value.unit;
-  return value.value+' '+value.unit+(value.exact?' · exact '+value.exact.numerator+'/'+value.exact.denominator:'')+(value.nulls?' · '+value.nulls+' null inputs':'')+(value.excluded?' · '+value.excluded+' excluded inputs':'');
+  return (value.unit==='money'?currency+' ':'')+value.value+' '+value.unit+(value.exact?' · exact '+value.exact.numerator+'/'+value.exact.denominator:'')+(value.nulls?' · '+value.nulls+' null inputs':'')+(value.excluded?' · '+value.excluded+' excluded inputs':'');
  }
  function renderReview(data){
   const document=data.document,rows=data.view.rows,totals=data.view.totals,measures=document.definition.measures;
@@ -97,9 +97,9 @@ if(form){
   const head=node('thead'),headRow=node('tr'),dimensionHeader=node('th',document.visual.dimension+' · dimension');dimensionHeader.scope='col';headRow.append(dimensionHeader);
   for(const m of measures){const th=node('th',unitLabel(m));th.scope='col';headRow.append(th);}head.append(headRow);table.append(head);
   const body=node('tbody');
-  for(const row of rows){const tr=node('tr'),label=node('th',row.label===null?'Null':String(row.label));label.scope='row';tr.append(label);for(const m of measures)tr.append(node('td',exactValue(row.values[m.id])));body.append(tr);}
+  for(const row of rows){const tr=node('tr'),label=node('th',row.label===null?'Null':String(row.label));label.scope='row';tr.append(label);for(const m of measures)tr.append(node('td',exactValue(row.values[m.id],data.currency)));body.append(tr);}
   if(!rows.length){const tr=node('tr'),td=node('td','No matching rows in the current answer.');td.colSpan=measures.length+1;tr.append(td);body.append(tr);}table.append(body);
-  const foot=node('tfoot'),totalRow=node('tr'),totalHeader=node('th','Complete query totals');totalHeader.scope='row';totalRow.append(totalHeader);for(const m of measures)totalRow.append(node('td',exactValue(totals[m.id])));foot.append(totalRow);table.append(foot);
+  const foot=node('tfoot'),totalRow=node('tr'),totalHeader=node('th','Complete query totals');totalHeader.scope='row';totalRow.append(totalHeader);for(const m of measures)totalRow.append(node('td',exactValue(totals[m.id],data.currency)));foot.append(totalRow);table.append(foot);
   const wrap=node('div');wrap.className='tablewrap';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','Reviewed exact values; scroll horizontally for all measures');wrap.append(table);
   byId('chart-review-rows').replaceChildren(wrap);
   byId('chart-review-summary').textContent=document.title+' · '+rows.length+' groups · '+data.answer.filteredRows+' of '+data.answer.inputRows+' source rows after filtering. Review reflects current sources, which may differ from the saved answer.';

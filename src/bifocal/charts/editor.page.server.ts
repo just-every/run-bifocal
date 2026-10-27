@@ -17,14 +17,14 @@ export function editorPage(viewer:Viewer,queryId=''):Response {
   <legend>Chart settings</legend>
   <div class="fields">
    <label for="chart-title">Chart title<input id="chart-title" maxlength="160" required></label>
-   <label for="chart-kind">Chart type<select id="chart-kind"><option value="vertical-bar">Vertical bar</option><option value="line">Line</option><option value="stepped-line">Stepped line</option><option value="area">Area</option></select></label>
-   <label for="chart-dimension">Dimension<select id="chart-dimension" required></select></label>
-   <label for="chart-measure">Measure<select id="chart-measure" required></select></label>
-   <label for="chart-order-field">Order by<select id="chart-order-field" required></select></label>
-   <label for="chart-order-direction">Order direction<select id="chart-order-direction"><option value="ascending">Ascending</option><option value="descending">Descending</option></select></label>
-   <label for="chart-order-nulls">Missing values in order<select id="chart-order-nulls"><option value="last">Nulls last</option><option value="first">Nulls first</option></select></label>
-   <div class="control"><label for="chart-scale">Value scale</label><select id="chart-scale" aria-describedby="chart-scale-hint"><option value="zero">Include zero</option><option value="auto" disabled>Automatic range</option></select><p class="hint" id="chart-scale-hint">Vertical bars and areas always include zero.</p></div>
-   <label for="chart-selection">Selection dimension<select id="chart-selection" required></select></label>
+   <label for="chart-kind">Chart type<select id="chart-kind" aria-label="Chart type"><option value="vertical-bar">Vertical bar</option><option value="line">Line</option><option value="stepped-line">Stepped line</option><option value="area">Area</option></select></label>
+   <label for="chart-dimension">Dimension<select id="chart-dimension" aria-label="Dimension" required></select></label>
+   <label for="chart-measure">Measure<select id="chart-measure" aria-label="Measure" required></select></label>
+   <label for="chart-order-field">Order by<select id="chart-order-field" aria-label="Order by" required></select></label>
+   <label for="chart-order-direction">Order direction<select id="chart-order-direction" aria-label="Order direction"><option value="ascending">Ascending</option><option value="descending">Descending</option></select></label>
+   <label for="chart-order-nulls">Missing values in order<select id="chart-order-nulls" aria-label="Missing values in order"><option value="last">Nulls last</option><option value="first">Nulls first</option></select></label>
+   <div class="control"><label for="chart-scale">Value scale</label><select id="chart-scale" aria-label="Value scale" aria-describedby="chart-scale-hint"><option value="zero">Include zero</option><option value="auto" disabled>Automatic range</option></select><p class="hint" id="chart-scale-hint">Vertical bars and areas always include zero.</p></div>
+   <label for="chart-selection">Selection dimension<select id="chart-selection" aria-label="Selection dimension" required></select></label>
   </div>
   <p class="hint">Missing values stay visible as gaps. Chart selections narrow displayed rows; totals retain the complete query context.</p>
  </fieldset>

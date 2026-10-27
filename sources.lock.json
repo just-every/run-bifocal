@@ -1680,12 +1680,32 @@
       "sha256": "b54711589b0d490756d3527667dff8615acf229012b236ef6ddd3cee21e50701",
       "executable": false
     },
+    "src/bifocal/charts/editor.page.server.ts": {
+      "sha256": "bd1ddffdb06b0a119e18dee0aa39f861c39087a307b22df07ed6880f245bc339",
+      "executable": false
+    },
+    "src/bifocal/charts/editor.script.ts": {
+      "sha256": "1ee96a250a289cc07db62433808e6a4a5d92deeacdb1b1054e658cffe76d0899",
+      "executable": false
+    },
     "src/bifocal/charts/expression.ts": {
       "sha256": "6647983b657de3ab92adabc2506d21a77ef68e906b0547091a44f8f1f4b1b774",
       "executable": false
     },
     "src/bifocal/charts/figure.server.ts": {
       "sha256": "4e68599b9dc3c426d5041e67ff2aee34fd2c51caabe64d79999252011b24d992",
+      "executable": false
+    },
+    "src/bifocal/charts/geometry.ts": {
+      "sha256": "0e40ff197aa6f58d258637d06c7840d5696aef199051f2eac961ac64468cfe88",
+      "executable": false
+    },
+    "src/bifocal/charts/native-figure.server.ts": {
+      "sha256": "a7d6ea78d67a3f4e75c8574d99fe3013aa399b82ed4ff27632a7bb18bb3f00f8",
+      "executable": false
+    },
+    "src/bifocal/charts/native.ts": {
+      "sha256": "a43b194fe14f4213889fcbd9eea3f6d9523e57b3cec5aa2c65212a29724bf55b",
       "executable": false
     },
     "src/bifocal/charts/page.server.ts": {
@@ -1701,7 +1721,7 @@
       "executable": false
     },
     "src/bifocal/charts/server.ts": {
-      "sha256": "151fd40fb47ae9e847bcebacd9ab9a6289e5728ecc95834833edccb9e90fb9aa",
+      "sha256": "5939cc9f4184f59511a3240736f87999ac1d547c503298a9f9448c06bf9f48d7",
       "executable": false
     },
     "src/bifocal/charts/store.server.ts": {
@@ -1709,7 +1729,7 @@
       "executable": false
     },
     "src/bifocal/charts/styles.ts": {
-      "sha256": "157e5e9a86542af014c876d5f4d99e9fa64f2f70abf49aed991d6e6ee36b29fc",
+      "sha256": "502894cec4c66d79f4842d6a1e66a9f8941fb576f2cdec84447494852db653db",
       "executable": false
     },
     "src/bifocal/charts/view.ts": {
@@ -1876,6 +1896,14 @@
       "sha256": "2038e9024188533b4a38a4e64238cd53d49379217e49bb9cabdf573e6f359db6",
       "executable": false
     },
+    "src/bifocal/dashboards/snapshots/chart-export-font.ts": {
+      "sha256": "f893a9092165387b9dd9c1b05da09c2af8e64c0c57f401ad6d1dc8f48bdfc64a",
+      "executable": false
+    },
+    "src/bifocal/dashboards/snapshots/chart-export-scene.ts": {
+      "sha256": "5f4c2cb16003b411ee62a725e710fb3984eb0349a475f4a711b658c42555745d",
+      "executable": false
+    },
     "src/bifocal/dashboards/snapshots/chart-response.server.ts": {
       "sha256": "22e149778615551f17ecee3b8e3274ca1adb0c5955fa51c59e6c85d8edd39062",
       "executable": false
@@ -1894,6 +1922,10 @@
     },
     "src/bifocal/dashboards/snapshots/pdf.ts": {
       "sha256": "2ca7b6dc0a6a58de4972b38f05e0e263073d19007379b8ae5ec0ead59776db3e",
+      "executable": false
+    },
+    "src/bifocal/dashboards/snapshots/png.ts": {
+      "sha256": "4572467b4e04e1a0628b2522e411b96c574bd48533637aab36b135df93f7e773",
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/pptx.ts": {
@@ -4713,7 +4745,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "c41a5f9b45332b14dc23ff8780684b860cb8e7cc40e4d845b2b31e1ec45eb94d",
+      "sha256": "ac9d518535fbe5584668f61bcd2d1a9dc4e3aeae8d2908043f1f4864369ba6b3",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
