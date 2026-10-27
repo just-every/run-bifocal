@@ -15,8 +15,10 @@ const amount=(value:Value):Rational|null=>value.state!=='value'||value.value===n
 export function chartView(chart:ChartInput,selection?:Selection):ChartView {
  const plan=chartPlan(chart),rounding=chart.definition.context.rounding
  const result=(column:Column,value:Rational|null,inputs:Value[]):Value=>{
+  const rendered=value?rounded(value,column.scale,rounding):null
+  if(rendered!==null&&!/^-?(?:0|[1-9]\d{0,79})(?:\.\d{1,12})?$/.test(rendered))fail('chart_calculation_magnitude_limit',400)
   const unavailable=inputs.find(value=>value.state==='suppressed')??inputs.find(value=>value.state==='unknown')??inputs.find(value=>value.state==='incomplete')??inputs.find(value=>value.state==='null')
-  return {state:value?'value':unavailable?.state??'unknown',value:value?rounded(value,column.scale,rounding):null,exact:value?exact(value):null,unit:column.unit,nulls:inputs.reduce((n,v)=>n+v.nulls,0),excluded:inputs.reduce((n,v)=>n+v.excluded,0),...(!value?{reason:unavailable?.reason??'chart_calculation_unavailable'}:{})}
+  return {state:value?'value':unavailable?.state??'unknown',value:rendered,exact:value?exact(value):null,unit:column.unit,nulls:inputs.reduce((n,v)=>n+v.nulls,0),excluded:inputs.reduce((n,v)=>n+v.excluded,0),...(!value?{reason:unavailable?.reason??'chart_calculation_unavailable'}:{})}
  }
  let rows=chart.answer.rows.map(row=>({dimensions:Object.fromEntries(chart.definition.groupBy.map((field,index)=>[field,row.dimensions[index]])),values:{...row.values}})),totals={...chart.answer.totals}
  for(const transform of plan.transforms){
@@ -32,7 +34,7 @@ export function chartView(chart:ChartInput,selection?:Selection):ChartView {
   }else{
    const predicate=transform.predicate
    rows=rows.filter(row=>{
-    const numeric=row.values[predicate.field],value=numeric?numeric.value:row.dimensions[predicate.field]
+    const numeric=Object.hasOwn(row.values,predicate.field)?row.values[predicate.field]:undefined,value=numeric?numeric.value:row.dimensions[predicate.field]
     const equal=(other:Cell)=>{if(numeric&&value!==null&&typeof other==='string'&&/^-?\d+(?:\.\d+)?$/.test(other)){const left=amount(numeric),right=decimal(other);return left!==null&&left.numerator*right.denominator===right.numerator*left.denominator}return value===other}
     if(Object.hasOwn(predicate,'equal'))return equal(predicate.equal!)
     if(Object.hasOwn(predicate,'notEqual'))return !equal(predicate.notEqual!)

@@ -37,7 +37,7 @@ export function compileSpecification(value:unknown,query:Query):{specification:S
  const language=input.language,spec=record(input.spec),dimensions=new Set(query.groupBy),columns:Column[]=query.measures.map(m=>({id:m.id,unit:m.unit,scale:m.scale})),numeric=new Set(columns.map(c=>c.id)),transforms:Transform[]=[]
  if(query.groupBy.some(field=>numeric.has(field)))fail('chart_ambiguous_field',400)
  const field=(value:unknown,kind:'numeric'|'dimension')=>{const name=text(value);if(!(kind==='numeric'?numeric:dimensions).has(name))fail('chart_unknown_field',400);return name}
- const derived=(name:unknown,unit:Column['unit'],precision:number)=>{const id=text(name);if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)||numeric.has(id)||dimensions.has(id))fail('chart_derived_field_conflict',400);numeric.add(id);columns.push({id,unit,scale:precision});return id}
+ const derived=(name:unknown,unit:Column['unit'],precision:number)=>{const id=text(name);if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)||['__proto__','constructor','prototype'].includes(id)||numeric.has(id)||dimensions.has(id))fail('chart_derived_field_conflict',400);numeric.add(id);columns.push({id,unit,scale:precision});return id}
  const calculation=(source:unknown,name:unknown)=>{
   const expression=arithmetic(source,numeric),inputs=expressionFields(expression).map(ref=>columns.find(column=>column.id===ref)!)
   const unit=(expression:Expression):Column['unit']|undefined=>{
