@@ -46,12 +46,12 @@ export function executeChecks(project: Project, resources: ProjectResource[], ru
    if (index<0) { fail('dbt_test_column_unavailable','The test column is not retained by the exact dependency projection.'); continue }
    const numeric=['number','money'].includes(run.source.table.columns[index].type), seen=new Set<string>()
    let failures=0
-   for (const row of run.source.table.rows) {
+   for (const row of run.projection.rows) {
     const value=row[index]
     if (value===null) { if (name==='not_null') failures++; continue }
     if (name==='unique') { const key=exactValue(value,numeric); if (seen.has(key)) failures++; else seen.add(key) }
    }
-   results.push({dataset:run.source.id,revision:run.source.revision,column:physical,rows:run.source.table.rows.length,failures})
+   results.push({dataset:run.source.id,revision:run.source.revision,column:physical,rows:run.projection.rows.length,failures})
    if (failures) fail('dbt_quality_check_failed',`${name} failed on ${failures} reviewed source record(s); publication is blocked.`)
   }
   if (results.length===targets.length) finish(r,{state:'executed',test:name,results})

@@ -11,7 +11,7 @@ export type ModelMeasure = Provenance & {
 }
 export type ModelTable = Provenance & { name: string; sourceTable: string|null; dimensions: Dimension[]; measures: ModelMeasure[] }
 export type ModelJoin = Provenance & { name: string; table: string; left: string; right: string; cardinality: 'many-to-one'|'one-to-one' }
-export type Explore = Provenance & { name: string; table: string; joins: ModelJoin[]; filters?: Filter[]; groupBy?: string[] }
+export type Explore = Provenance & { name: string; table: string; joins: ModelJoin[]; filters?: Filter[]; boundFilters?: Filter[]; groupBy?: string[] }
 export type ReadIssue = Provenance & { object: string; code: string; message: string }
 /** Issues are unresolved obligations, never compatibility successes. Binding,
  * source execution and publication belong to the caller, not these readers. */

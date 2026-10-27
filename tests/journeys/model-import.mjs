@@ -150,6 +150,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/staging/);await proveScreen(input===core?'dbt-projection':'dbt-cloud-projection')
   dbtProjects.push({input,plan})
  }
+ await proveDBTPredicates({core,resolvedManifest,resolvedCloud,prepare,apply,call,upload,post,page,origin,proveScreen})
  for(const failure of ['not_null','unique']){
   const id='synthetic-bifocal-dbt-failed-'+failure.replace('_','-'),source=id+'-source'
   await upload(source,csv.replace('4,East,,',failure==='not_null'?',East,,':'3,East,,'))
