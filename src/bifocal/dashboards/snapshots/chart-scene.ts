@@ -1,6 +1,7 @@
 import type {readChart} from '../../charts/store.server'
 import {chartView} from '../../charts/view'
 import {chartPlot} from '../../charts/plot'
+import {nativeChartShapes} from './chart-export-scene'
 import {fail,type Cell,type Value} from '../../query/types'
 import type {Scene,Snapshot} from './scene'
 
@@ -17,7 +18,7 @@ const wrapped=(value:string,size=16)=>{
 /** The browser and native files consume the same permitted, computed view. */
 export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefined,exportedAt:string,backLink:string):Snapshot{
  const view=chartView(chart,selection),pages:Scene[]=[],columns=view.columns.map(c=>c.id)
- const plot=chartPlot(view)
+ const plot=chartPlot(view),native=['vertical-bar','line','stepped-line','area'].includes(view.mark)
  const add=(scene:Scene,name:string,value:string,y:number,size=16)=>{const lines=wrapped(value,size);scene.shapes.push({kind:'text',label:name,x:32,y,w:1216,h:lines.length*size*1.25,size,lines});return lines.length*size*1.25}
  let y=0
  const page=()=>{
@@ -28,19 +29,26 @@ export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefine
   add(scene,'Open authenticated chart',backLink,858,14);y=top;return scene
  }
  let scene=page()
+ if(native){
+  // Keep the whole visual on its own page; exact data follows without clipping.
+  if(y+500>810)fail('chart_snapshot_context_does_not_fit',422)
+  scene.shapes.push(...nativeChartShapes(view,y,chart.context.currency))
+  scene=page()
+ }
+ if(!view.rows.length)add(scene,'Empty chart result','No result groups match this chart.',y),y+=40
  for(const [index,row] of view.rows.entries()){
-  const text=[label(row.label),...columns.map(id=>id+': '+shown(row.values[id],chart.context.currency))].join(' | '),height=wrapped(text).length*20+36
+  const text=[...(native?[String(index+1)+'.']:[]),label(row.label),...columns.map(id=>id+': '+shown(row.values[id],chart.context.currency))].join(' | '),height=wrapped(text).length*20+(native?12:36)
   if(height>570)fail('chart_snapshot_row_does_not_fit',422)
   if(y+height>756){scene=page();if(y+height>756)fail('chart_snapshot_row_does_not_fit',422)}
   y+=add(scene,'Exact chart row '+label(row.label),text,y)
   const point=plot.points[index],inside=(n:number)=>n>=0&&n<=600
-  if(inside(plot.zero))scene.shapes.push({kind:'rect',label:'Zero baseline',x:64+plot.zero/600*1000,y:y+1,w:1,h:20})
-  if(point.start!==null&&point.end!==null){
+  if(!native&&inside(plot.zero))scene.shapes.push({kind:'rect',label:'Zero baseline',x:64+plot.zero/600*1000,y:y+1,w:1,h:20})
+  if(!native&&point.start!==null&&point.end!==null){
    const isPoint=view.mark==='point'||point.start===point.end
    if(isPoint&&inside(point.end))scene.shapes.push({kind:'ellipse',label:'Plot '+text,x:64+point.end/600*1000-3,y:y+5,w:6,h:6})
    else if(!isPoint){const left=Math.max(0,Math.min(point.start,point.end)),right=Math.min(600,Math.max(point.start,point.end));if(right>left)scene.shapes.push({kind:'rect',label:'Plot '+text,x:64+left/600*1000,y:y+3,w:(right-left)/600*1000,h:14})}
   }
-  y+=36
+  y+=native?12:36
  }
  const totals=(selection?'Full query totals | ':'Total | ')+columns.map(id=>id+': '+shown(view.totals[id],chart.context.currency)).join(' | ')
  if(y+wrapped(totals).length*20>810){scene=page();if(y+wrapped(totals).length*20>810)fail('chart_snapshot_totals_do_not_fit',422)}

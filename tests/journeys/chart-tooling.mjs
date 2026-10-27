@@ -50,6 +50,7 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
   assert.ok(await plot.locator('svg').first().evaluate(svg=>{const bounds=svg.getBoundingClientRect();return bounds.width>bounds.height}),'The chart has a horizontal responsive plotting area')
   await proveScreen('native-retained-chart',{widths:[width],resize:false})
  }
+ await proveNativeChartBuilder({origin,context,page,call,upload,proveScreen})
  await proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document})
  const writeConfig=async(digest)=>writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_chart_snapshot:{main:{document:JSON.stringify(document),...(digest?{review_digest:digest}:{})}}}}))
  const terraform=async(args,ok=true)=>tfRun([args[0],'-state=chart.tfstate',...args.slice(1)],ok)
@@ -224,4 +225,115 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
  for(const artifact of [...artifacts,pointChart,...domainCharts])assert.equal((await context.request.get(origin+'/api/operator/charts/'+artifact.id)).status(),404)
  for(const data of snapshots)assert.equal((await post(endpoint+'/download',data)).status(),404,'Erasure withdraws previously reviewed declarative chart snapshots')
  console.log('Declarative charts: retained exact variance and cumulative intervals, equivalent languages, safe point scales, native selections, protected files and unsafe specification refusal passed')
+}
+
+/** Four native charts are created with real controls over independently checked USD rows. */
+export async function proveNativeChartBuilder({origin,context,page,call,upload,proveScreen}) {
+ page.setDefaultTimeout(20000)
+ const dataset='synthetic-bifocal-native-charts',calendar='synthetic-bifocal-native-chart-calendar'
+ const csv='id,segment,amount\n1,1 Sales,$12.00\n2,2 Unreported,\n3,3 Refunds,-$4.00\n4,4 No sales,$0.00\n5,5 Support,$2.00\n'
+ await upload(dataset,csv)
+ await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Native chart calendar',kind:'fiscal',startMonth:1}})
+ const definition={version:1,dataset,joins:[],filters:[],groupBy:['segment'],measures:[{id:'amount',op:'sum',column:'amount',unit:'money',scale:2,sourceCurrency:'USD',empty:'null'}],context:{modelVersion:'native-chart-v1',metricVersion:'native-chart-v1',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+ const answer=await call('/queries/run',definition),expected=[['1 Sales','12.00'],['2 Unreported',null],['3 Refunds','-4.00'],['4 No sales','0.00'],['5 Support','2.00']]
+ const headers={Origin:origin},post=(path,data)=>context.request.post(origin+'/api/operator'+path,{headers,data}),charts=[],reviews=[]
+ assert.deepEqual(answer.answer.rows.map(row=>[row.dimensions[0],row.values.amount.value]),expected)
+ assert.equal(answer.answer.totals.amount.value,'10.00','Independent integer cents: 1200 - 400 + 0 + 200 = 1000')
+ assert.equal((await fetch(origin+'/app/charts/new')).status,401)
+ for(const width of [1440,390])for(const kind of ['vertical-bar','line','stepped-line','area']){
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+answer.queryId)
+  await page.getByRole('link',{name:'Build a chart',exact:true}).click()
+  await page.getByRole('status').filter({hasText:'Choose chart settings'}).waitFor()
+  await page.getByLabel('Chart title',{exact:true}).fill('Finance '+kind+' '+width)
+  await page.getByLabel('Chart type',{exact:true}).selectOption(kind)
+  assert.deepEqual(await page.getByLabel('Dimension',{exact:true}).locator('option').allTextContents(),['segment · dimension'])
+  assert.equal(await page.getByLabel('Measure',{exact:true}).inputValue(),'amount')
+  await page.getByLabel('Order by',{exact:true}).selectOption('segment')
+  await page.getByLabel('Order direction',{exact:true}).selectOption('ascending')
+  if(kind==='line'||kind==='stepped-line')await page.getByLabel('Value scale',{exact:true}).selectOption('auto')
+  await page.getByRole('button',{name:'Review current chart',exact:true}).focus();await page.keyboard.press('Enter')
+  await page.getByRole('status').filter({hasText:'Current exact values reviewed'}).waitFor()
+  assert.equal(await page.getByRole('table',{name:'Current exact rows and complete query totals'}).locator('tbody tr').count(),5)
+  await proveScreen('native-builder-'+kind+'-'+width,{widths:[width],resize:false})
+  await page.getByLabel('Chart title',{exact:true}).fill('Reviewed finance '+kind+' '+width)
+  assert.equal(await page.getByRole('button',{name:'Create reviewed chart',exact:true}).isDisabled(),true,'Any edit invalidates the review')
+  await page.getByRole('button',{name:'Review current chart',exact:true}).click()
+  await page.getByRole('status').filter({hasText:'Current exact values reviewed'}).waitFor()
+  await page.getByRole('button',{name:'Create reviewed chart',exact:true}).focus();await page.keyboard.press('Enter')
+  await page.waitForURL(/\/app\/charts\/[a-f0-9-]{36}$/)
+  const id=new URL(page.url()).pathname.split('/').at(-1),chart=await call('/charts/'+id)
+  charts.push(chart)
+  assert.equal(chart.visual.kind,kind);assert.deepEqual(chart.view.rows.map(row=>[row.label,row.values.amount.value]),expected)
+  assert.equal(chart.answer.totals.amount.value,'10.00')
+  const figure=page.getByRole('figure',{name:'amount by segment'}),table=page.getByRole('table',{name:'Exact grouped values and totals'})
+  assert.deepEqual(await table.locator('tbody td').allTextContents(),['$12.00','NULL','-$4.00','$0.00','$2.00'])
+  assert.deepEqual(await figure.locator('.series-values li').allTextContents(),['1. 1 Sales · $12.00','2. 2 Unreported · NULL','3. 3 Refunds · -$4.00','4. 4 No sales · $0.00','5. 5 Support · $2.00'])
+  assert.match(await figure.locator('desc').textContent(),/2\. 2 Unreported: NULL; 3\. 3 Refunds: -\$4\.00/)
+  const geometry=await figure.locator('.series-marks').evaluate(group=>({rects:[...group.querySelectorAll('rect')].map(r=>({y:Number(r.getAttribute('y')),height:Number(r.getAttribute('height'))})),circles:[...group.querySelectorAll('circle')].map(r=>({x:Number(r.getAttribute('cx')),y:Number(r.getAttribute('cy'))})),lines:[...group.querySelectorAll('polyline')].map(p=>p.getAttribute('points')),areas:group.querySelectorAll('polygon').length}))
+  if(kind==='vertical-bar'){
+   assert.equal(geometry.rects.length,3);assert.equal(geometry.circles.length,1)
+   assert.equal(geometry.rects[0].y,30);assert.equal(geometry.rects[0].height,225)
+   assert.equal(geometry.rects[1].y,255);assert.equal(geometry.rects[1].height,75)
+   assert.equal(geometry.circles[0].y,255,'Zero has a visible marker on the baseline')
+  }else{
+   assert.equal(geometry.circles.length,4);assert.equal(geometry.lines.length,2,'A missing value interrupts the connected path')
+   assert.equal(geometry.lines[0],'130,30')
+   assert.equal(geometry.lines[1],kind==='stepped-line'?'370,330 490,330 490,255 610,255 610,217.5':'370,330 490,255 610,217.5')
+   assert.equal(geometry.areas,kind==='area'?2:0)
+  }
+  await page.getByRole('region',{name:'Exact chart values',exact:true}).focus();await page.keyboard.press('ArrowRight')
+  const menu=page.locator('.menu > summary'),tooltip=page.locator('#settings-menu-tooltip')
+  await menu.hover();await tooltip.waitFor({state:'visible'});await page.mouse.move(0,0);await tooltip.waitFor({state:'hidden'});await menu.focus();assert.equal(await tooltip.isVisible(),true)
+  await proveScreen('native-viewer-'+kind+'-'+width,{widths:[width],resize:false})
+  await page.getByLabel('Chart selection',{exact:true}).selectOption({label:'3 Refunds'})
+  await page.getByRole('button',{name:'Apply selection',exact:true}).focus();await page.keyboard.press('Enter');await page.waitForURL(url=>url.searchParams.has('selection'))
+  assert.deepEqual(await table.locator('tbody td').allTextContents(),['-$4.00']);assert.equal(await table.locator('tfoot td').innerText(),'$10.00')
+  await page.reload();assert.equal(await table.locator('tbody tr').count(),1,'Reopening preserves the displayed selection')
+  await proveScreen('native-selected-'+kind+'-'+width,{widths:[width],resize:false})
+  const endpoint='/charts/'+id+'/snapshot'
+  for(const format of ['png','pdf']){
+   const input={format},review=await call(endpoint+'/review',input)
+   assert.deepEqual(review.provenance.view.rows.map(row=>[row.label,row.values.amount.value]),expected)
+   const shapes=review.pages.flatMap(page=>page.shapes),text=shapes.filter(shape=>shape.kind==='text').flatMap(shape=>shape.lines).join('\n')
+   for(const value of ['1 Sales','2 Unreported','3 Refunds','4 No sales','5 Support','12.00','-4.00','0.00','2.00','10.00','NULL'])assert.ok(text.includes(value),'Export label or exact value missing: '+value)
+   assert.ok(shapes.every(shape=>shape.x>=0&&shape.y>=0&&shape.x+shape.w<=1280&&shape.y+shape.h<=900),'No export shape leaves its page')
+   const data={...input,exportedAt:review.exportedAt,reviewedDigest:review.digest},download=await post(endpoint+'/download',data)
+   assert.equal(download.status(),200,await download.text());const bytes=await download.body()
+   assert.equal(download.headers()['cache-control'],'no-store')
+   if(format==='png'){assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.equal(bytes.readUInt32BE(16),1280);assert.ok(bytes.readUInt32BE(20)>=900)}
+   else{const pdf=bytes.toString('latin1').replace(/\\([0-7]{3})/g,(_,octal)=>String.fromCharCode(parseInt(octal,8)));assert.ok(pdf.startsWith('%PDF-1.7'));assert.match(pdf,/3 Refunds/);assert.match(pdf,/-4.00/);assert.match(pdf,/\/StructTreeRoot/)}
+   if(width===1440&&process.env.BIFOCAL_PROOF_DIR)await writeFile(join(process.env.BIFOCAL_PROOF_DIR,'native-'+kind+'.'+format),bytes)
+   assert.equal((await post(endpoint+'/download',{...data,selection:{field:'segment',value:'3 Refunds'}})).status(),409,'Changed selection refuses the previous exact review')
+   reviews.push({endpoint,data})
+  }
+  await page.getByLabel('Snapshot format',{exact:true}).selectOption(width===1440?'png':'pdf')
+  await page.getByRole('button',{name:'Review chart snapshot',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('[data-chart-snapshot-download]').disabled)
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download reviewed chart snapshot',exact:true}).click();assert.match((await download).suggestedFilename(),width===1440?/\.png$/:/\.pdf$/)
+  await page.goto(origin+'/app/charts/'+id);assert.equal(await table.locator('tbody tr').count(),5,'The retained chart reopens with its full answer')
+ }
+ const base={version:1,title:'Order and empty cases',definition,visual:{kind:'line',dimension:'segment',measure:'amount',order:{field:'amount',direction:'descending',nulls:'last'},missing:'gap',scale:{zero:false,reverse:false},selection:{field:'segment',label:'Chart selection'}}}
+ const ordered=await call('/chart-definitions/review',{document:base})
+ assert.deepEqual(ordered.view.rows.map(row=>row.label),['1 Sales','5 Support','4 No sales','3 Refunds','2 Unreported'],'Numeric ordering uses exact signed values with explicit null placement')
+ for(const visual of [{...base.visual,dimension:'id'},{...base.visual,measure:'hiddenPayroll'},{...base.visual,order:{...base.visual.order,field:'hiddenPayroll'}},{...base.visual,missing:'connect'},{...base.visual,kind:'area'}])assert.equal((await post('/chart-definitions/review',{document:{...base,visual}})).status(),400)
+ const emptyDefinition={...definition,filters:[{column:'segment',op:'eq',value:'Absent'}]}
+ const emptyAnswer=await call('/queries/run',emptyDefinition)
+ for(const kind of ['vertical-bar','line','stepped-line','area']){
+  const document={...base,definition:emptyDefinition,visual:{...base.visual,kind,scale:{zero:true,reverse:false}}},review=await call('/chart-definitions/review',{document}),chart=await call('/chart-definitions/create',{document,reviewedDigest:review.digest})
+  charts.push(chart);assert.deepEqual(chart.view.rows,[]);assert.equal(chart.answer.totals.amount.value,null)
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/charts/'+chart.id);await page.getByRole('status').filter({hasText:'No matching groups.'}).waitFor();assert.equal(await page.locator('.series-marks').count(),0);assert.equal(await page.getByRole('table').locator('tbody tr').count(),0);await proveScreen('native-empty-'+kind+'-'+width,{widths:[width],resize:false})}
+  for(const format of ['png','pdf']){const exported=await call('/charts/'+chart.id+'/snapshot/review',{format});assert.deepEqual(exported.provenance.view.rows,[]);assert.ok(exported.pages.flatMap(page=>page.shapes).some(shape=>shape.kind==='text'&&shape.lines.join(' ').includes('No result groups')))}
+ }
+ const stale=await call('/chart-definitions/review',{document:base}),before=await call('/queries')
+ await upload(dataset,csv.replace('$12.00','$13.00'),true)
+ assert.equal((await post('/chart-definitions/create',{document:base,reviewedDigest:stale.digest})).status(),409)
+ assert.deepEqual(await call('/queries'),before,'Stale chart review creates neither answer nor chart')
+ for(const {endpoint,data} of reviews)assert.equal((await post(endpoint+'/download',data)).status(),409,'A source change requires fresh snapshot review')
+ assert.deepEqual((await call('/queries/'+answer.queryId)).answer,answer.answer,'The historical answer remains byte-equivalent after source changes')
+ assert.deepEqual((await call('/charts/'+charts[0].id)).answer,answer.answer,'Source changes do not rewrite retained chart answers')
+ const freshHistorical=await call('/charts/'+charts[0].id+'/snapshot/review',{format:'pdf'});assert.deepEqual(freshHistorical.provenance.view.rows.map(row=>[row.label,row.values.amount.value]),expected,'Fresh historical export review retains original values')
+ const source=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
+ for(const chart of charts){assert.equal((await context.request.get(origin+'/api/operator/charts/'+chart.id)).status(),404);for(const action of ['review','download'])assert.equal((await post('/charts/'+chart.id+'/snapshot/'+action,{format:'png',exportedAt:new Date().toISOString(),reviewedDigest:'erased'})).status(),404)}
+ assert.equal((await context.request.get(origin+'/api/operator/queries/'+emptyAnswer.queryId)).status(),404)
+ for(const {endpoint,data} of reviews)assert.equal((await post(endpoint+'/download',data)).status(),404,'Erasure withdraws previously reviewed static files')
+ console.log('Native four chart builder: desktop and phone creation, signed exact USD, explicit order, gaps, empty states, keyboard, selection, protected PNG and PDF, source drift and erasure passed')
 }

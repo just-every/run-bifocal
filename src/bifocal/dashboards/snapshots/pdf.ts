@@ -22,6 +22,9 @@ export function encodePdf(snapshot:Snapshot){
    }else if(shape.kind==='rect'||shape.kind==='ellipse'){
     if(shape.kind==='rect')commands.push('q 0.08 0.25 0.45 rg '+shape.x+' '+(HEIGHT-shape.y-shape.h)+' '+shape.w+' '+shape.h+' re f Q')
     else{const x=shape.x+shape.w/2,y=HEIGHT-shape.y-shape.h/2,rx=shape.w/2,ry=shape.h/2,k=.5522847498;commands.push('q 0.08 0.25 0.45 rg '+[x+rx,y,'m',x+rx,y+k*ry,x+k*rx,y+ry,x,y+ry,'c',x-k*rx,y+ry,x-rx,y+k*ry,x-rx,y,'c',x-rx,y-k*ry,x-k*rx,y-ry,x,y-ry,'c',x+k*rx,y-ry,x+rx,y-k*ry,x+rx,y,'c f Q'].join(' '))}
+   }else if(shape.kind==='path'){
+    const path=shape.points.map((point,i)=>point.x+' '+(HEIGHT-point.y)+(i?' l':' m')).join(' ')
+    if(shape.points.length)commands.push('q 0.08 0.25 0.45 rg 0.08 0.25 0.45 RG '+shape.strokeWidth+' w '+path+(shape.closed?' h':'')+' '+(shape.fill?(shape.strokeWidth>0?'B':'f'):'S')+' Q')
    }else{
     const image=pdfImage(shape.data),mask=image.alpha?stream('/Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+' /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode',image.alpha):null,id=stream('/Type /XObject /Subtype /Image /Width '+image.width+' /Height '+image.height+' /ColorSpace /'+(image.colors===1?'DeviceGray':'DeviceRGB')+' /BitsPerComponent '+image.bits+' /Filter /'+image.filter+(mask?' /SMask '+mask+' 0 R':''),image.bytes),name='Im'+mcid
     refs.push('/'+name+' '+id+' 0 R');const ratio=Math.min(shape.w/image.width,shape.h/image.height),w=image.width*ratio,h=image.height*ratio;commands.push('q '+w+' 0 0 '+h+' '+shape.x+' '+(HEIGHT-shape.y-h)+' cm /'+name+' Do Q')

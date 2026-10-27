@@ -12,19 +12,31 @@ import { displayZone } from '../company/display-zone'
 import { chartPage, chartUnavailable } from './page.server'
 import { chartDocument } from './protocol'
 import { readChart } from './store.server'
-import { chartStyles } from './styles'
+import { chartStyles,nativeStyles } from './styles'
 import { chartView, type Selection } from './view'
+import {editorPage} from './editor.page.server'
+import {editorScript} from './editor.script'
 
 export async function chartResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),path=url.pathname
- if(path==='/bifocal/charts.css')return ['GET','HEAD'].includes(request.method)?new Response(request.method==='HEAD'?null:chartStyles,{headers:{'content-type':'text/css; charset=utf-8','x-content-type-options':'nosniff'}}):new Response(null,{status:405})
+ if(path==='/bifocal/charts.css')return ['GET','HEAD'].includes(request.method)?new Response(request.method==='HEAD'?null:chartStyles+nativeStyles,{headers:{'content-type':'text/css; charset=utf-8','x-content-type-options':'nosniff'}}):new Response(null,{status:405})
+ if(path==='/bifocal/chart-editor.js')return ['GET','HEAD'].includes(request.method)?new Response(request.method==='HEAD'?null:editorScript,{headers:{'content-type':'text/javascript; charset=utf-8','x-content-type-options':'nosniff'}}):new Response(null,{status:405})
+ const builder=path==='/app/charts/new'
  const definition=/^\/api\/operator\/chart-definitions\/(review|create)$/.exec(path),saved=/^\/(api\/operator|app)\/charts\/([a-f0-9-]{36})$/.exec(path)
- if(!definition&&!saved)return null
+ if(!definition&&!saved&&!builder)return null
  const env=runtimeBindings(original)
  try {
   const owner=await fileOwner(request,env)
   if(!owner)return json({error:'owner_required'},401)
   const ownerId=await ownerIdentity(env,owner)
+  if(builder){
+   if(request.method!=='GET')fail('method_not_allowed',405)
+   if([...url.searchParams.keys()].some(key=>key!=='query')||url.searchParams.getAll('query').length>1)fail('chart_query_required',400)
+   const query=url.searchParams.get('query')??undefined
+   if(query&&!/^[a-f0-9-]{36}$/.test(query))fail('chart_query_required',400)
+   const session=await operatorAuth(env).getSession(request);if(!session)fail('owner_required',401)
+   return editorPage(session.operator,query)
+  }
   if(url.search&&(!saved||saved[1]!=='app'))fail('query_parameters_not_supported',400)
   if(saved) {
    if(request.method!=='GET')fail('method_not_allowed',405)

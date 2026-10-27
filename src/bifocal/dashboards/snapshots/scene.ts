@@ -5,7 +5,8 @@ export type TextBox={kind:'text';x:number;y:number;w:number;h:number;size:number
 export type Picture={kind:'image';x:number;y:number;w:number;h:number;data:string;label:string}
 type PlotBounds={x:number;y:number;w:number;h:number;label:string}
 export type PlotMark=PlotBounds&({kind:'rect'}|{kind:'ellipse'})
-export type Scene={title:string;tab:string;shapes:(TextBox|Picture|PlotMark)[]}
+export type PlotPath=PlotBounds&{kind:'path';points:{x:number;y:number}[];closed:boolean;fill:boolean;strokeWidth:number}
+export type Scene={title:string;tab:string;shapes:(TextBox|Picture|PlotMark|PlotPath)[]}
 export type Snapshot={version:1;id:string;title:string;revision:number;filterState:'current'|'default';selection:Run['selection'];inherited:Run['inherited'];tabs:string[];layout:'desktop'|'phone'|'readable';exportedAt:string;backLink:string;pages:Scene[];provenance:unknown}
 export const WIDTH=1280,HEIGHT=900
 const shown=(v:Value)=>v.state==='value'?String(v.value)+(v.unit==='percent'?' %':''):v.state.toUpperCase()

@@ -6,7 +6,7 @@ export type Specification={language:'vega-lite'|'vega';spec:Record<string,unknow
 export type Column={id:string;unit:Measure['unit'];scale:number}
 type Predicate={field:string;equal?:Cell;notEqual?:Cell;oneOf?:Cell[];range?:[string,string];gte?:string;lte?:string}
 export type Transform={kind:'calculate';as:string;expression:Expression}|{kind:'sum';as:string;field:string;cumulative:boolean}|{kind:'filter';predicate:Predicate}
-export type Plan={mark:'bar'|'point';dimension:string;measure:string;end?:string;scale:{domain?:[string,string];domainField?:string;zero:boolean;reverse:boolean};columns:Column[];transforms:Transform[];selection?:{field:string;label:string};language?:string}
+export type Plan={mark:'bar'|'point'|import('./native').NativeKind;order?:import('./native').ChartOrder;dimension:string;measure:string;end?:string;scale:{domain?:[string,string];domainField?:string;zero:boolean;reverse:boolean};columns:Column[];transforms:Transform[];selection?:{field:string;label:string};language?:string}
 export function record(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))fail('chart_object_required',400);return value as Record<string,unknown>}
 function list(value:unknown,max=16):unknown[]{if(!Array.isArray(value)||value.length>max)fail('chart_bounded_array_required',400);return value}
 function text(value:unknown):string{if(typeof value!=='string'||!value.trim()||value.length>100||/[\u0000-\u001f]/.test(value))fail('chart_text_required',400);return value}

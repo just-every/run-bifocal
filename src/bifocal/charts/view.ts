@@ -9,7 +9,7 @@ export type Selection={field:string;value:Cell}
 export type ChartView=Omit<Plan,'transforms'>&{rows:{label:Cell;values:Record<string,Value>}[];totals:Record<string,Value>}
 export function chartPlan(chart:Pick<ChartInput,'visual'|'definition'>):Plan {
  if(chart.visual.specification)return compileSpecification(chart.visual.specification,chart.definition).plan
- return {mark:'bar',dimension:chart.visual.dimension,measure:chart.visual.measure,scale:{zero:true,reverse:false},columns:chart.definition.measures.map(m=>({id:m.id,unit:m.unit,scale:m.scale})),transforms:[]}
+ return {mark:chart.visual.kind, ...(chart.visual.kind!=='bar'?{order:chart.visual.order,selection:chart.visual.selection}:{}),dimension:chart.visual.dimension,measure:chart.visual.measure,scale:chart.visual.kind==='bar'?{zero:true,reverse:false}:chart.visual.scale,columns:chart.definition.measures.map(m=>({id:m.id,unit:m.unit,scale:m.scale})),transforms:[]}
 }
 const amount=(value:Value):Rational|null=>value.state!=='value'||value.value===null?null:value.exact?rational(BigInt(value.exact.numerator),BigInt(value.exact.denominator)):decimal(value.value)
 export function chartView(chart:ChartInput,selection?:Selection):ChartView {
@@ -44,6 +44,18 @@ export function chartView(chart:ChartInput,selection?:Selection):ChartView {
     return false
    })
   }
+ }
+ if(plan.order){
+  const order=plan.order
+  const compare=(left:typeof rows[number],right:typeof rows[number])=>{
+   const numeric=plan.columns.some(column=>column.id===order.field),a=numeric?amount(left.values[order.field]):left.dimensions[order.field],b=numeric?amount(right.values[order.field]):right.dimensions[order.field]
+   if(a===null||b===null)return a===b?0:a===null?(order.nulls==='first'?-1:1):(order.nulls==='first'?1:-1)
+   let result:number
+   if(numeric){const x=a as Rational,y=b as Rational,difference=x.numerator*y.denominator-y.numerator*x.denominator;result=difference<0n?-1:difference>0n?1:0}
+   else result=String(a)<String(b)?-1:String(a)>String(b)?1:0
+   return order.direction==='ascending'?result:-result
+  }
+  rows.sort(compare)
  }
  if(selection){
   if(!plan.selection||selection.field!==plan.selection.field||!rows.some(row=>row.dimensions[selection.field]===selection.value))fail('chart_selection_not_permitted',400)

@@ -3,6 +3,7 @@ import { escapeHtml } from '../../app/shell'
 import type { Cell, Value } from '../query/types'
 import type { ChartView } from './view'
 import { chartPlot } from './plot'
+import {nativeFigure} from './native-figure.server'
 
 export const cellText=(value:Cell)=>value===null?'NULL':String(value)
 export function valueText(value:Value,currency:string,native=false) {
@@ -10,6 +11,7 @@ export function valueText(value:Value,currency:string,native=false) {
  return native?shown(value.value!,value.unit,currency):(value.unit==='money'?currency+' ':'')+value.value+(value.unit==='percent'?'%':'')
 }
 export function chartFigure(view:ChartView,currency:string,annotations:{point:string;body:string;revision:number}[]=[]) {
+ if(!['bar','point'].includes(view.mark))return nativeFigure(view,currency)
  const {points,zero}=chartPlot(view)
  const heading=view.measure+(view.end?' to '+view.end:'')+' by '+view.dimension
  return `<figure class="native-chart panel" aria-labelledby="chart-heading"><h2 id="chart-heading">${escapeHtml(heading)}</h2><figcaption>${view.language?escapeHtml(view.language)+' bounded native specification. ':''}${view.end?'Intervals show the declared start and end fields. ':view.mark==='point'?'Points show the declared quantitative field. ':'Horizontal bars share a zero baseline. Negative values extend left; positive values extend right. Zero is a dot; unavailable values have no bar. '}${view.scale.domainField?'The scale domain uses '+escapeHtml(view.scale.domainField)+'. Marks outside the plot are clipped. ':''}Exact values appear with their units and in the table.${view.language?' Supported constructs are field bindings, linear scales, exact arithmetic, sums, cumulative sums and retained-value filters. Other constructs are refused.':''}</figcaption>${view.rows.length?`<ol>${view.rows.map((row,index)=>{
