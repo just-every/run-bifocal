@@ -1,7 +1,78 @@
 import assert from 'node:assert/strict'
 import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
+import { createHash } from 'node:crypto'
+import { mkdir } from 'node:fs/promises'
+
+/** Regional analytical inputs through the actual reviewed import and input doors. */
+export async function proveInputTables(origin,context,page) {
+ const dataset='synthetic-bifocal-inputs',root=origin+'/api/operator',headers={Origin:origin}
+ const call=async(path,data,expected=200)=>{const r=await context.request.fetch(root+path,{method:data===undefined?'GET':'POST',headers,data});assert.equal(r.status(),expected,await r.text());return r.json()}
+ const importSource=async(amount='100.00')=>{
+  const envelope={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:`id,region,amount\n1,West,$${amount}\n2,East,$250.00\n`}
+  const bytes=Buffer.from(JSON.stringify(envelope)),digest=createHash('sha256').update(bytes).digest('hex'),importHeaders={...headers,'X-Import-Dataset':dataset}
+  const post=async(action,data)=>{const r=await context.request.post(root+'/import/'+action,{headers:importHeaders,data});assert.equal(r.status(),200,await r.text());return r.json()}
+  const upload=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
+  const plan=await post('plan',{uploadId:upload.uploadId,...(amount!=='100.00'?{catchup:true}:{})})
+  for(let n=0;n<20;n++){const applied=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(applied.job.state==='completed')return call('/datasets/'+dataset)}
+  assert.fail('Input source import did not complete')
+ }
+ const source=await importSource(),owner=(await (await context.request.get(origin+'/auth/session')).json()).operator
+ const definition={dataset,sourceRevision:source.revision,keyColumn:'id',regionColumn:'region',region:'West',observedColumn:'amount'}
+ const base={rowKey:'1',previousVersion:0,adjustment:'25.50',note:'Reviewed regional forecast',effectiveOn:'2026-10-01',active:true}
+ assert.equal((await fetch(root+'/inputs')).status,401)
+ assert.equal((await context.request.post(root+'/inputs',{headers:{Origin:'https://foreign.example.test'},data:{id:'synthetic-bifocal-denied',name:'Denied',...definition}})).status(),401)
+ if(process.env.BIFOCAL_PROOF_DIR)await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true})
+ const shot=async(name,width)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Input ${name} overflows ${width}`);assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/inputs-${name}-${width}.png`,fullPage:true})}
+ for(const width of [1440,390]){
+  const id='synthetic-bifocal-input-'+width,path='/inputs/'+id
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/inputs')
+  await shot('create',width)
+  for(const [label,value] of Object.entries({'Input table ID':id,'Table name':'West forecast '+width,'Dataset ID':dataset,'Reviewed source revision':source.revision,'Source key column':'id','Region column':'region','Allowed region':'West','Observed USD column':'amount'}))await page.getByLabel(label,{exact:true}).fill(value)
+  await page.getByRole('button',{name:'Create input table',exact:true}).click();await page.waitForURL(origin+'/app'+path)
+  const initial=await call(path)
+  assert.deepEqual(initial.rows,[{rowKey:'1',observed:'100.00',version:0,values:null,adjusted:'100.00'}])
+  assert.deepEqual(initial.columns.map(c=>[c.name,c.type]),[['adjustment','money'],['note','text'],['effectiveOn','date'],['active','boolean']])
+  await shot('empty',width)
+  await page.getByLabel('Adjustment (USD)',{exact:true}).fill('25.50');await page.getByLabel('Reason',{exact:true}).fill(base.note);await page.getByLabel('Effective date',{exact:true}).fill(base.effectiveOn)
+  await page.getByRole('button',{name:'Save adjustment',exact:true}).click();await page.waitForURL(origin+'/app'+path)
+  let state=await call(path)
+  assert.equal(state.rows.length,1);assert.equal(state.rows[0].observed,'100.00');assert.equal(state.rows[0].adjusted,'125.50');assert.equal(state.rows[0].version,1)
+  assert.deepEqual(state.history.map(h=>({row:h.rowKey,version:h.version,actor:h.actorId,before:h.before,after:h.after})),[{row:'1',version:1,actor:owner.id,before:null,after:{adjustment:'25.50',note:base.note,effectiveOn:base.effectiveOn,active:true}}])
+  assert.equal(state.history[0].actorName,owner.displayName)
+  assert.match(state.history[0].recordedAt,/^\d{4}-\d{2}-\d{2}T/)
+  await page.locator('summary').filter({hasText:'Before and after history'}).click();await shot('saved-audit',width)
+  await call(path+'/rows',{...base,rowKey:'2',previousVersion:0},403)
+  for(const invalid of [{adjustment:'1.001'},{adjustment:25.5},{effectiveOn:'2026-02-30'},{active:'yes'},{note:''},{extra:true}])await call(path+'/rows',{...base,previousVersion:1,...invalid},400)
+  await call(path+'/rows',base,409)
+  assert.deepEqual(await call(path),state,'Refused edits leave row and audit unchanged')
+  const requests=await Promise.all(['10.00','20.00'].map(adjustment=>context.request.post(root+path+'/rows',{headers,data:{...base,previousVersion:1,adjustment}})))
+  assert.deepEqual(requests.map(r=>r.status()).sort(),[200,409])
+  const winner=await requests.find(r=>r.status()===200).json();state=await call(path)
+  assert.equal(state.rows[0].version,2);assert.equal(state.historyCount,2)
+  assert.equal(state.history[0].before.adjustment,'25.50');assert.equal(state.history[0].after.adjustment,winner.values.adjustment)
+  await call(path+'/rows',{...base,previousVersion:2,adjustment:'-10.25',active:false})
+  state=await call(path);assert.equal(state.rows[0].adjusted,'100.00');assert.equal(state.rows[0].values.adjustment,'-10.25');assert.equal(state.historyCount,3)
+  assert.deepEqual(await call('/datasets/'+dataset),source,'Analytical adjustments never overwrite observed actuals')
+  await page.reload();await shot('inactive',width)
+  const conflict=await page.request.post(root+path+'/rows',{headers,form:{...base,previousVersion:'1',active:'true'}})
+  assert.equal(conflict.status(),409)
+  await page.goto(origin+'/app'+path);await page.getByLabel('Adjustment (USD)',{exact:true}).fill('1.001');await page.getByRole('button',{name:'Save adjustment',exact:true}).click()
+  await page.getByRole('alert').filter({hasText:'USD_two_decimal_places_required'}).waitFor();await shot('validation-refusal',width)
+ }
+ const changed=await importSource('101.00')
+ for(const width of [1440,390]){
+  const path='/inputs/synthetic-bifocal-input-'+width
+  await call(path,undefined,409);await call(path+'/rows',{...base,previousVersion:3},409)
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app'+path);await page.getByRole('alert').filter({hasText:'source_changed_or_removed'}).waitFor();await shot('source-refusal',width)
+ }
+ const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision})
+ for(const [store,rows] of [['bf_input_tables',2],['bf_input_rows',2],['bf_input_history',6]])assert.equal(erased.stores.find(s=>s.store===store).rows,rows)
+ assert.deepEqual((await call('/inputs')).tables,[])
+ console.log('Input tables: native typed USD inputs, exact separate actuals, regional row refusal, validation, competing edits, actor and before and after audit, inactive effect, source drift and erasure passed at 1440 and 390')
+}
 export async function proveConventions(origin, context, page) {
+ await proveInputTables(origin,context,page)
  await proveCostControls(origin,context,page)
  const call = async (path, data, method = data === undefined ? 'GET' : 'POST', expected = method === 'POST' && ['/calendars','/rates','/schedules'].includes(path) ? 201 : 200) => {
   const response = await context.request.fetch(origin + '/api/operator' + path, { method, headers: { Origin: origin }, ...(data === undefined ? {} : { data }) })
