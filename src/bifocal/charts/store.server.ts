@@ -2,6 +2,7 @@ import type { Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { readQuery } from '../data/snapshots/store'
 import {metricAnnotations,type MetricAnnotation} from '../collaboration/annotations.server'
+import { chartPreparationErrors } from '../preparation/checks.server'
 import { fail } from '../query/types'
 import { chartDocument } from './protocol'
 
@@ -18,5 +19,5 @@ export async function readChart(env:Bindings,owner:Owner,ownerId:string,id:strin
  }
  const document=chartDocument({version:1,title:row.title,definition:snapshot.definition,visual:JSON.parse(row.visual_json)})
  await transact(env.DB,owner,[assertion(guard),assertion(sql('EXISTS(SELECT 1 FROM bf_charts WHERE id=? AND snapshot_id=? AND title=? AND visual_json=? AND owner_id=? AND created_at=?)',id,row.snapshot_id,row.title,row.visual_json,ownerId,row.created_at))])
- return {id,...document,queryId:snapshot.queryId,snapshotId:snapshot.snapshotId,answer:snapshot.answer,context:snapshot.context,digest:snapshot.digest,createdAt:row.created_at,annotations}
+ return {id,...document,queryId:snapshot.queryId,snapshotId:snapshot.snapshotId,answer:snapshot.answer,context:snapshot.context,digest:snapshot.digest,createdAt:row.created_at,annotations,preparationErrors:await chartPreparationErrors(env,ownerId,row.snapshot_id)}
 }
