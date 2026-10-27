@@ -273,5 +273,5 @@ export async function prepareMachineRestore({origin,cookie}) {
  const reviewed=await call('/credentials/review',scope,200),credential=await call('/credentials',{...scope,reviewedDigest:reviewed.digest})
  const response=await fetch(origin+'/api/v1/definitions',{headers:{Authorization:'Bearer '+credential.token}})
  assert.equal(response.status,200);await response.arrayBuffer()
- return credential
+ return {...credential,portalModel:model}
 }
