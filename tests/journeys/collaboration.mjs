@@ -103,6 +103,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  await proveScreen('collaboration-revenue-spike-mention')
  const mentioned=(await resolve(reader,subject)).comments.find(comment=>comment.body==='Please confirm the regional renewal timing.')
  assert.ok(mentioned)
+ assert.deepEqual(mentioned.mentions,[readerId])
  const oldIds=new Set(notificationsBefore.notifications.map(notification=>notification.id))
  const notifications=(await call(reader,'/collaboration/notifications')).notifications.filter(notification=>!oldIds.has(notification.id))
  assert.ok(notifications.length>0,'A currently permitted mention creates a private notification')
@@ -126,6 +127,14 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  await call(owner,'/collaboration/links/'+linkId,undefined,403)
  assert.equal((await owner.request.get(origin+href)).status(),403)
  assert.equal((await owner.request.get(origin+href)).status(),403)
+ const sharedPage=await reader.newPage()
+ await sharedPage.goto(origin+href)
+ await sharedPage.locator('#collaboration-comments').getByText('Please confirm the regional renewal timing.',{exact:true}).waitFor()
+ for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-shared-'+width+'.png'),fullPage:true})}
+ await sharedPage.goto(origin+'/app/collaboration/notifications')
+ await sharedPage.getByRole('link',{name:'Open permitted mention',exact:true}).first().waitFor()
+ for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-notifications-'+width+'.png'),fullPage:true})}
+ await sharedPage.close()
  const permittedUnfurl=await call(reader,'/collaboration/links/'+linkId+'/unfurl')
  assert.equal(permittedUnfurl.title,original.subject.title)
  assert.equal(permittedUnfurl.href,href)
@@ -140,6 +149,11 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.equal(revoked.status(),200)
  await call(reader,'/collaboration/links/'+linkId,undefined,403)
  assert.equal((await reader.request.get(origin+href)).status(),403)
+ const deniedPage=await reader.newPage()
+ const denied=await deniedPage.goto(origin+href);assert.equal(denied.status(),403)
+ await deniedPage.getByRole('heading',{name:'Collaboration access unavailable',exact:true}).waitFor()
+ for(const width of [1440,390]){await deniedPage.setViewportSize({width,height:1000});assert.ok(await deniedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(!(await deniedPage.locator('main').innerText()).includes('Please confirm'));if(process.env.BIFOCAL_PROOF_DIR)await deniedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-revoked-'+width+'.png'),fullPage:true})}
+ await deniedPage.close()
  assert.deepEqual(await call(reader,'/collaboration/links/'+linkId+'/unfurl'),generic)
  // Revoking a link leaves the recipient's independent, active answer authority intact.
  assert.ok((await resolve(reader,subject)).comments.some(comment=>comment.id===mentioned.id))

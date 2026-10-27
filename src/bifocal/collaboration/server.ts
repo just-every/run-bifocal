@@ -7,7 +7,7 @@ import {text} from '../metrics/transport'
 import {fail,QueryError} from '../query/types'
 import {subject,permittedMembers,subjectChanges} from './subjects.server'
 import {prepareLink,readLink,audit} from './links.server'
-import {collaborationPage} from './page.server'
+import {collaborationPage,collaborationUnavailable} from './page.server'
 const base='/api/operator/collaboration'
 export async function collaborationResponse(request:Request,original:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -73,11 +73,12 @@ export async function collaborationResponse(request:Request,original:Bindings):P
    await transact(env.DB,actor,link.changes);return json({id:link.id,href:link.href,expiresAt:link.expiresAt},201)
   }
   fail('not_found',404)
- }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'collaboration_changed',reason:'Reload current access and the retained subject.'},409)}finally{await discardBody(request)}
+ }catch(error){if(path.startsWith('/app/'))return await collaborationUnavailable(request,env,error instanceof QueryError?error.status:409);if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'collaboration_changed',reason:'Reload current access and the retained subject.'},409)}finally{await discardBody(request)}
 }
 export async function resolve(env:Bindings,actor:Authority,target:Awaited<ReturnType<typeof subject>>){
  const members=await permittedMembers(env,actor,target)
  const comments=(await env.DB.prepare('SELECT id,author_id AS authorId,body,point,created_at AS createdAt FROM bf_collaboration_comments WHERE subject_key=? ORDER BY created_at,id LIMIT 101').bind(target.key).all()).results
+ for(const comment of comments){const recipients=(await env.DB.prepare('SELECT DISTINCT recipient_id FROM bf_collaboration_notifications WHERE comment_id=?').bind(comment.id).all<{recipient_id:string}>()).results;comment.mentions=recipients.filter(row=>members.some(person=>person.id===row.recipient_id)).map(row=>row.recipient_id)}
  const links=(await env.DB.prepare('SELECT id,recipient_id AS recipientId,expires_at AS expiresAt,revoked FROM bf_collaboration_links WHERE subject_key=? AND issuer_id=? ORDER BY created_at DESC,id LIMIT 101').bind(target.key,actor.id).all()).results
  if(comments.length>100||links.length>100)fail('collaboration_history_limit',413)
  const ref=target.metricRef,annotations=ref?(await env.DB.prepare('SELECT id,point,body,revision,created_at AS createdAt FROM bf_collaboration_annotations WHERE metric_id=? AND revision=? AND digest=? ORDER BY point,id LIMIT 101').bind(ref.id,ref.revision,ref.digest).all()).results:[]

@@ -813,7 +813,7 @@
       "executable": false
     },
     "public/bifocal/collaboration.js": {
-      "sha256": "8f19d92a4a59109aa35c108e781da10141d071e0863ca8e21d3845c6f3b9bab1",
+      "sha256": "c3b98cf5e2c12fd14a50272fd6ff49020a277639b1f2e5c3977864810ce7e23f",
       "executable": false
     },
     "public/bifocal/company.js": {
@@ -1633,11 +1633,11 @@
       "executable": false
     },
     "src/bifocal/collaboration/page.server.ts": {
-      "sha256": "59c8c0eb38e3e094dcc2fa6c536ed2fcd38fb8587f89577a5bbfc4068c9b6ac7",
+      "sha256": "bbb860507aa92cfa78028d7532cd525ab5399785a601fb5016bfed72ab5c5d76",
       "executable": false
     },
     "src/bifocal/collaboration/server.ts": {
-      "sha256": "a31cbd636e2a70b80b21fd9f4bfda4e7cd94c3e58223d0b84a810d5985663a17",
+      "sha256": "1b0b39e66747a8ace33d5d8bdbb18371e295c26e75e158c3669d732fe5124078",
       "executable": false
     },
     "src/bifocal/collaboration/subjects.server.ts": {
@@ -4441,7 +4441,7 @@
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "4bb300b3f4f6a68af38dc081774e1db0e4adab927e81e7562d6f8d0bf5bd6b0b",
+      "sha256": "92d178d47b296925eb2b62753d4f8ccb3ed2214c45ac055a1ab1660bd91dc7fd",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
