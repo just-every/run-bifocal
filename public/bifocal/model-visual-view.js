@@ -4,7 +4,7 @@ import {element,metadata} from './file-view.js'
 export function visualInventory(resources=[]){
  const visuals=resources.filter(resource=>resource.kind==='pbip-custom-visual'&&resource.definition.inventory)
  if(!visuals.length)return null
- const section=element('section');section.setAttribute('aria-label','Custom visual mappings')
+ const section=element('section',undefined,'model-visual-inventory');section.setAttribute('aria-label','Custom visual mappings')
  section.append(element('h3','Custom visual mappings'),element('p','Resolve each mapping, required behavior and publisher entitlement before report cutover. Imported code and network access remain inactive.'))
  const statuses={'requires-native-review':'Native review required',denied:'Denied',unsupported:'Rebuild required'}
  for(const [index,resource] of visuals.entries()){
