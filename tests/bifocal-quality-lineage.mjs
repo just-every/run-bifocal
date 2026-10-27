@@ -24,6 +24,7 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  let expiredQuality=(await call('/reports/'+report.id)).quality
  assert.equal(expiredQuality.state,'at risk');assert.equal(expiredQuality.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh').waiver.active,true)
  await proveScreen('/app/quality','quality-expired-freshness')
+ if(process.env.BIFOCAL_PROOF_DIR)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#evidence-synthetic-bifocal-fresh').screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/quality-expired-evidence-'+width+'.png'});await page.locator('#waive-'+expired.runId).screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/quality-expired-waiver-'+width+'.png'})}
  await clock.set(new Date(clock.now()+1001).toISOString())
  expiredQuality=(await call('/reports/'+report.id)).quality
  assert.equal(expiredQuality.state,'at risk');assert.equal(expiredQuality.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh').waiver.active,false)
@@ -32,7 +33,15 @@ export async function proveQualityLineage({clock,origin,context,page,call,upload
  const impact=await call('/quality/impact/'+dataset+'?column=customer');assert.ok(impact.artifacts.some(a=>a.id===report.id));assert.ok(impact.metrics.some(m=>m.id==='synthetic-bifocal-customers'))
  const failedData=`invoice,date,customer,revenue,state\n1,${us},c1,$10.01,active\n1,${us},c1,$20.02,active\n3,${us},c2,-$0.03,inactive\n`
  await upload(failedData,true,{kind:'revenue-table',link:'https://warehouse.example.com/source',description:'Synthetic dated source extract',from:'2026-01-01',to:'2027-01-01',timezone:'America/New_York',observedAt:'2000-01-01T00:00:00.000Z',schema:'Synthetic source schema'})
- assert.equal((await call('/reports/'+report.id)).quality.state,'unknown')
+ const unchecked=(await call('/reports/'+report.id)).quality
+ assert.equal(unchecked.state,'unknown')
+ const uncheckedTest=unchecked.tests.find(test=>test.ruleId==='synthetic-bifocal-fresh')
+ await page.goto(origin+'/app/reports/'+report.id)
+ await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor()
+ await page.getByRole('link',{name:'Recent source · unknown',exact:true}).click()
+ await page.locator(new URL(origin+uncheckedTest.href).hash).waitFor()
+ assert.match(await page.locator(new URL(origin+uncheckedTest.href).hash).innerText(),/Recent source · Not checked on current data/)
+ await call('/quality/runs/'+expired.runId+'/waive',{reason:'Source changed',expiresAt:new Date(clock.now()+1000).toISOString(),confirm:'waive'},409)
  const stale=await call('/goals/synthetic-bifocal-revenue-goal');assert.equal(stale.actual.state,'stale');assert.equal(stale.actual.status,'unknown');assert.equal(stale.actual.forecast,null);assert.equal(stale.definition.target,'1200.00');await proveScreen('/app/goals/synthetic-bifocal-revenue-goal','goal-stale')
  const staleImpact=await call('/metrics/synthetic-bifocal-revenue/impact')
  const staleGoal=staleImpact.impact.dependencies.find(d=>d.kind==='goal')

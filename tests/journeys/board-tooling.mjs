@@ -50,7 +50,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
  if(!qualityOnly)await proveDashboardAuthoring({origin,context,page,upload,proveScreen,cli,tfRun,directory,tf})
  const source=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
  for(const id of retainedIds)assert.equal((await context.request.post(origin+'/api/operator/queries/'+id+'/export',{headers:{Origin:origin},data:{scope:'summary',format:'csv'}})).status(),404)
- console.log('Multi-answer native boards: real CLI and Terraform ordered definitions, atomic source drift refusal, exact values and retained history passed')
+ console.log(qualityOnly?'Native board quality: real CLI retained cards, duplicate and freshness evidence, dated last-good values, reader disclosures, exact impact, repair and erasure passed':'Multi-answer native boards: real CLI and Terraform ordered definitions, atomic source drift refusal, exact values and retained history passed')
 }
 
 /** Every actual board position retains its independently checked answer. */

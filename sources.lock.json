@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0688e503f400a73fed879bd734492422acb1a397a294845f53d50da06baacf4c",
+      "sha256": "118057808e546a811371790a0a2e9940b91f240c201e29c17626ebcfe8b7cff0",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7ada22b007d1f1e23c2f91bb650003b4f573e4d4fded0a0acdd56d5bc5bffac5",
+      "sha256": "596989eb2e7d992178bbcf32d328cca3fd1cf67c3ec5f44a559d7ac17739e7d0",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4693,7 +4693,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "79ae60214650ad19673066a5099c6021e742ac51c17d120550cb474b3c0786e6",
+      "sha256": "c5195d11a73afa994b4c563442040d61386de6adb59d555acf176807f264495c",
       "executable": false
     },
     "tests/bifocal-questions.mjs": {
@@ -4729,7 +4729,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "77d56131e033fc76fa9bedcc4bcb4afcdbc08ecfa8e7dbef200a758b7ab17924",
+      "sha256": "814fb71223ad5a5424b4b35ab09e0486350b24d63e26f89d6e8cd90991426a6d",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {
