@@ -17,6 +17,7 @@ export async function classificationPage(request:Request,original:Bindings):Prom
 <p class="note">A classification describes a person for publication review. It grants no data access or approval authority. Only the owner can approve publication. Leadership and board classifications expire within seven days and must be reviewed again after membership changes.</p>
 <p class="status" id="classification-status" role="status" aria-live="polite">Loading active people…</p>
 <section class="panel"><h2>Active people</h2><div id="classification-people"></div></section>
+<details class="panel"><summary>Classification audit history</summary><div id="classification-history"></div></details>
 <section class="panel"><h2>Review a classification</h2><form id="classification-form"><div class="fields">
 <label>Person<select id="classification-person" name="operatorId" required disabled></select></label>
 <label>Classification<select id="classification-kind" name="kind" required><option value="none">None</option><option value="leadership">Leadership</option><option value="board">Board</option></select></label>

@@ -26,7 +26,9 @@ function choose() {
  review.textContent=`Reviewing ${person.displayName}, membership version ${person.operatorVersion}, classification revision ${person.revision}. Saving records this exact choice in the audit history.`
 }
 async function load(preferred=personSelect.value) {
- const data=await api()
+ const [data,audit]=await Promise.all([api(),api('/audit')])
+ const history=document.querySelector('#classification-history');history.replaceChildren()
+ for(const record of audit.records){const p=document.createElement('p');p.textContent=`${record.recordedAt} · ${record.operatorId} · ${record.before.kind} revision ${record.before.revision} → ${record.after.kind} revision ${record.after.revision} · By ${record.actorId}`;history.append(p)}
  people=data.people
  peopleList.replaceChildren()
  personSelect.replaceChildren()

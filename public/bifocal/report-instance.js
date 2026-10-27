@@ -5,7 +5,7 @@ export function instanceControls({request,act,load,status,getRun}) {
  const render=run=>{
   const owner=run?.access.kind==='owner'&&!run.access.readOnly
   $('report-instance-tools').hidden=!owner
-  $('report-instance-form').hidden=run?.state!=='rendered'
+  $('report-instance-form').hidden=!['rendered','approved'].includes(run?.state)
   $('report-instance-state').textContent=run?.instanceApproval?'Recorded instance approval expires '+run.instanceApproval.expiresAt+'. Current authority and all reviewed bindings are checked again before submission.':''
  }
  $('report-instance-form').oninput=invalidate

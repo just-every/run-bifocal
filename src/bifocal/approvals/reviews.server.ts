@@ -39,7 +39,7 @@ async function reviewContext(env: Bindings, actor: Authority, run: Run, expiresA
   sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=? AND email=?)",actor.id,owner.version,owner.email)]}
 }
 export async function prepareInstanceReview(env: Bindings, actor: Authority, run: Run, expiresAt: unknown) {
- if (run.state !== 'rendered') fail('rendered_report_required',409)
+ if (!['rendered','approved'].includes(run.state)) fail('rendered_report_required',409)
  const expiry = typeof expiresAt === 'string' ? Date.parse(expiresAt) : NaN
  if (!Number.isFinite(expiry) || new Date(expiry).toISOString() !== expiresAt || expiry <= Date.now() || expiry > Date.now()+7*86400000 || run.retain_until && expiry > Date.parse(run.retain_until)) fail('instance_review_expiry_required',400)
  const {context,guards} = await reviewContext(env,actor,run,expiresAt as string)

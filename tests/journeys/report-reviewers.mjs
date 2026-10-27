@@ -66,7 +66,7 @@ export async function proveLeadershipClassifications(origin,owner,reader,ownerId
  }
  try{
   if(reader){assert.equal((await reader.request.get(origin+'/api/operator'+root)).status(),403);assert.equal((await reader.request.put(origin+'/api/operator'+root+'/'+ownerId,{headers:{Origin:origin},data:{}})).status(),403)}
-  await page.goto(origin+'/app/settings/approvals');await page.getByLabel('Person',{exact:true}).selectOption(ownerId)
+  const opened=await page.goto(origin+'/app/settings/approvals');assert.equal(opened.status(),200,await page.locator('body').innerText());await page.getByLabel('Person',{exact:true}).selectOption(ownerId)
   await page.getByLabel('Classification',{exact:true}).selectOption('leadership')
   await page.getByLabel('Expires at in device local time',{exact:true}).fill(await page.evaluate(()=>{const d=new Date(Date.now()+300000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,19)}))
   const [saved]=await Promise.all([page.waitForResponse(r=>r.request().method()==='PUT'&&r.url().endsWith(ownerId)),page.getByRole('button',{name:'Save reviewed classification',exact:true}).click()]);assert.equal(saved.status(),200,await saved.text())
@@ -96,6 +96,18 @@ export async function proveExactInstanceReview(origin,owner,reader,run,artifact,
  await classifications.change('leadership');reviewed=await preview(new Date(Date.now()+1700).toISOString());await new Promise(r=>setTimeout(r,1900));await approve(reviewed,409)
  const machine=await owner.request.post(origin+'/api/operator'+root+'/approve',{headers:{Origin:origin,Authorization:'Bearer synthetic-bifocal-954'},data:{digest:artifact.digest,previousVersion:artifact.version,reviewId:reviewed.id}});assert.equal(machine.status(),403)
  if(reader){assert.equal((await reader.request.post(origin+'/api/operator'+root+'/review',{headers:{Origin:origin},data:{expiresAt:expires()}})).status(),403);assert.equal((await reader.request.get(origin+'/api/operator'+root+'/download')).status(),404)}
+ if(reader){
+  const other=await owner.browser().newContext()
+  try{
+   assert.equal((await other.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:'synthetic-bifocal-4'.repeat(3)}})).status(),204)
+   const nativeOwner=(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.id===artifact.audience[0]);assert.ok(nativeOwner.signInUrl)
+   await other.request.get(new URL(nativeOwner.signInUrl,origin).href)
+   const session=await(await other.request.get(origin+'/auth/session')).json();assert.equal(session.operator.role,'owner')
+   const ownReview=await other.request.post(origin+'/api/operator'+root+'/review',{headers:{Origin:origin},data:{expiresAt:expires()}});assert.equal(ownReview.status(),201);const held=await ownReview.json()
+   assert.equal((await other.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
+   assert.equal((await other.request.post(origin+'/api/operator'+root+'/approve',{headers:{Origin:origin},data:{digest:artifact.digest,previousVersion:artifact.version,reviewId:held.id}})).status(),401)
+  }finally{await other.close()}
+ }
  const page=await owner.newPage()
  try{
   await page.goto(origin+run.reviewUrl);await page.locator('#report-instance-form').waitFor({state:'visible'})

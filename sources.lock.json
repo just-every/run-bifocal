@@ -785,7 +785,7 @@
       "executable": false
     },
     "public/bifocal/approval-classifications.js": {
-      "sha256": "f5e0ebdae59ab69e45cdc747d17a4da3537c1bce8f03e6d0c190ddb4a296af96",
+      "sha256": "b8cde2c68677e80130ddea2403c7c41afc46d294c926520d4ea6f1fcb064e9e5",
       "executable": false
     },
     "public/bifocal/apps.css": {
@@ -965,7 +965,7 @@
       "executable": false
     },
     "public/bifocal/report-instance.js": {
-      "sha256": "6a77e4f787cd3413114191742e9a82d49a432c4f38ef77259d167915d22fee37",
+      "sha256": "40e331e70013709c0b735e78ebb4ffc5dd5423e50539001a79296c02af20f1d7",
       "executable": false
     },
     "public/bifocal/retained-export.js": {
@@ -1469,11 +1469,11 @@
       "executable": false
     },
     "src/bifocal/approvals/page.server.ts": {
-      "sha256": "bd88344df7a710b888b78c218fbba46cddeab2f48fa4d5acab5e944eb0553d57",
+      "sha256": "3551e39ebb1612983fdefa6c5ab53ec054979a767a5f43dae19563934dea335a",
       "executable": false
     },
     "src/bifocal/approvals/reviews.server.ts": {
-      "sha256": "4d9ef27e40ac279837f7f837faff66538bd6f91bb51ac762b0b1b8953c794301",
+      "sha256": "5d47ce76dac54757557eabb21152a8e60b758768f1bf0c0a8d78d856a9595c6a",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -2529,7 +2529,7 @@
       "executable": false
     },
     "src/bifocal/reports/server.ts": {
-      "sha256": "c6bb01cb9feb659c8d4082d85ddaf3f9ddb2e9188cb32c452d9bb040bf7b3426",
+      "sha256": "968efcbfc773cadf5dbc19dd681b2216690c2175d99d19256d82d6116b02570e",
       "executable": false
     },
     "src/bifocal/reports/store.server.ts": {
@@ -4829,7 +4829,7 @@
       "executable": false
     },
     "tests/journeys/report-custody.mjs": {
-      "sha256": "7389c2f23c81b4fdb7cf152f4eaadf684b9732e5edc484680c8a5f016885acb1",
+      "sha256": "0a62b570b45b311437a4bf86cc481e4ddd46639307dccb46ae6bec047a85bd74",
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {
@@ -4837,7 +4837,7 @@
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
-      "sha256": "1da7e5da1fa439c652186ad2f6d67a2313b8f4988c9a23bbd0dd28d44b7bbc5f",
+      "sha256": "739844944274c25a19c766b755d185f0432c531cdd7430c21454d8464092f9ba",
       "executable": false
     },
     "tests/journeys/reporting-app-reader.mjs": {

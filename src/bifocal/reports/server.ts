@@ -121,7 +121,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   if(!member)fail('owner_required',401)
   const memberGuard=sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=?)",actor.id,member.version)
   if(operation==='approve'){
-   if(run.state!=='rendered')fail('rendered_report_required',409)
+   if(!['rendered','approved'].includes(run.state))fail('rendered_report_required',409)
    const reviewed=await checkedInstanceReview(env,actor,run,input.reviewId,false)
    const approval={reviewId:reviewed.review.id,fingerprint:reviewed.review.fingerprint,expiresAt:reviewed.review.expires_at,actorId:actor.id,operatorVersion:member.version,digest:run.artifact_digest,reviewedAt:new Date().toISOString()}
    await transact(env.DB,actor,[assertion(runGuard(run)),assertion(pending),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),...reviewed.guards.map(assertion),sql('UPDATE bf_report_instance_reviews SET approved_at=? WHERE id=?',approval.reviewedAt,reviewed.review.id),sql("UPDATE bf_report_runs SET state='approved',approval_json=?,version=version+1 WHERE id=?",canonicalJson(approval),run.id),reportAudit(actor,run,'approved')])
