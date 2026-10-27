@@ -42,7 +42,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   for(const {input,plan} of cases){
    await call('/model-imports/'+input.projectId,undefined,404)
    const original=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}})
-   assert.equal(original.status(),200);assert.ok((await original.json()).originals.every(item=>item.original.status==='unavailable'))
+   assert.equal(original.status(),200);const originals=(await original.json()).originals;assert.equal(originals.length,1,'The retained visual import bundle is accounted for after erasure');assert.ok(originals.every(item=>item.original.status==='unavailable'))
    await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)
   }
   return

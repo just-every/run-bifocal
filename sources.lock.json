@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6aad323f97344d16792cb9a23e6aaab8ff1582cdbf84a40795dd1bc54eb0f822",
+      "sha256": "7ada22b007d1f1e23c2f91bb650003b4f573e4d4fded0a0acdd56d5bc5bffac5",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4833,7 +4833,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "b47843f6bc67d8a4342d62125d55abf4ebc5cd178d6fbf8190c8a7d9f4770dfe",
+      "sha256": "865f7a9c8e76a4d5472da03a518258fdd5eccbcbec8bd44cd6594f1a70930106",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {

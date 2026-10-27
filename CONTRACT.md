@@ -593,7 +593,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commits `7d62f345714fd134253a6199729c1cb8848cbc2f` for BIF-081 and `63988039384191e021957c445a6a5fc834cb5da3` for BIF-030 (28 October 2026). The candidate retains both bounded implementations and their legacy evidence synchronizations. Full custom-visual parity and the governed extension lifecycle remain unproved. Newer main evidence and CT rulings remain recorded per clause. This local proof makes no new DONE judgment; both clauses remain partial.
+Judged from the code and tests at commit `7d62f345714fd134253a6199729c1cb8848cbc2f` (28 October 2026). BIF-081 records bounded native visual inventory and declarative charts. BIF-030 retains its input-template candidate code at `63988039384191e021957c445a6a5fc834cb5da3` and its newer main evidence. Full custom-visual parity and the governed extension lifecycle remain unproved. Other clause evidence and CT rulings remain recorded per clause. This local proof makes no new DONE judgment; both clauses remain partial.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
