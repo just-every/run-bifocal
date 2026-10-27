@@ -1,6 +1,6 @@
 import type { Measure } from '../../../query/types'
 
-export type ProjectFormat = 'lookml' | 'dbt' | 'metricflow' | 'tmdl' | 'cube'
+export type ProjectFormat = 'lookml' | 'dbt' | 'metricflow' | 'tmdl' | 'pbip' | 'cube' | 'metabase' | 'tableau'
 export type ProjectFile = { path: string; content: string }
 export type Provenance = { file: string; sourceExpression: string }
 export type Dimension = Provenance & {
@@ -15,4 +15,7 @@ export type Explore = Provenance & { name: string; table: string; joins: ModelJo
 export type ReadIssue = Provenance & { object: string; code: string; message: string }
 /** Issues are unresolved obligations, never compatibility successes. Binding,
  * source execution and publication belong to the caller, not these readers. */
-export type Project = { format: ProjectFormat; tables: ModelTable[]; explores: Explore[]; issues: ReadIssue[] }
+export type ProjectResource = Provenance & {
+ id: string; name: string; kind: string; dependencies: string[]; definition: Record<string, unknown>
+}
+export type Project = { format: ProjectFormat; tables: ModelTable[]; explores: Explore[]; issues: ReadIssue[]; resources?: ProjectResource[] }
