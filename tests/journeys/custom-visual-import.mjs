@@ -72,6 +72,7 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  const visible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(visible.report.project.resources.find(item=>item.id===source.id).definition.inventory,inventory)
  assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0)
+ await page.getByText('Full source compatibility report',{exact:true}).click()
  await capture('custom-visual-source-inventory')
  const unsafe=structuredClone(input);unsafe.projectId='synthetic-bifocal-custom-visuals-unsafe'
  const activeSpec={...specification,data:{url:'https://synthetic-bifocal-exfil.invalid/salary'},transform:[{calculate:"fetch('/api/operator/datasets')",as:'salary'}]}
@@ -90,6 +91,7 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  const unsafeVisible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(unsafeVisible.report.project.resources,retained.report.project.resources)
  assert.equal(await page.evaluate(()=>globalThis.__syntheticBifocalVisualExecuted),undefined,'Reviewing imported metadata never evaluates its JavaScript')
+ await page.getByText('Full source compatibility report',{exact:true}).click()
  await capture('custom-visual-denied-inventory')
  return [{input,plan},{input:unsafe,plan:blocked}]
 }
