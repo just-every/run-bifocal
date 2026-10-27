@@ -18,8 +18,8 @@ function comment(item){const li=element('li'),mentioned=(item.mentions??[]).map(
 // A link row reads as a thread row inside the card's padding: the link, one quiet line (its expiry stamp kept whole),
 // then its action.
 function shareLink(item){
- const li=element('li'),record=element('div',undefined,'record'),inactive=item.revoked||Date.parse(item.expiresAt)<=Date.now(),expires=element('span',undefined,'nowrap');expires.append('Expires ',time(item.expiresAt))
- record.append(link('Open authenticated link','/app/shared/'+item.id),meta('For '+(person(item.recipientId)?.displayName??'a former recipient'),inactive?'Inactive':expires));li.append(record)
+ const li=element('li'),inactive=item.revoked||Date.parse(item.expiresAt)<=Date.now(),expires=element('span',undefined,'nowrap');expires.append('Expires ',time(item.expiresAt))
+ li.append(link('Open authenticated link','/app/shared/'+item.id),meta('For '+(person(item.recipientId)?.displayName??'a former recipient'),inactive?'Inactive':expires))
  if(!inactive){const button=element('button','Revoke link');button.type='button';button.addEventListener('click',()=>act(byId('collaboration-link'),async()=>{await call('/links/'+item.id+'/revoke',{});await load()}));li.append(button)}
  return li
 }

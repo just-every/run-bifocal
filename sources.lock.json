@@ -769,7 +769,7 @@
       "executable": false
     },
     "public/bifocal/app.css": {
-      "sha256": "a9e60fba71ebedcfe1eb845ca9442a43d49064f28416b6a863c3f3aa32287276",
+      "sha256": "1cf0913cb2943eca7e73531389403331f1362b0800c6e59e9afec25dc324e7e2",
       "executable": false
     },
     "public/bifocal/apps.css": {
@@ -837,7 +837,7 @@
       "executable": false
     },
     "public/bifocal/collaboration.js": {
-      "sha256": "4caac8a5b2f7c9991fbf32e1df73e505e3f8514449ffa22099b5c8258357a32a",
+      "sha256": "9a3297e5063d275d90c706c3f7423dced33b62370b8650ebe387f1d802a8b50f",
       "executable": false
     },
     "public/bifocal/company.js": {
