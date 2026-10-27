@@ -21,7 +21,7 @@ try {
  worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
  for(let i=0;i<120;i++){if(worker.exitCode!==null)throw Error(output);try{if((await fetch(origin+'/health')).ok)break}catch{}await new Promise(r=>setTimeout(r,250))}
  assert.equal((await fetch(origin+'/health')).status,200,output)
- browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
  const context=await browser.newContext(),page=await context.newPage()
  const call=async(path,data,expected=data===undefined?200:201,extra={})=>{const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...(data===undefined?{}:{data})});assert.equal(r.status(),expected,await r.text());return r.json()}
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)

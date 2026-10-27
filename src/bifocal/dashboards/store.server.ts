@@ -5,6 +5,7 @@ import { assertion, sql, transact } from '../../modules/import-kit/src/door/stor
 import { readQuery } from '../data/snapshots/store'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { fail } from '../query/types'
+import { retainedQuality } from '../query/quality.server'
 type Owner=D1Sql & {email:string}
 type Row={id:string;kind:'dashboard'|'report';owner_id:string;title:string;created_at:string}
 export async function readBoard(env:Bindings,owner:Owner,ownerId:string,id:string,kind?:string) {
@@ -15,7 +16,7 @@ export async function readBoard(env:Bindings,owner:Owner,ownerId:string,id:strin
  const cards=[],guards:D1Sql[]=[sql('EXISTS(SELECT 1 FROM bf_analytics_boards WHERE id=? AND owner_id=? AND title=? AND kind=?)',id,ownerId,row.title,row.kind),sql('(SELECT count(*) FROM bf_analytics_cards WHERE board_id=?)=?',id,refs.length)]
  for(const ref of refs) {
   const {snapshot,sources,guard}=await readQuery(env,owner,ownerId,ref.snapshot_id)
-  cards.push({...snapshot,provenance:sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source,updatedAt:s.table.updatedAt}))})
+  cards.push({...snapshot,quality:await retainedQuality(env,owner,ownerId,snapshot),provenance:sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source,updatedAt:s.table.updatedAt}))})
   guards.push(guard,sql('EXISTS(SELECT 1 FROM bf_analytics_cards WHERE board_id=? AND position=? AND snapshot_id=?)',id,ref.position,ref.snapshot_id))
  }
  await transact(env.DB,owner,guards.map(assertion))

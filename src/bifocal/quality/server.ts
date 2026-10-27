@@ -4,7 +4,6 @@ import { fileOwner } from '../imports/files/owner.server'
 import { ownerIdentity } from '../data/snapshots/store'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
-import { decimal, plus, rational } from '../currency/decimal'
 import type { Table } from '../imports/files/csv'
 import { fail, QueryError } from '../query/types'
 import { randomUUID } from 'node:crypto'
@@ -13,10 +12,10 @@ import { refusalLine } from '../metrics/forms'
 import { qualityRefusal } from '../metrics/refusals'
 import { qualityMain } from './page'
 import { sourceImpact } from '../models/lineage/server'
+import { evaluate, type RuleDefinition, type SourceRow } from './evaluate'
+import { qualityState } from './evidence.server'
 const document = sectionDocument('quality')
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
-type RuleDefinition={name:string;kind:'freshness'|'not-null'|'unique'|'accepted-values'|'count'|'money';column?:string;maxAgeSeconds?:number;values?:unknown[];expected?:string}
-type SourceRow={revision:string;value_json:string}
 function parse(v:unknown):RuleDefinition {
  if(typeof v==='string'){try{v=JSON.parse(v)}catch{fail('invalid_rule',400)}}
  if(!object(v))fail('rule_required',400)
@@ -29,47 +28,7 @@ function parse(v:unknown):RuleDefinition {
  if(v.kind==='money'&&!(typeof v.expected==='string'&&/^-?\d{1,24}\.\d{2}$/.test(v.expected)))fail('money_required',400)
  return v as unknown as RuleDefinition
 }
-export function evaluate(rule:RuleDefinition,source:SourceRow|null,now=Date.now()) {
- if(!source)return {state:'unknown',reason:'source_unavailable',failingRowNumbers:[]}
- const table=JSON.parse(source.value_json) as Table,index=table.columns.findIndex(c=>c.name===rule.column),failures:number[]=[]
- if(rule.column&&index<0)return {state:'unknown',reason:'column_unavailable',failingRowNumbers:[]}
- if(rule.kind==='freshness') {
-  const at=Date.parse(table.source.lineage?.observedAt??table.updatedAt)
-  return {state:!Number.isFinite(at)||at>now?'unknown':now-at>rule.maxAgeSeconds!*1000?'failed':'passed',reason:'source_freshness',observedAt:Number.isFinite(at)?new Date(at).toISOString():null,failingRowNumbers:[]}
- }
- if(rule.kind==='count')return {state:String(table.rows.length)===rule.expected?'passed':'failed',reason:'row_count',actual:String(table.rows.length),expected:rule.expected,failingRowNumbers:[]}
- if(rule.kind==='money') {
-  if(table.columns[index].type!=='money')return {state:'unknown',reason:'money_column_required',failingRowNumbers:[]}
-  let total=rational(0n)
-  for(const [i,row] of table.rows.entries()){if(row[index]===null)failures.push(i+1);else total=plus(total,decimal(row[index]))}
-  const expected=decimal(rule.expected),matches=total.numerator*expected.denominator===expected.numerator*total.denominator
-  return {state:!failures.length&&matches?'passed':'failed',reason:'exact_money_reconciliation',expected:rule.expected,actual:{numerator:String(total.numerator),denominator:String(total.denominator)},failingRowNumbers:failures.slice(0,20),failureCount:failures.length}
- }
- const seen=new Set<string>()
- for(const [i,row] of table.rows.entries()) {
-  const value=row[index],key=canonicalJson(value)
-  if(rule.kind==='not-null'&&value===null||rule.kind==='unique'&&(value===null||seen.has(key))||rule.kind==='accepted-values'&&!rule.values!.some(v=>canonicalJson(v)===key))failures.push(i+1)
-  seen.add(key)
- }
- return {state:failures.length?'failed':'passed',reason:rule.kind,failureCount:failures.length,failingRowNumbers:failures.slice(0,20)}
-}
-export async function qualityState(env:Bindings,datasets:string[]) {
- const tests:Record<string,unknown>[]=[]
- for(const dataset of [...new Set(datasets)]) {
-  const source=await env.DB.prepare('SELECT revision,value_json FROM bf_file_tables WHERE id=?').bind(dataset).first<SourceRow>()
-  const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE dataset_id=?').bind(dataset).all<Rule>()).results
-  if(!source||!rules.length){tests.push({dataset,state:'unknown',reason:!source?'source_unavailable':'no_quality_evidence'});continue}
-  for(const rule of rules) {
-   const run=await env.DB.prepare('SELECT * FROM bf_quality_runs WHERE rule_id=? ORDER BY rowid DESC LIMIT 1').bind(rule.id).first<{id:string;source_revision:string;result_json:string}>(),def=JSON.parse(rule.rule_json) as RuleDefinition
-   const saved=run?JSON.parse(run.result_json):{state:'unknown',reason:'not_run'}
-   let state=run&&run.source_revision===source.revision?saved.state:'unknown',reason=state==='unknown'?'source_changed_or_unchecked':saved.reason
-   if(def.kind==='freshness'&&state==='passed'){const live=evaluate(def,source);state=live.state;reason=live.reason}
-   const waiver=run?await env.DB.prepare('SELECT reason,expires_at FROM bf_quality_waivers WHERE run_id=?').bind(run.id).first<{reason:string;expires_at:string}>():null
-   tests.push({dataset,ruleId:rule.id,name:def.name,runId:run?.id??null,state,reason,waiver:waiver?{...waiver,active:Date.parse(waiver.expires_at)>Date.now()}:null})
-  }
- }
- return {state:tests.some(t=>t.state==='failed')?'at risk':!tests.length||tests.some(t=>t.state==='unknown')?'unknown':'healthy',tests}
-}
+export { qualityState } from './evidence.server'
 async function handleQualityResponse(request:Request,original:Bindings):Promise<Response|null> {
  const url=new URL(request.url),page=url.pathname==='/app/quality',match=/^\/api\/operator\/quality(?:\/rules(?:\/([a-z][a-z0-9-]{0,63})(?:\/(run))?)?|\/runs\/([a-f0-9-]{36})\/waive|\/impact\/([a-z][a-z0-9-]{0,63}))?$/.exec(url.pathname)
  if(!page&&!match)return null
@@ -107,7 +66,7 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
   if(request.method!=='GET')fail('method_not_allowed',405)
   if(match?.[4]) {
    const column=url.searchParams.get('column');if(!column||[...url.searchParams.keys()].some(k=>k!=='column'))fail('source_column_required',400)
-   const impact=await sourceImpact(env,match[4],column)
+   const impact=await sourceImpact(env,match[4],column,ownerId)
    await transact(env.DB,owner,[]);return json(impact)
   }
   if(url.search)fail('query_parameters_not_supported',400)
@@ -131,7 +90,7 @@ async function handleQualityResponse(request:Request,original:Bindings):Promise<
 async function qualityView(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string) {
  const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE owner_id=? ORDER BY id').bind(ownerId).all<Rule>()).results
  const histories=(await env.DB.prepare('SELECT r.* FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE q.owner_id=? ORDER BY r.rowid DESC LIMIT 100').bind(ownerId).all<{id:string;rule_id:string;source_revision:string|null;result_json:string;created_at:string}>()).results.map(r=>({...r,result:JSON.parse(String(r.result_json)),result_json:undefined}))
- const quality=await qualityState(env,rules.map(r=>r.dataset_id))
+ const quality=await qualityState(env,rules.map(r=>r.dataset_id),ownerId)
  await transact(env.DB,owner,[])
  return {rules,histories,quality}
 }

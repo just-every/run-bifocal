@@ -6,6 +6,7 @@ import {canonicalJson,sha256} from '../../modules/import-kit/src/provenance/iden
 import {fail} from '../query/types'
 import {estateDocument,type EstateDocument} from './protocol'
 import {resolveResources} from './resources.server'
+import {promotionQuality} from '../models/validation/quality.server'
 export type Estate={owner_id:string;id:string;head_revision:number;development:number;staging:number|null;production:number|null;generation:number}
 export type EstateRevision={owner_id:string;estate_id:string;revision:number;document_json:string;definitions_json:string;digest:string;created_at:string}
 export const estateGuard=(actor:Authority,id:string,state:Estate|null)=>state?sql('EXISTS(SELECT 1 FROM bf_environment_estates WHERE owner_id=? AND id=? AND head_revision=? AND development=? AND staging IS ? AND production IS ? AND generation=?)',actor.id,id,state.head_revision,state.development,state.staging,state.production,state.generation):sql('NOT EXISTS(SELECT 1 FROM bf_environment_estates WHERE owner_id=? AND id=?)',actor.id,id)
@@ -39,8 +40,9 @@ export async function publicationReview(env:Bindings,actor:Authority,id:string,n
  if(canonicalJson(resources.definitions)!==revision.definitions_json)fail('environment_resource_definition_changed',409)
  const before=state.production?JSON.parse((await readEstateRevision(env,actor,id,state.production)).definitions_json) as typeof resources.definitions:[]
  const diff=[...new Set([...before.map(r=>r.key),...resources.definitions.map(r=>r.key)])].map(key=>({key,before:before.find(r=>r.key===key)??null,after:resources.definitions.find(r=>r.key===key)??null})).filter(d=>canonicalJson(d.before)!==canonicalJson(d.after))
- const compatible=resources.models.every(value=>value.review.compatible),accessReviewRequired=resources.models.some(value=>value.review.accessReviewRequired)
- const content={id,version:n,generation:state.generation,rollback,definitions:resources.definitions,diff,compatible,accessReviewRequired,modelReviews:resources.models.map(value=>value.review),productionSends:0,sourceWrites:0}
+ const quality=await promotionQuality(env,resources.sourceIds,actor.id)
+ const compatible=resources.models.every(value=>value.review.compatible)&&!quality.impact.blocking,accessReviewRequired=resources.models.some(value=>value.review.accessReviewRequired)
+ const content={id,version:n,generation:state.generation,rollback,definitions:resources.definitions,diff,compatible,accessReviewRequired,qualityImpact:quality.impact,modelReviews:resources.models.map(value=>value.review),productionSends:0,sourceWrites:0}
  const digest=sha256(canonicalJson({ownerId:actor.id,...content,fingerprints:resources.fingerprints}))
- return {state,revision,document,resources,guards:[estateGuard(actor,id,state),...resources.guards],review:{...content,digest}}
+ return {state,revision,document,resources,guards:[estateGuard(actor,id,state),...resources.guards,...quality.guards],review:{...content,digest}}
 }

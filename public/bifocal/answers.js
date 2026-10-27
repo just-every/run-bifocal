@@ -2,6 +2,7 @@ import {renderBoard,boardChoices} from './board.js'
 import { element, table } from './file-view.js'
 import { figure, label, stamp, when } from './format.js'
 import { retainedExport } from './retained-export.js'
+import { qualityNotice } from './quality.js'
 const $ = id => document.getElementById(id), zone = document.body.dataset.zone
 let snapshot, pending=false
 // Once an answer is on screen its title leads: routine messages stay in the live region, for screen readers only.
@@ -20,7 +21,7 @@ const answerName = (dataset,measures) => [label(dataset),...(measures.length?[me
 // The held notice carries its own way to the exact test, as h1's notice carries its action.
 function notice(quality,common) {
  const parts=[]
- if(quality&&quality.state!=='healthy'){const link=element('a','Data quality');link.href='/app/quality';parts.push('Quality '+quality.state+'. Retained result; inspect ',link,' for the exact test. ')}
+ if(quality)parts.push(qualityNotice(quality,zone))
  if(common==='unavailable')parts.push('No common upstream snapshot is available. This answer cannot be officially certified.')
  $('certification').replaceChildren(...parts)
 }

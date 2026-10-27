@@ -1,6 +1,7 @@
 import {element,table,sourceView} from './file-view.js'
 import {figure,label,stamp} from './format.js'
 import {retainedExport} from './retained-export.js'
+import {qualityNotice} from './quality.js'
 const $=id=>document.getElementById(id),zone=document.body.dataset.zone
 let board,preview
 /** A chart always retains its exact accessible table. Different measures and
@@ -37,6 +38,7 @@ export function renderBoard(result,request,action,status) {
  for(const card of result.cards) {
   const section=element('section',undefined,'panel'),measures=Object.keys(card.answer.totals),heading=element('h3',card.definition.dataset)
   section.append(heading,element('p','Snapshot '+card.snapshotId+' · '+stamp(card.createdAt,zone),'meta'))
+  section.append(qualityNotice(card.quality,zone))
   for(const metric of measures)section.append(chart(card,metric))
   const shown=value=>value.state==='value'?figure(value.value,value.unit,card.context.currency):value.state.toUpperCase()
   section.append(table('Exact '+card.definition.dataset+' results',[...card.definition.groupBy.map(label),...measures.map(label)],card.answer.rows.map(row=>[...row.dimensions,...measures.map(metric=>shown(row.values[metric]))])))

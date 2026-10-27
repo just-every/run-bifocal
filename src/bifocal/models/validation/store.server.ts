@@ -8,6 +8,7 @@ import { queryContext } from '../../query/context'
 import { execute } from '../../query/execute'
 import { fail, QueryError, type Answer } from '../../query/types'
 import { scopedQuery, type Definition } from './protocol'
+import { promotionQuality } from './quality.server'
 export type Owner=D1Sql & {email:string}
 export type Model={id:string;owner_id:string;generation:number;production:string|null;staging:string|null;cache_epoch:number}
 export type Branch={id:string;model_id:string;base_generation:number;revision_id:string;version:number;approval_json:string|null}
@@ -52,7 +53,11 @@ export async function validateBranch(env:Bindings,model:Model,branch:Branch) {
   const after=impacts.find(impact=>impact.id===check.view)?.after
   return {...check,passed:after?.state==='compiled' && after.answer.totals[check.measure]?.state==='value' && after.answer.totals[check.measure]?.value===check.expected}
  })
- const compatible=branch.base_generation===model.generation && impacts.every(i=>i.after.state==='compiled') && quality.every(q=>q.passed)
+ const qualitySources=[...base.views,...candidate.views].flatMap(view=>[view.query.dataset,...view.query.joins.map(join=>join.dataset)])
+ const sourceQuality=await promotionQuality(env,qualitySources,model.owner_id)
+ guards.push(...sourceQuality.guards)
+ const definitionCompatible=branch.base_generation===model.generation && impacts.every(i=>i.after.state==='compiled') && quality.every(q=>q.passed)
+ const compatible=definitionCompatible && !sourceQuality.impact.blocking
  const dependencies= model.production ? (await env.DB.prepare(`
  SELECT 'query' AS kind,id,id AS snapshot_id FROM bf_query_snapshots WHERE owner_id=? AND json_extract(query_json,'$.context.modelVersion')=?
  UNION ALL SELECT 'saved-'||a.kind,a.id,a.snapshot_id FROM bf_query_artifacts a JOIN bf_query_snapshots q ON q.id=a.snapshot_id WHERE a.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?
@@ -62,7 +67,7 @@ export async function validateBranch(env:Bindings,model:Model,branch:Branch) {
  if(dependencies.length>200)fail('dependency_inventory_limit',413)
  if(model.production)guards.push(sql(`(SELECT count(*) FROM bf_query_snapshots WHERE owner_id=? AND json_extract(query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind==='query').length),sql(`(SELECT count(*) FROM bf_query_artifacts a JOIN bf_query_snapshots q ON q.id=a.snapshot_id WHERE a.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind.startsWith('saved-')).length),sql(`(SELECT count(*) FROM bf_analytics_boards b JOIN bf_analytics_cards c ON c.board_id=b.id JOIN bf_query_snapshots q ON q.id=c.snapshot_id WHERE b.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind.startsWith('board-')).length),sql(`(SELECT count(*) FROM bf_charts c JOIN bf_query_snapshots q ON q.id=c.snapshot_id WHERE c.owner_id=? AND json_extract(q.query_json,'$.context.modelVersion')=?)=?`,model.owner_id,model.production,dependencies.filter(d=>d.kind==='chart').length))
  const definitionDiff=[...new Set([...base.views.map(v=>v.id),...candidate.views.map(v=>v.id)])].map(viewId=>({viewId,before:base.views.find(v=>v.id===viewId)??null,after:candidate.views.find(v=>v.id===viewId)??null})).filter(diff=>canonicalJson(diff.before)!==canonicalJson(diff.after))
- const review={definitionDiff,modelId:model.id,branchId:branch.id,revision:branch.revision_id,generation:model.generation,branchVersion:branch.version,impacts,quality,compatible,dependencies:dependencies.map(d=>({...d,history:'pinned-original'})),accessReviewRequired:impacts.some(i=>i.accessReviewRequired),sideEffects:{productionSends:0,sourceWrites:0},inheritingClauses:['BIF-006','BIF-007','BIF-010','BIF-012','BIF-014','BIF-015','BIF-020','BIF-022','BIF-063','BIF-069']}
+ const review={definitionDiff,modelId:model.id,branchId:branch.id,revision:branch.revision_id,generation:model.generation,branchVersion:branch.version,impacts,quality,qualityImpact:sourceQuality.impact,definitionCompatible,compatible,dependencies:dependencies.map(d=>({...d,history:'pinned-original'})),accessReviewRequired:impacts.some(i=>i.accessReviewRequired),sideEffects:{productionSends:0,sourceWrites:0},inheritingClauses:['BIF-006','BIF-007','BIF-010','BIF-012','BIF-014','BIF-015','BIF-020','BIF-022','BIF-063','BIF-069']}
  return {review:{...review,digest:sha256(canonicalJson(review))},guards:[...new Map(guards.map(guard=>[canonicalJson(guard),guard])).values()]}
 }
 export async function promote(env:Bindings,owner:Owner,model:Model,branch:Branch,environment:'staging'|'production',digest:unknown){

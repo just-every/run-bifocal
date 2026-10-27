@@ -67,7 +67,7 @@ export async function resolveResources(env:Bindings,actor:Authority,document:Est
     ?{...branch,id:'rollback',base_generation:model.generation,version:model.generation}
     :branch
    const checked=await validateBranch(env,model,validationBranch)
-   if(!checked.review.compatible)fail('estate_model_validation_failed',409)
+   if(!checked.review.definitionCompatible)fail('estate_model_validation_failed',409)
    const definition=JSON.parse(retained.definition_json)
    guards.push(...checked.guards,...rollback?[]:[branchGuard(branch)],sql('EXISTS(SELECT 1 FROM bf_semantic_revisions WHERE id=? AND model_id=? AND definition_json=?)',ref.revisionId,model.id,retained.definition_json))
    models.push({model,branch,review:checked.review})
