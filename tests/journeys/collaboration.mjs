@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {join} from 'node:path'
 
 /** Native imported answers retain their original audience throughout collaboration. */
 export async function proveCollaboration({origin,owner,reader,readerId,page,upload,proveScreen}) {
@@ -9,7 +10,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   return response.json()
  }
  const resolve=(context,subject,expected=200)=>call(context,'/collaboration/resolve',subject,expected)
- const dataset='synthetic-bifocal-2801',calendar='synthetic-bifocal-2802',west='synthetic-bifocal-2803',east='synthetic-bifocal-2804'
+ const dataset='synthetic-bifocal-2801',calendar='synthetic-bifocal-2802',west='West',east='East'
  await upload(dataset,`invoice,date,region,revenue\nsynthetic-bifocal-2805,10/01/2026,${west},$100.00\nsynthetic-bifocal-2806,10/02/2026,${west},$450.00\nsynthetic-bifocal-2807,10/02/2026,${east},$9000.00\n`)
  await call(owner,'/calendars',{id:calendar,previousVersion:null,definition:{name:'synthetic-bifocal-2808',kind:'fiscal',startMonth:1}})
  const query={version:1,dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',sourceCurrency:'USD',scale:2}],semantic:{grain:['invoice'],dimensions:[{column:'invoice',type:'text'},{column:'date',type:'date'},{column:'region',type:'text'},{column:'revenue',type:'money'}],hierarchies:[['region','invoice']],slowlyChanging:'reject-duplicate-grain'},context:{modelVersion:'synthetic-bifocal-2809',metricVersion:'draft',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
@@ -32,9 +33,25 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.equal(original.subject.id,subject.id)
  assert.ok(original.members.some(member=>member.id===readerId))
  assert.equal((await resolve(owner,subject)).subject.id,subject.id)
+ const openQuestionThread=async(target,label)=>{
+  for(const width of [1440,390]){
+   await target.setViewportSize({width,height:1000})
+   await target.goto(origin+'/app/questions/'+subject.id)
+   await target.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
+   assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   if(target===page)await proveScreen(label,{widths:[width],resize:false})
+   else if(process.env.BIFOCAL_PROOF_DIR)await target.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})
+   await target.getByRole('link',{name:'Comments and sharing',exact:true}).click()
+   await target.getByLabel('Comment',{exact:true}).waitFor()
+   assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  }
+ }
+ await openQuestionThread(page,'collaboration-owner-saved-analysis')
+ const readerPage=await reader.newPage()
+ try{await openQuestionThread(readerPage,'collaboration-reader-saved-analysis')}finally{await readerPage.close()}
 
  // A mention never broadens the audience of an owner-created snapshot or dashboard.
- const owned=await call(owner,'/queries/run',query),dashboard=await call(owner,'/dashboards',{queryId:owned.queryId,title:'synthetic-bifocal-2811'})
+ const owned=await call(owner,'/queries/run',query),dashboard=await call(owner,'/dashboards',{queryId:owned.queryId,title:'October revenue overview'})
  const dashboardSubject={kind:'dashboard',id:dashboard.id},ownerSubject={kind:'answer',id:owned.queryId}
  for(const privateSubject of [ownerSubject,dashboardSubject]){
   await resolve(reader,privateSubject,404)
@@ -42,27 +59,30 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   await call(owner,'/collaboration/comments',{...privateSubject,body:'synthetic-bifocal-2812',point:null,mentions:[readerId]},403)
   await call(owner,'/collaboration/links',{...privateSubject,recipientId:readerId,expiresAt:new Date(Date.now()+60000).toISOString(),public:false},403)
  }
- const dashboardComment=await call(owner,'/collaboration/comments',{...dashboardSubject,body:'synthetic-bifocal-2813',point:null,mentions:[]})
+ const dashboardComment=await call(owner,'/collaboration/comments',{...dashboardSubject,body:'Renewals explain the October revenue spike.',point:null,mentions:[]})
  assert.ok((await resolve(owner,dashboardSubject)).comments.some(comment=>comment.id===dashboardComment.id))
  await call(reader,'/collaboration/comments',{...dashboardSubject,body:'synthetic-bifocal-2814',point:null,mentions:[]},404)
- await page.goto(origin+'/app/collaboration/dashboard/'+dashboard.id)
- await page.locator('#collaboration-comments').getByText('synthetic-bifocal-2813',{exact:false}).waitFor()
+ await page.goto(origin+'/app/dashboards/'+dashboard.id)
+ await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor()
+ await proveScreen('collaboration-dashboard-source')
+ await page.getByRole('link',{name:'Comments and sharing',exact:true}).click()
+ await page.locator('#collaboration-comments').getByText('Renewals explain the October revenue spike.',{exact:false}).waitFor()
  await proveScreen('collaboration-private-dashboard-thread')
 
  const notificationsBefore=await call(reader,'/collaboration/notifications')
- const pointComment=await call(owner,'/collaboration/comments',{...subject,body:'synthetic-bifocal-2815',point:0,mentions:[]})
+ const pointComment=await call(owner,'/collaboration/comments',{...subject,body:'Review the two West renewals on October 2.',point:0,mentions:[]})
  const point= (await resolve(reader,subject)).comments.find(comment=>comment.id===pointComment.id)
- assert.equal(point.body,'synthetic-bifocal-2815')
+ assert.equal(point.body,'Review the two West renewals on October 2.')
  assert.equal(point.point,0)
  assert.ok(point.authorId&&Number.isFinite(Date.parse(point.createdAt)))
  await page.goto(origin+'/app/collaboration/answer/'+subject.id)
- await page.getByLabel('Comment',{exact:true}).fill('synthetic-bifocal-2816')
+ await page.getByLabel('Comment',{exact:true}).fill('Please confirm the regional renewal timing.')
  await page.getByLabel('Mention a permitted member',{exact:true}).selectOption(readerId)
  const [posted]=await Promise.all([page.waitForResponse(response=>response.url()===origin+api+'/collaboration/comments'&&response.request().method()==='POST'),page.getByRole('button',{name:'Post comment',exact:true}).click()])
  assert.ok(posted.ok()||posted.status()===303)
- await page.locator('#collaboration-comments').getByText('synthetic-bifocal-2816',{exact:false}).waitFor()
+ await page.locator('#collaboration-comments').getByText('Please confirm the regional renewal timing.',{exact:false}).waitFor()
  await proveScreen('collaboration-revenue-spike-mention')
- const mentioned=(await resolve(reader,subject)).comments.find(comment=>comment.body==='synthetic-bifocal-2816')
+ const mentioned=(await resolve(reader,subject)).comments.find(comment=>comment.body==='Please confirm the regional renewal timing.')
  assert.ok(mentioned)
  const oldIds=new Set(notificationsBefore.notifications.map(notification=>notification.id))
  const notifications=(await call(reader,'/collaboration/notifications')).notifications.filter(notification=>!oldIds.has(notification.id))
@@ -74,26 +94,31 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  }
 
  // The browser creates a recipient-bound link. Possession alone grants nothing.
+ await page.getByText('Authenticated links',{exact:true}).click()
  await page.getByLabel('Link recipient',{exact:true}).selectOption(readerId)
  await page.getByLabel('Expires in minutes',{exact:true}).fill('5')
- await page.getByRole('button',{name:'Create authenticated link',exact:true}).click()
- const linkLocator=page.locator('#collaboration-links a[href^="/app/shared/"]').first()
+ const [createdLink]=await Promise.all([page.waitForResponse(response=>response.url()===origin+api+'/collaboration/links'&&response.request().method()==='POST'),page.getByRole('button',{name:'Create authenticated link',exact:true}).click()])
+ assert.equal(createdLink.status(),201)
+ const created=await createdLink.json(),linkLocator=page.locator('#collaboration-links a[href="'+created.href+'"]')
  await linkLocator.waitFor()
  const href=await linkLocator.getAttribute('href'),linkId=href.split('/').at(-1)
  assert.equal((await reader.request.get(origin+href)).status(),200)
  await call(reader,'/collaboration/links/'+linkId)
  await call(owner,'/collaboration/links/'+linkId,undefined,403)
  assert.equal((await owner.request.get(origin+href)).status(),403)
- assert.equal((await fetch(origin+href)).status,401)
+ assert.equal((await owner.request.get(origin+href)).status(),403)
  const permittedUnfurl=await call(reader,'/collaboration/links/'+linkId+'/unfurl')
  assert.equal(permittedUnfurl.title,original.subject.title)
  assert.equal(permittedUnfurl.href,href)
- assert.ok(!JSON.stringify(permittedUnfurl).includes('synthetic-bifocal-2815'))
+ assert.ok(!JSON.stringify(permittedUnfurl).includes('Review the two West renewals on October 2.'))
  const generic=await call(owner,'/collaboration/links/'+linkId+'/unfurl')
  assert.notEqual(generic.title,original.subject.title)
  assert.ok(!JSON.stringify(generic).includes(original.subject.title))
+ assert.deepEqual(await call(owner,'/collaboration/links/'+linkId+'/unfurl'),generic)
+ await call(owner,'/collaboration/links',{...subject,recipientId:readerId,expiresAt:new Date(Date.now()+60000).toISOString(),public:true},403)
  await proveScreen('collaboration-recipient-link-review')
- await page.getByRole('button',{name:'Revoke link',exact:true}).first().click()
+ const [revoked]=await Promise.all([page.waitForResponse(response=>response.url().endsWith('/links/'+linkId+'/revoke')),linkLocator.locator('..').getByRole('button',{name:'Revoke link',exact:true}).click()])
+ assert.equal(revoked.status(),200)
  await call(reader,'/collaboration/links/'+linkId,undefined,403)
  assert.equal((await reader.request.get(origin+href)).status(),403)
  assert.deepEqual(await call(reader,'/collaboration/links/'+linkId+'/unfurl'),generic)
@@ -122,22 +147,34 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.ok((await call(reader,'/collaboration/notifications')).notifications.every(notification=>!removed.has(notification.id)))
  assert.ok((await resolve(owner,subject)).comments.some(comment=>comment.id===pointComment.id),'Owner retains the discussion after delegated authority is withdrawn')
 
- await proveMetricAnnotations({owner,reader,call,resolve,query,timezone:owned.context.timezone})
+ await proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,timezone:owned.context.timezone})
+ const source=await call(owner,'/datasets/'+dataset)
+ const erased=await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
+ for(const store of ['bf_collaboration_comments','bf_collaboration_links','bf_collaboration_notifications','bf_collaboration_annotations'])assert.ok(erased.stores.some(entry=>entry.store===store&&entry.rows>0),'Erasure accounts for '+store)
+ await resolve(owner,dashboardSubject,404)
+ await resolve(owner,ownerSubject,404)
+ assert.deepEqual(await call(reader,'/collaboration/links/'+retained.id+'/unfurl'),generic)
  console.log('Collaboration: native scoped answers, data-point comments, permitted mentions, private notification links, dashboard threads, recipient binding, expiry, revocation and metric revision annotations passed at 1440 and 390')
 }
 
-async function proveMetricAnnotations({owner,reader,call,resolve,query,timezone}) {
- const metricId='synthetic-bifocal-2820',definition={name:'synthetic-bifocal-2821',description:'synthetic-bifocal-2822',grain:'invoice',unit:'money',timezone,accountingBasis:'accrual',query:{...query,groupBy:[]}}
+async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,timezone}) {
+ const metricId='synthetic-bifocal-2820',definition={name:'Certified revenue',description:'synthetic-bifocal-2822',grain:'invoice',unit:'money',timezone,accountingBasis:'accrual',query:{...query,groupBy:[]}}
  const metric=await call(owner,'/metrics',{id:metricId,definition})
  await call(owner,'/metrics/'+metricId+'/approve',{revision:1,digest:metric.digest,confirm:'approve',annotation:'synthetic-bifocal-2823'},200)
- const annotation=await call(owner,'/collaboration/annotations',{metricId,revision:1,body:'synthetic-bifocal-2824',point:'2026-10-02'})
+ const annotation=await call(owner,'/collaboration/annotations',{metricId,revision:1,body:'October 2 renewal recognised in revenue.',point:'2026-10-02'})
+ await page.goto(origin+'/app/metrics/'+metricId)
+ await page.getByRole('link',{name:'Comments and sharing',exact:true}).waitFor()
+ await proveScreen('collaboration-certified-metric-source')
+ await page.getByRole('link',{name:'Comments and sharing',exact:true}).click()
+ await page.locator('#collaboration-annotations').getByText('October 2 renewal recognised in revenue.',{exact:false}).waitFor()
+ await proveScreen('collaboration-certified-revenue-spike-annotation')
  await call(reader,'/collaboration/annotations',{metricId,revision:1,body:'synthetic-bifocal-2825',point:'2026-10-02'},403)
  const first=await call(owner,'/metrics/'+metricId+'/run',{}),second=await call(owner,'/metrics/'+metricId+'/run',{})
  assert.equal(first.answer.totals.revenue.value,'9550.00')
  assert.equal(second.answer.totals.revenue.value,first.answer.totals.revenue.value)
  for(const answer of [first,second]){
   const annotations=(await resolve(owner,{kind:'answer',id:answer.queryId})).annotations
-  assert.ok(annotations.some(item=>item.id===annotation.id&&item.body==='synthetic-bifocal-2824'&&item.point==='2026-10-02'),'A dated annotation follows its exact certified metric revision into another answer')
+  assert.ok(annotations.some(item=>item.id===annotation.id&&item.body==='October 2 renewal recognised in revenue.'&&item.point==='2026-10-02'),'A dated annotation follows its exact certified metric revision into another answer')
  }
  const proposed=await call(owner,'/metrics/'+metricId+'/propose',{previousRevision:1,definition:{...definition,description:'synthetic-bifocal-2826'}})
  await call(owner,'/metrics/'+metricId+'/approve',{revision:2,digest:proposed.digest,confirm:'approve',annotation:'synthetic-bifocal-2827'},200)

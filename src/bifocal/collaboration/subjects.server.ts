@@ -8,7 +8,7 @@ import {readGrant} from '../explore/access.server'
 import {modelGuard,readModel} from '../models/validation/store.server'
 import {metric,revision,metricGuard,metricValue} from '../metrics/store.server'
 import {publishedDashboard} from '../dashboards/interactions.run.server'
-import {fail} from '../query/types'
+import {fail,QueryError} from '../query/types'
 export type SubjectKind='answer'|'dashboard'|'chart'|'authored-dashboard'|'metric'
 export type Subject={kind:SubjectKind;id:string;key:string;ownerId:string;title:string;href:string;fingerprint:string;guards:D1Sql[];datasets:string[];snapshots:Snapshot[];delegateId:string|null;metricRef:{id:string;revision:number;digest:string}|null}
 export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unknown):Promise<Subject>{
@@ -22,13 +22,15 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
    if(model.production!==exploration.revision)fail('published_model_changed',409)
    guards.push(modelGuard(model))
    if(exploration.operatorId){
-    const person=await member(env,exploration.operatorId),access=await readGrant(env,{...actor,id:person.id},exploration.grantId)
-    guards.push(...access.guards,person.guard);delegateId=person.id
+    try{
+     const person=await member(env,exploration.operatorId),access=await readGrant(env,{...actor,id:person.id},exploration.grantId)
+     guards.push(...access.guards,person.guard);delegateId=person.id
+    }catch(error){if(actor.id!==owner||!(error instanceof QueryError))throw error}
    }
   }
   if(snapshot.context.metric){
    const ref=snapshot.context.metric,row=await metric(env,owner,ref.id),rev=await revision(env,ref.id,ref.revision)
-   if(row.deprecated_at||row.published_revision!==ref.revision||!rev?.approved_at||rev.digest!==ref.digest)fail('certified_metric_changed',409)
+   if(!rev?.approved_at||rev.digest!==ref.digest)fail('certified_metric_changed',409)
    guards.push(metricGuard(row));metricRef=ref
   }
  }

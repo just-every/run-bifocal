@@ -704,6 +704,10 @@
       "sha256": "2aace330eea608bb836627b5070a1c0242716ac8cddd01957e89630fd4bf1365",
       "executable": false
     },
+    "migrations/core/0056_collaboration.sql": {
+      "sha256": "9ccb1db7b1cf7434fb2f9acca43b85e2bde725134aa5b514868f2d0ccfdb731f",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -806,6 +810,10 @@
     },
     "public/bifocal/chevron.svg": {
       "sha256": "50d2dd2e7e815deeb8b5279b7bcefe8b6084f1c871cd3b003b05e4ba4c2dddf8",
+      "executable": false
+    },
+    "public/bifocal/collaboration.js": {
+      "sha256": "8f19d92a4a59109aa35c108e781da10141d071e0863ca8e21d3845c6f3b9bab1",
       "executable": false
     },
     "public/bifocal/company.js": {
@@ -1614,6 +1622,26 @@
     },
     "src/bifocal/charts/styles.ts": {
       "sha256": "18b848ac44f072c6fe5c0a73a346f97622198b888a6efbbd531c62b4f6f89d56",
+      "executable": false
+    },
+    "src/bifocal/collaboration/erasure.ts": {
+      "sha256": "816d2e5c4492d974afd7d49ea49c5b1cb5fcd111d6e758d72c0d784d8a469e14",
+      "executable": false
+    },
+    "src/bifocal/collaboration/links.server.ts": {
+      "sha256": "1bc3a013f435af794d0af786c9f7713013d887d5e967e0f0092a98a896b336e7",
+      "executable": false
+    },
+    "src/bifocal/collaboration/page.server.ts": {
+      "sha256": "59c8c0eb38e3e094dcc2fa6c536ed2fcd38fb8587f89577a5bbfc4068c9b6ac7",
+      "executable": false
+    },
+    "src/bifocal/collaboration/server.ts": {
+      "sha256": "190470572f324bff48c675fa157d23ff366e4bd4f25097f555c31d050ea8a70e",
+      "executable": false
+    },
+    "src/bifocal/collaboration/subjects.server.ts": {
+      "sha256": "0987ac6be62f0f11e4dbf8d0592d94bd5e32e362ffde1d5421778ca5f3de8653",
       "executable": false
     },
     "src/bifocal/company/display-zone.ts": {
@@ -4410,6 +4438,10 @@
     },
     "tests/journeys/chart-tooling.mjs": {
       "sha256": "bceda835ba52b0dc2e912cdba412959ba07536007b54afe635dcdc1bf8d984ae",
+      "executable": false
+    },
+    "tests/journeys/collaboration.mjs": {
+      "sha256": "b8a035294d2eb8e07c23293d154843479ceda8450a74729a452b5759c3019397",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
