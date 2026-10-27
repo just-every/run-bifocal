@@ -243,6 +243,7 @@ export async function proveNativeChartBuilder({origin,context,page,upload,proveS
  assert.equal((await fetch(origin+'/app/charts/new')).status,401)
  for(const width of [1440,390])for(const kind of ['vertical-bar','line','stepped-line','area']){
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/queries/'+answer.queryId)
+  if(kind==='vertical-bar'){await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();await proveScreen('native-chart-source-answer-'+width,{widths:[width],resize:false})}
   await page.getByRole('link',{name:'Build a chart',exact:true}).click()
   await page.getByRole('status').filter({hasText:'Choose chart settings'}).waitFor()
   await page.getByLabel('Chart title',{exact:true}).fill('Finance '+kind+' '+width)
@@ -291,6 +292,7 @@ export async function proveNativeChartBuilder({origin,context,page,upload,proveS
   await page.getByRole('button',{name:'Apply selection',exact:true}).focus();await page.keyboard.press('Enter');await page.waitForURL(url=>url.searchParams.has('selection'))
   assert.deepEqual(await table.locator('tbody td').allTextContents(),['-$4.00']);assert.equal(await table.locator('tfoot td').innerText(),'$10.00')
   await page.reload();assert.equal(await table.locator('tbody tr').count(),1,'Reopening preserves the displayed selection')
+  if(kind==='line'||kind==='stepped-line'){assert.equal(await figure.locator('.chart-zero').count(),0,'An automatic single-value domain must not place zero on a nonzero observation');assert.equal(await figure.locator('.series-scale').innerText(),'Top -$3.60 · Bottom -$4.40')}
   await proveScreen('native-selected-'+kind+'-'+width,{widths:[width],resize:false})
   const endpoint='/charts/'+id+'/snapshot'
   for(const format of ['png','pdf']){
@@ -303,7 +305,7 @@ export async function proveNativeChartBuilder({origin,context,page,upload,proveS
    assert.equal(download.status(),200,await download.text());const bytes=await download.body()
    assert.equal(download.headers()['cache-control'],'no-store')
    if(format==='png'){assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.equal(bytes.readUInt32BE(16),1280);assert.ok(bytes.readUInt32BE(20)>=900)}
-   else{const pdf=bytes.toString('latin1').replace(/\\([0-7]{3})/g,(_,octal)=>String.fromCharCode(parseInt(octal,8)));assert.ok(pdf.startsWith('%PDF-1.7'));assert.match(pdf,/3 Refunds/);assert.match(pdf,/-4.00/);assert.match(pdf,/\/StructTreeRoot/)}
+   else{const pdf=bytes.toString('latin1').replace(/\\([0-7]{3})/g,(_,octal)=>String.fromCharCode(parseInt(octal,8)));assert.ok(pdf.startsWith('%PDF-1.7'));const drawn=[...pdf.matchAll(/\(([^)]*)\) Tj/g)].map(match=>match[1]).join('\n');for(const value of ['1 Sales','2 Unreported','3 Refunds','4 No sales','5 Support','12.00','-4.00','0.00','2.00','10.00','NULL'])assert.ok(drawn.includes(value),'PDF drawing text omits '+value);assert.match(pdf,/\/StructTreeRoot/)}
    if(width===1440&&process.env.BIFOCAL_PROOF_DIR)await writeFile(join(process.env.BIFOCAL_PROOF_DIR,'native-'+kind+'.'+format),bytes)
    assert.equal((await post(endpoint+'/download',{...data,selection:{field:'segment',value:'3 Refunds'}})).status(),409,'Changed selection refuses the previous exact review')
    reviews.push({endpoint,data})

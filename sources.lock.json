@@ -1713,7 +1713,7 @@
       "executable": false
     },
     "src/bifocal/charts/plot.ts": {
-      "sha256": "9bbdf76fe84da3ebde272e6d9fc646b0504248a709f330d4b51b9b7baf856a4a",
+      "sha256": "e9b2dcc7868a69fec8f1788720c3c36349c95f5b16afc6c42aa882b8c70493a6",
       "executable": false
     },
     "src/bifocal/charts/protocol.ts": {
@@ -4745,7 +4745,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "ac9d518535fbe5584668f61bcd2d1a9dc4e3aeae8d2908043f1f4864369ba6b3",
+      "sha256": "4b03b4f740b2f17035a41b56331ac23c22bd0ea37c925c6b7ef791012ca36b58",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {

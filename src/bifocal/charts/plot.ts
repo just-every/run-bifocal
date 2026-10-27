@@ -1,4 +1,4 @@
-import { decimal, rational, rounded, type Rational } from '../currency/decimal'
+import { decimal, plus, rational, rounded, type Rational } from '../currency/decimal'
 import type { Value } from '../query/types'
 import type { ChartView } from './view'
 
@@ -12,6 +12,11 @@ export function chartPlot(view:ChartView):{points:{start:number|null;end:number|
  if(!view.scale.zero){const first=domainValues.find(value=>value!==null);if(first)low=high=first}
  for(const value of domainValues)if(value){if(compare(value,low)<0n)low=value;if(compare(value,high)>0n)high=value}
  if(view.scale.domain)[low,high]=view.scale.domain.map(decimal)
+ const precision=view.columns.find(column=>column.id===view.measure)?.scale??2
+ if(['vertical-bar','line','stepped-line','area'].includes(view.mark)&&compare(low,high)===0n){
+  const unit=rational(1n,10n**BigInt(precision)),relative=low.numerator===0n?rational(1n):rational(low.numerator<0n?-low.numerator:low.numerator,low.denominator*10n),padding=compare(relative,unit)<0n?unit:relative
+  low=plus(low,rational(-padding.numerator,padding.denominator));high=plus(high,padding)
+ }
  const coordinate=(value:Rational)=>{
   const range=high.numerator*low.denominator-low.numerator*high.denominator
   if(!range)return 300
@@ -19,6 +24,5 @@ export function chartPlot(view:ChartView):{points:{start:number|null;end:number|
   const pixel=Number(n/d)/1000
   return view.scale.reverse?600-pixel:pixel
  }
- const precision=view.columns.find(column=>column.id===view.measure)?.scale??2
  return {low:rounded(low,precision,'half-even'),high:rounded(high,precision,'half-even'),points:values.map(point=>({start:point.start?coordinate(point.start):null,end:point.end?coordinate(point.end):null})),zero:coordinate(rational(0n))}
 }
