@@ -1,9 +1,11 @@
+import { instanceControls } from './report-instance.js'
 import { element, metadata, table } from './file-view.js'
 import { figure, label, stamp } from './format.js'
 
 const $ = id => document.getElementById(id), runId = document.body.dataset.runId, zone = document.body.dataset.zone
 const root = '/api/operator/report-runs/' + encodeURIComponent(runId), json = value => JSON.stringify(value, null, 2)
 const downloadable = new Set(['approved', 'accepted', 'development'])
+let instance
 let run = null, people = [], grants = [], reviewed = null, busy = false
 const messages = {
  session_required: 'Your native session ended. Sign in again to check report access.',
@@ -25,7 +27,7 @@ async function request(path, method = 'GET', body) {
  const response = await checked(await fetch(path, { method, cache: 'no-store', credentials: 'same-origin', redirect: 'error', headers: body === undefined ? { accept: 'application/json' } : { accept: 'application/json', 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }))
  return response.status === 204 ? null : response.json()
 }
-function invalidateReview() { reviewed = null; $('report-grant-confirm').checked = false; $('report-grant-preview').hidden = true; $('report-grant-save').disabled = true }
+function invalidateReview() { instance?.invalidate(); reviewed = null; $('report-grant-confirm').checked = false; $('report-grant-preview').hidden = true; $('report-grant-save').disabled = true }
 function clearReport() {
  run = null; people = []; grants = []; invalidateReview(); $('report-workspace').hidden = true; $('owner-report-tools').hidden = true; $('report-owner-history').hidden = true; $('report-title').textContent = 'Report access unavailable'
  for (const id of ['report-metadata', 'report-related', 'report-totals', 'report-rows', 'report-cutoffs', 'report-grants', 'report-pending', 'report-history', 'report-grant-summary', 'report-reviewer']) $(id).replaceChildren()
@@ -70,6 +72,7 @@ function grantsView() {
  }
 }
 function ownerView() {
+ instance?.render(run)
  $('owner-report-tools').hidden = !owner(); $('report-owner-history').hidden = !owner()
  if (!owner()) return
  const picker = $('report-reviewer'); picker.replaceChildren(new Option('Choose an active person', ''))
@@ -124,4 +127,5 @@ $('report-download').onclick = () => act(async () => {
  link.href = url; link.download = 'bifocal-report-' + runId + '.json'; document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
  status('The authorized immutable artifact was downloaded through the native audited route.')
 })
+instance = instanceControls({request,act,load,status,getRun:()=>run})
 await act(load)

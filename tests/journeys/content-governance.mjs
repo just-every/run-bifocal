@@ -66,6 +66,11 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='reports'){
+   const fixtures=await importDataset(origin,owner),reports=await proveReportCustody(origin,owner,reader,fixtures,page)
+   const response=await owner.request.post(origin+'/api/operator/datasets/'+fixtures.dataset+'/erase',{headers:{Origin:origin},data:{confirmDataset:fixtures.dataset,reviewedRevision:fixtures.revision}})
+   assert.equal(response.status(),200,await response.text());await reports.erased();await owner.close();await reader.close();return
+  }
   if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
   if(!process.env.BIFOCAL_FOCUS||process.env.BIFOCAL_FOCUS==='inputs')await proveInputTables(origin,owner,page,{reader,persist,environment})
   if(process.env.BIFOCAL_FOCUS==='inputs'){await owner.close();await reader.close();return}

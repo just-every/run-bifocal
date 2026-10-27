@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import {proveReportReviewers} from './report-reviewers.mjs'
+import {proveReportReviewers,proveLeadershipClassifications,proveExactInstanceReview} from './report-reviewers.mjs'
 import { createHash } from 'node:crypto'
 export async function proveReportCustody(origin,owner,reader,fixtures,page,expectedOutcome='development',edgeState=null){
  const call=async(path,data,expected=data===undefined?200:201,method=data===undefined?'GET':'POST')=>{
@@ -7,6 +7,7 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
   assert.equal(response.status(),expected,await response.text());return response.json()
  }
  const ownerId=(await(await owner.request.get(origin+'/auth/session')).json()).operator.id
+ const classifications=await proveLeadershipClassifications(origin,owner,reader,ownerId,call)
  await call('/calendars',{id:'synthetic-bifocal-report-year',previousVersion:null,definition:{name:'Reporting year',kind:'fiscal',startMonth:1}})
  const query={version:1,dataset:fixtures.dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'}],context:{modelVersion:'owner-model-v1',metricVersion:'owner-metric-v1',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-report-year',version:1},rounding:'half-even'}}
  const certifiedEntry={kind:'metric',title:'Revenue',description:'Human-certified native revenue definition',tags:['finance'],definition:{query:structuredClone(query)},sourceLinks:['/app/queries'],verified:true,collectionId:null,sourceDatasets:[fixtures.dataset]}
@@ -27,7 +28,7 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  assert.equal(rendered.answer.totals.revenue.value,'300.00');assert.equal(rendered.metricVersion,certified.id+':1')
  assert.deepEqual(rendered.sourceCutoffs,v1.answer.sourceWatermarks);assert.deepEqual(rendered.filters,v1.definition.filters);assert.deepEqual(rendered.audience,[ownerId])
  await call('/report-runs/'+first.id+'/approve',{digest:'0'.repeat(64),previousVersion:2},409)
- const approved=await call('/report-runs/'+first.id+'/approve',{digest:rendered.digest,previousVersion:2},200)
+ const approved=await proveExactInstanceReview(origin,owner,reader,first,rendered,classifications,call)
  const originalSend=await call('/report-runs/'+first.id+'/send',{digest:rendered.digest,previousVersion:approved.version},200)
  assert.equal(originalSend.outcome,expectedOutcome);assert.equal(originalSend.delivered,false)
  await call('/report-runs/'+first.id+'/send',{digest:rendered.digest,previousVersion:approved.version},409)
@@ -47,7 +48,11 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
  const second=await create(v2.queryId,first.id),corrected=await call('/report-runs/'+second.id+'/render',{},200)
  assert.equal(corrected.corrects,first.id);assert.equal(corrected.period,rendered.period);assert.equal(corrected.revision,2)
  assert.equal(corrected.answer.totals.revenue.value,'270.00');assert.notEqual(corrected.definitionVersions.metrics.revision,rendered.definitionVersions.metrics.revision)
- const correctedApproval=await call('/report-runs/'+second.id+'/approve',{digest:corrected.digest,previousVersion:2},200)
+ const secondReview=await call('/report-runs/'+second.id+'/review',{expiresAt:new Date(Date.now()+300000).toISOString()})
+ const wrongArtifact=await owner.request.post(origin+'/api/operator/report-runs/'+second.id+'/approve',{headers:{Origin:origin},data:{digest:rendered.digest,previousVersion:2,reviewId:secondReview.id}});assert.equal(wrongArtifact.status(),409)
+ const duplicates=await Promise.all([1,2].map(()=>owner.request.post(origin+'/api/operator/report-runs/'+second.id+'/approve',{headers:{Origin:origin},data:{digest:corrected.digest,previousVersion:2,reviewId:secondReview.id}})))
+ assert.deepEqual(duplicates.map(r=>r.status()).sort(),[200,409],'duplicate instance approval has exactly one winner')
+ const correctedApproval=await duplicates.find(r=>r.status()===200).json()
  assert.equal((await call('/report-runs/'+second.id+'/send',{digest:corrected.digest,previousVersion:correctedApproval.version},200)).outcome,expectedOutcome)
  assert.equal(await download(firstLink),originalBytes,'correction never rewrites the original received artifact')
  const secondLink=await call('/report-runs/'+second.id+'/download-link',{expiresAt:new Date(Date.now()+60000).toISOString()})

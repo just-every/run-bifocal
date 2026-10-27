@@ -1,3 +1,4 @@
+import { checkedInstanceReview, prepareInstanceReview } from '../approvals/reviews.server'
 import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -21,6 +22,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
  if(url.pathname!==prefix&&!url.pathname.startsWith(prefix+'/'))return null
  const env=runtimeBindings(original),path=url.pathname.slice(prefix.length)
  try{
+  if(request.headers.has('Authorization'))fail('human_session_required',403)
   const actor=await currentAuthority(request,env)
   if(!actor){await discardBody(request);return json({error:'session_required'},401)}
   const grantResponse=await reportGrantResponse(request,env,actor,path)
@@ -64,7 +66,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
    await transact(env.DB,actor,[assertion(guard),assertion(metric.guard),...current.guards.map(assertion),...pending.map(recipientMember).map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_report_series WHERE id=? AND owner_id=? AND next_revision=?)',seriesId,actor.id,series.next_revision)),assertion(policy?sql('EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=? AND version=?)',actor.id,policy.version):sql('NOT EXISTS(SELECT 1 FROM bf_report_retention WHERE owner_id=?)',actor.id)),sql("INSERT INTO bf_report_runs(id,series_id,owner_id,revision,corrects,period,snapshot_id,state,request_json,retain_until,created_at) VALUES(?,?,?,?,?,?,?,'queued',?,?,?)",id,seriesId,actor.id,series.next_revision,input.corrects,series.period,snapshot.snapshotId,canonicalJson({title,narrative,acceptStale:input.acceptStale,audience:[actor.id],metricRef:metric.reference}),retainUntil,createdAt),...pending.map(p=>sql('INSERT INTO bf_report_pending_recipients(run_id,reviewer_id,reviewer_version) VALUES(?,?,?)',id,p.reviewerId,p.reviewerVersion)),sql('UPDATE bf_report_series SET next_revision=next_revision+1 WHERE id=?',seriesId)])
    return json({id,seriesId,period:series.period,revision:series.next_revision,corrects:input.corrects,state:'queued',version:1,reviewUrl:'/app/report-runs/'+id},201)
   }
-  const match=/^\/([a-f0-9-]{36})(?:\/(render|approve|send|download-link|download|cancel|purge|recipients))?$/.exec(path)
+  const match=/^\/([a-f0-9-]{36})(?:\/(render|review|approve|send|download-link|download|cancel|purge|recipients))?$/.exec(path)
   if(!match)return json({error:'not_found'},404)
   const run=await readRun(env,actor,match[1]),operation=match[2]
   if(!operation){
@@ -79,7 +81,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
    const audit=(await env.DB.prepare('SELECT actor_id,action,version,recorded_at FROM bf_report_audit WHERE run_id=? ORDER BY recorded_at,id').bind(run.id).all()).results
    const pending=await pendingRecipients(env,run.id),grantHistory=(await env.DB.prepare('SELECT grant_id,actor_id,reviewer_id,artifact_digest,action,recorded_at FROM bf_report_grant_audit WHERE run_id=? ORDER BY recorded_at,id').bind(run.id).all()).results
    await transact(env.DB,actor,[assertion(runGuard(run))])
-   return json({id:run.id,seriesId:run.series_id,revision:run.revision,corrects:run.corrects,period:run.period,state:run.state,version:run.version,artifact:run.artifact_json?JSON.parse(run.artifact_json):null,digest:run.artifact_digest,retainUntil:run.retain_until,createdAt:run.created_at,access:{kind:'owner',readOnly:false},pendingRecipients:pending,grantAudit:grantHistory,dispatches,claims,audit,externalCopies:dispatches.some(f=>['accepted','uncertain'].includes(String(f.outcome)))?'Previously accepted or possibly submitted external copies cannot be recalled. Provider acceptance is not mailbox delivery.':null})
+   return json({id:run.id,seriesId:run.series_id,revision:run.revision,corrects:run.corrects,period:run.period,state:run.state,version:run.version,artifact:run.artifact_json?JSON.parse(run.artifact_json):null,digest:run.artifact_digest,retainUntil:run.retain_until,createdAt:run.created_at,access:{kind:'owner',readOnly:false},instanceApproval:run.approval_json?JSON.parse(run.approval_json):null,pendingRecipients:pending,grantAudit:grantHistory,dispatches,claims,audit,externalCopies:dispatches.some(f=>['accepted','uncertain'].includes(String(f.outcome)))?'Previously accepted or possibly submitted external copies cannot be recalled. Provider acceptance is not mailbox delivery.':null})
   }
   if(operation==='download'){
    if(request.method!=='GET')return json({error:'method_not_allowed'},405)
@@ -101,6 +103,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   if(request.method!=='POST')return json({error:'method_not_allowed'},405)
   const input=await jsonBody(request)
   if(operation==='render'){exactKeys(input,[]);return json(await render(env,actor,run))}
+  if(operation==='review'){exactKeys(input,['expiresAt']);return json(await prepareInstanceReview(env,actor,run,input.expiresAt),201)}
   if(operation==='download-link'){exactKeys(input,['expiresAt']);return json(await issueDownload(env,actor,run,input.expiresAt),201)}
   if(operation==='cancel'||operation==='purge'){
    exactKeys(input,['previousVersion'])
@@ -108,7 +111,7 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
    await transact(env.DB,actor,[assertion(runGuard(run)),sql("UPDATE bf_report_runs SET state=?,request_json=NULL,artifact_json=NULL,artifact_digest=NULL,approval_json=NULL,version=version+1 WHERE id=?",operation==='cancel'?'cancelled':'erased',run.id),sql('DELETE FROM bf_report_downloads WHERE run_id=?',run.id),reportAudit(actor,run,operation)])
    return json({id:run.id,state:operation==='cancel'?'cancelled':'erased',historicalDispatchesUnchanged:true})
   }
-  exactKeys(input,['digest','previousVersion'])
+  exactKeys(input,operation==='approve'?['digest','previousVersion','reviewId']:['digest','previousVersion'])
   const pending=await fencePending(env,actor,run)
   if(input.digest!==run.artifact_digest||input.previousVersion!==run.version||!run.artifact_json||!run.snapshot_id||run.retain_until&&Date.parse(run.retain_until)<=Date.now())fail('exact_retained_report_review_required',409)
   const {guard,sources,snapshot}=await readQuery(env,actor,actor.id,run.snapshot_id),current=await freshness(env,sources),artifact=JSON.parse(run.artifact_json)
@@ -119,16 +122,18 @@ export async function reportCustodyResponse(request:Request,original:Bindings):P
   const memberGuard=sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND role='owner' AND status='active' AND version=?)",actor.id,member.version)
   if(operation==='approve'){
    if(run.state!=='rendered')fail('rendered_report_required',409)
-   const approval={actorId:actor.id,operatorVersion:member.version,digest:run.artifact_digest,reviewedAt:new Date().toISOString()}
-   await transact(env.DB,actor,[assertion(runGuard(run)),assertion(pending),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),sql("UPDATE bf_report_runs SET state='approved',approval_json=?,version=version+1 WHERE id=?",canonicalJson(approval),run.id),reportAudit(actor,run,'approved')])
+   const reviewed=await checkedInstanceReview(env,actor,run,input.reviewId,false)
+   const approval={reviewId:reviewed.review.id,fingerprint:reviewed.review.fingerprint,expiresAt:reviewed.review.expires_at,actorId:actor.id,operatorVersion:member.version,digest:run.artifact_digest,reviewedAt:new Date().toISOString()}
+   await transact(env.DB,actor,[assertion(runGuard(run)),assertion(pending),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),...reviewed.guards.map(assertion),sql('UPDATE bf_report_instance_reviews SET approved_at=? WHERE id=?',approval.reviewedAt,reviewed.review.id),sql("UPDATE bf_report_runs SET state='approved',approval_json=?,version=version+1 WHERE id=?",canonicalJson(approval),run.id),reportAudit(actor,run,'approved')])
    return json({id:run.id,state:'approved',version:run.version+1,digest:run.artifact_digest})
   }
   if(run.state!=='approved'||!run.approval_json)fail('exact_approved_report_required',409)
   const approval=JSON.parse(run.approval_json)
   if(approval.actorId!==actor.id||approval.operatorVersion!==member.version||approval.digest!==run.artifact_digest)fail('approval_authority_changed',409)
+  const reviewed=await checkedInstanceReview(env,actor,run,approval.reviewId,true)
   if(env.AUTH_LOCAL!=='true'&&env.RER_DEMO!=='1'&&(env.MAIL_PROVIDER!=='sendgrid'||!env.MAIL_API_KEY||!env.MAIL_FROM))fail('configured_sendgrid_transport_required',503)
   const claimId=randomUUID()
-  await transact(env.DB,actor,[assertion(runGuard(run)),assertion(pending),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),sql('INSERT INTO bf_report_dispatch_claims(id,run_id,artifact_digest,owner_id,recipient_id,recipient_version,created_at) VALUES(?,?,?,?,?,?,?)',claimId,run.id,run.artifact_digest,actor.id,actor.id,member.version,new Date().toISOString()),sql("UPDATE bf_report_runs SET state='dispatching',version=version+1 WHERE id=?",run.id),reportAudit(actor,run,'dispatch-claimed')])
+  await transact(env.DB,actor,[assertion(runGuard(run)),assertion(pending),assertion(guard),assertion(metric.guard),assertion(memberGuard),...current.guards.map(assertion),...reviewed.guards.map(assertion),sql('INSERT INTO bf_report_dispatch_claims(id,run_id,artifact_digest,owner_id,recipient_id,recipient_version,created_at) VALUES(?,?,?,?,?,?,?)',claimId,run.id,run.artifact_digest,actor.id,actor.id,member.version,new Date().toISOString()),sql("UPDATE bf_report_runs SET state='dispatching',version=version+1 WHERE id=?",run.id),reportAudit(actor,run,'dispatch-claimed')])
   // The claim is the dispatch boundary. Erasure after it discloses an in-flight
   // external exception. No queued claim is retried automatically after restart.
   let result

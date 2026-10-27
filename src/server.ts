@@ -1,3 +1,5 @@
+import { classificationResponse } from './bifocal/approvals/classifications.server'
+import { classificationPage } from './bifocal/approvals/page.server'
 import { portalResponse } from './bifocal/portal/server'
 import {collaborationResponse} from './bifocal/collaboration/server'
 import { withDemo } from './modules/demo/index.mjs'
@@ -75,6 +77,10 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const classification = await classificationResponse(request, env)
+    if (classification) return classification
+    const classificationsPage = await classificationPage(request, env)
+    if (classificationsPage) return classificationsPage
     const collaboration = await collaborationResponse(request, env)
     if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)
