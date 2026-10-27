@@ -9,6 +9,13 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const base=JSON.parse(await readFile(join(directory,'metric-export.native.json'),'utf8')).definition.query
  const query={...base,dataset,filters:[],groupBy:[]};delete query.fiscal
  const definition={views:[{id:'revenue',kind:'report',query,rowRules:[]}],quality:[]},model=await call('/models',{definition}),flags=['--model',model.modelId,'--branch',model.branchId]
+ const nativeQualityScreen=async(branchId,state,label)=>{
+  await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor()
+  await page.getByRole('button',{name:'Open model '+model.modelId.slice(0,8)+' · revision 1 · branch '+branchId.slice(0,8),exact:true}).click()
+  await page.getByRole('status').filter({hasText:'Saved revision loaded'}).waitFor();await page.getByRole('button',{name:'Review publication',exact:true}).click()
+  await page.getByRole('status').filter({hasText:state==='healthy'?'Publication review complete':'Publication refused'}).waitFor()
+  assert.match(await page.locator('#publication-quality').innerText(),new RegExp('Current quality: '+state));await proveScreen(label)
+ }
  const unconfigured=await cli('validate',flags);assert.equal(unconfigured.compatible,true);assert.equal(unconfigured.qualityImpact.state,'unknown');assert.equal(unconfigured.qualityImpact.blocking,false)
  await cli('approve',[...flags,'--digest',unconfigured.digest])
  const qualityRule='synthetic-bifocal-estate-invoice'
@@ -19,6 +26,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const unchecked=await cli('validate',flags);assert.equal(unchecked.compatible,false);assert.equal(unchecked.qualityImpact.state,'unknown');assert.equal(unchecked.qualityImpact.blocking,true)
  assert.equal(unchecked.qualityImpact.tests.find(test=>test.ruleId===qualityRule).state,'unknown')
  await cli('approve',[...flags,'--digest',unchecked.digest],false)
+ await nativeQualityScreen(model.branchId,'unknown','model-quality-unknown-refusal')
  const runQuality=()=>call('/quality/rules/'+qualityRule+'/run',{})
  assert.equal((await runQuality()).result.state,'passed')
  let initial=await cli('validate',flags);assert.equal(initial.qualityImpact.state,'healthy');await cli('approve',[...flags,'--digest',initial.digest]);await cli('promote',[...flags,'--digest',initial.digest,'--environment','staging'])
@@ -128,6 +136,8 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const failedTest=failed.qualityImpact.tests.find(test=>test.ruleId===qualityRule);assert.equal(failedTest.runId,failedRun.id);assert.equal(failedTest.state,'failed');assert.equal(failedTest.href,'/app/quality#run-'+failedRun.id);assert.equal(failedTest.ownerId,stagedModel.owner_id);assert.equal(failedTest.sourceRevision,failedRun.sourceRevision);assert.equal(failedTest.checkedAt,failedRun.createdAt)
  const failedNative=await cli('validate',['--model',model.modelId,'--branch',branch.branchId]);assert.equal(failedNative.compatible,false);assert.equal(failedNative.qualityImpact.state,'at risk')
  await cli('approve',['--model',model.modelId,'--branch',branch.branchId,'--digest',failedNative.digest],false)
+ await nativeQualityScreen(branch.branchId,'at risk','model-quality-failed-refusal')
+ assert.equal(await page.locator('#publication-quality').getByRole('link',{name:'Inspect exact quality evidence',exact:true}).getAttribute('href'),'/app/quality#run-'+failedRun.id)
  await cli('environment-approve',[...envFlags,'--version','3','--digest',failed.digest],false)
  await cli('environment-promote',[...envFlags,'--version','3','--digest',failed.digest,'--environment','production'],false)
  assert.deepEqual(await status(),staged);assert.deepEqual(await call('/models/'+model.modelId),stagedModel);assert.deepEqual(await call('/metric-definitions/'+metric.id),stagedMetric)
@@ -136,6 +146,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  await upload(dataset,csv.replace('$10.01','$11.01'),true);assert.equal((await runQuality()).result.state,'passed')
  const repaired=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(repaired.compatible,true);assert.equal(repaired.qualityImpact.state,'healthy');assert.notEqual(repaired.digest,failed.digest)
  await page.goto(origin+'/app/environments/'+document.id);await proveScreen('environment-stale-source-production-refusal')
+ await nativeQualityScreen(branch.branchId,'healthy','model-quality-repaired-review')
  const boundaryReview=await cli('environment-review',[...envFlags,'--version','3'])
  await cli('environment-approve',[...envFlags,'--version','3','--digest',boundaryReview.digest]);await cli('environment-promote',[...envFlags,'--version','3','--digest',boundaryReview.digest,'--environment','staging'])
  const boundaryState={estate:await status(),model:await call('/models/'+model.modelId),metric:await call('/metric-definitions/'+metric.id)}

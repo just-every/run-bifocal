@@ -29,3 +29,16 @@ export function qualityNotice(quality,zone) {
  }
  return notice
 }
+
+export function promotionNotice(quality) {
+ const panel=element('section')
+ panel.append(element('h3','Current quality: '+quality.state),element('p',quality.policy))
+ const tests=element('ul')
+ for(const test of quality.tests) {
+  const row=element('li',test.dataset+' · '+(test.name??test.reason.replaceAll('_',' '))+' · '+test.state)
+  if(test.href){const link=element('a','Inspect exact quality evidence');link.href=test.href;row.append(' · ',link)}
+  tests.append(row)
+ }
+ panel.append(tests,element('p','Retained answers keep their original dated results.'))
+ return panel
+}
