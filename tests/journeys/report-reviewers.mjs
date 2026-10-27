@@ -66,7 +66,7 @@ export async function proveLeadershipClassifications(origin,owner,reader,ownerId
  }
  try{
   if(reader){assert.equal((await reader.request.get(origin+'/api/operator'+root)).status(),403);assert.equal((await reader.request.put(origin+'/api/operator'+root+'/'+ownerId,{headers:{Origin:origin},data:{}})).status(),403)}
-  const opened=await page.goto(origin+'/app/settings/approvals');assert.equal(opened.status(),200,await page.locator('body').innerText());await page.getByLabel('Person',{exact:true}).selectOption(ownerId)
+  const opened=await page.goto(origin+'/app/settings/approvals');assert.equal(opened.status(),200,await page.locator('body').innerText());assert.equal(await page.locator('#classification-form').count(),1,await page.locator('main').innerText());await page.getByLabel('Person',{exact:true}).selectOption(ownerId)
   await page.getByLabel('Classification',{exact:true}).selectOption('leadership')
   await page.getByLabel('Expires at in device local time',{exact:true}).fill(await page.evaluate(()=>{const d=new Date(Date.now()+300000);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,19)}))
   const [saved]=await Promise.all([page.waitForResponse(r=>r.request().method()==='PUT'&&r.url().endsWith(ownerId)),page.getByRole('button',{name:'Save reviewed classification',exact:true}).click()]);assert.equal(saved.status(),200,await saved.text())

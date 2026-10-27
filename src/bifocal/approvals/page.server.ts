@@ -19,9 +19,9 @@ export async function classificationPage(request:Request,original:Bindings):Prom
 <section class="panel"><h2>Active people</h2><div id="classification-people"></div></section>
 <details class="panel"><summary>Classification audit history</summary><div id="classification-history"></div></details>
 <section class="panel"><h2>Review a classification</h2><form id="classification-form"><div class="fields">
-<label>Person<select id="classification-person" name="operatorId" required disabled></select></label>
-<label>Classification<select id="classification-kind" name="kind" required><option value="none">None</option><option value="leadership">Leadership</option><option value="board">Board</option></select></label>
-<label>Expires at in device local time<input id="classification-expiry" name="expiresAt" type="datetime-local" step="1" disabled></label>
+<label>Person<select id="classification-person" aria-label="Person" name="operatorId" required disabled></select></label>
+<label>Classification<select id="classification-kind" aria-label="Classification" name="kind" required><option value="none">None</option><option value="leadership">Leadership</option><option value="board">Board</option></select></label>
+<label>Expires at in device local time<input id="classification-expiry" aria-label="Expires at in device local time" name="expiresAt" type="datetime-local" step="1" disabled></label>
 </div><p id="classification-review">Choose a person to inspect their current classification.</p><button type="submit" id="classification-save" class="primary" disabled>Save reviewed classification</button></form></section>`})
  try {await transact(env.DB,actor,[])}catch{return new Response('Your account access changed. Sign in again.',{status:401,headers})}
  return new Response(request.method==='HEAD'?null:document,{headers:{...headers,'content-type':'text/html; charset=utf-8','content-security-policy':`default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; ${appPolicy}`}})
