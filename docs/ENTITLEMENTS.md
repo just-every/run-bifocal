@@ -37,8 +37,9 @@ normalized active membership is refused, including at execution time.
 
 Publish repeats the input with the returned `reviewedDigest`. The digest binds
 the current model, exact source revisions and expected previous policy version.
-One transaction checks those references, advances the current version and keeps
-its immutable definition history and attributed audit. Concurrent or stale
+One transaction checks those references and current normalized identity
+uniqueness, advances the current version and keeps its immutable definition
+history and attributed audit. Concurrent or stale
 reviews refuse. The GET endpoint exposes this version history to the owner;
 it returns source references, never source records.
 
@@ -47,8 +48,8 @@ or XLSX download rechecks the current policy, native authority, source revisions
 and security freshness. Freshness is measured from the source publication time,
 not from the review time. Effective dates use the server's UTC civil day; saved
 results must be reopened with a fresh run after that day changes. The response
-transaction checks source custody, policy version, identity uniqueness, current
-day and freshness again. A newly introduced policy also withdraws earlier broad
+transaction checks source custody, policy version, the principal bound to the
+current native operator, identity uniqueness, current day and freshness again. A newly introduced policy also withdraws earlier broad
 saved results. Discovery excludes old-policy results and counts.
 
 Reimporting a changed mapping immediately denies reads until the owner reviews

@@ -14,6 +14,7 @@ type Reference={id:string;revision:string;digest:string}
 type Stored={owner_id:string;model_id:string;view_id:string;revision:number;document_json:string;digest:string}
 type Document={definition:Definition;sources:Reference[]}
 const normalize=(value:string,mode:Definition['normalization'])=>mode==='exact'?value:value.replace(/[A-Z]/g,c=>c.toLowerCase())
+const identityColumn=(mode:Definition['normalization'])=>mode==='exact'?'email COLLATE BINARY':'lower(email) COLLATE BINARY'
 const key=(value:unknown):value is string=>typeof value==='string'&&/^[a-zA-Z0-9._@+-]{1,254}$/.test(value)
 const date=(value:unknown):value is string=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value
 function definitionInput(value:unknown):Definition {
@@ -77,9 +78,9 @@ export async function entitlementScope(env:Bindings,actor:Authority,owner:string
  if(sha256(canonicalJson(document))!==row.digest)fail('entitlement_snapshot_changed',409)
  const person=await env.DB.prepare("SELECT email FROM oa_operators WHERE id=? AND status='active'").bind(actor.id).first<{email:string}>()
  if(!person)fail('entitlement_mapping_missing',403)
- const principal=normalize(person.email,document.definition.normalization),identityColumn=document.definition.normalization==='exact'?'email COLLATE BINARY':'lower(email) COLLATE BINARY'
- const identityGuard=sql(`(SELECT count(*) FROM oa_operators WHERE status='active' AND ${identityColumn}=? COLLATE BINARY)=1`,principal)
- const unique=await env.DB.prepare(`SELECT count(*) AS n FROM oa_operators WHERE status='active' AND ${identityColumn}=? COLLATE BINARY`).bind(principal).first<{n:number}>()
+ const principal=normalize(person.email,document.definition.normalization),column=identityColumn(document.definition.normalization)
+ const identityGuard=sql(`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND ${column}=? COLLATE BINARY) AND (SELECT count(*) FROM oa_operators WHERE status='active' AND ${column}=? COLLATE BINARY)=1`,actor.id,principal,principal)
+ const unique=await env.DB.prepare(`SELECT count(*) AS n FROM oa_operators WHERE status='active' AND ${column}=? COLLATE BINARY`).bind(principal).first<{n:number}>()
  if(unique?.n!==1)fail('ambiguous_entitlement_principal',409)
  const sources=[]
  for(const ref of document.sources){const s=await source(env,ref.id);if(s.revision!==ref.revision||sha256(s.value_json)!==ref.digest)fail('entitlement_snapshot_changed',409);sources.push(s)}
@@ -120,7 +121,8 @@ export async function entitlementResponse(request:Request,env:Bindings,actor:Aut
  const principals=people.map(p=>normalize(p.email,definition.normalization))
  if(new Set(principals).size!==principals.length)fail('ambiguous_entitlement_principal',409)
  const document:Document={definition,sources:sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)}))},revision=Number(previous??0)+1,digest=sha256(canonicalJson({document,previous,modelRevision:model.production}))
- const guards=[policyGuard(actor.id,model.id,definition.viewId,previous as number|null),modelGuard(model),...sources.map(sourceMatch)]
+ const identities=sql(`NOT EXISTS(SELECT 1 FROM oa_operators WHERE status='active' GROUP BY ${identityColumn(definition.normalization)} HAVING count(*)>1)`)
+ const guards=[policyGuard(actor.id,model.id,definition.viewId,previous as number|null),modelGuard(model),identities,...sources.map(sourceMatch)]
  if(path.endsWith('/review')){await transact(env.DB,actor,[...guards.map(assertion),audit(actor,model.id,definition.viewId,revision,digest,'review')]);return json({document,revision,digest,additionalRestrictionOnly:true})}
  if(input.reviewedDigest!==digest)fail('exact_entitlement_review_required',409)
  const content=canonicalJson(document),contentDigest=sha256(content)
