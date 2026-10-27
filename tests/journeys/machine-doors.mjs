@@ -204,6 +204,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const certifiedView=await graph('metric',{id:metricId});assert.equal(certifiedView.metric.published_revision,2);assert.equal(certifiedView.revisions.filter(r=>r.approved_at).length,2)
  assert.deepEqual((await call('/queries/'+metricRun.queryId)).answer,metricRun.answer)
  await page.goto(origin+'/app/metrics/'+metricId);await page.locator('h1').waitFor();await proveScreen('native-graphql-metric-certified')
+ const settingsControl=page.locator('summary[aria-label="Settings"]')
+ await settingsControl.focus();await page.getByRole('tooltip',{name:'Open settings',exact:true}).waitFor({state:'visible'});await proveScreen('native-graphql-metric-settings-tooltip');await settingsControl.blur()
  const deprecation={id:metricId,revision:2,publishedRevision:2,digest:proposedMetric.digest,reason:'Replaced after exact owner review',confirm:'deprecate'}
  await graph('deprecateMetric',{...deprecation,publishedRevision:1},409)
  assert.deepEqual(await graph('metric',{id:metricId}),certifiedView)
