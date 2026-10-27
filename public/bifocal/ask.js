@@ -1,5 +1,5 @@
 import { element, metadata, table } from './file-view.js'
-import { figure, label, stamp } from './format.js'
+import { figure, label, stamp, when } from './format.js'
 
 const $ = id => document.getElementById(id), zone = document.body.dataset.zone
 const json = value => JSON.stringify(value, null, 2)
@@ -46,7 +46,7 @@ function definitions() {
 function renderHistory() {
  const box = $('ask-history'); box.replaceChildren()
  for (const item of history) {
-  const link = element('a'), time = element('span', stamp(item.createdAt, zone), 'meta'); link.href = '/app/ask?question=' + encodeURIComponent(item.id)
+  const link = element('a'), time = element('time', when(item.createdAt, zone), 'row-meta'); time.dateTime = item.createdAt; link.href = '/app/ask?question=' + encodeURIComponent(item.id)
   link.append(element('span', item.question), time); if (item.id === current?.id) link.setAttribute('aria-current', 'true'); box.append(link)
  }
  if (!history.length) box.append(element('p', 'No saved AI questions yet.', 'side-note'))

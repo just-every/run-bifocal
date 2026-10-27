@@ -1,5 +1,6 @@
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
-import { appDocument, appPolicy, escapeHtml } from '../../app/shell'
+import { librarySide } from './side'
+import { accountSide, appDocument, appPolicy, escapeHtml } from '../../app/shell'
 import { currentAuthority } from './authority.server'
 import { catalogResponse } from './server'
 import { itemDocument } from './store.server'
@@ -14,8 +15,10 @@ function sourceLink(value: unknown): string | null {
  if (value.startsWith('/') && !value.startsWith('//') && !/[?#\\]/.test(value)) return value
  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash ? url.href : null } catch { return null }
 }
+/** An in-app source reads as what it opens ("Saved dashboard"), never its raw path; outside links keep their URL. */
+const sourceName = (href: string) => /^\/app\/dashboards\/[^/]+$/.test(href) ? 'Saved dashboard' : /^\/app\/(reports|report-runs)\/[^/]+$/.test(href) ? 'Saved report' : /^\/app\/queries\/[^/]+$/.test(href) ? 'Exact answer' : href === '/app/queries' ? 'Exact answers' : href
 function links(item: Content): string {
- const permitted = (item.sourceLinks as unknown[]).flatMap(value => { const href = sourceLink(value); return href ? [`<li><a href="${h(href)}" rel="noreferrer">${h(href)}</a></li>`] : [] })
+ const permitted = (item.sourceLinks as unknown[]).flatMap(value => { const href = sourceLink(value); return href ? [`<li><a href="${h(href)}" rel="noreferrer">${h(sourceName(href))}</a></li>`] : [] })
  return permitted.length ? `<ul class="library-links">${permitted.join('')}</ul>` : '<p class="meta">No source links are registered.</p>'
 }
 function row(item: Content): string {
@@ -91,5 +94,5 @@ export async function catalogPage(request: Request, original: Bindings): Promise
   }
  } catch (error) { status = Number((error as { status?: number }).status) || 503; main = `<h1>${status === 404 ? 'Content unavailable' : status === 403 ? 'Library access unavailable' : 'Library could not load'}</h1><p>${status === 404 ? 'This content is unavailable to your current account.' : status === 403 ? 'Your current account cannot open this library page.' : 'Reload this page after checking your session and the current catalog state.'}</p><a href="/app/library">Back to library</a>` }
  const browserItem = item ? Object.fromEntries(Object.entries(item).filter(([key]) => owner || key !== 'definition')) : null
- return new Response(appDocument({ title: (item?.title ?? (url.pathname.endsWith('/settings') ? 'Library settings' : 'Library')) + ' · Bifocal', viewer: session.operator, place: 'home', side: `<nav class="sidelist" aria-label="Library"><a href="/app/library"${url.pathname === '/app/library' ? ' aria-current="page"' : ''}>Library</a>${owner ? `<a href="/app/library/settings"${url.pathname.endsWith('/settings') ? ' aria-current="page"' : ''}>Library settings</a>` : ''}<a href="/app">App home</a></nav>`, head: '<link rel="stylesheet" href="/bifocal/catalog.css"><script type="module" src="/bifocal/catalog.js"></script>', body: ` data-id="" data-catalog-role="${owner ? 'owner' : 'reader'}" data-catalog-id="${h(item?.id ?? '')}"${browserItem ? ` data-catalog-item="${h(JSON.stringify(browserItem))}"` : ''}`, main: '<div id="library-workspace"><p id="library-status" class="status" role="status" aria-live="polite"></p>' + main + '</div>' }), { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': `default-src 'none'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
+ return new Response(appDocument({ title: (item?.title ?? (url.pathname.endsWith('/settings') ? 'Library settings' : 'Library')) + ' · Bifocal', viewer: session.operator, place: url.pathname.endsWith('/settings') ? 'library-settings' : 'library', side: url.pathname.endsWith('/settings') ? accountSide(session.operator.role, 'library-settings') : librarySide('library', !!owner), head: '<link rel="stylesheet" href="/bifocal/catalog.css"><script type="module" src="/bifocal/catalog.js"></script>', body: ` data-id="" data-catalog-role="${owner ? 'owner' : 'reader'}" data-catalog-id="${h(item?.id ?? '')}"${browserItem ? ` data-catalog-item="${h(JSON.stringify(browserItem))}"` : ''}`, main: '<div id="library-workspace"><p id="library-status" class="status" role="status" aria-live="polite"></p>' + main + '</div>' }), { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'content-security-policy': `default-src 'none'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}` } })
 }

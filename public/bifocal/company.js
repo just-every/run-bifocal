@@ -5,15 +5,47 @@ const field=(form,name)=>form.elements[name].value
 const number=(form,name)=>Number(field(form,name))
 async function call(path,data,method=data===undefined?'GET':'POST') {
  const response=await fetch('/api/operator'+path,{method,headers:data===undefined?{}:{'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})}),value=await response.json()
- if(!response.ok)throw Error(value.reason??value.error);return value
+ if(!response.ok)throw Object.assign(Error(value.reason??value.error),{code:value.error});return value
 }
 function status(text,error=false){$('status').textContent=text;$('status').dataset.error=String(error)}
+// A refused field keeps what the person typed and says, beside it, what is wrong and how to fix it.
+function fieldError(form,name,text){
+ const input=form.elements[name],id=form.id+'-'+name+'-error',label=input.closest('label')
+ document.getElementById(id)?.remove();input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby')
+ if(!text)return
+ let cell=label.parentElement
+ if(!cell.classList.contains('control')){cell=element('div',undefined,'control');label.replaceWith(cell);cell.append(label)}
+ const note=element('p',text,'field-error');note.id=id;cell.append(note)
+ input.setAttribute('aria-invalid','true');input.setAttribute('aria-describedby',id);input.focus()
+}
+// The nearest real IANA zone name to a misspelt one (a few letters apart), to name in the fix.
+function nearestZone(text){
+ const a=text.toLowerCase();let best=null,score=Infinity
+ for(const zone of Intl.supportedValuesOf('timeZone')){
+  const b=zone.toLowerCase(),row=[...Array(b.length+1).keys()]
+  for(let i=1;i<=a.length;i++){let diagonal=row[0];row[0]=i;for(let j=1;j<=b.length;j++){const above=row[j];row[j]=Math.min(row[j]+1,row[j-1]+1,diagonal+(a[i-1]===b[j-1]?0:1));diagonal=above}}
+  if(row[b.length]<score){score=row[b.length];best=zone}
+ }
+ return score<=Math.max(2,Math.floor(text.length/4))?best:null
+}
+const COMPANY_FIELDS={invalid_text:['name','Enter the company name, up to 160 characters.'],invalid_currency:['currency','Enter a three-letter currency code, like USD.'],invalid_clock:['cutoff','Enter the report cutoff as a time, like 17:00.']}
 async function action(work){if(pending)return;pending=true;status('Working…');document.querySelectorAll('button').forEach(button=>button.disabled=true);try{await work()}catch(error){status(error.message,true)}finally{pending=false;document.querySelectorAll('button').forEach(button=>button.disabled=false)}}
 function on(id,handler){$(id).onsubmit=event=>{event.preventDefault();action(()=>handler(event.currentTarget))}}
 function iso(value){const match=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);if(!match)throw Error('Enter dates as MM/DD/YYYY.');return `${match[3]}-${match[1]}-${match[2]}`}
 function json(form,name){try{return JSON.parse(field(form,name))}catch{throw Error('Enter valid JSON for '+name+'.')}}
 async function latest(path,key){const result=await call(path);const rows=result[key];return rows.length?Math.max(...rows.map(row=>row.version)):null}
-on('company-form',async form=>{company=await call('/company',{previousRevision:company.revision,settings:{name:field(form,'name'),currency:field(form,'currency'),timezone:field(form,'timezone'),reportCutoff:field(form,'cutoff')}},'PUT');status('Company conventions saved. Existing answers retain their earlier revision.')})
+on('company-form',async form=>{
+ for(const name of ['name','timezone','currency','cutoff'])fieldError(form,name,'')
+ try{company=await call('/company',{previousRevision:company.revision,settings:{name:field(form,'name'),currency:field(form,'currency'),timezone:field(form,'timezone'),reportCutoff:field(form,'cutoff')}},'PUT')}
+ catch(error){
+  const zone=field(form,'timezone').trim(),near=nearestZone(zone)
+  const [name,sentence]=['invalid_timezone','iana_timezone_required'].includes(error.code)?['timezone',`${zone} isn’t a known time zone. ${near?`Check the spelling (${near}).`:'Use a name like America/New_York.'}`]:COMPANY_FIELDS[error.code]??[]
+  if(!name)throw error
+  fieldError(form,name,sentence)
+  throw Error('Company conventions weren’t saved. Check '+form.elements[name].closest('label').firstChild.textContent+'.')
+ }
+ status('Company conventions saved. Existing answers retain their earlier revision.')
+})
 on('calendar-form',async form=>{
  const id=field(form,'id'),previousVersion=await latest('/calendars/'+encodeURIComponent(id),'versions')
  const saved=await call('/calendars',{id,previousVersion,definition:{name:field(form,'name'),kind:field(form,'kind'),startMonth:number(form,'month'),startDay:number(form,'day'),weekStartsOn:number(form,'week'),anchor:field(form,'anchor'),extraWeekPeriod:12}})
