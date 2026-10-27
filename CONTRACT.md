@@ -597,7 +597,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `90d0e925a0f488cf7eca61d303d10ae176323e26` (27 October 2026). Status census reconciled against this source tree on 27 October 2026. BIF-028 incorporates the CT policy ruling of 27 October 2026 and remains partial; no fresh completion judgment or landing is claimed.
+Judged from the code and tests at commit `dc5f392b45b59969fe0acfe0d8bc7a0e46108586` (27 October 2026). Status census reconciled against this source tree on 27 October 2026. BIF-028 incorporates the CT policy ruling of 27 October 2026 and remains partial. The cited revision identifies the native proof baseline. The candidate exact source revision and repeated 1440 and 390 browser proof are recorded in the handoff. No fresh CT completion judgment or landing is claimed.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

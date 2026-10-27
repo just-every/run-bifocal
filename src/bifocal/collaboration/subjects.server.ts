@@ -24,7 +24,7 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
    if(target.key!==row.subject_key)fail('collaboration_subject_changed',409)
    const guards=await participantAccess(env,actor,target,row.grant_id)
    target.guards.push(...guards,owner.guard,person.guard,sql('EXISTS(SELECT 1 FROM bf_collaboration_participants WHERE subject_key=? AND operator_id=? AND grant_id=? AND owner_version=? AND operator_version=?)',row.subject_key,actor.id,row.grant_id,owner.version,person.version))
-   target.href='/app/collaboration/'+target.kind+'/'+target.id
+   target.href=target.kind==='chart'?'/app/charts/'+target.id:'/app/collaboration/'+target.kind+'/'+target.id
    return target
   }
  }

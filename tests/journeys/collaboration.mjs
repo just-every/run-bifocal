@@ -164,6 +164,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   const colleaguePage=await colleague.newPage()
   await colleaguePage.goto(origin+'/app/collaboration/dashboard/'+sharedDashboard.id)
   await colleaguePage.locator('#collaboration-comments').getByText('The West-only dashboard agrees with my current grant.',{exact:true}).waitFor()
+  assert.equal(await colleaguePage.getByRole('link',{name:'Open original',exact:true}).count(),0)
   for(const width of [1440,390]){await colleaguePage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await colleaguePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await colleaguePage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-colleague-dashboard-'+width+'.png'),fullPage:true})}
   await colleaguePage.close()
   await call(colleague,'/collaboration/participants/revoke',{...sharedSubject,operatorId:person.id},403)
