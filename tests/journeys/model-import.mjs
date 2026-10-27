@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {join,dirname} from 'node:path'
 import {dump,load,JSON_SCHEMA} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
 import {proveDBTPredicates} from './dbt-predicate-import.mjs'
@@ -242,6 +242,58 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   assert.equal(imported.report.compatible,false,'Untranslated report semantics remain explicit after folder import')
   await proveScreen('pbip-folder-imported')
  }finally{await rm(folder,{recursive:true,force:true})}
+ // Select actual filesystem directories through the browser, including a
+ // singular dbt test whose directory determines its resource kind.
+ const singular=structuredClone(raw);singular.projectId='synthetic-bifocal-dbt-singular'
+ singular.files.push({path:'tests/nonnegative_revenue.sql',content:"select * from {{ ref('sales') }} where revenue < 0"})
+ const singularPlan=await prepare(singular)
+ assert.deepEqual(singularPlan.project.report.project.resources.map(r=>[r.id,r.kind,r.file,r.dependencies]).sort(),[
+  ['project','project','dbt_project.yml',[]],['model.sales','model','models/sales.sql',['source.raw.invoices']],
+  ['source.raw.invoices','source','models/schema.yml',[]],['test.sales.invoice.tests.0','test','models/schema.yml',['model.sales']],
+  ['test.sales.invoice.tests.1','test','models/schema.yml',['model.sales']],['test.nonnegative_revenue','test','tests/nonnegative_revenue.sql',['model.sales']]
+ ].sort())
+ const folderRoot=await mkdtemp(join(tmpdir(),'bifocal-project-folders-'))
+ try{
+  for(const [source,control,label] of [[pbip,pbipPlan,'pbip'],[singular,singularPlan,'dbt-singular-test']]){
+   const input=structuredClone(source);input.projectId='synthetic-bifocal-browser-'+label
+   const directory=join(folderRoot,label)
+   for(const file of input.files){const target=join(directory,file.path);await mkdir(dirname(target),{recursive:true});await writeFile(target,file.content)}
+   await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click()
+   await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByLabel('Model format',{exact:true}).selectOption(input.format)
+   await page.getByLabel('Project fiscal calendar',{exact:true}).selectOption(JSON.stringify(input.context.calendar))
+   await page.getByLabel('Source bindings (JSON)',{exact:true}).fill(JSON.stringify(input.bindings));await page.getByLabel('Measure formats (JSON)',{exact:true}).fill(JSON.stringify(input.formats))
+   // Flat selection is refused before creating a plan instead of silently
+   // converting a singular test to a model or breaking PBIP dependencies.
+   await page.getByLabel('Original project files',{exact:true}).setInputFiles(source.files.map(f=>join(directory,f.path)))
+   await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Choose the project root folder'}).waitFor()
+   assert.equal(await page.locator('#model-import-review').isVisible(),false)
+   if(label==='dbt-singular-test'){
+    await page.getByLabel('Original project folder',{exact:true}).setInputFiles(join(directory,'tests'))
+    await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Choose the dbt project root containing'}).waitFor()
+    assert.equal(await page.locator('#model-import-review').isVisible(),false)
+   }
+   await page.getByLabel('Original project folder',{exact:true}).setInputFiles(directory)
+   assert.equal(await page.getByLabel('Original project files',{exact:true}).evaluate(el=>el.files.length),0)
+   const selected=await page.getByLabel('Original project folder',{exact:true}).evaluate(el=>Array.from(el.files,f=>f.webkitRelativePath))
+   assert.deepEqual(selected.sort(),input.files.map(f=>label+'/'+f.path).sort())
+   const response=page.waitForResponse(r=>r.url()===origin+'/api/operator/import/plan'&&r.request().headers()['x-import-dataset']===input.projectId)
+   await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();const browserPlan=await (await response).json()
+   await page.getByRole('status').filter({hasText:'Review the source compatibility'}).waitFor()
+   assert.equal(browserPlan.counts.rejected,0,JSON.stringify(browserPlan))
+   assert.deepEqual([...browserPlan.project.input.files].sort((a,b)=>a.path.localeCompare(b.path)),[...input.files].sort((a,b)=>a.path.localeCompare(b.path)))
+   assert.deepEqual([...browserPlan.project.report.project.resources].sort((a,b)=>a.id.localeCompare(b.id)),[...control.project.report.project.resources].sort((a,b)=>a.id.localeCompare(b.id)))
+   assert.deepEqual(browserPlan.project.report.issues.map(i=>[i.code,i.object]).sort(),control.project.report.issues.map(i=>[i.code,i.object]).sort())
+   const inventory=page.locator('#model-import-report table').filter({has:page.getByText('Source object',{exact:true})}).first()
+   assert.match(await inventory.innerText(),label==='pbip'?/Sales\.Report\/definition\.pbir/:/test\.nonnegative_revenue/)
+   await proveScreen('model-folder-'+label+'-review')
+   await page.getByLabel('I reviewed this exact project plan and its unresolved items').check();await page.getByRole('button',{name:'Import reviewed project',exact:true}).click()
+   await page.getByRole('status').filter({hasText:'Project imported and reconciled'}).waitFor()
+   const imported=await call('/model-imports/'+input.projectId)
+   assert.deepEqual(imported.input.files,browserPlan.project.input.files);assert.deepEqual(imported.report.project.resources,browserPlan.project.report.project.resources)
+   assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0)
+   await proveScreen('model-folder-'+label+'-imported');dbtProjects.push({input,plan:browserPlan})
+  }
+ }finally{await rm(folderRoot,{recursive:true,force:true})}
  const unsafePBIP=structuredClone(pbip);unsafePBIP.projectId='synthetic-bifocal-pbip-unsafe';unsafePBIP.files[1].content=JSON.stringify({version:'4.0',datasetReference:{byPath:{path:'../../outside'}}});unsafePBIP.files.push({path:'Sales.Report/report.json',content:'{"visuals":[]}'});const unsafePBIPPlan=await prepare(unsafePBIP);assert.equal(unsafePBIPPlan.project.report.compatible,false);assert.ok(unsafePBIPPlan.project.report.issues.some(i=>i.code==='unsafe_pbip_path'));assert.ok(unsafePBIPPlan.project.report.issues.some(i=>i.code==='unsupported_pbip_file'&&i.file==='Sales.Report/report.json'));await apply(unsafePBIP.projectId,unsafePBIPPlan);dbtProjects.push({input:unsafePBIP,plan:unsafePBIPPlan})
  const missingPBIP=structuredClone(pbip);missingPBIP.projectId='synthetic-bifocal-pbip-missing';missingPBIP.files=missingPBIP.files.filter(f=>!f.path.endsWith('definition.pbism'));const missingPBIPPlan=await prepare(missingPBIP);assert.equal(missingPBIPPlan.project.report.compatible,false);assert.ok(missingPBIPPlan.project.report.issues.some(i=>i.code==='missing_pbip_dependency'&&i.message.includes('Sales.SemanticModel/definition.pbism')));await apply(missingPBIP.projectId,missingPBIPPlan);dbtProjects.push({input:missingPBIP,plan:missingPBIPPlan})
  const card={id:37,name:'sales',dataset_query:{database:9,type:'query',query:{'source-table':12,aggregation:[['sum',['field',4,null]]]}},result_metadata:[{name:'revenue',base_type:'type'+'/'+'Decimal'}]},mbTable={id:12,name:'invoices',db_id:9,fields:[{id:4,name:'revenue',base_type:'type'+'/'+'Decimal'}]},mbDatabase={id:9,name:'warehouse',engine:'postgres',details:{}}

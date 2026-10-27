@@ -237,3 +237,9 @@ This native dialect supports one literal relation per model, projections,
 casts and exact arithmetic. It never evaluates Jinja or runs hooks, adapters,
 provider SQL or background jobs. Unsupported constructs stay diagnostic.
 Execution is ephemeral and does not publish a table or certify a metric.
+
+For a source-only dbt project, select the root containing `dbt_project.yml`,
+including its models, schema declarations and tests. Selecting only the tests
+folder or flat SQL files is refused before upload. The standalone file picker
+remains available for individual definitions and TWBX archives. Selecting either
+input clears the other; review the retained original paths before approval.
