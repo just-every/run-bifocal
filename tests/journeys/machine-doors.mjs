@@ -103,6 +103,28 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  await api('/api/v1/query',input,401)
  await api('/api/v1/graphql',{query:document,variables:{input}},401)
  await api('/api/v1/mcp',{jsonrpc:'2.0',id:5,method:'tools'+'/call',params:{name:'query',arguments:input}},401)
+ // Schedule real native revocation after reservation and before response commit.
+ // The wrapper controls only scheduling; the production Worker handles both doors.
+ const cookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+ for(const transport of ['rest','graphql','mcp','definitions']){
+  const credential=await issue({maxOperations:1})
+  const armed=await fetch(origin+'/__machine-boundary',{method:'POST',headers:{'Content-Type':'application'+'/json'},body:JSON.stringify({path:'/api/operator/credentials/'+credential.id+'/revoke',cookie,body:{}})})
+  assert.equal(armed.status,200);await armed.arrayBuffer()
+  let refused
+  if(transport==='rest')refused=await api('/api/v1/query',input,409,credential.token)
+  if(transport==='definitions')refused=await api('/api/v1/definitions',undefined,409,credential.token)
+  if(transport==='graphql')refused=await api('/api/v1/graphql',{query:document,variables:{input}},409,credential.token)
+  if(transport==='mcp'){
+   refused=await api('/api/v1/mcp',{jsonrpc:'2.0',id:12,method:'tools'+'/call',params:{name:'query',arguments:input}},200,credential.token)
+   assert.equal(refused.result.isError,true)
+  }
+  const text=JSON.stringify(refused)
+  for(const field of ['Stage 01','31.31','sourceWatermarks','scopeDigest'])assert.ok(!text.includes(field),'No withdrawn response data through '+transport)
+  const state=await call('/credentials'),record=state.credentials.find(c=>c.id===credential.id)
+  assert.equal(record.revoked,1);assert.equal(record.used_operations,1,'Reservation is lifetime, including withdrawn responses')
+  assert.ok(state.history.some(h=>h.credential_id===credential.id&&h.action==='read-reserved'))
+  assert.ok(!state.history.some(h=>h.credential_id===credential.id&&['query','definitions'].includes(h.action)),'Withdrawn response never commits successful use')
+ }
  const changed=await issue(),oldSource=await call('/datasets/'+dataset)
  const replacement=await upload(dataset,original.replace('$1.01','$2.01'),true)
  await api('/api/v1/query',input,401,changed.token)
