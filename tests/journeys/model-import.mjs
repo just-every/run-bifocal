@@ -62,7 +62,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   saved.push({input,plan,imported,model,answer,report,question})
   if(['metabase','tableau'].includes(input.format)){
    await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
-   assert.match(await page.getByRole('table',{name:'Source measure translations'}).innerText(),/sales.revenue_sum/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('model-import-'+input.format)
+   assert.equal(await page.getByLabel('Model format',{exact:true}).inputValue(),input.format);assert.deepEqual(JSON.parse(await page.getByLabel('Source bindings (JSON)',{exact:true}).inputValue()),input.bindings);assert.match(await page.getByRole('table',{name:'Source measure translations'}).innerText(),/sales.revenue_sum/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('model-import-'+input.format)
   }
  }
  // A real native member session qualifies refusal independently of anonymous access.
