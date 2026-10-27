@@ -591,7 +591,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Status records bounded native evidence and remaining scope per clause. The 27 October CT ruling approves the bounded BIF-071 policy with riders; BIF-071 and BIF-019 remain partial. No earlier code revision or local proof certifies the current candidate as DONE.
+Judged from the code and tests at commit `53676c656679b35e3150c5482e86d68debb6be3e` (27 October 2026). This identifies the current entitlement implementation revision; exact-candidate verification is recorded by branch Verify. Status records bounded native evidence and remaining scope per clause. The 27 October CT ruling approves the bounded BIF-071 policy with riders; BIF-071 and BIF-019 remain partial. No earlier code revision or local proof certifies the current candidate as DONE.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
