@@ -61,6 +61,16 @@ try {
  const old=await call('/reports/'+report.id);assert.deepEqual(old.answer,before.answer);assert.equal(old.context.metric.revision,1)
  assert.equal((await call('/queries/'+before.queryId+'/rerun',{},200)).reproduced,true)
  const history=await call('/metrics/synthetic-bifocal-customers');assert.equal(history.revisions.length,2);assert.ok(history.revisions.every(r=>r.approved_at&&r.annotation))
+ // The human GraphQL door returns the complete immutable certification history.
+ const native=async(query,variables)=>{const r=await context.request.post(origin+'/api/v1/native/graphql',{headers,data:{query,variables}});assert.equal(r.status(),200,await r.text());return (await r.json()).data}
+ const inspected=await native('query($id:String!){metric(id:$id)}',{id:'synthetic-bifocal-customers'})
+ assert.deepEqual(inspected.metric,history)
+ const exported=await native('query($id:String!){metricDefinition(id:$id)}',{id:'synthetic-bifocal-customers'})
+ assert.equal(exported.metricDefinition.revision,2);assert.equal(exported.metricDefinition.certifiedRevision,2);assert.equal(exported.metricDefinition.digest,proposed.digest)
+ assert.deepEqual(exported.metricDefinition.document.definition,history.revisions[0].definition)
+ const executed=await native('mutation($id:String!){runMetric(id:$id)}',{id:'synthetic-bifocal-customers'})
+ assert.deepEqual(executed.runMetric.answer,after.answer);assert.deepEqual(executed.runMetric.context.metric,after.context.metric)
+
  const proveScreen=async(path,label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+path);await page.locator('h1').waitFor();if(/^\/app\/(queries|reports|dashboards)\//.test(path))await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);const icons=await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length);assert.equal(icons,0,'Touched screens contain no icon-only buttons');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}}
  await proveScreen('/app/metrics','metrics');await proveScreen('/app/metrics/synthetic-bifocal-customers','metric-history')
  const revenue=structuredClone(definition);revenue.name='USD revenue';revenue.unit='money';revenue.grain='invoice';revenue.query.filters=[];revenue.query.measures=[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'}]

@@ -154,12 +154,69 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.deepEqual(contentGraph,contentRest);assert.equal(contentRest.title,'Reviewed pipeline')
  const metricQuery={...base,joins:[],groupBy:[],filters:[...fixed,{column:'stage',op:'ne',value:'Blocked model'}]}
  const metricId='synthetic-bifocal-api-revenue',metricDefinition={name:'West revenue',description:'Exact native API metric',grain:'invoice',unit:'money',timezone:'America'+'/'+'New_York',accountingBasis:'accrual',query:metricQuery}
+ const graph=async(field,variables={},status=200)=>{
+  const operations={
+   metric:'query($id:String!){metric(id:$id)}',
+   metricDefinition:'query($id:String!){metricDefinition(id:$id)}',
+   metricImpact:'query($id:String!){metricImpact(id:$id)}',
+   proposeMetric:'mutation($id:String!,$input:JSON!){proposeMetric(id:$id,input:$input)}',
+   certifyMetric:'mutation($id:String!,$revision:Int!,$digest:String!,$annotation:String!,$confirm:String!){certifyMetric(id:$id,revision:$revision,digest:$digest,annotation:$annotation,confirm:$confirm)}',
+   runMetric:'mutation($id:String!){runMetric(id:$id)}',
+   deprecateMetric:'mutation($id:String!,$revision:Int!,$publishedRevision:Int!,$digest:String!,$reason:String!,$confirm:String!){deprecateMetric(id:$id,revision:$revision,publishedRevision:$publishedRevision,digest:$digest,reason:$reason,confirm:$confirm)}'
+  }
+  const result=await nativeApi('graphql',{query:operations[field],variables},'POST',status)
+  if(status!==200)return result
+  return result.data[field]
+ }
  await nativeApi('metrics',{id:metricId,definition:metricDefinition},'POST',201)
  const metric=await nativeApi('metric-definitions/'+metricId)
- await nativeApi('metrics/'+metricId+'/approve',{revision:metric.revision,digest:metric.digest,annotation:'Reviewed exact source money.',confirm:'approve'})
- const metricRun=await nativeApi('metrics/'+metricId+'/run',{},'POST',201);assert.equal(metricRun.answer.totals.revenue.value,'31.31')
- const metricRest=await nativeApi('metrics/'+metricId),metricGraph=(await nativeApi('graphql',{query:'query Read($id:String!) { metric(id:$id) }',variables:{id:metricId}})).data.metric
- assert.deepEqual(metricGraph,metricRest)
+ assert.deepEqual(await graph('metricDefinition',{id:metricId}),metric)
+ assert.deepEqual(metric.document,{version:1,id:metricId,definition:metricDefinition})
+ await graph('runMetric',{id:metricId},409)
+ await graph('certifyMetric',{id:metricId,revision:'1',digest:metric.digest,annotation:'Invalid bound revision',confirm:'approve'},400)
+ const certification={id:metricId,revision:1,digest:metric.digest,annotation:'Reviewed exact source money.',confirm:'approve'}
+ assert.equal((await graph('certifyMetric',certification)).state,'certified')
+ const metricRun=await nativeApi('metrics/'+metricId+'/run',{},'POST',201),graphRun=await graph('runMetric',{id:metricId})
+ assert.equal(metricRun.answer.totals.revenue.value,'31.31');assert.deepEqual(graphRun.answer,metricRun.answer);assert.deepEqual(graphRun.context,metricRun.context)
+ const metricRest=await nativeApi('metrics/'+metricId)
+ assert.deepEqual(await graph('metric',{id:metricId}),metricRest)
+ const nextMetric=structuredClone(metricDefinition);nextMetric.query.filters.push({column:'stage',op:'ne',value:'Stage 01'})
+ const proposedMetric=await graph('proposeMetric',{id:metricId,input:{previousRevision:1,definition:nextMetric}})
+ const proposedView=await graph('metric',{id:metricId}),impact=await graph('metricImpact',{id:metricId})
+ assert.deepEqual(impact,await nativeApi('metrics/'+metricId+'/impact'))
+ assert.equal(impact.impact.before.value,'31.31');assert.equal(impact.impact.after.value,'30.30')
+ assert.equal(proposedView.metric.head_revision,2);assert.equal(proposedView.metric.published_revision,1)
+ assert.deepEqual(proposedView.revisions[1],metricRest.revisions[0],'A proposal preserves the complete certified revision')
+ assert.equal((await graph('runMetric',{id:metricId})).context.metric.revision,1)
+ assert.deepEqual((await graph('runMetric',{id:metricId})).answer,metricRun.answer)
+ const staleApproval=await graph('certifyMetric',certification,409);assert.equal(staleApproval.errors[0].message,'stale_metric_approval')
+ await graph('certifyMetric',{...certification,revision:2,digest:proposedMetric.digest,confirm:'unreviewed'},403)
+ assert.deepEqual(await graph('metric',{id:metricId}),proposedView,'Refused reviews leave metric history unchanged')
+ const currentCertification={...certification,revision:2,digest:proposedMetric.digest}
+ const concurrentCertification=await Promise.all([
+  context.request.post(origin+'/api/v1/native/graphql',{headers:{Origin:origin},data:{query:'mutation($id:String!,$digest:String!){certifyMetric(id:$id,revision:2,digest:$digest,annotation:"Concurrent exact review",confirm:"approve")}',variables:{id:metricId,digest:proposedMetric.digest}}}),
+  context.request.post(origin+'/api/v1/native/metrics/'+metricId+'/approve',{headers:{Origin:origin},data:{revision:2,digest:proposedMetric.digest,annotation:'Concurrent exact review',confirm:'approve'}})
+ ])
+ assert.deepEqual(concurrentCertification.map(r=>r.status()).sort(),[200,409]);for(const r of concurrentCertification)await r.body()
+ const certifiedView=await graph('metric',{id:metricId});assert.equal(certifiedView.metric.published_revision,2);assert.equal(certifiedView.revisions.filter(r=>r.approved_at).length,2)
+ const newRun=await graph('runMetric',{id:metricId});assert.equal(newRun.answer.totals.revenue.value,'30.30');assert.equal(newRun.context.metric.revision,2);assert.equal(newRun.context.metric.digest,proposedMetric.digest)
+ assert.deepEqual((await call('/queries/'+metricRun.queryId)).answer,metricRun.answer)
+ await page.goto(origin+'/app/metrics/'+metricId);await page.locator('h1').waitFor();await proveScreen('native-graphql-metric-certified')
+ const deprecation={id:metricId,revision:2,publishedRevision:2,digest:proposedMetric.digest,reason:'Replaced after exact owner review',confirm:'deprecate'}
+ await graph('deprecateMetric',{...deprecation,publishedRevision:1},409)
+ assert.deepEqual(await graph('metric',{id:metricId}),certifiedView)
+ const nativeBearer=await issue()
+ for(const [field,variables] of [['metricDefinition',{id:metricId}],['metricImpact',{id:metricId}],['certifyMetric',currentCertification],['runMetric',{id:metricId}],['deprecateMetric',deprecation]]){
+  const query=field==='certifyMetric'?'mutation($id:String!,$revision:Int!,$digest:String!,$annotation:String!,$confirm:String!){certifyMetric(id:$id,revision:$revision,digest:$digest,annotation:$annotation,confirm:$confirm)}':field==='deprecateMetric'?'mutation($id:String!,$revision:Int!,$publishedRevision:Int!,$digest:String!,$reason:String!,$confirm:String!){deprecateMetric(id:$id,revision:$revision,publishedRevision:$publishedRevision,digest:$digest,reason:$reason,confirm:$confirm)}':(field==='runMetric'?'mutation':'query')+'($id:String!){'+field+'(id:$id)}'
+  const response=await context.request.post(origin+'/api/v1/native/graphql',{headers:{Origin:origin,Authorization:'Bearer '+nativeBearer.token},data:{query,variables}})
+  assert.equal(response.status(),403);assert.equal((await response.json()).error,'human_session_required')
+ }
+ assert.deepEqual(await graph('metric',{id:metricId}),certifiedView)
+ assert.equal((await graph('deprecateMetric',deprecation)).state,'deprecated')
+ const refusedRun=await graph('runMetric',{id:metricId},409);assert.equal(refusedRun.errors[0].message,'metric_deprecated')
+ const retired=await graph('metric',{id:metricId});assert.equal(retired.metric.deprecated_reason,deprecation.reason);assert.deepEqual(retired.revisions,certifiedView.revisions)
+ assert.deepEqual((await call('/queries/'+metricRun.queryId)).answer,metricRun.answer)
+ await page.goto(origin+'/app/metrics/'+metricId);await page.locator('h1').waitFor();await proveScreen('native-graphql-metric-deprecated')
  for(const route of ['models/'+created.modelId,'metrics/'+metricId,'content'+'/items/'+contentCreated.id,'schema','graphql']){
   await api('/api/v1/native/'+route,route==='graphql'?{query:'{ metrics }'}:undefined,403)
   const denied=await fetch(origin+'/api/v1/native/'+route,{headers:{Authorization:headers.Authorization,cookie}})
@@ -170,8 +227,14 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const changed=await issue(),oldSource=await call('/datasets/'+dataset)
  const replacement=await upload(dataset,original.replace('$1.01','$2.01'),true)
  await api('/api/v1/query',input,401,changed.token)
- const undo=await context.request.post(origin+'/api/operator/import/undo',{headers:{Origin:origin,'X-Import-Dataset':dataset},data:{planId:replacement.planId}})
- assert.equal(undo.status(),200,await undo.text())
+ const boundaryId='synthetic-bifocal-source-boundary',boundary=await nativeApi('metrics',{id:boundaryId,definition:metricDefinition},'POST',201)
+ const boundaryBefore=await graph('metric',{id:boundaryId})
+ const armed=await fetch(origin+'/__machine-boundary',{method:'POST',headers:{'Content-Type':'application'+'/json'},body:JSON.stringify({metricCertification:true,path:'/api/operator/import/undo',cookie,headers:{'X-Import-Dataset':dataset},body:{planId:replacement.planId}})})
+ assert.equal(armed.status,200);await armed.arrayBuffer()
+ const sourceRefusal=await graph('certifyMetric',{...certification,id:boundaryId,digest:boundary.digest},409)
+ assert.equal(sourceRefusal.errors[0].message,'metric_conflict')
+ const boundaryAfter=await graph('metric',{id:boundaryId});assert.deepEqual(boundaryAfter.metric,boundaryBefore.metric);assert.deepEqual(boundaryAfter.revisions,boundaryBefore.revisions);assert.equal(boundaryAfter.metric.published_revision,null)
+ await page.goto(origin+'/app/metrics/'+boundaryId);await page.locator('h1').waitFor();await proveScreen('native-graphql-metric-source-refused')
  assert.equal((await call('/datasets/'+dataset)).revision,oldSource.revision)
  await api('/api/v1/query',input,401,changed.token)
  const beforeModel=await issue()

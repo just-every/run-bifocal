@@ -9,8 +9,8 @@ import {reportCustodyResponse} from '../reports/server'
 import {exactKeys,json,jsonBody,discardBody} from '../models/validation/transport'
 import {fail,QueryError} from '../query/types'
 export const nativeSchema=`scalar JSON
- type Query { model(id:String!):JSON!, metric(id:String!):JSON!, metrics:JSON!, content(id:String!):JSON!, contentSearch(q:String,offset:Int):JSON! }
- type Mutation { createModel(definition:JSON!):JSON!, updateModel(modelId:String!,branchId:String!,previousVersion:Int!,definition:JSON!):JSON!, createMetric(input:JSON!):JSON!, proposeMetric(id:String!,input:JSON!):JSON!, createContent(input:JSON!):JSON!, updateContent(id:String!,previousVersion:Int!,input:JSON!):JSON! }`
+ type Query { model(id:String!):JSON!, metric(id:String!):JSON!, metrics:JSON!, metricDefinition(id:String!):JSON!, metricImpact(id:String!):JSON!, content(id:String!):JSON!, contentSearch(q:String,offset:Int):JSON! }
+ type Mutation { createModel(definition:JSON!):JSON!, updateModel(modelId:String!,branchId:String!,previousVersion:Int!,definition:JSON!):JSON!, createMetric(input:JSON!):JSON!, proposeMetric(id:String!,input:JSON!):JSON!, certifyMetric(id:String!,revision:Int!,digest:String!,annotation:String!,confirm:String!):JSON!, runMetric(id:String!):JSON!, deprecateMetric(id:String!,revision:Int!,publishedRevision:Int!,digest:String!,reason:String!,confirm:String!):JSON!, createContent(input:JSON!):JSON!, updateContent(id:String!,previousVersion:Int!,input:JSON!):JSON! }`
 const schema=buildSchema(nativeSchema)
 const families={models:{path:'models',handler:semanticResponse},metrics:{path:'metrics',handler:metricResponse},'metric-definitions':{path:'metric-definitions',handler:metricDefinitionResponse},content:{path:'library',handler:catalogResponse},'report-runs':{path:'report-runs',handler:reportCustodyResponse}}
 const identifier=(value:string,kind:'uuid'|'metric')=>{if(!(kind==='uuid'?/^[a-f0-9-]{36}$/:/^[a-z][a-z0-9-]{0,63}$/).test(value))fail('invalid_resource_id',400);return value}
@@ -52,15 +52,24 @@ export async function nativeApiResponse(request:Request,original:Bindings):Promi
   }
   const uuid=(id:string)=>identifier(id,'uuid'),metric=(id:string)=>identifier(id,'metric')
   const root={
-   model:({id}:{id:string})=>invoke('models/'+uuid(id)),metric:({id}:{id:string})=>invoke('metrics/'+metric(id)),metrics:()=>invoke('metrics'),content:({id}:{id:string})=>invoke('content'+'/items/'+uuid(id)),
+   model:({id}:{id:string})=>invoke('models/'+uuid(id)),metric:({id}:{id:string})=>invoke('metrics/'+metric(id)),metrics:()=>invoke('metrics'),
+   metricDefinition:({id}:{id:string})=>invoke('metric-definitions/'+metric(id)),metricImpact:({id}:{id:string})=>invoke('metrics/'+metric(id)+'/impact'),
+   content:({id}:{id:string})=>invoke('content'+'/items/'+uuid(id)),
    contentSearch:({q='',offset=0}:{q?:string;offset?:number})=>invoke('content'+'/search?'+new URLSearchParams({q,offset:String(offset)})),
    createModel:({definition}:{definition:unknown})=>invoke('models','POST',{definition}),
    updateModel:({modelId,branchId,previousVersion,definition}:{modelId:string;branchId:string;previousVersion:number;definition:unknown})=>invoke('models/'+uuid(modelId)+'/branches/'+uuid(branchId),'PUT',{previousVersion,definition}),
    createMetric:({input}:{input:unknown})=>invoke('metrics','POST',input),proposeMetric:({id,input}:{id:string;input:unknown})=>invoke('metrics/'+metric(id)+'/propose','POST',input),
+   certifyMetric:({id,...input}:{id:string;revision:number;digest:string;annotation:string;confirm:string})=>invoke('metrics/'+metric(id)+'/approve','POST',input),
+   runMetric:({id}:{id:string})=>invoke('metrics/'+metric(id)+'/run','POST',{}),
+   deprecateMetric:({id,...input}:{id:string;revision:number;publishedRevision:number;digest:string;reason:string;confirm:string})=>invoke('metrics/'+metric(id)+'/deprecate','POST',input),
    createContent:({input}:{input:unknown})=>invoke('content'+'/items','POST',input),updateContent:({id,previousVersion,input}:{id:string;previousVersion:number;input:Record<string,unknown>})=>invoke('content'+'/items/'+uuid(id),'PUT',{...input,previousVersion})
   }
   const result=await graphql({schema,source:input.query,variableValues:input.variables as Record<string,unknown>|undefined,operationName:input.operationName as string|undefined,rootValue:root})
-  if(result.errors){const error=result.errors[0].originalError;return json({errors:[{message:error instanceof QueryError?error.code:'native_operation_refused'}]},error instanceof QueryError?error.status:409)}
+  if(result.errors){
+   const failure=result.errors[0],error=failure.originalError
+   if(!failure.path)return json({errors:[{message:'invalid_graphql_request'}]},400)
+   return json({errors:[{message:error instanceof QueryError?error.code:'native_operation_refused'}]},error instanceof QueryError?error.status:409)
+  }
   return json(result)
  }catch(error){return json({error:error instanceof QueryError?error.code:'native_operation_refused'},error instanceof QueryError?error.status:409)}finally{await discardBody(request)}
 }

@@ -188,8 +188,9 @@ They do not implement general analytical jobs or additional reporting formats.
 `GET /api/v1/native/schema` supplies the GraphQL SDL and family paths.
 `POST /api/v1/native/graphql` accepts `query`, bound `variables` and optional
 `operationName`, with one root operation per request. Queries read a model,
-metric, metric list, content item or filtered content search. Mutations create
-or edit model branches, metric drafts and content metadata. JSON payloads pass
+metric, metric list, exact metric definition, metric impact, content item or
+filtered content search. Mutations create or edit model branches, metric drafts
+and content metadata, certify and execute metrics, and deprecate metrics. JSON payloads pass
 through the same native validators. Model edits require `previousVersion`,
 metric proposals require `previousRevision`, and content edits require
 `previousVersion`. Conflicts return 409 without a partial edit. No machine
@@ -200,3 +201,66 @@ stale edit refusal, one winner for concurrent model edits, and bearer and
 foreign-origin refusal. The complete BIF-027 API and client target, analytical
 job cancellation, queued rotation and revocation, signed lifecycle webhooks,
 forged-event refusal, replay and durable delivery history remain open.
+
+
+### Human metric lifecycle in GraphQL
+
+All operations return the same JSON envelope as the matching native REST
+handler. Use bound variables; a request contains one operation and one root
+field. The complete JSON request is limited to 65536 bytes and the query to
+8192 characters; forwarded metric mutation bodies are limited to 32768 bytes. Metric IDs match `[a-z][a-z0-9-]{0,63}`. Revisions are positive
+GraphQL integers. The metric list returns at most 100 records; it has no paging
+argument. A metric inspection returns its retained revisions in descending order.
+
+| Field | Arguments | Native REST suffix |
+| --- | --- | --- |
+| `metric` | `id: String!` | `metrics/:id` |
+| `metricDefinition` | `id: String!` | `metric-definitions/:id` |
+| `metricImpact` | `id: String!` | `metrics/:id/impact` |
+| `certifyMetric` | `id: String!`, `revision: Int!`, `digest: String!`, `annotation: String!`, `confirm: String!` | `metrics/:id/approve` |
+| `runMetric` | `id: String!` | `metrics/:id/run` |
+| `deprecateMetric` | `id: String!`, `revision: Int!`, `publishedRevision: Int!`, `digest: String!`, `reason: String!`, `confirm: String!` | `metrics/:id/deprecate` |
+
+Inspection exposes the exact definition, digest, head and certified revisions,
+immutable approval history and current source lineage. `metricDefinition`
+exports the head definition with its revision, digest, certified revision and
+deprecated flag; `metric` exposes every retained revision. Impact pairs the
+certified value with the proposed head value and lists dependent content.
+A proposal changes only the head; execution still uses the certified revision.
+Saved historical answers keep their original values and metric revision.
+
+Certification requires the current head revision and definition digest,
+`confirm: "approve"` and a nonempty annotation of at most 1000 characters.
+It evaluates current sources, then atomically rechecks source bytes and
+revisions, conventions, native authority and metric state before publishing.
+The definition digest does not bind a source snapshot from an earlier impact
+read. A source change during certification refuses the transaction; a new
+request evaluates the new current data. Concurrent certification has one
+winner. Deprecation requires the current head revision, definition digest,
+current certified revision, a nonempty reason
+of at most 1000 characters and `confirm: "deprecate"`. Deprecation preserves
+history and refuses subsequent execution. Execution takes no arbitrary query,
+source, scope or SQL arguments and returns exact typed values, query, context,
+source watermarks and the certified revision and digest.
+
+```graphql
+mutation Certify($id: String!, $revision: Int!, $digest: String!, $note: String!) {
+  certifyMetric(id: $id, revision: $revision, digest: $digest,
+    annotation: $note, confirm: "approve")
+}
+```
+
+Handler refusals retain their HTTP status and appear as
+`{"errors":[{"message":"stale_metric_approval"}]}`. Useful errors include
+`stale_metric_revision` and `stale_metric_approval` (409; refresh and review the
+current head), `metric_not_certified` (409), `metric_deprecated` (409),
+`metric_conflict` (409; a transaction guard changed), `metric_not_found` (404),
+`native_owner_confirmation_required` (403), `invalid_resource_id` (400) and
+`unsupported_field` (400). Invalid GraphQL structure or literal argument types return
+`single_native_operation_required` (400); malformed query text returns
+`invalid_graphql_request` (400), and malformed JSON returns `invalid_json`
+(400). Invalid bound variable types return `invalid_graphql_request` (400). Pre-execution authentication refusals use the
+REST error envelope: `session_required` (401), `owner_required` (403) or
+`human_session_required` (403). Any Authorization header refuses the human
+door, including a valid machine bearer with current owner cookies. The bounded
+BIF-035 read credential gains no lifecycle or certification permission.
