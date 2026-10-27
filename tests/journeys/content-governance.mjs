@@ -99,7 +99,7 @@ export async function proveContentGovernance(){
   }
   await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload})
   await owner.close();await reader.close()
- }catch(error){console.error(output.split('\n').filter(line=>/error|exception|body|promise/i.test(line)).join('\n'));throw error}
+ }catch(error){console.error(output);throw error}
  finally{
   await browser?.close()
   if(child){child.kill('SIGTERM');await new Promise(resolve=>child.exitCode!==null||child.signalCode!==null?resolve():child.once('exit',resolve))}

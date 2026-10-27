@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e885c945feb1d9e9fa99696e0f008c5c6dbf0db7613e21d2e7101b042e570288",
+      "sha256": "71ea98c76318bc2955a5613ae449ac3e358e7fb91d663025154949feb2c62037",
       "executable": false
     },
     "AGENTS.md": {
@@ -349,7 +349,7 @@
       "executable": false
     },
     "CLAIMS.md": {
-      "sha256": "d655c6bd3a7031b30909a2b47b5e8aa6eab31837a3bf0a720006a349321ae3e4",
+      "sha256": "2576259cdd490f92ff55ded6d7ea78e7f4a17d8fd672481cc6960fdfe963ac84",
       "executable": false
     },
     "composition.lock.json": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8adce6082012735f317f3a6fd83b94ad9c0d2c298adcd5e35a5dacbfd8f443ac",
+      "sha256": "a15c410ab0bdb64d2aabbbce3555f2b9c7a2044576736cbc2afb1998fb8e0638",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1092,6 +1092,10 @@
       "sha256": "3413cc8c187c2c25c63b3b26d9d67cec937e354b2181037287e51dd3ec1814f2",
       "executable": false
     },
+    "RULINGS.md": {
+      "sha256": "95422811e396bdadf01ba0d8976d106a67be090b6e1865f999c21544031bcc5c",
+      "executable": false
+    },
     "RUN-LOCALLY.md": {
       "sha256": "90a9eb14615a1ed8fc7c36c1b05ad78490a25eab503670381acb118f948376d4",
       "executable": false
@@ -1481,7 +1485,7 @@
       "executable": false
     },
     "src/bifocal/alerts/predicates.ts": {
-      "sha256": "4d530b2c651781a3caee147345fcfde9cc3f22c2cf2a6cc5db0c8bc26bc84043",
+      "sha256": "53a986e528e6f9478692637c8d9c5484650b0c463d1bda64d036338a1094fec1",
       "executable": false
     },
     "src/bifocal/alerts/protocol.ts": {
@@ -4785,7 +4789,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "6211c3afddb9d76fba5c7518ff7fa0ad8ff7e98e9f13fbf8e1ce6ffc485fd315",
+      "sha256": "46bac9ef4e80a235f19c19056f330b96c88ef7b8b807e15379271359354e2068",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -4829,7 +4833,7 @@
       "executable": false
     },
     "tests/journeys/entitlement-clock.mjs": {
-      "sha256": "6409138e95af5b5e3b1604802eb5b49e0bc9367264680b4c37bd100c46000455",
+      "sha256": "30b2914dc627539f200bf51bf32ac975458f3cb87adc5e1c555050f7232b3851",
       "executable": false
     },
     "tests/journeys/environment-tooling.mjs": {

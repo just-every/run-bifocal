@@ -9,10 +9,14 @@ function exactValue(value:Value) {
 }
 /** Hash the typed result only; source clocks and incidental row order are provenance. */
 export function resultHash(answer:Answer,query:Query,sources:Source[],comparison:Comparison):string {
+ const columns=new Map<string,Source['table']['columns'][number]>()
+ for(const binding of [{dataset:query.dataset,as:'base'},...query.joins]) {
+  const source=sources.find(s=>s.id===binding.dataset)
+  if(!source)fail('alert_dimension_unavailable',409)
+  for(const column of source.table.columns)columns.set(`${binding.as}.${column.name}`,column)
+ }
  const dimensions=query.groupBy.map(ref=>{
-  const normalized=ref.includes('.')?ref:`base.${ref}`,dot=normalized.indexOf('.'),alias=normalized.slice(0,dot),name=normalized.slice(dot+1)
-  const dataset=alias==='base'?query.dataset:query.joins.find(j=>j.as===alias)?.dataset
-  const column=sources.find(s=>s.id===dataset)?.table.columns.find(c=>c.name===name)
+  const column=columns.get(ref)??columns.get(`base.${ref}`)
   if(!column)fail('alert_dimension_unavailable',409)
   return {ref,type:column.type}
  })
@@ -28,7 +32,7 @@ export function resultHash(answer:Answer,query:Query,sources:Source[],comparison
   return {state:value.state,exact:{numerator:String(n.numerator),denominator:String(n.denominator)},unit:value.unit,nulls:value.nulls,excluded:value.excluded}
  }
  // A null aggregate over an observed empty set is valid; unknown source states are not.
- for(const value of Object.values(answer.totals))typedValue(value)
+ const totals=Object.fromEntries(query.measures.map(m=>[m.id,typedValue(answer.totals[m.id])]))
  const keys=new Set<string>(),indices=comparison.kind==='stable-key'?comparison.columns.map(c=>query.groupBy.indexOf(c)):[]
  const rows=answer.rows.map(row=>{
   const cells=row.dimensions.map(typedCell)
@@ -38,7 +42,7 @@ export function resultHash(answer:Answer,query:Query,sources:Source[],comparison
   }
   return canonicalJson({dimensions:cells,values:Object.fromEntries(query.measures.map(m=>[m.id,typedValue(row.values[m.id])]))})
  }).sort()
- return sha256(canonicalJson({dimensions,measures:query.measures.map(m=>({id:m.id,unit:m.unit})),rows}))
+ return sha256(canonicalJson({dimensions,measures:query.measures.map(m=>({id:m.id,unit:m.unit})),rows,totals}))
 }
 /** Thresholds compare the exact scalar total, without rounded display values. */
 export function qualifies(predicate:Predicate,answer:Answer,hash:string,previousHash:string):boolean {
