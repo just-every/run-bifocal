@@ -6,9 +6,10 @@ import { currentAuthority, type Authority } from '../catalog/authority.server'
 import { readSources, sourceMatch } from '../data/snapshots/store'
 import { readModel, readDefinition, modelGuard } from '../models/validation/store.server'
 import { exactKeys, json, jsonBody } from '../models/validation/transport'
+import { sourceRules, intersectSources, sourceRuleResponse } from './sources.server'
 import { queryInput } from '../query/validate'
 import { fail, type Filter } from '../query/types'
-export type Scope={purpose:string;modelId:string;revision:string;viewId:string;filters:Filter[];dimensions:string[];measures:string[];tools:string[];expiresAt:string;maxOperations:number;sources:{id:string;revision:string;digest:string}[]}
+export type Scope={purpose:string;modelId:string;revision:string;viewId:string;filters:Filter[];dimensions:string[];measures:string[];tools:string[];expiresAt:string;maxOperations:number;sources:{id:string;revision:string;digest:string;policyDigest?:string;policyVersion?:number}[]}
 export type Credential={id:string;owner_id:string;owner_version:number;definition_json:string;digest:string;expires_at:string;max_operations:number;used_operations:number;scope:Scope}
 const hash=(env:Bindings,token:string)=>{
  if(!env.INSTALLATION_KEY)fail('credential_custody_unavailable',503)
@@ -38,6 +39,7 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
  const actor=await currentAuthority(request,env)
  if(!actor||actor.role!=='owner')fail('owner_required',401)
  if(new URL(request.url).search)fail('unsupported_input',400)
+ const sourceResponse=await sourceRuleResponse(request,env,actor,path);if(sourceResponse)return sourceResponse
  if(path==='/api/operator/credentials'&&request.method==='GET'){
   const credentials=(await env.DB.prepare('SELECT id,definition_json,digest,used_operations,revoked FROM bf_machine_credentials WHERE owner_id=? ORDER BY created_at DESC,id LIMIT 100').bind(actor.id).all()).results
   const history=(await env.DB.prepare('SELECT credential_id,actor_kind,action,recorded_at FROM bf_machine_audit WHERE owner_id=? ORDER BY recorded_at DESC,id LIMIT 200').bind(actor.id).all()).results
@@ -68,10 +70,12 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
  if(filters.some(f=>!dimensions.includes(f.column)))fail('dimension_not_permitted',403)
  const sources=await readSources(env,view.query),owner=await env.DB.prepare("SELECT version FROM oa_operators WHERE id=? AND status='active' AND role='owner'").bind(actor.id).first<{version:number}>()
  if(!owner)fail('owner_required',401)
- const scope:Scope={purpose:input.purpose.trim(),modelId:model.id,revision:model.production,viewId:view.id,filters,dimensions,measures,tools,expiresAt:input.expiresAt as string,maxOperations:Number(input.maxOperations),sources:sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)}))}
+ const rules=await sourceRules(env,sources)
+ intersectSources({...view.query,groupBy:dimensions as string[],filters:[...view.query.filters,...view.rowRules,...filters],measures:view.query.measures.filter(m=>measures.includes(m.id))},rules)
+ const scope:Scope={purpose:input.purpose.trim(),modelId:model.id,revision:model.production,viewId:view.id,filters,dimensions,measures,tools,expiresAt:input.expiresAt as string,maxOperations:Number(input.maxOperations),sources:rules.map(r=>({id:r.source.id,revision:r.source.revision,digest:sha256(r.source.value_json),...r.digest?{policyDigest:r.digest,policyVersion:r.version}:{}}))}
  const digest=sha256(canonicalJson({scope,ownerId:actor.id,ownerVersion:owner.version,origin:env.AUTH_ORIGIN}))
  // Stored digest covers the immutable scope; the review also binds current human authority.
- const scopeDigest=sha256(canonicalJson(scope)),guards=[modelGuard(model),...sources.map(sourceMatch),sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND role='owner' AND status='active')",actor.id,owner.version)]
+ const scopeDigest=sha256(canonicalJson(scope)),guards=[modelGuard(model),...sources.map(sourceMatch),...rules.map(r=>r.guard),sql("EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND role='owner' AND status='active')",actor.id,owner.version)]
  if(path.endsWith('/review')){await transact(env.DB,actor,guards.map(assertion));return json({scope,digest})}
  if(input.reviewedDigest!==digest)fail('exact_credential_review_required',409)
  const token=Array.from(randomBytes(32),b=>b.toString(16).padStart(2,'0')).join(''),id=randomUUID()

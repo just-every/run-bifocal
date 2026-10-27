@@ -2,6 +2,7 @@
 export default {
   "includeTables": [
     "bf_machine_audit",
+    "bf_machine_source_rules",
     "oa_operators",
     "oa_bootstrap",
     "oa_external_identities",

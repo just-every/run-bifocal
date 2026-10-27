@@ -5,6 +5,7 @@ import { sha256, canonicalJson } from '../../modules/import-kit/src/provenance/i
 import { credentialResponse, machineAuthority, machineAudit, recordMachineRefusal } from '../credentials/store.server'
 import { readModel, readDefinition, modelGuard } from '../models/validation/store.server'
 import { scopedQuery } from '../models/validation/protocol'
+import { sourceRules, intersectSources } from '../credentials/sources.server'
 import { readSources, sourceMatch } from '../data/snapshots/store'
 import { queryContext } from '../query/context'
 import { queryInput } from '../query/validate'
@@ -24,12 +25,15 @@ async function machineOperation(request:Request,env:Bindings,name:string,input:R
  if(model.production!==scope.revision)fail('credential_scope_changed',409)
  const view=(await readDefinition(env,scope.revision)).views.find(v=>v.id===scope.viewId)
  if(!view?.query.semantic)fail('credential_scope_changed',409)
- const sources=await readSources(env,view.query)
- if(canonicalJson(sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)})))!==canonicalJson(scope.sources))fail('credential_scope_changed',409)
- const fences=[modelGuard(model),...sources.map(sourceMatch)]
+ const sources=await readSources(env,view.query),rules=await sourceRules(env,sources)
+ if(canonicalJson(rules.map(r=>({id:r.source.id,revision:r.source.revision,digest:sha256(r.source.value_json),...r.digest?{policyDigest:r.digest,policyVersion:r.version}:{}})))!==canonicalJson(scope.sources))fail('credential_scope_changed',409)
+ const fences=[modelGuard(model),...sources.map(sourceMatch),...rules.map(r=>r.guard)]
+ const reserve=()=>transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine','read-reserved')])
  let result:unknown
  if(name==='definitions'){
   exactKeys(input,[])
+  intersectSources({...view.query,groupBy:scope.dimensions,filters:[...view.query.filters,...view.rowRules,...scope.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))},rules)
+  await reserve()
   result={modelId:model.id,revision:scope.revision,viewId:scope.viewId,dimensions:scope.dimensions,measures:view.query.measures.filter(m=>scope.measures.includes(m.id)).map(m=>({id:m.id,unit:m.unit})),scopeDigest:c.digest,tools:scope.tools}
  }else{
   exactKeys(input,['modelId','revision','viewId','groupBy','filters','offset'])
@@ -38,17 +42,19 @@ async function machineOperation(request:Request,env:Bindings,name:string,input:R
   if(candidate.groupBy.some(d=>!scope.dimensions.includes(d))||candidate.filters.some(f=>!scope.dimensions.includes(f.column)))fail('dimension_not_permitted',403)
   const offset=input.offset??0
   if(!Number.isSafeInteger(offset)||Number(offset)<0)fail('invalid_page_offset',400)
-  const query=queryInput({...scopedQuery(view,scope.revision),groupBy:candidate.groupBy,filters:[...view.query.filters,...view.rowRules,...scope.filters,...candidate.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))})
-  const context=await queryContext(env,query,c.owner_id),answer=execute(query,sources,context)
+  const query=intersectSources(queryInput({...scopedQuery(view,scope.revision),groupBy:candidate.groupBy,filters:[...view.query.filters,...view.rowRules,...scope.filters,...candidate.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))}),rules)
+  const context=await queryContext(env,query,c.owner_id)
   fences.push(...context.guards??[])
+  await reserve()
+  const answer=execute(query,sources,context)
   if(Number(offset)>answer.rows.length)fail('invalid_page_offset',400)
   result={rows:answer.rows.slice(Number(offset),Number(offset)+25),totals:answer.totals,totalRows:answer.rows.length,offset,nextOffset:Number(offset)+25<answer.rows.length?Number(offset)+25:null,
    citations:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,scopeDigest:c.digest,definitionHash:answer.definitionHash,semanticsVersion:answer.semanticsVersion,sourceWatermarks:answer.sourceWatermarks,companyRevision:context.company.revision,calendar:query.context.calendar,credentialId:c.id},
    query:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,groupBy:candidate.groupBy,filters:candidate.filters,measures:scope.measures,fiscal:query.fiscal??null}}
  }
- // Charge and release under one atomic current-authority, source and model fence.
+ // Recheck the reserved activation and all current bindings before releasing data.
  // No raw source count, hidden schema, credential or source text enters diagnostics.
- await transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine',name)])
+ await transact(env.DB,authority,[...fences.map(assertion),machineAudit(c.id,c.owner_id,'machine',name)])
  return result
 }
 export async function publicApiResponse(request:Request,original:Bindings):Promise<Response|null>{
@@ -89,7 +95,7 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
    if(body.method==='ping')return reply({})
    if(body.method==='tools'+'/list'){
     const {credential}=await machineAuthority(request,env)
-    await machineOperation(request,env,'definitions')
+    await transact(env.DB,(await machineAuthority(request,env)).authority,[])
     return reply({tools:credential.scope.tools.includes('query')?[tool]:[]})
    }
    if(body.method==='tools'+'/call'){

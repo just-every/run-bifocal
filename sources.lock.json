@@ -481,7 +481,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "84e4d8a2661a08aec74dd2bc85dcb37ee04b89611fd647badf3a89d8c8ae1c1a",
+      "sha256": "076dc363778bfd69692f70356f3db1fe0e6bbbc43a80f9c854446221c8a547cc",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1185,7 +1185,7 @@
       "executable": false
     },
     "scripts/installer/archive-policy.mjs": {
-      "sha256": "54fbe3b6f7abbe766bac96cb0433cec2d82924ecb028e8d9071cb22600022bd4",
+      "sha256": "f479b1bc851f76884bd212a769cac1ec5a854675b30760ccae5d948484dd7681",
       "executable": false
     },
     "scripts/installer/local.mjs": {
@@ -1377,7 +1377,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "972baf1b924bbfefef3b5f612c6951db490f1ba9afe5afaa664ba560d780fd5b",
+      "sha256": "108c868218d40a22ad2e0784cc93b808a42782199d7941ef9138f675ae27becb",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -1649,7 +1649,7 @@
       "executable": false
     },
     "src/bifocal/credentials/store.server.ts": {
-      "sha256": "425d01b1490b95aab3a66c8d46bf89e669853b06827edeeeb8a8b26c9e6c92ff",
+      "sha256": "8390a4efe9f7fe5f3b4235d0b9ff6173cac2adec75b4d7cdea9a513ac6f86af2",
       "executable": false
     },
     "src/bifocal/currency/convert.ts": {
@@ -4477,7 +4477,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "ff0cf20a2117ba67c74badb0d9f2693082e4d97f6efb9b7c5a82afdb23cd843b",
+      "sha256": "6ec179153ab0b4d160c1f7605e9328bab28953310c1864af9efacb20625acee5",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
