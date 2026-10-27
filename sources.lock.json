@@ -2597,7 +2597,7 @@
       "executable": false
     },
     "src/bifocal/sources/web/read.ts": {
-      "sha256": "083553d4f41302677a2b1ac27be9c47cadb2ee8412e3e4cc5ede1b843a3f5c2d",
+      "sha256": "e178c84a5e18838f64778ab7f5359dcfe6ad734f333f82bf7b07683b4f8e9f11",
       "executable": false
     },
     "src/bifocal/sources/web/server.ts": {
@@ -4833,11 +4833,11 @@
       "executable": false
     },
     "tests/journeys/web-source-edge.mjs": {
-      "sha256": "48c15e89aa58b84827404c3fc647df5167734cfe4959bbbf610da55aac18e667",
+      "sha256": "8a44bb27d317168961ac857965d86a0d96a2b3da7f26aed9f5332d0c84e87b61",
       "executable": false
     },
     "tests/journeys/web-sources.mjs": {
-      "sha256": "521409fc7e3a9ff8068c7f028b5dea2e09f3ffeb85653a412cf308fe6ba5b068",
+      "sha256": "ab65e18c56e69d89e63aa9e5472dba1b9db2941d47f23205d8be01a002eb8f7a",
       "executable": false
     },
     "tests/runtime.mjs": {

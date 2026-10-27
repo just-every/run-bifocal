@@ -17,6 +17,7 @@ export async function readWeb(input:WebInput,check:()=>Promise<void>,signal:Abor
   try { response=await fetch(next,{method:'GET',headers:{Authorization:'Bearer '+input.accessToken,Accept:input.format==='xml'?'application/xml':'application/json;IEEE754Compatible=true'},redirect:'manual',signal}) } catch { requireValue(false,signal.aborted?'web_read_cancelled':'web_read_unavailable',409) }
   if(response!.status>=300 && response!.status<400){await response!.body?.cancel();requireValue(false,'web_redirect_refused',409)}
   if(!response!.ok){await response!.body?.cancel();requireValue(false,response!.status===429?'web_rate_limited':response!.status===401 || response!.status===403?'web_authorization_expired':'web_source_failed',response!.status===429?429:409)}
+  if(response!.status!==200){await response!.body?.cancel();requireValue(false,'web_partial_response_refused',502)}
   requireValue(input.format==='xml'?/^(?:application|text)\/(?:[\w.+-]*\+)?xml(?:\s*;|$)/i.test(response!.headers.get('content-type')??''):/^application\/(?:[\w.+-]*\+)?json(?:\s*;|$)/i.test(response!.headers.get('content-type')??''),'web_content_type_required',502)
   const source=await boundedText(response!.body,524288-bytes,'web_response_limit');bytes+=new TextEncoder().encode(source).length
   requireValue(!source.includes(input.accessToken),'web_credential_in_response',502)

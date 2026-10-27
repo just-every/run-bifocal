@@ -54,7 +54,7 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
   await form.getByRole('button',{name:'Cancel source read'}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('web_read_cancelled'))
   assert.deepEqual((await read(id)).table.rows,expected);assert.ok(state.webCalls-started<20,'cancellation stops pagination before its page bound');await shot('cancelled',width)
   state.webPhase='success'
-  for(const [phase,status,error] of [['rate',429,'web_rate_limited'],['expired',409,'web_authorization_expired'],['schema',502,'web_missing_path'],['private-next',400,'public_https_origin_required'],['foreign-next',403,'web_destination_not_approved'],['redirect',409,'web_redirect_refused'],['repeated',409,'web_nonterminating_pagination']]) {
+  for(const [phase,status,error] of [['partial',502,'web_partial_response_refused'],['oversize',413,'web_response_limit'],['rate',429,'web_rate_limited'],['expired',409,'web_authorization_expired'],['schema',502,'web_missing_path'],['private-next',400,'public_https_origin_required'],['foreign-next',403,'web_destination_not_approved'],['redirect',409,'web_redirect_refused'],['repeated',409,'web_nonterminating_pagination']]) {
    state.webPhase=phase
    const before=await read(id),historyBefore=await (await context.request.get(origin+'/api/operator/import/history',{headers:{'X-Import-Dataset':id}})).json()
    const failed=await preview(id,{catchup:true},status);assert.equal(failed.error,error);assert.deepEqual(await read(id),before,'failed page sequence preserves exact last-good dataset')
@@ -79,4 +79,18 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
  state.webPhase='active-xml';assert.equal((await preview('synthetic-bifocal-web-xml',{endpoint:webOrigin+'/xml',format:'xml',itemsPath:'row',paging:'none',nextPath:'',fields,catchup:true},502)).error,'web_active_xml_refused')
  state.webPhase='success'
  console.log('Web sources: public setup and typed full snapshots for REST, nested JSON, OData and inert XML; finite page, offset, cursor and next-link reads; complete empty replacement, Undo, cancellation, failed-page preservation, unsafe-destination and grant refusals, shared erasure and 1440/390 states passed (official-schema network edges only)')
+}
+
+// Focused invocation uses the same emitted product and network edge as Verify.
+if(process.argv[1]===new URL(import.meta.url).pathname){
+ const {chromium}=await import('@playwright/test'),{analyticsEdge}=await import('./analytics-edge.mjs'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-web-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ let edge
+ try {
+  edge=await analyticsEdge(persist)
+  const context=await browser.newContext(),page=await context.newPage(),{origin,state,webOrigin}=edge
+  const bootstrap=await context.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-1'.repeat(3),displayName:'Web source owner',returnTo:'/app'},maxRedirects:0});assert.equal(bootstrap.status(),303,await bootstrap.text())
+  await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup',exact:true}).click()])
+  await proveWebSources(origin,context,page,state,webOrigin)
+ } finally {if(edge)await edge.close();await browser.close();await rm(persist,{recursive:true,force:true})}
 }

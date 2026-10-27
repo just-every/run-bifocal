@@ -11,6 +11,7 @@ export async function webEdgeResponse(request,state,origin) {
  assert.equal(request.headers.get('authorization'),'Bearer synthetic-bifocal-60')
  assert.equal(request.headers.has('cookie'),false)
  const second=url.searchParams.has('after') || Number(url.searchParams.get('page'))>1 || Number(url.searchParams.get('offset'))>0
+ if(second && phase==='partial')return Response.json({items:[]},{status:206})
  if(second && phase==='rate')return new Response(null,{status:429,headers:{'retry-after':'120'}})
  if(second && phase==='expired')return new Response(null,{status:401,headers:{'www-authenticate':'Bearer error="invalid_token"'}})
  if(phase==='redirect')return new Response(null,{status:302,headers:{location:'https://127.0.0.1/private'}})
