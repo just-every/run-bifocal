@@ -698,6 +698,16 @@ export async function proveNativePreparation({imports=false,flows=false}={}){
    const memberPage=await member.newPage();await memberPage.goto(link);await Promise.all([memberPage.waitForURL(origin+'/app'),memberPage.getByRole('button',{name:'Confirm',exact:true}).click()]);await memberPage.close()
   }
   const proveScreen=async(label)=>{
+   if(label==='preparation-import-translated')for(const width of [1440,390]){
+    await page.setViewportSize({width,height:1000})
+    const settings=page.locator('.menu>summary'),tip=page.getByRole('tooltip',{name:'Open settings'})
+    await page.mouse.move(0,0);await settings.evaluate(node=>node.blur());assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'0')
+    await settings.hover();await page.waitForTimeout(350);assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'1')
+    await page.mouse.move(0,0);assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'0')
+    await settings.focus();assert.equal(await tip.evaluate(node=>getComputedStyle(node).opacity),'1')
+    if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'preparation-settings-tooltip-'+width+'.png')})}
+    await settings.evaluate(node=>node.blur())
+   }
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
   if(flows){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await provePreparationImports({origin,context,page,call,upload,proveScreen,signInMember});await context.close();return}
