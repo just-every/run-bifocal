@@ -1,0 +1,18 @@
+export const preparationForm = `<section id="preparation" class="panel" aria-labelledby="preparation-title">
+<h2 id="preparation-title">Preparation drafts</h2>
+<p>Build a visual transformation or edit its equivalent native SQL. Review complete output, validation errors and column lineage before saving an exact draft revision.</p>
+<p class="warning">Owner-only drafts. Saving or restoring a preparation does not publish data or change a source, model or chart. Dependency scheduling is unavailable.</p>
+<p id="prep-status" class="status" role="status" aria-live="polite"></p>
+<form id="preparation-form" novalidate>
+<div class="fields"><label>Preparation ID<input id="prep-id" name="preparation" required pattern="[a-z][a-z0-9-]{0,63}" maxlength="64"></label><label>Source dataset ID<input id="prep-dataset" name="dataset" required pattern="[a-z][a-z0-9-]{0,63}" maxlength="64"></label></div>
+<div class="actions"><button id="prep-load" type="button">Load saved preparation</button><button id="prep-source-load" type="button">Inspect source columns</button></div>
+<div id="prep-source"></div><p id="prep-version">No saved preparation loaded.</p>
+<label>Editing form<select aria-label="Editing form" id="prep-mode" name="mode"><option value="visual">Visual steps</option><option value="sql">Native SQL</option></select></label>
+<div id="prep-visual"><h3>Transformation graph</h3><p id="prep-graph-source">Source → sequential steps → draft output</p><ol id="prep-steps" aria-label="Preparation steps"></ol>
+<div class="fields"><label>Add operation<select aria-label="Add operation" id="prep-operation"><option value="dedupe">Deduplicate complete rows</option><option value="cast">Repair column type</option><option value="calculate">Calculate column</option><option value="join">Join dataset</option><option value="lookup">Look up dataset</option><option value="union">Union dataset</option><option value="pivot">Pivot</option><option value="unpivot">Unpivot</option></select></label></div><button id="prep-add" type="button">Add step</button></div>
+<div id="prep-sql-editor" hidden><h3>Equivalent native SQL</h3><label>SQL statements<textarea id="prep-sql" name="sql" rows="10" maxlength="48000" spellcheck="false"></textarea></label><p class="hint">This bounded dialect executes the same operations as the graph. Each statement reads INPUT from the preceding step. Use quoted column and dataset names. Review SQL to update the visual steps. Arbitrary SQL and source writes are refused.</p></div>
+<div class="actions"><button id="prep-review-button" class="primary" type="submit">Review preparation</button></div>
+</form>
+<section id="prep-review" hidden aria-labelledby="prep-review-title"><h3 id="prep-review-title">Review draft output</h3><div id="prep-review-report"></div><label class="checkbox"><input id="prep-confirm" type="checkbox">I reviewed these exact rows, errors, source revisions and digest</label><div class="actions"><button id="prep-save" class="primary" type="button" disabled>Save reviewed draft</button></div></section>
+<section aria-labelledby="prep-history-title"><h3 id="prep-history-title">Saved preparation revisions</h3><p>Load a revision to edit or review it, then explicitly restore it as a new draft revision. Restore requires unchanged source revisions.</p><div class="fields"><label>Saved revision<select aria-label="Saved revision" id="prep-revision" disabled><option value="">Load a saved preparation first</option></select></label></div><div class="actions"><button id="prep-revision-load" type="button" disabled>Load selected revision</button><button id="prep-restore-review" type="button" disabled>Review selected revision for restore</button></div><div id="prep-history"></div></section>
+</section>`

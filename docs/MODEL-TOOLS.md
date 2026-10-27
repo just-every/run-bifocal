@@ -255,6 +255,29 @@ certification history remains retained. It does not deprecate a metric or erase
 history. These commands provide metric draft management within partial BIF-022
 support; they do not promote a complete resource estate across environments.
 
+## Certified metric date charts
+
+In an installed certified metric page, enter a chart title and an existing date
+column, review the exact grouped values, then choose **Create reviewed chart**.
+The chart groups the certified single-source measure by that date column while
+preserving its filters, conventions and exact metric revision. Only the current
+native owner can create or read it; creating a chart grants no recipient access.
+
+Native clients can POST `title`, `dateColumn` and `revision` to
+`/api/operator/metrics/ID/series-review`, then POST those exact inputs plus the
+returned digest as `reviewedDigest` to
+`/api/operator/metrics/ID/series-create`. Both require the owner's native session
+and same-origin mutation authorization; machine bearer authorization is refused.
+Changed source data, certification or reviewed inputs require a fresh review.
+
+Dated metric annotations appear beside matching dates across charts of that
+exact certified revision. A newly certified revision starts without the old
+annotations. Refreshing source data preserves same-revision annotations on new
+charts; retained charts keep their original values and revision annotations.
+Old source-bound sharing links remain retired. Erasing the source withdraws the
+controlled charts and annotations. External channel delivery, public publication,
+guest authority and employee embeds remain unfinished under BIF-028.
+
 ## Retained chart definitions
 
 `chart-export --id UUID --output chart.native.json` writes
