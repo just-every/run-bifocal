@@ -1380,6 +1380,10 @@
       "sha256": "b65a43496156ee6ebe86ab9d0158ea0d18659146aa1d22aaa380ac14d83d64d0",
       "executable": false
     },
+    "src/bifocal/api/native.server.ts": {
+      "sha256": "189240fd167128315bb8b3538428c04b6534066393b42cca10b5980ed60256ab",
+      "executable": false
+    },
     "src/bifocal/api/server.ts": {
       "sha256": "73c613f418a73e7ee1b6ce9b2cdef2b03ba0e55eb6e7933d022009a6db1fa49d",
       "executable": false
