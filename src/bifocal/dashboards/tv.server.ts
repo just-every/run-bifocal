@@ -61,10 +61,10 @@ export async function dashboardRefreshResponse(request:Request,env:Bindings,owne
     const answer=execute(definition,sources,current),{guards:privateGuards,...context}=current
     // Recheck imported-source provenance as well as its frozen conventions.
     if(canonicalJson(snapshot.context.modelImport??null)!==canonicalJson(current.modelImport??null))fail('published_model_changed',409)
-    cards.push({quality,id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition,availableDimensions:snapshot.definition.groupBy,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
+    cards.push({...(quality?{quality}:{}),id:ref.snapshot_id,title,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',freshness:stale?'stale':'fresh',answer,context,definition,availableDimensions:snapshot.definition.groupBy,watermarks:answer.sourceWatermarks.map(watermark=>({...watermark,observedAt:observed.find(source=>source.id===watermark.dataset)!.at})),observedAt:new Date(oldest).toISOString()})
    }catch(error) {
     const code=error instanceof QueryError?error.code:'dashboard_tile_refresh_unavailable'
-    cards.push({quality,id:ref.snapshot_id,title,status:'failed',error:code,withdraw:withdrawErrors.has(code)})
+    cards.push({...(quality?{quality}:{}),id:ref.snapshot_id,title,status:'failed',error:code,withdraw:withdrawErrors.has(code)})
    }
   }
   await transact(env.DB,owner,guards.map(assertion))

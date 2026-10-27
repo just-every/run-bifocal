@@ -54,8 +54,8 @@ export async function runPublishedDashboard(env:Bindings,actor:Authority,ownerId
    const whatIf=config.whatIfParameters.find(p=>p.card===card.key),scenario=whatIf?await dashboardScenario(env,ownerId,whatIf,selection,protectedQuery,context,sources,selection.filters,restrictions.columns):null
    if(scenario)guards.push(...scenario.guards)
    const {guards:privateGuards,...publicContext}=context,stale=Date.now()-oldest>86400000
-   cards.push({quality,key:card.key,snapshotId:snapshot.snapshotId,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',answer,definition,context:publicContext,observedAt:new Date(oldest).toISOString(),...(scenario?{scenario:{answer:scenario.answer,binding:scenario.binding}}:{})})
-  }catch(error){cards.push({quality,key:card.key,status:'failed',error:error instanceof QueryError?error.code:'dashboard_tile_unavailable'})}
+   cards.push({...(quality?{quality}:{}),key:card.key,snapshotId:snapshot.snapshotId,status:answer.filteredRows===0?'empty':stale?'stale':'fresh',answer,definition,context:publicContext,observedAt:new Date(oldest).toISOString(),...(scenario?{scenario:{answer:scenario.answer,binding:scenario.binding}}:{})})
+  }catch(error){cards.push({...(quality?{quality}:{}),key:card.key,status:'failed',error:error instanceof QueryError?error.code:'dashboard_tile_unavailable'})}
  }
  return {published,guards,result:{id,title:revision.document.title,revision:revision.revision,boardId:revision.boardId,document:revision.document,config,selection,inherited:inherited??{filters:[],fiscal:{}},refreshedAt:new Date().toISOString(),cards}}
 }

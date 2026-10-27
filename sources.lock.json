@@ -1869,7 +1869,7 @@
       "executable": false
     },
     "src/bifocal/dashboards/interactions.run.server.ts": {
-      "sha256": "41330aede168c79e927196569d37a75c838e91e191cb5da1e9df59f7620dfce2",
+      "sha256": "5165dee8cea286a79a10d22da1ec2bae7e1f37ed667852bb5beabeff1eae019f",
       "executable": false
     },
     "src/bifocal/dashboards/interactions.server.ts": {
@@ -1933,7 +1933,7 @@
       "executable": false
     },
     "src/bifocal/dashboards/tv.server.ts": {
-      "sha256": "748a0ebd04cdcd96703e46e2231be2f4e3fa5332d870e3dd4528d5420cf34c8a",
+      "sha256": "df31894e023903bc4e60f6558646d41b3507e9ee77f28821ff79aaa2c1dca5ff",
       "executable": false
     },
     "src/bifocal/data/snapshots/store.ts": {
