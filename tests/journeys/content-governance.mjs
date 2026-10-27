@@ -1,3 +1,4 @@
+import {provePortalTenants} from './portal-tenants.mjs'
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess} from '../bifocal-exploration.mjs'
@@ -37,7 +38,7 @@ export async function proveContentGovernance(){
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }
   assert.ok(ready,'native local entry starts')
-  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+  browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||undefined,args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
   const bootstrap=await owner.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-3'.repeat(3),displayName:'Synthetic content owner',returnTo:'/app'},maxRedirects:0})
@@ -60,10 +61,12 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
+  await provePortalTenants({origin,owner,reader,upload})
   await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)

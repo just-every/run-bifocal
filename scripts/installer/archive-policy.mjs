@@ -1,6 +1,10 @@
 // Search is derived from the retained catalog metadata, including its FTS shadow tables.
 export default {
   "includeTables": [
+    "bf_portal_tenants",
+    "bf_portal_releases",
+    "bf_portal_usage",
+    "bf_portal_audit",
     "bf_machine_audit",
     "bf_machine_source_rules",
     "oa_operators",
@@ -157,6 +161,10 @@ export default {
     "ik_targets"
   ],
   "excludeTables": [
+    "bf_portal_activation",
+    "bf_portal_tokens",
+    "bf_portal_cache",
+    "bf_portal_jobs",
     "bf_machine_credentials",
     "bf_dashboard_reader_contexts",
     "bf_app_dashboard_contexts",
