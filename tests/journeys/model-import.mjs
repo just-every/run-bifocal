@@ -112,7 +112,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
    assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/test.revenue_check/);assert.match(await page.locator('#model-import-current').innerText(),/dbt_resource_execution_pending/);assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0)
    await proveScreen('dbt-manifest-sql-retained')
   }
-  await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
+  await call('/model-authoring/review',{document:dump(imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
   dbtProjects.push({input,plan})
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
