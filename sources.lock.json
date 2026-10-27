@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4cccaf19960ee1cb8d535c5eebb11b3197ad43eb9ff2f58e03c6db501899f1c2",
+      "sha256": "28b526deb796d5486ed49b1b0fccda6b1cd3a1a83ea24e11e113ed8b477c9ee8",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8ff748374ead7758b981d6da537c993cf9fe25f51f2c91837cb579056f3f4a74",
+      "sha256": "bf119a26e890cb00b99dd92eeb3c35ccc40fc47eb3557c9c91c40521cf28448b",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4553,7 +4553,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "e0e75eb7eac76f507187e5a846e7b9c5156d9bf671ec68b7629585b816db313b",
+      "sha256": "ec82f3f6f98a87d30184cf1fe4dc3cb645946f527ae7b0d48401d5a34955aa39",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {

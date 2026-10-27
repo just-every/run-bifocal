@@ -157,3 +157,21 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveNativePreparation({imports:true})
  await provePortalBoundary({origin,context})
+ await proveMachineDoors({origin,context,page,call,upload,proveScreen})
+ const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
+ await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
+ assert.equal((await context.request.get(origin+'/api/operator/model-authoring/'+saved.modelId+'/'+saved.branchId+'/document')).status(),404)
+ await context.request.post(origin+'/auth/signout',{headers,form:{}});assert.equal((await context.request.get(origin+'/api/operator/model-authoring')).status(),401);assert.equal((await context.request.get(origin+'/api/operator/explore')).status(),401);assert.equal((await context.request.post(origin+'/api/operator/explore/'+answer.queryId+'/export',{headers,data:{scope:'underlying',format:'csv'}})).status(),401)
+ console.log('Semantic models: native YAML authoring and revision review, exact fiscal SQL parity, fanout and grain refusals, immutable cross-door answers, current authority and source erasure passed')
+ await context.close()
+}catch(error){console.error(output.split('\n').filter(line=>new RegExp('error|exception|fatal|signal|aborted|Boundary fixture','i').test(line)).join('\n'));throw error}finally{
+ if(browser)await browser.close()
+ worker?.kill('SIGTERM')
+ if(worker)await new Promise(r=>worker.exitCode!==null||worker.signalCode!==null?r():worker.once('exit',r))
+ await rm(persist,{recursive:true,force:true})
+ // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
+ await rm('dist/server/.wrangler',{recursive:true,force:true})
+ for(const file of ['dist/server/machine-boundary-wrangler.json','dist/server/machine-boundary.mjs'])await rm(file,{force:true})
+}
+}
+await proveSemanticModels()
