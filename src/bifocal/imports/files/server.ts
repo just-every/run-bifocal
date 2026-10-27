@@ -64,7 +64,8 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const sourceMatch = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
    const match=sql(`(${sourceMatch.sql}) AND (${retention.sql})`,...sourceMatch.params??[],...retention.params??[])
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
-   const extraCounts=[...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
+   const inputCounts=[{store:'bf_input_tables',query:sql('SELECT count(*) FROM bf_input_tables WHERE dataset_id=?',dataset)},...['bf_input_rows','bf_input_history'].map(store=>({store,query:sql(`SELECT count(*) FROM ${store} WHERE table_id IN (SELECT id FROM bf_input_tables WHERE dataset_id=?)`,dataset)}))]
+   const extraCounts=[...inputCounts,...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
    const counts = sql(`SELECT json_extract(value,'$.store') AS store,json_extract(value,'$.rows') AS rows FROM json_each(json_array(
     json_object('store','bf_file_tables','rows',(SELECT count(*) FROM bf_file_tables WHERE id=?)),
     json_object('store','bf_file_reviews','rows',(SELECT count(*) FROM bf_file_reviews WHERE dataset_id=?)),

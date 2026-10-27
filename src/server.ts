@@ -18,6 +18,7 @@ import { exactAnswerPage } from './bifocal/query/page.server'
 import { exactQueryResponse } from './bifocal/query/server'
 import { dashboardDefinitionResponse } from './bifocal/dashboards/definitions.server'
 import { goalResponse } from './bifocal/goals/server'
+import { inputTableResponse } from './bifocal/inputs/server'
 import { qualityResponse } from './bifocal/quality/server'
 import { metricResponse } from './bifocal/metrics/store.server'
 import { metricDefinitionResponse } from './bifocal/metrics/definitions.server'
@@ -86,6 +87,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (conventions) return conventions
     const goal = await goalResponse(request, env)
     if (goal) return goal
+    const inputs = await inputTableResponse(request, env)
+    if (inputs) return inputs
     const quality = await qualityResponse(request, env)
     if (quality) return quality
     const exportSettings = await exportPolicyPage(request, env)
