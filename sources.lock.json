@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0c29a1e3bfc319ebe8aef37b43553b8368b45debf76123a7ed3090829e08d580",
+      "sha256": "4cccaf19960ee1cb8d535c5eebb11b3197ad43eb9ff2f58e03c6db501899f1c2",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "aa5e76cc9db4e31eb7f9145036b94153caa43973554d52511ab3d8deb729beb7",
+      "sha256": "8ff748374ead7758b981d6da537c993cf9fe25f51f2c91837cb579056f3f4a74",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -437,7 +437,7 @@
       "executable": false
     },
     "docs/PORTAL-PREVIEW.md": {
-      "sha256": "ca36c4aaf26873e05163c263f4a74d4fb77ad537ce21b6b0b350349e77bf7d96",
+      "sha256": "129456c580be7d7d8d3dffb560c819d998c973573b8d3a954c213b3614a62231",
       "executable": false
     },
     "docs/QUESTIONS.md": {
@@ -4697,7 +4697,7 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "508469eccf1b38177199e3ea292675dd362a967f3c615ed39ddde9ab6b08f96b",
+      "sha256": "5ca86dce536870c9788666d607d21f292d2771e40935c686c3a46cff15afdea7",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
@@ -4725,7 +4725,7 @@
       "executable": false
     },
     "tests/journeys/portal-tenants.mjs": {
-      "sha256": "48a1d568cac1600a537ba1eb2c2574e29d7b675c9426b6f308dca3b09ff3394e",
+      "sha256": "4d873248b6c3c9fd7cf6d288cd5b1efcd25daba9658ebe00090e6d263d5e19cf",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {
