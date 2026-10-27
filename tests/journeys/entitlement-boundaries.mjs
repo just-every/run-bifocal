@@ -59,6 +59,26 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
   assert.equal(response.status(),200);assert.equal((await response.json()).armed,true)
  }
  const publishPath='/explore/entitlements/publish'
+ // Reactivation uses the native account door. A dormant ambiguous identity
+ // becoming active after validation must cancel publication and data release.
+ const collisionId='synthetic-bifocal-normalization-collision'
+ const activateCollision={path:'/auth/operator/status',body:{operatorId:collisionId,status:'active'}}
+ await fixture('collision-stage',rep.person.id)
+ try{
+  const identityReview=await review()
+  await arm(publishPath,'INSERT INTO bf_entitlement_snapshots',activateCollision)
+  await call(owner,publishPath,{definition,previousRevision:revision(),reviewedDigest:identityReview.digest},409)
+  assert.equal((await call(owner,'/explore/entitlements/'+parameters.modelId+'/accounts')).revision,revision(),'Ambiguous identities cannot publish a reviewed policy')
+ }finally{await fixture('collision-remove')}
+ const identityResult=await run(rep,['two'])
+ await fixture('collision-stage',rep.person.id)
+ try{
+  await arm('/explore/'+identityResult.snapshotId+'/export','INSERT INTO bf_explore_audit',activateCollision)
+  await call(rep.context,'/explore/'+identityResult.snapshotId+'/export',{scope:'underlying',format:'csv'},409)
+  assert.equal((await call(rep.context,'/explore/'+identityResult.snapshotId+'/page',{scope:'underlying',offset:0},409)).error,'ambiguous_entitlement_principal')
+  assert.ok(!(await call(rep.context,'/explore')).questions.some(q=>q.id===identityResult.snapshotId))
+ }finally{await fixture('collision-remove')}
+ await run(rep,['two'])
  const pendingSource=await review(),replacement=await upload(mapping,map(rep.person.email),true,true)
  await arm(publishPath,'INSERT INTO bf_entitlement_snapshots',replacement)
  await call(owner,publishPath,{definition,previousRevision:revision(),reviewedDigest:pendingSource.digest},409)
