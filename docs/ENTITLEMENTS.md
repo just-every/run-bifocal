@@ -2,10 +2,12 @@
 
 BIF-071 is partial. This native prerequisite narrows an existing current,
 owner-reviewed exploration grant. It creates no membership, delegation, machine
-credential, tenant authority or source grant. BIF-019's pending delegation policy
-remains unchanged. The conservative default awaits CT approval: only the native
-installation owner reviews and publishes this additional restriction; only an
-active verified native session consumes it.
+credential, tenant authority or source grant. CT approved this additional
+restriction with riders on 27 October 2026. Only the current native human
+installation owner reviews and publishes it; only an active verified native
+session consumes it. BIF-071 and BIF-019 remain partial; the exact policy ruling,
+additional acceptance and remaining Gap are synchronized in CONTRACT.md and
+ACCEPTANCE.md.
 
 Import the two governed CSV tables through the existing `/app/import` review,
 approval and apply workflow. Mapping columns are `principal`, `role`, `value`,
