@@ -130,6 +130,21 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
   assert.equal((await fetch(origin+'/app/charts/'+created.id)).status,401)
  }
  assert.deepEqual(artifacts[0].view.rows,artifacts[1].view.rows,'The two bounded declarative languages preserve equivalent exact values')
+ for(const role of ['admin','member']){
+  const email='synthetic-bifocal-visual-'+role+'@example.test',mailHeaders={Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'}
+  const invited=await context.request.post(origin+'/auth/invite',{headers:mailHeaders,data:{email,displayName:'Synthetic visual '+role,role}});assert.equal(invited.status(),202,await invited.text())
+  const mail=await(await context.request.get(origin+'/__model-mail')).json(),message=mail.find(value=>value.to.includes(email));assert.ok(message)
+  const token=new URL(message.text.match(/https?:[^\s]+/)[0]).searchParams.get('token');assert.ok(token)
+  const reader=await context.browser().newContext()
+  try{
+   assert.equal((await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0})).status(),303)
+   assert.equal((await(await reader.request.get(origin+'/auth/session')).json()).operator.role,role)
+   assert.equal((await reader.request.get(origin+'/api/operator/charts/'+artifacts[0].id)).status(),401)
+   for(const action of ['review','download'])assert.equal((await reader.request.post(origin+'/api/operator/charts/'+artifacts[0].id+'/snapshot/'+action,{headers:{Origin:origin},data:{format:'pdf'}})).status(),401,'A signed-in non-owner cannot review or download a chart snapshot')
+   assert.equal((await reader.request.post(origin+'/api/operator/chart-definitions/review',{headers:{Origin:origin},data:{document:chartDocument(vl)}})).status(),401)
+  }finally{await reader.close()}
+ }
+
  const point={...vl,spec:{data:{name:'answer'},mark:'point',encoding:{x:{field:'amount',type:'quantitative',scale:{type:'linear',zero:false,reverse:true,domain:['0','30']}},y:{field:'segment',type:'nominal'}}}}
  const pointReview=await call('/chart-definitions/review',{document:chartDocument(point)}),pointChart=await call('/chart-definitions/create',{document:chartDocument(point),reviewedDigest:pointReview.digest})
  await page.goto(origin+'/app/charts/'+pointChart.id);assert.equal(await page.locator('.native-chart circle').count(),3)

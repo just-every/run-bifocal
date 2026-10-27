@@ -4649,7 +4649,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "a4fa43ed502f1ad2ef6130c0ca9059a9c2baef815de123853333a2db8ed71a7f",
+      "sha256": "955405967f75802398c35f3ae318b7e338cda8b7d0e14b9723f1d63573d42a99",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
