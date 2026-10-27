@@ -59,14 +59,11 @@ const watermarkText=source=>`${source.dataset} ·\u00a0revision ${String(source.
 function tileView(id){
  if(views.has(id))return views.get(id)
  const section=element('section',undefined,'panel tv-tile'),title=element('h2'),state=element('p',undefined,'tv-state'),notes=element('div',undefined,'tv-notes'),last=element('p',undefined,'meta')
- const data=element('div',undefined,'tv-data'),observed=element('p',undefined,'meta'),totals=element('dl',undefined,'tv-totals'),tableBox=element('div',undefined,'tv-table'),more=element('p','Scroll sideways for more columns →','hint tv-more'),watermarks=element('ul',undefined,'tv-watermarks')
+ const data=element('div',undefined,'tv-data'),observed=element('p',undefined,'meta'),totals=element('dl',undefined,'tv-totals'),tableBox=element('div',undefined,'tv-table'),watermarks=element('ul',undefined,'tv-watermarks')
  const cross=element('details',undefined,'tv-cross'),exports=exportBox(id)
- section.dataset.tileId=id;state.dataset.tileStatus='';watermarks.dataset.watermarks='';cross.append(element('summary','Cross-filter from this tile'));more.hidden=true
- data.append(observed,totals,tableBox,more,watermarks,exports.box,cross);section.append(title,state,notes,last,data)
- // A table wider than its tile says so: a fade at the cut edge and one line under it, until scrolled to the end.
- const cue=()=>{const wrap=tableBox.querySelector('.tablewrap'),hidden=!!wrap&&wrap.scrollLeft+wrap.clientWidth<wrap.scrollWidth-1;tableBox.classList.toggle('more',hidden);more.hidden=!hidden}
- tableBox.addEventListener('scroll',cue,true);new ResizeObserver(cue).observe(tableBox)
- const view={section,title,state,notes,last,data,observed,totals,tableBox,watermarks,cross,exports,cue}
+ section.dataset.tileId=id;state.dataset.tileStatus='';watermarks.dataset.watermarks='';cross.append(element('summary','Cross-filter from this tile'))
+ data.append(observed,totals,tableBox,watermarks,exports.box,cross);section.append(title,state,notes,last,data)
+ const view={section,title,state,notes,last,data,observed,totals,tableBox,watermarks,cross,exports}
  views.set(id,view);return view
 }
 function updateTile(tile){
@@ -91,7 +88,7 @@ function updateTile(tile){
  const totals=measures.map(measure=>[label(measure),shown(data.answer.totals[measure],currency)])
  if(view.totals.dataset.text!==JSON.stringify(totals)){view.totals.dataset.text=JSON.stringify(totals);view.totals.replaceChildren(...totals.map(([name,value])=>{const item=element('div');item.append(element('dt',name),element('dd',value));return item}))}
  const headers=[...data.definition.groupBy.map(label),...measures.map(label)],rows=data.answer.rows.map(row=>[...row.dimensions,...measures.map(measure=>shown(row.values[measure],currency))])
- if(view.tableBox.dataset.text!==JSON.stringify([tile.title,headers,rows])){view.tableBox.dataset.text=JSON.stringify([tile.title,headers,rows]);view.tableBox.replaceChildren(table('Exact '+tile.title+' results',headers,rows,[...data.definition.groupBy.map(()=>false),...measures.map(()=>true)]));requestAnimationFrame(view.cue)}
+ if(view.tableBox.dataset.text!==JSON.stringify([tile.title,headers,rows])){view.tableBox.dataset.text=JSON.stringify([tile.title,headers,rows]);view.tableBox.replaceChildren(table('Exact '+tile.title+' results',headers,rows,[...data.definition.groupBy.map(()=>false),...measures.map(()=>true)]))}
  const sources=(data.watermarks??data.answer.sourceWatermarks??[]).map(watermarkText)
  if(view.watermarks.dataset.text!==JSON.stringify(sources)){view.watermarks.dataset.text=JSON.stringify(sources);view.watermarks.replaceChildren(...sources.map(text=>element('li',text)))}
  view.exports.update(tile)

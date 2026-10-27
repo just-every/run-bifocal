@@ -23,13 +23,11 @@ body[data-dashboard-tv] .single .main{width:100%;max-width:1440px}
 .dashboard-tv .tv-totals div{min-width:0}
 .dashboard-tv .tv-totals dt{font-size:14px;color:var(--app-text-2)}
 .dashboard-tv .tv-totals dd{margin:0;font:700 24px/1.2 var(--font-sans);font-variant-numeric:tabular-nums;white-space:nowrap;overflow-wrap:normal}
-/* Tile tables keep each value whole; when the columns are wider than the tile, a fade and a line say there is more. */
-.dashboard-tv .tv-table{position:relative;min-width:0;max-width:100%}
+/* Tile tables keep each value whole; columns wider than the tile carry the shared table cue (file-view.js table()). */
+.dashboard-tv .tv-table{min-width:0;max-width:100%}
 .dashboard-tv .tv-table .tablewrap{margin:0;max-width:100%}
 .dashboard-tv .tv-table caption{padding:0 0 12px}
 .dashboard-tv .tv-table th,.dashboard-tv .tv-table td{padding-left:12px;padding-right:12px;white-space:nowrap;overflow-wrap:normal}
-.dashboard-tv .tv-table.more::after{content:'';position:absolute;top:0;right:0;bottom:0;width:40px;background:linear-gradient(to right,transparent,var(--app-surface));pointer-events:none}
-.dashboard-tv .tv-more{margin:8px 0 0;text-align:right}
 .dashboard-tv .tv-watermarks{margin:16px 0;padding-left:20px;font-size:14px;color:var(--app-muted)}
 .dashboard-tv:fullscreen{max-width:none;width:100%;height:100%;padding:28px;background:var(--app-page);overflow:auto}
 @media(max-width:1100px){.dashboard-tv .tv-cards{grid-template-columns:minmax(0,1fr)}}
