@@ -45,7 +45,8 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
   await page.locator('#current').scrollIntoViewIfNeeded();await shot('current',width)
   state.webPhase='empty'
   const empty=await preview(id,{itemsPath:'items',catchup:true});assert.equal(empty.preview.rowCount,0);await apply(empty,id);assert.deepEqual((await read(id)).table.rows,[])
-  await post('import/undo',{planId:empty.planId},200,{'X-Import-Dataset':id});assert.deepEqual((await read(id)).table.rows,expected)
+  await page.getByRole('button',{name:'Load dataset',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('history loaded'));await shot('empty',width)
+  await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'));assert.deepEqual((await read(id)).table.rows,expected);await shot('undone',width)
   state.webPhase='endless'
   await form.locator('[name=accessToken]').fill(data.accessToken);for(const box of await form.getByRole('checkbox').all())await box.check()
   const started=state.webCalls;await form.getByRole('button',{name:'Preview web snapshot'}).click()
