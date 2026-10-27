@@ -93,6 +93,8 @@ export async function proveCompositionTooling({origin,context,page,upload,proveS
   await page.getByLabel('Combination',{exact:true}).selectOption('join');await page.getByLabel('Match behavior',{exact:true}).selectOption('inner')
   await page.getByRole('button',{name:'Combine permitted subjects',exact:true}).click();await page.getByRole('heading',{name:'Combined subjects',exact:true}).waitFor()
   await page.getByRole('table',{name:'Combined summary',exact:true}).waitFor();await proveScreen('composition-joined-summary')
+  // The table renders before current export limits finish loading; wait for the action to complete.
+  await page.waitForFunction(()=>document.getElementById('composition-form').getAttribute('aria-busy')!=='true')
   await page.getByRole('button',{name:'Combined underlying rows',exact:true}).click();await page.getByRole('table',{name:'Combined underlying rows',exact:true}).waitFor();await proveScreen('composition-exact-underlying')
   await page.getByRole('button',{name:'Next combined page',exact:true}).click();await page.getByRole('table',{name:'Combined underlying rows',exact:true}).getByRole('row').filter({has:page.getByText('r2',{exact:true})}).waitFor();await proveScreen('composition-last-underlying-page')
   await page.getByText('Export combined question',{exact:true}).click();await page.getByRole('button',{name:'Export combined CSV',exact:true}).click()
