@@ -1,3 +1,4 @@
+import {entitlementClock} from './entitlement-clock.mjs'
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess,proveEntitlements} from '../bifocal-exploration.mjs'
@@ -24,7 +25,8 @@ export async function proveContentGovernance(){
  const origin='http://127.0.0.1:'+port,varsFile=join(process.cwd(),'.dev.vars')
  const privateArchive=join(process.cwd(),'exports','synthetic-bifocal-private.json')
  let varsWritten=false,archiveWritten=false,child,browser,output=''
- const environment={...process.env,CI:'1',WRANGLER_SEND_METRICS:'false',RER_STATE_DIR:persist,RER_DEV_ORIGIN:origin,RER_DEV_KEY:'synthetic-bifocal-4'.repeat(3)}
+ const clock=await entitlementClock(persist)
+ const environment={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false',RER_STATE_DIR:persist,RER_DEV_ORIGIN:origin,RER_DEV_KEY:'synthetic-bifocal-4'.repeat(3)}
  try{
   await writeFile(varsFile,`AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=synthetic-bifocal-1@example.test\nSESSION_SECRET=${'synthetic-bifocal-2'.repeat(3)}\nSETUP_TOKEN=${'synthetic-bifocal-3'.repeat(3)}\nINSTALLATION_KEY=${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}\nMAIL_PROVIDER=development\nMAIL_FROM=synthetic-bifocal-2@example.test\n`,{flag:'wx',mode:0o600});varsWritten=true
   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc'],{stdio:'pipe',env:environment})
@@ -63,9 +65,9 @@ export async function proveContentGovernance(){
   if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
-  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
+  if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload})});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='exploration-access'){await proveExplorationAccess(origin,owner,reader,readerSession.operator.id);await owner.close();await reader.close();return}
-  await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload})
+  await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload,clock,fixtureSql:command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],env:environment}))[0].results})
   if(process.env.BIFOCAL_FOCUS==='entitlements'){await owner.close();await reader.close();return}
   await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})

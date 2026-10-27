@@ -213,7 +213,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
 }
 
 /** Entitlement publication only narrows existing exact native view grants. */
-export async function proveEntitlements({origin,owner,reader,readerId,browser,devKey,upload}) {
+export async function proveEntitlements({origin,owner,reader,readerId,browser,devKey,upload,clock,fixtureSql}) {
  const headers={Origin:origin},contexts=[]
  const call=async(context,path,data,expected=data===undefined?200:201)=>{
   const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers,...data===undefined?{}:{data}})
@@ -243,13 +243,14 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
   [next.person.email,nextManager.person.email,'01/01/2020','01/01/2099'],...(cycle?[[manager.email,rep.person.email,'01/01/2020','01/01/2099']]:[])
  ].map(row=>row.join(',')).join('\n')+'\n'
  await upload(mapping,map());await upload(hierarchy,tree())
+ assert.equal((await call(owner,'/datasets/'+mapping)).table.updatedAt,'2026-10-27T12:00:00.000Z')
  await call(owner,'/calendars',{id:'synthetic-bifocal-entitlements',previousVersion:null,definition:{name:'Entitlements calendar',kind:'fiscal',startMonth:1}})
  const query={version:1,dataset,joins:[],filters:[],groupBy:['account'],measures:[{id:'records',op:'count',unit:'count',scale:0}],context:{modelVersion:'entitlements-v1',metricVersion:'entitlements-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-entitlements',version:1},rounding:'half-even'},semantic:{grain:['id'],dimensions:[{column:'id',type:'text'},{column:'account',type:'text'},{column:'region',type:'text'}],hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
  const model=await call(owner,'/models',{definition:{views:[{id:'accounts',kind:'chart',query,rowRules:[]}],quality:[]}}),base='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(owner,base+'/validate',{},200)
  assert.equal(review.compatible,true);await call(owner,base+'/approve',{digest:review.digest},200);await call(owner,base+'/promote',{environment:'staging',digest:review.digest},200);await call(owner,base+'/promote',{environment:'production',digest:review.digest},200)
  const parameters={modelId:model.modelId,revision:model.revision,viewId:'accounts',groupBy:['account'],filters:[]}
  const grant=async(person)=>{
-  const input={operatorId:person.id,operatorVersion:person.version,modelId:model.modelId,revision:model.revision,viewId:'accounts',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['id','account','region'],underlying:true,summaryExport:true,underlyingExport:true,expiresAt:new Date(Date.now()+600000).toISOString()}
+  const input={operatorId:person.id,operatorVersion:person.version,modelId:model.modelId,revision:model.revision,viewId:'accounts',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['id','account','region'],underlying:true,summaryExport:true,underlyingExport:true,expiresAt:new Date(clock.now()+600000).toISOString()}
   const reviewed=await call(owner,'/explore/access/review',input,200)
   return call(owner,'/explore/access',{...input,reviewedDigest:reviewed.digest})
  }
@@ -323,11 +324,11 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  const fresh=await run(next,['one'])
  const source=await call(owner,'/datasets/'+mapping),hierarchySource=await call(owner,'/datasets/'+hierarchy)
  const deadline=Math.min(Date.parse(source.table.updatedAt),Date.parse(hierarchySource.table.updatedAt))+4000
- await new Promise(resolve=>setTimeout(resolve,Math.max(0,deadline-Date.now()+100)))
+ await clock.set(new Date(deadline+100).toISOString())
  assert.equal((await call(next.context,'/explore/'+fresh.snapshotId+'/export',{scope:'summary',format:'csv'},409)).error,'entitlement_feed_stale')
  assert.equal((await call(owner,'/explore/entitlements/review',{definition:short,previousRevision:revision},409)).error,'entitlement_feed_stale')
  await call(owner,'/datasets/'+mapping+'/erase',{confirmDataset:mapping,reviewedRevision:source.revision},200)
  assert.equal((await call(next.context,'/explore/run',{...parameters,grantId:next.grant.id},409)).error,'entitlement_feed_missing')
  console.log('Entitlements: reviewed atomic snapshots, role union and manager inheritance, effective intervals, exact reassignment parity for native identities, scoped records and CSV, stale and missing feeds, cycles and old snapshot refusal passed')
- } finally {for(const context of contexts)await context.close()}
+ } finally {await clock.set(null);for(const context of contexts)await context.close()}
 }
