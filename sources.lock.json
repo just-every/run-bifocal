@@ -2092,6 +2092,10 @@
       "sha256": "caff472fa7588e873bcd25c78cd991fd8a3f9832eedbf51fa8946fbfa45505a7",
       "executable": false
     },
+    "src/bifocal/imports/models/dbt-projection.ts": {
+      "sha256": "71f0e70187b9cfc3db8c07b67c14706cc5a7cb173e2765390aa3b49dc64207c4",
+      "executable": false
+    },
     "src/bifocal/imports/models/door.server.ts": {
       "sha256": "10e2159092da1244a252ec0d56a9092a6d6f2b4db0ddc9c0172723912dbcb52d",
       "executable": false
@@ -4644,6 +4648,10 @@
       "sha256": "aee1075e4a7c2b17f2ff46148bd806fbab3e03c60310a9ada05aa1bc5b59c716",
       "executable": false
     },
+    "tests/journeys/dbt-predicate-import.mjs": {
+      "sha256": "3f7a18e0fe750f27dccb78a9fee8298cfcee319dad4f71e1e526bcbbf334a360",
+      "executable": false
+    },
     "tests/journeys/entitlement-boundaries.mjs": {
       "sha256": "a79fac0967ec7e6af9d4e9b8d845d52b1c072e0f61ae3ee52994820c5b627b93",
       "executable": false
@@ -4701,7 +4709,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "560b86b37e0bffe1d87ef21ec17944f3cd040e9a75aa141f9917a276f6004656",
+      "sha256": "f5539fa989d90e9294cb9a82760b4a82a63347b2691f05e7dfc63f1aa8388997",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {

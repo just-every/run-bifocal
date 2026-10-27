@@ -4,10 +4,10 @@ import {dump} from 'js-yaml'
 // Extends the existing model import journey through the same public doors.
 export async function proveDBTPredicates({core,resolvedManifest,resolvedCloud,prepare,apply,call,upload,post,page,origin,proveScreen}) {
  const dataset='synthetic-bifocal-dbt-predicates'
- await upload(dataset,"invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n3,West,-$0.03\n4,,$7.00\n,East,$9.00\n2,Excluded,$5.00\n5,West,\n6,West AND O'Brien,$1.23\n")
- const stage="select invoice, region as territory, revenue as gross from {{ source('raw','invoices') }} where region <> 'East'"
- const sales="select invoice, territory as region, gross as net from {{ ref('staging') }} where territory = 'West' AND gross >= -0.03 AND gross <= 10.01"
- const sourceInput=structuredClone(core);sourceInput.projectId='synthetic-bifocal-dbt-filter-core';sourceInput.bindings.sales.dataset=dataset
+ await upload(dataset,"row,invoice,region,revenue\n1,1,West,$10.01\n2,2,East,$20.02\n3,3,West,-$0.03\n4,4,,$7.00\n5,,East,$9.00\n6,2,Excluded,$5.00\n7,5,West,\n8,6,West AND O'Brien,$1.23\n")
+ const stage="select row, invoice, region as territory, revenue as gross from {{ source('raw','invoices') }} where region <> 'East'"
+ const sales="select row, invoice, territory as region, gross as net from {{ ref('staging') }} where territory = 'West' AND gross >= -0.03 AND gross <= 10.01"
+ const sourceInput=structuredClone(core);sourceInput.projectId='synthetic-bifocal-dbt-filter-core';sourceInput.bindings.sales.dataset=dataset;sourceInput.bindings.sales.grain=['row']
  sourceInput.files.find(f=>f.path==='models/staging.sql').content=stage;sourceInput.files.find(f=>f.path==='models/sales.sql').content=sales
  const manifest=structuredClone(resolvedManifest)
  manifest.nodes['model.synthetic_bifocal.staging'].raw_code=stage;manifest.nodes['model.synthetic_bifocal.sales'].raw_code=sales
@@ -33,18 +33,15 @@ export async function proveDBTPredicates({core,resolvedManifest,resolvedCloud,pr
   // Shared Undo must restore both executable filters and their quality scope.
   if(input===sourceInput){const changed=structuredClone(input);changed.files.find(f=>f.path==='models/sales.sql').content=sales.replace("'West'","'Absent'");const next=await prepare(changed,true);await apply(input.projectId,next);assert.equal(next.project.report.project.resources.find(r=>r.name==='sales'&&r.kind==='model').definition.translation.bindings[0].rows,0);await post(input.projectId,'undo',{planId:next.planId});assert.equal((await call('/model-imports/'+input.projectId)).revision,imported.revision)}
  }
- for(const [name,where,rows,total] of [['null','region IS NULL',1,'7.00'],['not-null','region IS NOT NULL',7,'46.23'],['quoted',"region = 'West AND O''Brien'",1,'1.23'],['numeric','revenue = 10.010',1,'10.01']]){
-  const input=structuredClone(sourceInput);input.projectId='synthetic-bifocal-dbt-filter-'+name;input.files.find(f=>f.path==='models/staging.sql').content="select invoice, region, revenue from {{ source('raw','invoices') }}"
-  input.files.find(f=>f.path==='models/sales.sql').content="select invoice, region, revenue as net from {{ ref('staging') }} where "+where
+ for(const [name,where,rows,total] of [['null','region IS NULL',1,'7.00'],['not-null','region IS NOT NULL',7,'45.23'],['quoted',"region = 'West AND O''Brien'",1,'1.23'],['numeric','revenue = 10.010',1,'10.01']]){
+  const input=structuredClone(sourceInput);input.projectId='synthetic-bifocal-dbt-filter-'+name;input.files.find(f=>f.path==='models/staging.sql').content="select row, invoice, region, revenue from {{ source('raw','invoices') }}"
+  input.files.find(f=>f.path==='models/sales.sql').content="select row, invoice, region, revenue as net from {{ ref('staging') }} where "+where
   // This branch exercises predicates independently of the quality failure on
   // the intentionally duplicated and null source invoice values.
   input.files[1].content=input.files[1].content.replace('tests: [not_null, unique]','tests: []')
   const plan=await prepare(input);assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues));await apply(input.projectId,plan)
   const current=await call('/model-imports/'+input.projectId),review=await call('/model-authoring/review',{document:dump(current.definition),importProject:input.projectId,importRevision:current.revision},200)
-  // A wider source has duplicate grain; use a retained physical row identity
-  // only for branches whose predicates select one row.
-  if(name==='not-null')assert.equal(review.compatible,false)
-  else {assert.equal(review.impacts[0].answer.filteredRows,rows);assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,total)}
+  assert.equal(review.compatible,true);assert.equal(review.impacts[0].answer.filteredRows,rows);assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,total)
  }
  for(const [name,where] of [['or',"territory = 'West' OR territory = 'East'"],['null-equality','gross = NULL'],['type',"gross = '10.01'"],['missing',"missing = 'West'"],['trailing',"territory = 'West' AND"],['statement',"territory = 'West'; select invoice from other"],['comment',"territory = 'West' -- ignored"],['expression','gross + 1 = 2']]){
   const input=structuredClone(sourceInput);input.projectId='synthetic-bifocal-dbt-filter-refused-'+name;input.files.find(f=>f.path==='models/sales.sql').content=sales.slice(0,sales.indexOf(' where '))+' where '+where
