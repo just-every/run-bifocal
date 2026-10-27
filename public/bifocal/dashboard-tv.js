@@ -51,8 +51,8 @@ function settings(){
  if(!form.checkValidity()){$('tv-display').open=true;form.reportValidity();return null}
  return {interval:Number($('tv-interval').value),maxAgeSeconds:Number($('tv-max-age').value)}
 }
-/** The source list beside a tile: names, short revisions and observation times, each item kept on its own words. */
-const watermarkText=source=>`${source.dataset} · revision ${String(source.revision).slice(0,12)} · observed ${stamp(source.observedAt??source.updatedAt,zone)}`
+/** The source list beside a tile: names, short revisions and observation times; a separator never ends a line. */
+const watermarkText=source=>`${source.dataset} ·\u00a0revision ${String(source.revision).slice(0,12)} ·\u00a0observed ${stamp(source.observedAt??source.updatedAt,zone)}`
 function tileView(id){
  if(views.has(id))return views.get(id)
  const section=element('section',undefined,'panel tv-tile'),title=element('h2'),state=element('p',undefined,'tv-state'),notes=element('div',undefined,'tv-notes'),last=element('p',undefined,'meta')

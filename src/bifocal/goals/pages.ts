@@ -2,7 +2,7 @@
 // through the same builders with the person's values (see ../metrics/forms).
 import { escapeHtml } from '../../app/shell'
 import { details, hidden } from '../metrics/transport'
-import { actions, control, formPanel, refusalLine, type Refusal } from '../metrics/forms'
+import { actions, control, formPanel, refusalLine, SEP, type Refusal } from '../metrics/forms'
 
 export type GoalDefinition = { title: string; from: string; to: string; dateColumn: string; target: string; currency: 'USD'; maxAgeSeconds: number; easel?: { link: string; series: string } & Record<string, unknown> }
 export type GoalRow = { id: string; owner_id: string; metric_id: string; version: number }
@@ -22,7 +22,7 @@ function goalFields(form: string, refusal?: Refusal, v?: GoalDefinition) {
 }
 
 export function goalsMain(rows: (GoalRow & { document_json: string })[], refusal?: Refusal) {
- const list = rows.length ? `<ul class="records">${rows.map(row => { const d = JSON.parse(row.document_json) as GoalDefinition; return `<li><span class="record"><a href="/app/goals/${row.id}">${escapeHtml(d.title)}</a><span class="row-meta">${row.id} · ${escapeHtml(d.target)} USD · ${d.from} to ${d.to} · ${row.metric_id}</span></span></li>` }).join('')}</ul>` : '<p class="muted">No goals yet. Create the first one below.</p>'
+ const list = rows.length ? `<ul class="records">${rows.map(row => { const d = JSON.parse(row.document_json) as GoalDefinition; return `<li><span class="record"><a href="/app/goals/${row.id}">${escapeHtml(d.title)}</a><span class="row-meta">${[row.id, escapeHtml(d.target) + ' USD', `${d.from} to ${d.to}`, row.metric_id].join(SEP)}</span></span></li>` }).join('')}</ul>` : '<p class="muted">No goals yet. Create the first one below.</p>'
  const create = `<div class="fields">${control('create', 'id', 'Goal ID', { refusal, hint: 'Lowercase letters, digits and hyphens, for example q3-revenue.' })}${control('create', 'metricId', 'Certified metric ID', { refusal, hint: 'A certified metric in US dollars, from <a href="/app/metrics">Metrics</a>.' })}</div>${goalFields('create', refusal)}`
  return `${refusalLine(refusal, 'page')}<section class="panel"><h2>Your goals</h2>${list}</section>${formPanel('create', 'Create a revenue goal', '/api/operator/goals', create + actions('Save goal'), refusal)}`
 }
@@ -33,7 +33,7 @@ export function goalMain({ goal, definition: def, versions, checkins, actual }: 
   + `<div class="fields">${control('checkin', 'observedOn', 'Observation date', { refusal, kind: 'date' })}${control('checkin', 'observation', 'Observation', { refusal, hint: 'A dated note beside the actuals; it never changes them.' })}</div>` + actions('Add check-in'), refusal)
  const revise = formPanel('revise', 'Change target or period', `/api/operator/goals/${goal.id}/revise`, hidden('previousVersion', goal.version)
   + goalFields('revise', refusal, def) + '<p class="hint">Saving creates target version ' + (goal.version + 1) + '; earlier versions stay in Target versions.</p>' + actions('Save target revision', false), refusal)
- return `<p class="lead">Target ${escapeHtml(def.target)} USD · ${def.from} to ${def.to} (exclusive) · Target version ${goal.version}</p><p class="meta">Actuals: ${escapeHtml(String(actual.state))} · ${escapeHtml(String(actual.status))} · ${easel}</p>`
+ return `<p class="lead">${[`Target ${escapeHtml(def.target)} USD`, `${def.from} to ${def.to} (exclusive)`, `Target version ${goal.version}`].join(SEP)}</p><p class="meta">Actuals: ${escapeHtml(String(actual.state))}${SEP}${escapeHtml(String(actual.status))}</p><p class="meta">${easel}</p>`
   + refusalLine(refusal, 'page') + details('Actual query, source freshness and pace', actual) + (def.easel ? details('Easel export provenance', def.easel) : '')
   + checkin + details('Attributed check-ins', checkins) + revise + details('Target versions', versions)
 }

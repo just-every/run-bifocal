@@ -42,4 +42,7 @@ export function formPanel(form: string, heading: string, action: string, body: s
 /** A quiet disclosure inside a card (the card already draws the edge). */
 export const disclosure = (label: string, value: unknown) => `<details><summary>${escapeHtml(label)}</summary><pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre></details>`
 
+/** A meta-line separator that binds to the word after it, so a line never ends on a dot. */
+export const SEP = ' ·\u00a0'
+
 export const actions = (label: string, primary = true) => `<div class="actions"><button type="submit"${primary ? ' class="primary"' : ''}>${escapeHtml(label)}</button></div>`

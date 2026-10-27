@@ -2,15 +2,15 @@
 // through the same builders with the person's values (see ./forms).
 import { escapeHtml } from '../../app/shell'
 import { details, hidden } from './transport'
-import { actions, checkbox, control, disclosure, formPanel, refusalLine, type Refusal } from './forms'
+import { actions, checkbox, control, disclosure, formPanel, refusalLine, SEP, type Refusal } from './forms'
 import type { MetricDocument, MetricRow, Revision } from './store.server'
 
 const pretty = (json: string) => JSON.stringify(JSON.parse(json), null, 2)
 const certified = (n: number) => `<span class="lens">Certified revision ${n}</span>`
 
 export function metricsMain(rows: (MetricRow & { document_json: string })[], refusal?: Refusal) {
- const state = (r: MetricRow) => r.deprecated_at ? 'Deprecated' : r.published_revision ? certified(r.published_revision) + (r.head_revision !== r.published_revision ? ' · Draft revision ' + r.head_revision : '') : 'Draft'
- const list = rows.length ? `<ul class="records">${rows.map(r => `<li><span class="record"><a href="/app/metrics/${r.id}">${escapeHtml((JSON.parse(r.document_json) as MetricDocument).name)}</a><span class="row-meta">${r.id} · ${state(r)}</span></span></li>`).join('')}</ul>` : '<p class="muted">No metrics yet. Create the first one below.</p>'
+ const state = (r: MetricRow) => r.deprecated_at ? 'Deprecated' : r.published_revision ? certified(r.published_revision) + (r.head_revision !== r.published_revision ? SEP + 'Draft revision ' + r.head_revision : '') : 'Draft'
+ const list = rows.length ? `<ul class="records">${rows.map(r => `<li><span class="record"><a href="/app/metrics/${r.id}">${escapeHtml((JSON.parse(r.document_json) as MetricDocument).name)}</a><span class="row-meta">${state(r)}${SEP}${r.id}</span></span></li>`).join('')}</ul>` : '<p class="muted">No metrics yet. Create the first one below.</p>'
  const create = control('create', 'id', 'Stable metric ID', { refusal, hint: 'Lowercase letters, digits and hyphens, for example net-revenue.' })
   + control('create', 'definition', 'Metric definition (JSON)', { refusal, rows: 12, hint: 'Name, description, grain, unit, timezone, accountingBasis and one scalar exact query, in the same conventions as Exact answers. A draft never changes a certified version.' })
  return `${refusalLine(refusal, 'page')}<section class="panel"><h2>Your metrics</h2>${list}</section>${formPanel('create', 'Create a metric', '/api/operator/metrics', create + actions('Save draft'), refusal)}`
@@ -37,8 +37,8 @@ export function metricMain({ row, revisions, head, doc, impact }: MetricView, ow
   + control('deprecate', 'reason', 'Deprecation reason', { refusal })
   + checkbox('deprecate', 'confirm', 'deprecate', 'I reviewed this definition and its dependent content', refusal, same && refusal?.values.publishedRevision === String(row.published_revision)) + actions('Deprecate metric', false), refusal) : ''
  const history = revisions.map(r => ({ revision: r.revision, definition: JSON.parse(r.document_json), digest: r.digest, createdAt: r.created_at, approvedAt: r.approved_at, annotation: r.annotation }))
- return `<p class="lead">${escapeHtml(doc.description)}</p><p class="meta">${state} · ${row.head_revision !== row.published_revision ? 'Draft revision ' : 'Latest revision '}${row.head_revision}</p>`
-  + `<p class="meta">Owner ${escapeHtml(ownerEmail)} · ${escapeHtml(doc.grain)} · ${escapeHtml(doc.unit)} · ${escapeHtml(doc.timezone)} · ${escapeHtml(doc.accountingBasis)}</p>`
+ return `<p class="lead">${escapeHtml(doc.description)}</p><p class="meta">${state}${SEP}${row.head_revision !== row.published_revision ? 'Draft revision ' : 'Latest revision '}${row.head_revision}</p>`
+  + `<p class="meta">${['Owner ' + ownerEmail, doc.grain, doc.unit, doc.timezone, doc.accountingBasis].map(escapeHtml).join(SEP)}</p>`
   + refusalLine(refusal, 'page') + details('Change impact and dependent content', impact)
   + (row.deprecated_at ? `<p role="status">Deprecated on ${escapeHtml(row.deprecated_at)}. ${escapeHtml(row.deprecated_reason ?? '')}</p>` : '')
   + approve + propose + deprecate + details('Immutable revision history', history)
