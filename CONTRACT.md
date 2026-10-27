@@ -593,7 +593,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at this candidate commit (HEAD; 28 October 2026). The BIF-027 source and journey are retained from `0db0c094b8c02acd963a46695c439bc3c01a5e39`; this candidate synchronizes bounded native metric proof and the complete remaining Gap without changing acceptance requirements or status. Other clause evidence and CT rulings remain recorded per clause. No new DONE judgment is made.
+Judged from the code and tests at commit `0db0c094b8c02acd963a46695c439bc3c01a5e39` (28 October 2026). The BIF-027 source and journey are retained from `0db0c094b8c02acd963a46695c439bc3c01a5e39`; this candidate synchronizes bounded native metric proof and the complete remaining Gap without changing acceptance requirements or status. Other clause evidence and CT rulings remain recorded per clause. No new DONE judgment is made.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
