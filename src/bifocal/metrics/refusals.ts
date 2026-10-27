@@ -9,6 +9,7 @@ const idSentence = (v: string, example: string) => v ? `Use lowercase letters, d
 const refusal = (form: string, values: Values, code: string, field: string | null, message: string): Refusal => ({ form, values, field, message, code })
 
 const JSON_TYPO = 'This isn’t valid JSON. Check for a missing quote, comma or closing brace.'
+const ZONE_CHANGED = 'The organization time zone changed after this metric was defined. Propose a revision with the current time zone at Metrics, then certify it.'
 
 function metricDefinitionSentence(code: string) {
  switch (code) {
@@ -47,6 +48,7 @@ export function metricRefusal(form: string, code: string, values: Values): Refus
   if (code === 'native_owner_confirmation_required') return at('confirm', form === 'approve' ? 'Tick the box to confirm you approve this exact definition.' : 'Tick the box to confirm you reviewed the definition and its dependent content.')
   if (code === 'nonempty_text_required') return form === 'approve' ? at('annotation', 'Enter a dated change annotation: what you checked and why it’s right.') : at('reason', 'Enter the reason for deprecating this metric.')
   if (code === 'metric_deprecated') return at(null, 'This metric is already deprecated.')
+  if (code === 'metric_timezone_changed') return at(null, ZONE_CHANGED)
   return at(null, form === 'approve' ? 'This definition doesn’t produce a value from the current data, so it can’t be certified yet.' : 'This metric couldn’t be deprecated because it or its data changed. Review the current version, then try again.')
  }
  if (code === 'metric_not_found') return at(null, 'There’s no metric with this ID. It may have been erased.')
@@ -108,6 +110,7 @@ export function goalRefusal(form: string, code: string, values: Values): Refusal
    return at('title', 'Keep the title under 160 characters.')
   }
   if (code === 'stale_goal_version') return at(null, 'This goal changed after the page loaded, so your revision wasn’t saved. Your entries are kept; review the current target, then save again.')
+  if (code === 'metric_timezone_changed') return at('metricId', ZONE_CHANGED)
   return at('metricId', 'This metric doesn’t produce a value from the current data, so the goal can’t track it yet.')
  }
  if (code === 'goal_not_found') return at(null, 'There’s no goal with this ID. It may have been erased.')

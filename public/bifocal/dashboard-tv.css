@@ -3,8 +3,8 @@ body[data-dashboard-tv] .single .main{width:100%;max-width:1440px}
 .dashboard-tv,.dashboard-tv>*{min-width:0;max-width:100%}
 .dashboard-tv nav{margin-bottom:16px}
 .dashboard-tv .tv-head{flex-wrap:wrap;margin-bottom:16px}
-/* The title keeps one line beside the actions; when it cannot, the actions move under it. */
-.dashboard-tv .tv-head>div:first-child{flex:1 1 660px;min-width:0}
+/* The title keeps one line beside the actions; when it cannot, the actions move under it (a phone stacks them). */
+@media(min-width:761px){.dashboard-tv .tv-head>div:first-child{flex:1 1 660px;min-width:0}}
 .dashboard-tv .tv-head .actions{margin-top:0;flex:none}
 .dashboard-tv .tv-display{margin:0 0 16px}
 .dashboard-tv .tv-display>.fields,.dashboard-tv .tv-display>fieldset{margin-left:28px;margin-right:28px}

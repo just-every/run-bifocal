@@ -14,6 +14,9 @@ const shown=(value,currency)=>value?.state==='value'?figure(value.value,value.un
 // cross-filter disclosure, prepared downloads and the page's scroll survive it. A refresh in progress changes nothing
 // visible; a failed one says so beside its dated last-good values.
 const views=new Map()
+// A failed tile says what happened in plain words; its code stays on the tile as data only.
+const FAILURES={dashboard_conventions_changed:'Company conventions changed after this dashboard was saved, so its tiles can’t refresh as saved.',dashboard_filter_dimension_unavailable:'This tile can’t be filtered by the chosen field.',dashboard_field_selection_unavailable:'This tile can’t show the chosen field.',dataset_not_found:'This tile’s source data was erased or isn’t available.'}
+const failure=error=>FAILURES[error]??(/^[a-z][a-z0-9_]*$/.test(error)?'This tile’s source or definition changed, so it couldn’t refresh.':error)
 const answerKey=data=>data?JSON.stringify([data.answer.definitionHash,data.answer.sourceWatermarks,data.interactionFilters??[],data.interactionFields??null]):''
 const setText=(node,text)=>{if(node.textContent!==text)node.textContent=text}
 function exportBlocked(tile){return !tile||tile.withdraw||!['fresh','stale','empty'].includes(tile.status)}
@@ -73,7 +76,8 @@ function updateTile(tile){
  if(tile.status==='loading')return view
  setText(view.state,names[tile.status]);view.state.dataset.state=tile.status
  const data=tile.data,notes=[]
- if(tile.error)notes.push(['note','Refresh failed: '+tile.error])
+ section.dataset.error=tile.error??''
+ if(tile.error)notes.push(['note','Refresh failed. '+failure(tile.error)])
  if(data&&tile.status==='failed')notes.push(['note','Showing last-good values from '+stamp(tile.successAt,zone)+'. These values are not a successful current refresh.'])
  if(tile.withdraw)notes.push(['note','Previously displayed values were withdrawn and cleared.'])
  if(data&&(data.status==='stale'||data.freshness==='stale'))notes.push(['note','Source age exceeds the selected maximum. Values are stale.'])
