@@ -4869,7 +4869,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "45aebc90bc9fd0e239aa301a93cfd5046445fea86b721e86926dda14450c2d07",
+      "sha256": "1cf96b176e354757f44f2dab6db45e092264fe2b0aa48e6aeed7c36b740083c8",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
