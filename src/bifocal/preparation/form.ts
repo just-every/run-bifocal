@@ -1,7 +1,7 @@
 export const preparationForm = `<section id="preparation" class="panel" aria-labelledby="preparation-title">
 <h2 id="preparation-title">Preparation drafts</h2>
 <p>Build a visual transformation or edit its equivalent native SQL. Review complete output, validation errors and column lineage before saving an exact draft revision.</p>
-<p class="warning">Owner-only drafts. Saving or restoring a preparation does not publish data or change a source, model or chart. Dependency scheduling is unavailable.</p>
+<p class="hint">Owner-only drafts. Saving or restoring a preparation does not publish data or change a source, model or chart. Dependency scheduling is unavailable.</p>
 <p id="prep-status" class="status" role="status" aria-live="polite"></p>
 <form id="preparation-form" novalidate>
 <div class="fields"><label>Preparation ID<input id="prep-id" name="preparation" required pattern="[a-z][a-z0-9-]{0,63}" maxlength="64"></label><label>Source dataset ID<input id="prep-dataset" name="dataset" required pattern="[a-z][a-z0-9-]{0,63}" maxlength="64"></label></div>

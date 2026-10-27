@@ -8,7 +8,7 @@ let snapshot, pending=false
 function status(message,error=false) { $('status').setAttribute('role',error?'alert':'status'); $('status').textContent=message; $('status').dataset.error=String(error); $('status').dataset.quiet=String(!error&&!!snapshot) }
 async function request(path,data) {
  const response=await fetch('/api/operator/'+path,{method:data===undefined?'GET':'POST',headers:data===undefined?{}:{'Content-Type':'application/json'},...(data===undefined?{}:{body:JSON.stringify(data)})})
- const result=await response.json(); if(response.status===404)throw Error('Saved answer is unavailable. Recheck its id and retained source custody.');if(!response.ok)throw Error(result.reason ?? result.error);return result
+ const result=await response.json(); if(response.status===404){document.querySelector('.eyebrow-links')?.setAttribute('hidden','');throw Error('This answer isn’t available. It may have been erased, or the link may be wrong.')}if(!response.ok)throw Error(result.reason ?? result.error);return result
 }
 async function action(work) { if(pending)return; pending=true; status('Working…'); document.querySelectorAll('button').forEach(button=>{button.dataset.previousDisabled=String(button.disabled);button.disabled=true});try{await work()}catch(error){status(error.message,true)}finally{pending=false;document.querySelectorAll('button').forEach(button=>button.disabled=button.dataset.previousDisabled==='true')} }
 // A figure as a US reader expects it; any state other than a value reads as its own word.
