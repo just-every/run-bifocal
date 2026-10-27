@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {dump} from 'js-yaml'
+import {dump,load} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
 import {modelProjectFixtures} from './model-project-fixtures.mjs'
 import {proveMetricTooling} from './metric-tooling.mjs'
@@ -77,6 +77,38 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
    assert.equal((await member.request.get(origin+'/api/operator/import/original/'+saved[0].plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':saved[0].input.projectId}})).status(),401)
   }finally{await member.close()}
  }
+ // Source query predicates and grouping survive exact mappings and exported
+ // native execution. Later exploration can only intersect these restrictions.
+ const scopedDataset='synthetic-bifocal-metabase-scoped'
+ await upload(scopedDataset,csv.replace('region,revenue','territory,amount'))
+ for(const serialization of ['json','yaml']){
+  const input=structuredClone(projects.find(p=>p.format==='metabase'));input.projectId='synthetic-bifocal-metabase-scoped-'+serialization
+  input.bindings.sales={dataset:scopedDataset,grain:['invoice'],columns:{region:'territory',revenue:'amount'}}
+  input.formats['sales.row_count']={unit:'count',scale:0};input.formats['sales.present_count']={unit:'count',scale:0}
+  const card=JSON.parse(input.files[0].content),field=id=>['field',id,null]
+  card.dataset_query.query={...card.dataset_query.query,filter:['and',['=',field(2),'West'],['between',field(3),0,20]],breakout:[field(2)],aggregation:[...card.dataset_query.query.aggregation,['count'],['count',field(3)]]}
+  card.result_metadata=[{name:'region',source:'breakout',base_type:'type'+'/'+'Text'},...card.result_metadata,{name:'row_count',base_type:'type'+'/'+'Integer'},{name:'present_count',base_type:'type'+'/'+'Integer'}]
+  for(const [index,output] of card.result_metadata.entries())if(index){output.source='aggregation';output.field_ref=['aggregation',index-1]}
+  input.files[0].content=JSON.stringify(card)
+  if(serialization==='yaml')input.files=input.files.map((f,index)=>({path:f.path.replace('.json','.yaml'),content:dump({...JSON.parse(f.content),[['serdes','meta'].join('/')]:[{model:['Card','Table','Database'][index],id:String([37,12,9][index])}]})}))
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues))
+  assert.deepEqual(plan.project.definition.views[0].query.filters,[{column:'territory',op:'eq',value:'West'},{column:'amount',op:'gte',value:'0'},{column:'amount',op:'lte',value:'20'}]);assert.deepEqual(plan.project.definition.views[0].query.groupBy,['territory'])
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId),exported=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},200)
+  assert.deepEqual(exported.sources[0].columns,[{source:'invoice',column:'invoice'},{source:'region',column:'territory'},{source:'revenue',column:'amount'}]);assert.deepEqual(exported.definition,imported.definition)
+  const body={document:dump(exported.definition),importProject:input.projectId,importRevision:imported.revision},review=await call('/model-authoring/review',body,200)
+  assert.equal(review.compatible,true);const actual=review.impacts[0].answer
+  assert.equal(actual.filteredRows,1);assert.deepEqual(actual.rows.map(r=>[r.dimensions,r.values['revenue-sum'].value,r.values['unique-regions'].value,r.values['row-count'].value,r.values['present-count'].value]),[[['West'],'10.01','1','1','1']])
+  const model=await call('/model-authoring/create',{...body,reviewedDigest:review.digest}),path='/models/'+model.modelId+'/branches/'+model.branchId,publication=await call(path+'/validate',{},200)
+  await call(path+'/approve',{digest:publication.digest},200);await call(path+'/promote',{environment:'staging',digest:publication.digest},200);await call(path+'/promote',{environment:'production',digest:publication.digest},200)
+  const broad=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['territory'],filters:[]})
+  assert.deepEqual(broad.answer.rows,actual.rows);assert.equal(broad.answer.totals['revenue-sum'].value,'10.01')
+  const east=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['territory'],filters:[{column:'territory',op:'eq',value:'East'}]})
+  assert.deepEqual(east.answer.rows,[]);assert.equal(east.answer.totals['revenue-sum'].value,null);assert.equal(east.answer.totals['row-count'].value,'0')
+  const r=await context.request.post(origin+'/api/operator/explore/'+broad.queryId+'/export',{headers:{Origin:origin},data:{scope:'summary',format:'csv'}});assert.equal(r.status(),200);assert.match(await r.text(),/10\.01/)
+  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('metabase-scoped-'+serialization)
+ }
+ const scopedCurrent=await call('/datasets/'+scopedDataset);await call('/datasets/'+scopedDataset+'/erase',{confirmDataset:scopedDataset,reviewedRevision:scopedCurrent.revision},200)
+ for(const serialization of ['json','yaml'])await call('/model-imports/synthetic-bifocal-metabase-scoped-'+serialization,undefined,404)
  // Native dbt projects retain tests and dependency lineage without pretending
  // that storing SQL is an executable transformation or a passing quality test.
  const dbtProjects=[]
@@ -98,7 +130,9 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const model=inventory.find(r=>r.kind==='model');assert.deepEqual(model.dependencies,input===raw?['source.raw.invoices']:['source.synthetic_bifocal.raw.invoices']);assert.equal(model.file,input===raw?'models/sales.sql':'target/manifest.json')
   assert.deepEqual(inventory.filter(r=>r.kind==='test').map(r=>r.dependencies),input===raw?[['model.sales'],['model.sales']]:[['model.synthetic_bifocal.sales']])
   assert.deepEqual(input===raw?model.definition.schema.columns[0].tests:inventory.find(r=>r.kind==='test').definition.test_metadata,input===raw?['not_null','unique']:{name:'unique',kwargs:{column_name:'invoice'}})
-  assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.object===model.id));assert.deepEqual(plan.project.sources.map(s=>s.id),[dataset])
+  if(input===raw){assert.equal(model.definition.translation.state,'translated');assert.deepEqual(model.definition.translation.bindings[0].columns,{invoice:'invoice',region:'region',revenue:'revenue'});assert.deepEqual(inventory.filter(r=>r.kind==='test').map(r=>[r.definition.translation.test,r.definition.translation.results[0].failures]),[['not_null',0],['unique',0]]);assert.ok(plan.project.report.issues.some(i=>i.code==='no_supported_measures'))}
+  else assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.object===model.id))
+  assert.deepEqual(plan.project.sources.map(s=>s.id),[dataset])
   await apply(input.projectId,plan)
   const imported=await call('/model-imports/'+input.projectId);assert.deepEqual(imported.report.project.resources,inventory);assert.deepEqual(imported.input.files,input.files)
   await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
@@ -106,6 +140,45 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const revised=await call('/model-imports/'+input.projectId);assert.notEqual(revised.revision,imported.revision);assert.deepEqual(revised.report.project.resources.map(r=>r.dependencies),inventory.map(r=>r.dependencies))
   await post(input.projectId,'undo',{planId:replacement.planId});assert.equal((await call('/model-imports/'+input.projectId)).revision,imported.revision)
   dbtProjects.push({input,plan})
+ }
+ // SQL projection lineage and generic checks are interpreted over reviewed
+ // records. No original SQL or template is sent to a database or executed.
+ const core=structuredClone(raw);core.projectId='synthetic-bifocal-dbt-projection'
+ core.files[1].content+='\n'+projects[1].files[0].content.replace("ref('invoices')","ref('sales')").replace('expr: revenue','expr: net')
+ core.files[2].content="select invoice, region, revenue as net from {{ ref('staging') }}"
+ core.files.push({path:'models/staging.sql',content:"select invoice, region, revenue from {{ source('raw','invoices') }}"})
+ core.bindings.sales.columns={net:'revenue'}
+ const resolvedManifest={metadata:manifest.metadata,nodes:{},sources:{'source.synthetic_bifocal.raw.invoices':{...manifest.sources['source.synthetic_bifocal.raw.invoices'],source_name:'raw'}},semantic_models:{'semantic_model.synthetic_bifocal.sales':{unique_id:'semantic_model.synthetic_bifocal.sales',...load(core.files[1].content).semantic_models[0],depends_on:{nodes:['model.synthetic_bifocal.sales']}}}}
+ for(const name of ['staging','sales'])resolvedManifest.nodes['model.synthetic_bifocal.'+name]={unique_id:'model.synthetic_bifocal.'+name,name,resource_type:'model',raw_code:core.files.find(f=>f.path==='models/'+name+'.sql').content,depends_on:{nodes:[name==='sales'?'model.synthetic_bifocal.staging':'source.synthetic_bifocal.raw.invoices']}}
+ for(const name of ['not_null','unique'])resolvedManifest.nodes['test.synthetic_bifocal.'+name]={unique_id:'test.synthetic_bifocal.'+name,name,resource_type:'test',test_metadata:{name,kwargs:{column_name:'invoice'}},depends_on:{nodes:['model.synthetic_bifocal.sales']}}
+ const resolvedCloud={...structuredClone(core),projectId:'synthetic-bifocal-dbt-cloud-projection',files:[{path:'target/manifest.json',content:JSON.stringify(resolvedManifest)}]}
+ for(const input of [core,resolvedCloud]){
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues));assert.deepEqual(plan.project.definition.views.map(v=>v.id),['sales'])
+  const resources=plan.project.report.project.resources,model=resources.find(r=>r.kind==='model'&&r.name==='sales'),checks=resources.filter(r=>r.kind==='test')
+  assert.equal(model.definition.translation.bindings[0].root,input===core?'source.raw.invoices':'source.synthetic_bifocal.raw.invoices');assert.deepEqual(model.definition.translation.bindings[0].columns,{invoice:'invoice',region:'region',net:'revenue'});assert.deepEqual(checks.map(r=>[r.definition.translation.test,r.definition.translation.results[0].rows,r.definition.translation.results[0].failures]),[['not_null',4,0],['unique',4,0]])
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId),exported=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},200)
+  assert.equal(exported.definition.views[0].query.measures[0].column,'revenue');const review=await call('/model-authoring/review',{document:dump(exported.definition),importProject:input.projectId,importRevision:imported.revision},200);assert.equal(review.compatible,true);assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,'30.00');assert.equal(review.impacts[0].answer.totals['unique-regions'].value,'2')
+  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/staging/);await proveScreen(input===core?'dbt-projection':'dbt-cloud-projection')
+  dbtProjects.push({input,plan})
+ }
+ for(const failure of ['not_null','unique']){
+  const id='synthetic-bifocal-dbt-failed-'+failure.replace('_','-'),source=id+'-source'
+  await upload(source,csv.replace('4,,,',failure==='not_null'?',,,':'3,,,'))
+  const input=structuredClone(core);input.projectId=id;input.bindings.sales.dataset=source
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_quality_check_failed'&&i.message.startsWith(failure)))
+  const checks=plan.project.report.project.resources.filter(r=>r.kind==='test');assert.equal(checks.find(r=>r.definition.translation.test===failure).definition.translation.results[0].failures,1)
+  await apply(id,plan);const imported=await call('/model-imports/'+id);await call('/model-imports/'+id+'/export',{reviewedRevision:imported.revision},409)
+  const current=await call('/datasets/'+source);await call('/datasets/'+source+'/erase',{confirmDataset:source,reviewedRevision:current.revision},200);await call('/model-imports/'+id,undefined,404)
+ }
+ for(const failure of ['sql','mapping','hook','custom-test','manifest-test']){
+  const input=structuredClone(failure==='manifest-test'?resolvedCloud:core);input.projectId='synthetic-bifocal-dbt-refused-'+failure
+  if(failure==='sql')input.files[2].content+=' where invoice > 1'
+  if(failure==='mapping')input.bindings.sales.columns.net='invoice'
+  if(failure==='hook')input.files[0].content+='on-run-start: ["select 1"]\n'
+  if(failure==='custom-test')input.files[1].content=input.files[1].content.replace('tests: [not_null, unique]','tests: [{unique: {config: {where: "invoice > 1"}}}]')
+  if(failure==='manifest-test'){const changed=JSON.parse(input.files[0].content);changed.nodes['test.synthetic_bifocal.unique'].raw_code='{{ test_not_null(**_dbt_generic_test_kwargs) }}';input.files[0].content=JSON.stringify(changed)}
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false,failure);assert.ok(plan.project.report.issues.some(i=>({sql:['unsupported_dbt_sql'],mapping:['dbt_projection_binding_mismatch'],hook:['unsupported_property'], 'custom-test':['unsupported_dbt_test'],'manifest-test':['unsupported_dbt_test']}[failure]).includes(i.code)),JSON.stringify(plan.project.report.issues))
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId);await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},409);dbtProjects.push({input,plan})
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
  const unsafePlan=await prepare(unsafe);assert.equal(unsafePlan.project.report.compatible,false);assert.deepEqual(unsafePlan.project.report.issues.filter(i=>['missing_dbt_dependency','cyclic_dbt_dependency'].includes(i.code)).map(i=>i.code).sort(),['cyclic_dbt_dependency','missing_dbt_dependency']);assert.match(unsafePlan.project.report.project.resources.find(r=>r.kind==='model').definition.raw_code,/run_query/);await apply(unsafe.projectId,unsafePlan);dbtProjects.push({input:unsafe,plan:unsafePlan})
@@ -161,9 +234,9 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const source=projects.find(input=>input.format===format)
   for(const problem of ['filter','expression','connection']){
    const input=structuredClone(source);input.projectId='synthetic-bifocal-'+format+'-'+problem
-   if(format==='metabase'){const card=JSON.parse(input.files[0].content);if(problem==='filter')card.dataset_query.query.filter=['=', ['field',2,null],'West'];else if(problem==='connection'){const database=JSON.parse(input.files[2].content);database.details={ssl:true};input.files[2].content=JSON.stringify(database)}else card.dataset_query.query.aggregation[0]=['sum',['+', ['field',3,null],1]];input.files[0].content=JSON.stringify(card)}
+   if(format==='metabase'){const card=JSON.parse(input.files[0].content);if(problem==='filter')card.dataset_query.query.filter=['or',['=', ['field',2,null],'West'],['=', ['field',2,null],'East']];else if(problem==='connection'){const database=JSON.parse(input.files[2].content);database.details={ssl:true};input.files[2].content=JSON.stringify(database)}else card.dataset_query.query.aggregation[0]=['sum',['+', ['field',3,null],1]];input.files[0].content=JSON.stringify(card)}
    else input.files[0].content=problem==='connection'?input.files[0].content.replace('class="textscan"','class="textscan" directory="."'):problem==='filter'?input.files[0].content.replace('</datasource>','<filter column="[region]"/></datasource>'):input.files[0].content.replace('SUM([revenue])','WINDOW_SUM(SUM([revenue]))')
-   const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>problem!=='expression'?i.code==='unsupported_property'||i.code==='unsupported_tableau_property'||i.code==='metabase_execution_pending':i.code==='metabase_execution_pending'||i.code==='unsupported_tableau_calculation'))
+   const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>problem!=='expression'?['unsupported_property','unsupported_tableau_property','metabase_execution_pending','unsupported_metabase_predicate'].includes(i.code):i.code==='metabase_execution_pending'||i.code==='unsupported_tableau_calculation'))
    await apply(input.projectId,plan);const current=await call('/model-imports/'+input.projectId)
    await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},409)
    await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:current.revision},409)

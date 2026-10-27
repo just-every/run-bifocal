@@ -1,5 +1,6 @@
 import { issue, physical, provenance, record, text, unknownKeys, yaml } from './common'
 import type { Dimension, Project, ProjectFile, ProjectResource } from './types'
+import { metabaseField, metabaseOutputs, metabaseQuery } from './metabase-query'
 
 /** Serialization YAML and individual API response objects, never live API calls. */
 export function readMetabase(p: Project, files: ProjectFile[]) {
@@ -64,7 +65,7 @@ export function readMetabase(p: Project, files: ProjectFile[]) {
   unknownKeys(p,resource,resource.id+'.dataset_query',dataset,['database','type','query'])
   const query=dataset.query
   if(dataset.type!=='query'||!record(query)||typeof query['source-table']!=='number'||!Array.isArray(query.aggregation)||!query.aggregation.length||query.aggregation.length>64){issue(p,resource,resource.id,'metabase_execution_pending','Only an explicit uploaded table and bounded aggregate MBQL query are translated.');continue}
-  unknownKeys(p,resource,resource.id+'.query',query,['source-table','aggregation'])
+  unknownKeys(p,resource,resource.id+'.query',query,['source-table','aggregation','filter','breakout'])
   const source=resources.find(r=>r.id==='Table.'+query['source-table']),database=resources.find(r=>r.id==='Database.'+dataset.database)
   if(!source||!database||source.definition.db_id!==dataset.database||!Array.isArray(source.definition.fields)){issue(p,resource,resource.id,'metabase_execution_pending','Include the matching table field catalog and database identity.');continue}
   table.sourceTable=String(source.definition.name)
@@ -76,13 +77,13 @@ export function readMetabase(p: Project, files: ProjectFile[]) {
    if(!type||fields.has(field.id)||table.dimensions.some(d=>d.name===field.name)){issue(p,resource,source.id,'unsupported_metabase_field','Resolve duplicate fields and unsupported source types.');continue}
    fields.set(field.id,{name:String(field.name),type});table.dimensions.push({...resource,name:String(field.name),column:String(field.name),type,sourceType,primaryKey:false,sourceExpression:JSON.stringify(['field',field.id,null])})
   }
-  const outputs=value.result_metadata
-  if(!Array.isArray(outputs)||outputs.length!==query.aggregation.length){issue(p,resource,resource.id,'metabase_execution_pending','Include the exact aggregate result field names.');continue}
+  const groups=metabaseQuery(p,resource,query,fields,p.explores.find(e=>e.name===resource.name)!)
+  const outputs=metabaseOutputs(p,resource,value.result_metadata,groups,query.aggregation.length)
+  if(!outputs)continue
   for(const [index,aggregate] of query.aggregation.entries()){
-   const output=outputs[index],field=Array.isArray(aggregate)&&Array.isArray(aggregate[1])?aggregate[1]:null,resolved=field?fields.get(field[1]):null
-   if(record(output))unknownKeys(p,resource,resource.id+'.result_metadata',output,['name','base_type'])
-   if(!Array.isArray(aggregate)||aggregate.length!==2||!['sum','distinct'].includes(aggregate[0])||!field||field.length!==3||field[0]!=='field'||field[2]!==null||!resolved||!record(output)||!physical(output.name)||aggregate[0]==='sum'&&!['number','money'].includes(resolved.type)){issue(p,resource,resource.id,'metabase_execution_pending','Translate this aggregate expression; only sum and distinct of a declared physical field are supported.');continue}
-   table.measures.push({...resource,name:String(output.name),column:resolved.name,op:aggregate[0]==='sum'?'sum':'count-distinct',sourceExpression:JSON.stringify(aggregate)})
+   const output=outputs[index],resolved=Array.isArray(aggregate)?metabaseField(aggregate[1],fields):null,rowCount=Array.isArray(aggregate)&&aggregate.length===1&&aggregate[0]==='count'
+   if(!Array.isArray(aggregate)||!rowCount&&(aggregate.length!==2||!['sum','distinct','count'].includes(aggregate[0])||!resolved)||!record(output)||!physical(output.name)||aggregate[0]==='sum'&&!['number','money'].includes(resolved!.type)){issue(p,resource,resource.id,'metabase_execution_pending','Translate this aggregate expression; only sum, distinct and count of physical fields or row count are supported.');continue}
+   table.measures.push({...resource,name:String(output.name),...(resolved?{column:resolved.name}:{}),op:aggregate[0]==='sum'?'sum':aggregate[0]==='count'?'count':'count-distinct',sourceExpression:JSON.stringify(aggregate)})
   }
   issue(p,resource,table.name,'source_table_binding','Map this source table to reviewed native records; source permissions never grant native access.')
  }
