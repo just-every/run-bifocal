@@ -39,7 +39,7 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
   if(!row||actor.id!==row.owner_id&&actor.id!==row.operator_id)fail('collaboration_subject_not_found',404)
   ownerId=row.owner_id
   if(actor.id===ownerId&&actor.role!=='owner')fail('collaboration_subject_not_found',404)
-  await addSnapshot(id,ownerId);title='Saved analysis';href=snapshots[0].context.exploration?'/app/questions/'+id:'/app/queries/'+id
+  await addSnapshot(id,ownerId);title='Saved analysis';href=snapshots[0].context.exploration&&actor.id!==ownerId?'/app/questions/'+id:'/app/queries/'+id
  }else{
   if(actor.role!=='owner')fail('collaboration_subject_not_found',404)
   if(kind==='metric'){

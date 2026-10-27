@@ -36,8 +36,8 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  const openQuestionThread=async(target,label)=>{
   for(const width of [1440,390]){
    await target.setViewportSize({width,height:1000})
-   await target.goto(origin+'/app/questions/'+subject.id)
-   await target.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
+   await target.goto(origin+(target===page?'/app/queries/':'/app/questions/')+subject.id)
+   await target.getByRole('status').filter({hasText:target===page?'Answer loaded':'Saved question reopened'}).waitFor()
    assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    if(target===page)await proveScreen(label,{widths:[width],resize:false})
    else if(process.env.BIFOCAL_PROOF_DIR)await target.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})
@@ -69,6 +69,25 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  await page.locator('#collaboration-comments').getByText('Renewals explain the October revenue spike.',{exact:false}).waitFor()
  await proveScreen('collaboration-private-dashboard-thread')
 
+ const chartDocument={version:1,title:'Revenue by region',definition:query,visual:{kind:'bar',dimension:'region',measure:'revenue'}}
+ const chartReview=await call(owner,'/chart-definitions/review',{document:chartDocument},200)
+ const chart=await call(owner,'/chart-definitions/create',{document:chartDocument,reviewedDigest:chartReview.digest})
+ const boardDocument={version:2,title:'October revenue dashboard',cards:[{key:'regions',definition:query},{key:'west',definition:{...query,filters:[{column:'region',op:'eq',value:west}]}}],layout:{desktop:[{key:'regions',x:0,y:0,w:6,h:4},{key:'west',x:6,y:0,w:6,h:4}],phone:[{key:'regions',x:0,y:0,w:1,h:4},{key:'west',x:0,y:4,w:1,h:4}]}}
+ const draft=await call(owner,'/dashboard-authoring/review',{document:boardDocument},200)
+ const authored=await call(owner,'/dashboard-authoring/apply',{document:boardDocument,reviewedDigest:draft.digest})
+ const publication={revision:authored.revision,previousGeneration:authored.generation}
+ const publicationReview=await call(owner,'/dashboard-authoring/'+authored.id+'/publication/review',{...publication,action:'publish'},200)
+ await call(owner,'/dashboard-authoring/'+authored.id+'/publish',{...publication,reviewedDigest:publicationReview.digest},200)
+ for(const [kind,id,path] of [['chart',chart.id,'/app/charts/'+chart.id],['authored-dashboard',authored.id,'/app/dashboard-authoring/'+authored.id+'/view']]){
+  await resolve(reader,{kind,id},404)
+  await call(owner,'/collaboration/comments',{kind,id,body:'Review the regional revenue split.',point:null,mentions:[]})
+  await page.goto(origin+path)
+  if(kind==='authored-dashboard')await page.locator('#published-dashboard [data-card-key]').first().waitFor()
+  await proveScreen('collaboration-'+kind+'-source')
+  await page.getByRole('link',{name:'Comments and sharing',exact:true}).click()
+  await page.locator('#collaboration-comments').getByText('Review the regional revenue split.',{exact:true}).waitFor()
+  await proveScreen('collaboration-'+kind+'-thread')
+ }
  const notificationsBefore=await call(reader,'/collaboration/notifications')
  const pointComment=await call(owner,'/collaboration/comments',{...subject,body:'Review the two West renewals on October 2.',point:0,mentions:[]})
  const point= (await resolve(reader,subject)).comments.find(comment=>comment.id===pointComment.id)
