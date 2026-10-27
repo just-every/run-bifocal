@@ -1,6 +1,6 @@
 // Test scheduling only: real native requests and D1 handle both operations.
 import worker from '../../src/server.dev'
-let pending,originalAuditEntry
+let pending,originalAuditEntry,originalAuditHead
 const statements=new WeakMap()
 export default {
  async fetch(request,env,execution){
@@ -16,6 +16,18 @@ export default {
     try{await env.DB.prepare('UPDATE bf_security_audit SET event_json=event_json WHERE sequence=?').bind(row.sequence).run()}catch{updateRefused=true}
     try{await env.DB.prepare('DELETE FROM bf_security_audit WHERE sequence=?').bind(row.sequence).run()}catch{deleteRefused=true}
     return Response.json({updateRefused,deleteRefused})
+   }
+   if(input.action==='audit-invalidate-head'){
+    originalAuditHead=await env.DB.prepare('SELECT signature FROM bf_security_audit_head WHERE singleton=1').first()
+    await env.DB.prepare('DROP TRIGGER bf_security_audit_head_monotonic').run()
+    await env.DB.prepare("UPDATE bf_security_audit_head SET signature='synthetic-bifocal-invalid' WHERE singleton=1").run()
+    return Response.json({changed:true})
+   }
+   if(input.action==='audit-repair-head'){
+    await env.DB.prepare('UPDATE bf_security_audit_head SET signature=? WHERE singleton=1').bind(originalAuditHead.signature).run()
+    await env.DB.prepare("CREATE TRIGGER bf_security_audit_head_monotonic BEFORE UPDATE ON bf_security_audit_head WHEN NEW.sequence != OLD.sequence+1 BEGIN SELECT RAISE(ABORT,'security_audit_chain_conflict'); END").run()
+    originalAuditHead=null
+    return Response.json({repaired:true})
    }
    if(input.action==='audit-corrupt'){
     originalAuditEntry=await env.DB.prepare('SELECT sequence,event_json FROM bf_security_audit ORDER BY sequence LIMIT 1').first()

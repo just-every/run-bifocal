@@ -107,7 +107,7 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
    const response=await owner.request.get(origin+'/api/operator/security/ip-policy',{headers:{'x-security-test-ip':ip,'X-Forwarded-For':ingress}})
    assert.equal(response.status(),expected,'Only the ingress address controls network admission: '+ip)
   }
-  for(const path of ['/app/settings','/app/settings/security','/auth/session','/api/operator/explore','/api/v1/definitions','/api/operator/portal/tenants']){
+  for(const path of ['/app/settings','/app/settings/security','/auth/session','/api/operator/explore','/api/v1/definitions','/api/operator/portal/tenants','/api/operator/inputs','/app/inputs']){
    const response=await owner.request.get(origin+path,{headers:{'x-security-test-ip':'203.0.113.9'}})
    assert.equal(response.status(),403,'Every private router is behind IP admission')
   }
@@ -115,7 +115,7 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   await page.goto(origin+'/app/settings');await page.getByRole('link',{name:'Security and audit',exact:true}).waitFor();await proveScreen('security-settings-entry')
   await page.getByRole('link',{name:'Security and audit',exact:true}).click();await page.getByRole('status').filter({hasText:'IP allowlist is enabled.'}).waitFor();await proveScreen('security-policy-enabled')
   await page.getByLabel('Allowed addresses and prefixes').fill(ingress+'\n2001:db8:7::/48');await page.getByLabel('I approve this exact network policy').check();await page.getByRole('button',{name:'Save reviewed policy'}).click();await page.getByRole('status').filter({hasText:'Network policy saved.'}).waitFor()
-  active=await policy();assert.deepEqual(active.prefixes,[ingress,'2001:db8:7::/48'])
+  active=await policy();assert.deepEqual(active.prefixes,[ingress,'2001:db8:7::/48']);await proveScreen('security-policy-saved')
   await page.getByLabel('Allowed addresses and prefixes').fill('invalid');await page.getByLabel('I approve this exact network policy').check();await page.getByRole('button',{name:'Save reviewed policy'}).click();await page.getByRole('status').filter({hasText:'Not saved:'}).waitFor();assert.equal(await page.getByLabel('Allowed addresses and prefixes').inputValue(),'invalid');await proveScreen('security-policy-refused')
   const dataset='synthetic-bifocal-security',calendar=dataset
   await upload(dataset,'invoice,region,revenue,note\ninv-west,West,$10.01,'+secret+'\ninv-east,East,$20.02,excluded\ninv-hidden,Hidden,$99.00,excluded\n',false,false,edge)
@@ -153,6 +153,13 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   await fixture('audit-corrupt')
   try{const changed=await audit();assert.equal(changed.valid,false);assert.deepEqual(changed.events,[]);await page.getByRole('button',{name:'Verify audit chain'}).click();await page.getByRole('status').filter({hasText:'Audit integrity failed.'}).waitFor();await proveScreen('security-audit-tampered')}finally{await fixture('audit-repair-fixture')}
   assert.equal((await audit()).valid,true)
+  await fixture('audit-invalidate-head')
+  try{
+   await call('/queries/'+ownerQuestion.snapshotId,undefined,owner,503)
+   await call('/security/audit',undefined,owner,503)
+   await page.getByRole('button',{name:'Verify audit chain'}).click();await page.getByRole('status').filter({hasText:'Audit verification unavailable.'}).waitFor();await proveScreen('security-audit-unavailable')
+  }finally{await fixture('audit-repair-head')}
+  assert.equal((await audit()).valid,true)
   await call('/explore/access/'+issued.id+'/revoke',{})
   await call('/explore/'+question.snapshotId+'/export',{scope:'summary',format:'csv'},reader,403)
   const memberPage=await reader.newPage();await memberPage.setExtraHTTPHeaders(edge)
@@ -160,5 +167,5 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   await page.setExtraHTTPHeaders({'x-security-test-ip':'203.0.113.9'});assert.equal((await page.goto(origin+'/app/settings/security')).status(),403);await proveScreen('security-network-refused')
  } finally {const current=await policy();await policy({previousRevision:current.revision,enabled:original.enabled,prefixes:original.prefixes});await page.setExtraHTTPHeaders({})}
  assert.equal((await audit()).valid,true)
- console.log('Security public doors: native owner policy, IPv4 and IPv6 admission and refusal, restricted member export, current scope, redaction, append-only guards and tamper detection passed at 1440 and 390')
+ console.log('Security public doors: native owner policy, IPv4 and IPv6 admission and refusal, restricted member export, current scope, redaction, append-only guards, tamper detection and unavailable-audit refusal passed at 1440 and 390')
 }

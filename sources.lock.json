@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1ab84b9f818864a9deab075a608a53d0ae8f5004e10b19e319db44eafc1edfbd",
+      "sha256": "4cab8710016fe6c7d0a2a6ad6bf531b50a134f97787955c21e96a7ccd8476fb6",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "49dfc08987882d96a6855744b8e64b8743ac3f6a1c792f5fd1d58e2d17f0750f",
+      "sha256": "914157880fd3250984742fe036ff2d509a3460020da5ee8aa0987afd8b9f839c",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4693,7 +4693,7 @@
       "executable": false
     },
     "tests/journeys/entitlement-boundary-worker.mjs": {
-      "sha256": "6656fb765abe06e8dfce72a649f7e951c8bbd04c8c543dfb244fb4b2514495e5",
+      "sha256": "3726b56ce6cfbd87bd7da0ccaa8ca18b6cb591fafb92a975240f2a811fbbef2d",
       "executable": false
     },
     "tests/journeys/entitlement-clock.mjs": {
@@ -4717,7 +4717,7 @@
       "executable": false
     },
     "tests/journeys/export-policy.mjs": {
-      "sha256": "95b40768c1c763016bc01c7b547555cdac4d836afe57ae47f249ee243456503a",
+      "sha256": "1f2ae1b0653fb691e526356379fa2db0618a33a5fbc28c16b46440f985bd6ddb",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
