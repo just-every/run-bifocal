@@ -207,7 +207,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const portalArchive=await restoredContext.request.get(portalRoot+'/archive')
   assert.equal(portalArchive.status(),200);assert.deepEqual((await portalArchive.json()).releases,portal.releases)
   const portalUsage=await restoredContext.request.get(portalRoot+'/usage');assert.deepEqual(await portalUsage.json(),portal.usage)
-  const stalePortal=await restoredContext.request.post(portalRoot+'/jobs/'+portal.job.id+'/run',{headers:{Origin:origin,Authorization:'Bearer '+portal.issued.token},data:{}})
+  const stalePortal=await restoredContext.request.post(portalRoot+'/export',{headers:{Origin:origin,Authorization:'Bearer '+portal.issued.token},data:{}})
   assert.equal(stalePortal.status(),409,'Restored installation cannot serve a pre-archive export')
   const deniedPortal=await restoredContext.request.post(portalRoot+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}})
   assert.equal(deniedPortal.status(),409,'Restored preview requires fresh owner review and activation')
