@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveEntitlementBoundaries} from './journeys/entitlement-boundaries.mjs'
 import {execFileSync} from 'node:child_process'
 import {unzipSync,strFromU8} from 'fflate'
 import {DOMParser} from '@xmldom/xmldom'
@@ -220,6 +221,8 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
   assert.equal(r.status(),expected,await r.text());return r.headers()['content-type']?.startsWith('application/json')?r.json():r
  }
  try {
+ await clock.set('2026-10-27T12:00:00.000Z')
+ assert.equal(fixtureSql("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc")[0].utc,'2026-10-27T12:00:00.000Z')
  const people=await(await owner.request.get(origin+'/auth/operators')).json(),manager=people.find(p=>p.id===readerId)
  const invite=async(name)=>{
   const email='synthetic-bifocal-'+name+'@example.test'
@@ -316,6 +319,7 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  await call(reader,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},409)
  await run(actors[0],['five','two']);await run(rep,['two']);await run(next,['one']);await run(nextManager,['one'])
  assert.ok(!(await call(reader,'/explore')).questions.some(q=>q.id===managerRun.snapshotId),'Reassignment removes cached question metadata')
+ await proveEntitlementBoundaries({owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision:()=>revision,map})
  await upload(hierarchy,tree(true),true)
  assert.equal((await call(owner,'/explore/entitlements/review',{definition,previousRevision:revision},409)).error,'cyclic_entitlement_hierarchy')
  await upload(hierarchy,tree(),true);await upload(mapping,map(next.person.email),true)
