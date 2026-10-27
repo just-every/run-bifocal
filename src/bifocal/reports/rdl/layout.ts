@@ -1,4 +1,4 @@
-import type { Scene, TextBox } from '../../dashboards/snapshots/scene'
+import type { Scene } from '../../dashboards/snapshots/scene'
 import { fail } from '../../query/types'
 import type { ReportCell } from './values'
 export type ReportRow = {cells: ReportCell[]; widths: number[]; location: string; page?: number}
@@ -52,8 +52,6 @@ export function reportLayout(options: {width: number; height: number; left: numb
   if (pages.length >= 200) fail('rdl_interactive_page_limit', 413)
   page = {title: 'Report page ' + (pages.length + 1), tab: String(pages.length + 1), shapes: []}; pages.push(page); y = bodyTop; bodyRows = 0
   let offset = top; for (const row of header) offset += draw(row, offset)
-  offset = height - bottom - footerHeight; for (const row of footer) offset += draw(row, offset)
-  page.shapes.push({kind: 'text', x: left + 6, y: height - bottom - 20, w: usable - 12, h: 18, size: 13, lines: [''], label: 'Readable page number'})
   for (const row of repeat) {if (y + measure(row).height > bodyBottom - 40) fail('rdl_repeated_headings_do_not_fit'); y += draw(row, y)}
  }
  begin()
@@ -68,7 +66,11 @@ export function reportLayout(options: {width: number; height: number; left: numb
   repeat(rows: ReportRow[]) {repeat = rows},
   break() {if (bodyRows) begin()},
   finish() {
-   pages.forEach((p, i) => {(p.shapes.find(s => s.label === 'Readable page number') as TextBox).lines = ['Page ' + (i + 1) + ' of ' + pages.length]})
+   pages.forEach((p, i) => {
+    page = p; let offset = height - bottom - footerHeight
+    for (const row of footer) offset += draw(row, offset)
+    page.shapes.push({kind: 'text', x: left + 6, y: height - bottom - 20, w: usable - 12, h: 18, size: 13, lines: ['Page ' + (i + 1) + ' of ' + pages.length], label: 'Readable page number'})
+   })
    return {pages, rows, pageSize: {width, height}, furniture: {header, footer}}
   },
  }
