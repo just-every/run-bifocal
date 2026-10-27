@@ -599,7 +599,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `31bee5e258a5a42e28ad925fc5d25b7898c6a134` (28 October 2026). BIF-016 records bounded synchronous owner query alerts and remains partial. BIF-081 records bounded native visual inventory and declarative charts. BIF-030 retains its input-template candidate code at `63988039384191e021957c445a6a5fc834cb5da3` and its newer main evidence. Full custom-visual parity and the governed extension lifecycle remain unproved. Other clause evidence and CT rulings remain recorded per clause. This local proof makes no new DONE judgment; both clauses remain partial.
+Judged from the code and tests at commit `690623d4e5d52b9729910b3705f1022a299cac61` (28 October 2026). BIF-016 records bounded synchronous owner query alerts and remains partial. Its focused native browser journey passed at this code pin with all alert states inspected at 1440 and 390; direct native probes and public HTTP probes also passed for literal dotted CSV dimensions and weighted totals changing from 15.00 to 12.50 with unchanged group scores. The metadata candidate changes no relevant source or test bytes from this pin. BIF-081 records bounded native visual inventory and declarative charts. BIF-030 retains its input-template candidate code at `63988039384191e021957c445a6a5fc834cb5da3` and its newer main evidence. Full custom-visual parity and the governed extension lifecycle remain unproved. Other clause evidence and CT rulings remain recorded per clause. This local proof makes no new DONE judgment; both clauses remain partial.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
