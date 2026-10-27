@@ -6,6 +6,7 @@ import {prepareQuery,sourceMatch} from '../data/snapshots/store'
 import type {fileOwner} from '../imports/files/owner.server'
 import {fail} from '../query/types'
 import {metric,metricGuard,metricValue,revision} from './store.server'
+import {chartDocument} from '../charts/protocol'
 import {details,document,exact,hidden,result,text} from './transport'
 
 /** A series varies only the date grouping of the exact certified measure. */
@@ -18,7 +19,7 @@ export async function metricSeries(request:Request,env:Bindings,owner:NonNullabl
  if(Number(input.revision)!==rev.revision||!rev.approved_at)fail('certified_metric_changed',409)
  const evaluation=await metricValue(env,ownerId,row,rev)
  if(!evaluation.sources[0].table.columns.some(column=>column.name===dateColumn&&column.type==='date'))fail('metric_date_column_required',400)
- const definition={...evaluation.query,groupBy:[dateColumn]},visual={kind:'bar' as const,dimension:dateColumn,measure:definition.measures[0].id}
+ const chart=chartDocument({version:1,title,definition:{...evaluation.query,groupBy:[dateColumn]},visual:{kind:'bar',dimension:dateColumn,measure:evaluation.query.measures[0].id}}),{definition,visual}=chart
  const reference={id,revision:rev.revision,digest:rev.digest}
  const guards=[metricGuard(row),sql('EXISTS(SELECT 1 FROM bf_metric_revisions WHERE metric_id=? AND revision=? AND digest=? AND approved_at IS NOT NULL)',id,rev.revision,rev.digest),...evaluation.context.guards??[],...evaluation.sources.map(sourceMatch)]
  const digest=sha256(canonicalJson({ownerId,title,definition,reference,guards}))

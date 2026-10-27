@@ -180,7 +180,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.ok((await call(reader,'/collaboration/notifications')).notifications.every(notification=>!removed.has(notification.id)))
  assert.ok((await resolve(owner,subject)).comments.some(comment=>comment.id===pointComment.id),'Owner retains the discussion after delegated authority is withdrawn')
 
- const metricCharts=await proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,timezone:owned.context.timezone})
+ const metricCharts=await proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,upload,timezone:owned.context.timezone})
  const source=await call(owner,'/datasets/'+dataset)
  const erased=await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
  for(const store of ['bf_collaboration_comments','bf_collaboration_links','bf_collaboration_notifications','bf_collaboration_annotations'])assert.ok(erased.stores.some(entry=>entry.store===store&&entry.rows>0),'Erasure accounts for '+store)
@@ -191,7 +191,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  console.log('Collaboration: native scoped answers, data-point comments, permitted mentions, private notification links, dashboard threads, recipient binding, expiry, revocation and metric revision annotations passed at 1440 and 390')
 }
 
-async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,timezone}) {
+async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,upload,timezone}) {
  const metricId='synthetic-bifocal-2820',definition={name:'Certified revenue',description:'synthetic-bifocal-2822',grain:'invoice',unit:'money',timezone,accountingBasis:'accrual',query:{...query,groupBy:[]}}
  const metric=await call(owner,'/metrics',{id:metricId,definition})
  await call(owner,'/metrics/'+metricId+'/approve',{revision:1,digest:metric.digest,confirm:'approve',annotation:'synthetic-bifocal-2823'},200)
@@ -258,5 +258,21 @@ async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call
  assert.equal(revised.context.metric.revision,2)
  assert.ok(!(await resolve(owner,{kind:'answer',id:revised.queryId})).annotations.some(item=>item.id===annotation.id),'A prior revision annotation never silently moves to a new definition')
  assert.ok((await resolve(owner,{kind:'answer',id:first.queryId})).annotations.some(item=>item.id===annotation.id),'The retained prior answer keeps its original metric annotation')
- return [firstChartId,secondChart.id,nextChart.id]
+ const corrected=await call(owner,'/collaboration/annotations',{metricId,revision:2,body:'Revenue source corrected.',point:'2026-10-02'})
+ const metricSubject={kind:'metric',id:metricId},metricThread=await resolve(owner,metricSubject)
+ const sourceLink=await call(owner,'/collaboration/links',{...metricSubject,recipientId:metricThread.members[0].id,expiresAt:new Date(Date.now()+60000).toISOString(),public:false})
+ await call(owner,'/collaboration/links/'+sourceLink.id)
+ await upload(query.dataset,'invoice,date,region,revenue\nsynthetic-bifocal-2805,10/01/2026,West,$100.00\nsynthetic-bifocal-2806,10/02/2026,West,$500.00\nsynthetic-bifocal-2807,10/02/2026,East,$9000.00\n',true)
+ await call(owner,'/collaboration/links/'+sourceLink.id,undefined,403)
+ await call(owner,seriesPath+'create',{...nextInput,reviewedDigest:nextReview.digest},409)
+ assert.deepEqual((await resolve(owner,metricSubject)).annotations.map(item=>item.id),[corrected.id],'Source refresh keeps the metric revision annotation without reviving the old link')
+ const refreshedReview=await call(owner,seriesPath+'review',nextInput,200)
+ assert.deepEqual(refreshedReview.answer.rows.map(row=>[row.dimensions[0],row.values.revenue.value]),[['2026-10-01','100.00'],['2026-10-02','9500.00']])
+ const refreshed=await call(owner,seriesPath+'create',{...nextInput,reviewedDigest:refreshedReview.digest})
+ assert.equal(refreshed.answer.totals.revenue.value,'9600.00')
+ assert.deepEqual((await call(owner,'/charts/'+refreshed.id)).annotations.map(item=>item.id),[corrected.id])
+ const historical=await call(owner,'/charts/'+firstChartId)
+ assert.equal(historical.answer.totals.revenue.value,'9550.00')
+ assert.deepEqual(historical.annotations.map(item=>item.id),[annotation.id])
+ return [firstChartId,secondChart.id,nextChart.id,refreshed.id]
 }
