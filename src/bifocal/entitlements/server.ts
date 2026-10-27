@@ -79,6 +79,7 @@ export async function entitlementScope(env:Bindings,actor:Authority,owner:string
  const person=await env.DB.prepare("SELECT email FROM oa_operators WHERE id=? AND status='active'").bind(actor.id).first<{email:string}>()
  if(!person)fail('entitlement_mapping_missing',403)
  const principal=normalize(person.email,document.definition.normalization),column=identityColumn(document.definition.normalization)
+ // Native email changes preserve sessions and grants; bind the evaluated principal to its operator.
  const identityGuard=sql(`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active' AND ${column}=? COLLATE BINARY) AND (SELECT count(*) FROM oa_operators WHERE status='active' AND ${column}=? COLLATE BINARY)=1`,actor.id,principal,principal)
  const unique=await env.DB.prepare(`SELECT count(*) AS n FROM oa_operators WHERE status='active' AND ${column}=? COLLATE BINARY`).bind(principal).first<{n:number}>()
  if(unique?.n!==1)fail('ambiguous_entitlement_principal',409)
@@ -121,6 +122,7 @@ export async function entitlementResponse(request:Request,env:Bindings,actor:Aut
  const principals=people.map(p=>normalize(p.email,definition.normalization))
  if(new Set(principals).size!==principals.length)fail('ambiguous_entitlement_principal',409)
  const document:Document={definition,sources:sources.map(s=>({id:s.id,revision:s.revision,digest:sha256(s.value_json)}))},revision=Number(previous??0)+1,digest=sha256(canonicalJson({document,previous,modelRevision:model.production}))
+ // Account activation can introduce a collision after validation and before publication.
  const identities=sql(`NOT EXISTS(SELECT 1 FROM oa_operators WHERE status='active' GROUP BY ${identityColumn(definition.normalization)} HAVING count(*)>1)`)
  const guards=[policyGuard(actor.id,model.id,definition.viewId,previous as number|null),modelGuard(model),identities,...sources.map(sourceMatch)]
  if(path.endsWith('/review')){await transact(env.DB,actor,[...guards.map(assertion),audit(actor,model.id,definition.viewId,revision,digest,'review')]);return json({document,revision,digest,additionalRestrictionOnly:true})}

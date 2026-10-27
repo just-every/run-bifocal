@@ -1869,7 +1869,7 @@
       "executable": false
     },
     "src/bifocal/entitlements/server.ts": {
-      "sha256": "5bc4c954276f5adbb8dd0044cb7dd6127ea0cd5e7be876b1afc4de00a027c660",
+      "sha256": "bf36b2d4484f5b6f8e1bc0c366c87718c8af1a013d5403668b8840bdd33502fe",
       "executable": false
     },
     "src/bifocal/environments/dependencies.server.ts": {
