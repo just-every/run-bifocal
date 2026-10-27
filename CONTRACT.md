@@ -593,7 +593,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `bd85fd45293d9209a25a0785be3c98e455687d3d` (27 October 2026). Status rows retain existing CT judgments and add the bounded preparation evidence listed below. BIF-005 remains partial; no new DONE judgment is claimed. The 27 October CT ruling approves the bounded BIF-071 policy with riders; BIF-071 and BIF-019 remain partial.
+Judged from the code and tests at commit `5459b1e455b0089ad8f4ddc4b0acc8a3ff4e5241` (27 October 2026). Status rows retain existing CT judgments and add the bounded preparation evidence listed below. BIF-005 remains partial; no new DONE judgment is claimed. The 27 October CT ruling approves the bounded BIF-071 policy with riders; BIF-071 and BIF-019 remain partial.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
