@@ -1,3 +1,18 @@
+const readErrors={
+ web_read_cancelled:'Source read cancelled.',
+ web_nonterminating_pagination:'The source did not finish paging. Check its continuation settings before another read.',
+ web_rate_limited:'The source rate limit stopped this read. Wait until the source allows another request.',
+ web_authorization_expired:'Source authorization expired or was refused. Authorize a new read.',
+ web_destination_not_approved:'Choose an endpoint on an approved source origin.',
+ public_https_origin_required:'Choose an approved public HTTPS source.',
+ web_redirect_refused:'The source redirected this read. Enter its approved read endpoint directly.',
+ web_missing_path:'The response does not match the configured row or column paths.',
+ web_partial_response_refused:'The source returned only part of a response. A complete snapshot is required.',
+ web_response_limit:'The complete source response exceeds the read limit.',
+ web_read_time_limit:'The source did not finish within the read time limit.'
+}
+const readableError=error=>Object.hasOwn(readErrors,error.message)?new Error(readErrors[error.message],{cause:error}):error
+
 /** Web reads use the existing review, apply, reconcile, history and Undo UI. */
 export function attachWebSource({action,request,call,load,renderPlan,status,dataset}) {
  const form=document.getElementById('web-source-form'),cancel=document.getElementById('web-source-cancel')
@@ -20,7 +35,7 @@ export function attachWebSource({action,request,call,load,renderPlan,status,data
    const result=await request('/api/operator/web-source/preview',input,id)
    if(active.cancelled)throw Error('Source read cancelled; no dataset was applied.')
    renderPlan(result,id)
-  } finally {
+  } catch(error){throw readableError(error)} finally {
    active=null;cancel.disabled=true;cancel.dataset.previousDisabled='true';input.accessToken=''
    form.elements.consent.checked=false;form.elements.snapshotConsent.checked=false
   }
@@ -29,6 +44,6 @@ export function attachWebSource({action,request,call,load,renderPlan,status,data
   if(!active)return
   cancel.disabled=true
   try {await request('/api/operator/web-source/cancel',{datasetId:active.datasetId,readId:active.readId},active.datasetId);if(active)active.cancelled=true;status('Cancellation requested. Waiting for the current bounded page to finish…')}
-  catch(error){status(error.message,true);cancel.disabled=false}
+  catch(error){status(readableError(error).message,true);cancel.disabled=false}
  }
 }

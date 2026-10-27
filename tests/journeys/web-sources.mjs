@@ -58,7 +58,7 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
    const cancelResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/web-source/cancel' && response.request().method()==='POST')
    await form.getByRole('button',{name:'Cancel source read'}).click();assert.equal((await cancelResponse).status(),200)
   } finally {state.webPhase='success';state.releaseWebPage?.();state.releaseWebPage=null}
-  await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('web_read_cancelled'))
+  await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true')
   assert.deepEqual((await read(id)).table.rows,expected);assert.ok(state.webCalls-started<20,'cancellation stops pagination before its page bound');await shot('cancelled',width)
   state.webPhase='success'
   for(const [phase,status,error] of [['partial',502,'web_partial_response_refused'],['oversize',413,'web_response_limit'],['rate',429,'web_rate_limited'],['expired',409,'web_authorization_expired'],['schema',502,'web_missing_path'],['private-next',400,'public_https_origin_required'],['foreign-next',403,'web_destination_not_approved'],['redirect',409,'web_redirect_refused'],['repeated',409,'web_nonterminating_pagination']]) {

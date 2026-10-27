@@ -965,7 +965,7 @@
       "executable": false
     },
     "public/bifocal/web-source.js": {
-      "sha256": "2208952b4fe2f61771e91b85bf412d986b9d037452e40499b0ada7cb239ca3a6",
+      "sha256": "67aa837458b22c5539ec2256c6af1967d418d26a4e185c7c89b62936caf8dc17",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -4837,7 +4837,7 @@
       "executable": false
     },
     "tests/journeys/web-sources.mjs": {
-      "sha256": "e6bbff8e34ef50d075b5b7a54e682598a7e43d878f29014fa184de66840ca8b7",
+      "sha256": "5a889f6d8e245d0455f23afe4a10695d372b697916b08eabe2f5857c3041c979",
       "executable": false
     },
     "tests/runtime.mjs": {
