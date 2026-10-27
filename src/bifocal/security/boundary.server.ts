@@ -27,7 +27,10 @@ export async function securityBoundary(request:Request,original:Bindings,next:()
   if(audited){
    const reference=/^\/api\/operator\/(?:queries|explore)\/([a-f0-9-]{36})(?:\/|$)/.exec(path)?.[1]
    const note=queryNote(request)??(reference?{queryId:reference}:undefined),segment=path.split('/').at(-1)??'',action=['export','full-export','export-snapshot'].includes(segment)?'export':segment==='export-plan'?'export-plan':request.method==='GET'?'view':segment==='run'||segment==='rerun'?'query':'definition-change'
-   await appendAudit(env,actor??sql('1'),{actorId:actor?.id??null,delegatedCredential:null,tenantId:null,action,outcome:response.ok?'allowed':'refused',httpStatus:response.status,...note??{},...note&&'scope' in note?{scope:{...note.scope,exportRows:response.headers.has('x-bifocal-row-count')?Number(response.headers.get('x-bifocal-row-count')):null}}:{}},[assertion(policyGuard(current))])
+   // A native refusal contains no analytical result. Retain its observed actor
+   // after session revocation without authorizing any data read or mutation.
+   const refused=[400,401,403,404,405,409,410,422].includes(response.status)
+   await appendAudit(env,refused?sql('1'):actor??sql('1'),{actorId:actor?.id??null,delegatedCredential:null,tenantId:null,action,outcome:response.ok?'allowed':'refused',httpStatus:response.status,...note??{},...note&&'scope' in note?{scope:{...note.scope,exportRows:response.headers.has('x-bifocal-row-count')?Number(response.headers.get('x-bifocal-row-count')):null}}:{}},[assertion(policyGuard(current))])
   }else await transact(env.DB,sql('1'),[assertion(policyGuard(current))])
   return response
  }catch{return refusal(request,503,'security_integrity_unavailable')}
