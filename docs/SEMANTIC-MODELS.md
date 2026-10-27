@@ -60,7 +60,7 @@ and [DAX DISTINCTCOUNT](https://learn.microsoft.com/en-us/dax/distinctcount-func
 
 ## dbt project inventory
 
-Choose the dbt format to review a Core project with `dbt_project.yml`, SQL model
+Choose the dbt format and **Original project folder** to review a Core project with `dbt_project.yml`, SQL model
 files and schema YAML, or a Core or Cloud `manifest.json` artifact (manifest
 schema versions 9 through 12). The same public project envelope and reviewed
 import routes apply. Do not upload connection profiles or credentials.
@@ -85,7 +85,9 @@ unfinished under BIF-005 and BIF-070.
 
 Choose PBIP and upload the project descriptor, report `definition.pbir`, semantic
 model `definition.pbism` and textual TMDL files with their original relative
-paths. Descriptor references resolve only inside the uploaded project. The
+paths. Select **Original project folder** at the root containing the PBIP descriptor;
+the selected outer folder name is removed and every nested path is retained.
+Do not select the files individually. Descriptor references resolve only inside the uploaded project. The
 existing TMDL reader translates supported table definitions; report layout and
 interaction translation remain explicit gaps and prevent project publication.
 Missing descriptors, remote connection references and paths outside the uploaded
@@ -114,3 +116,9 @@ reviewed import can retain that diagnostic project for inspection, but cannot
 promote it. The Files report lists source objects and dependencies before the
 full technical report. These bounded readers do not provide file-service
 connections, background refresh, network-share access or full incumbent parity.
+
+For a source-only dbt project, select the root containing `dbt_project.yml`,
+including its models, schema declarations and tests. Selecting only the tests
+folder or flat SQL files is refused before upload. The standalone file picker
+remains available for individual definitions and TWBX archives. Selecting either
+input clears the other; review the retained original paths before approval.
