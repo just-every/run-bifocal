@@ -211,3 +211,123 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
  }finally{await page.close()}
  console.log('Delegated exploration: native manager, exact West money and complete pages, fiscal pivot, saved question, source link, typed downloads, summary-only and distinct export grants, source revision, membership and erasure fences passed at 1440 and 390')
 }
+
+/** Entitlement publication only narrows existing exact native view grants. */
+export async function proveEntitlements({origin,owner,reader,readerId,browser,devKey,upload}) {
+ const headers={Origin:origin},contexts=[]
+ const call=async(context,path,data,expected=data===undefined?200:201)=>{
+  const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers,...data===undefined?{}:{data}})
+  assert.equal(r.status(),expected,await r.text());return r.headers()['content-type']?.startsWith('application/json')?r.json():r
+ }
+ try {
+ const people=await(await owner.request.get(origin+'/auth/operators')).json(),manager=people.find(p=>p.id===readerId)
+ const invite=async(name)=>{
+  const email='synthetic-bifocal-'+name+'@example.test'
+  assert.equal((await owner.request.post(origin+'/auth/invite',{headers,data:{email,displayName:name,role:'member'}})).status(),202)
+  const person=(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.email===email)
+  const context=await browser.newContext();contexts.push(context)
+  assert.equal((await context.request.post(origin+'/__dev/key',{headers,data:{key:devKey}})).status(),204)
+  await context.request.get(new URL(person.signInUrl,origin).href)
+  const session=await(await context.request.get(origin+'/auth/session')).json()
+  return {context,person:session.operator}
+ }
+ const rep=await invite('entitlement-rep'),next=await invite('entitlement-next'),nextManager=await invite('entitlement-manager'),guest=await invite('entitlement-guest')
+ const dataset='synthetic-bifocal-entitlement-sales',mapping='synthetic-bifocal-entitlement-map',hierarchy='synthetic-bifocal-entitlement-tree'
+ await upload(dataset,'id,account,region,salary\none,A,West,9999\ntwo,B,West,9999\nthree,C,East,9999\nfour,D,West,9999\nfive,E,West,9999\n')
+ const map=(assigned=rep.person.email)=>'principal,role,value,valid_from,valid_until\n'+[
+  [assigned.toUpperCase(),'sales','A','01/01/2020','01/01/2099'],[rep.person.email,'bonus','B','01/01/2020','01/01/2099'],[rep.person.email,'sales','C','01/01/2020','01/01/2099'],
+  [next.person.email,'other','C','01/01/2020','01/01/2099'],[rep.person.email,'future','D','01/01/2098','01/01/2099'],[rep.person.email,'expired','D','01/01/2000','01/01/2001'],[manager.email,'direct','E','01/01/2020','01/01/2099']
+ ].map(row=>row.join(',')).join('\n')+'\n'
+ const tree=(cycle=false)=>'principal,manager,valid_from,valid_until\n'+[
+  [rep.person.email,'synthetic-bifocal-lead@example.test','01/01/2020','01/01/2099'],['synthetic-bifocal-lead@example.test',manager.email,'01/01/2020','01/01/2099'],
+  [next.person.email,nextManager.person.email,'01/01/2020','01/01/2099'],...(cycle?[[manager.email,rep.person.email,'01/01/2020','01/01/2099']]:[])
+ ].map(row=>row.join(',')).join('\n')+'\n'
+ await upload(mapping,map());await upload(hierarchy,tree())
+ await call(owner,'/calendars',{id:'synthetic-bifocal-entitlements',previousVersion:null,definition:{name:'Entitlements calendar',kind:'fiscal',startMonth:1}})
+ const query={version:1,dataset,joins:[],filters:[],groupBy:['account'],measures:[{id:'records',op:'count',unit:'count',scale:0}],context:{modelVersion:'entitlements-v1',metricVersion:'entitlements-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-entitlements',version:1},rounding:'half-even'},semantic:{grain:['id'],dimensions:[{column:'id',type:'text'},{column:'account',type:'text'},{column:'region',type:'text'}],hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
+ const model=await call(owner,'/models',{definition:{views:[{id:'accounts',kind:'chart',query,rowRules:[]}],quality:[]}}),base='/models/'+model.modelId+'/branches/'+model.branchId,review=await call(owner,base+'/validate',{},200)
+ assert.equal(review.compatible,true);await call(owner,base+'/approve',{digest:review.digest},200);await call(owner,base+'/promote',{environment:'staging',digest:review.digest},200);await call(owner,base+'/promote',{environment:'production',digest:review.digest},200)
+ const parameters={modelId:model.modelId,revision:model.revision,viewId:'accounts',groupBy:['account'],filters:[]}
+ const grant=async(person)=>{
+  const input={operatorId:person.id,operatorVersion:person.version,modelId:model.modelId,revision:model.revision,viewId:'accounts',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['id','account','region'],underlying:true,summaryExport:true,underlyingExport:true,expiresAt:new Date(Date.now()+600000).toISOString()}
+  const reviewed=await call(owner,'/explore/access/review',input,200)
+  return call(owner,'/explore/access',{...input,reviewedDigest:reviewed.digest})
+ }
+ const managerVersion=(await(await owner.request.get(origin+'/auth/operators')).json()).find(p=>p.id===readerId)
+ const actors=[{context:reader,person:managerVersion},rep,next,nextManager,guest]
+ for(const actor of actors)actor.grant=await grant(actor.person)
+ const warm=await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id});assert.equal(warm.answer.filteredRows,4)
+ assert.equal((await call(owner,'/explore/run',parameters)).answer.filteredRows,5,'Owner cache is broader than the delegated result')
+ const definition={modelId:model.modelId,viewId:'accounts',column:'account',mapping,hierarchy,normalization:'ascii-lowercase',maxAgeSeconds:3600}
+ let revision=null
+ const publish=async(def=definition)=>{
+  const input={definition:def,previousRevision:revision},reviewed=await call(owner,'/explore/entitlements/review',input,200)
+  const published=await call(owner,'/explore/entitlements/publish',{...input,reviewedDigest:reviewed.digest});revision=published.revision;return reviewed
+ }
+ assert.equal((await fetch(origin+'/api/operator/explore/entitlements/review',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({definition,previousRevision:null})})).status,401)
+ await call(reader,'/explore/entitlements/review',{definition,previousRevision:null},403)
+ assert.equal((await owner.request.post(origin+'/api/operator/explore/entitlements/review',{headers:{Origin:'https://foreign.example.test'},data:{definition,previousRevision:null}})).status(),401)
+ await call(owner,'/explore/entitlements/publish',{definition,previousRevision:null,reviewedDigest:'unreviewed'},409)
+ await publish();assert.equal(revision,1)
+ await call(reader,'/explore/'+warm.snapshotId,undefined,409)
+ assert.ok(!(await call(reader,'/explore')).questions.some(q=>q.id===warm.snapshotId),'New policy withdraws saved broad metadata')
+ const run=async(actor,expected)=>{
+  const result=await call(actor.context,'/explore/run',{...parameters,grantId:actor.grant.id})
+  const rows=await call(actor.context,'/explore/'+result.snapshotId+'/page',{scope:'underlying',offset:0},200)
+  assert.deepEqual(rows.rows.map(r=>r[0]).sort(),expected,'Exact allowed record IDs, including an empty role intersection')
+  assert.equal(result.answer.totals.records.value,String(expected.length));assert.equal(result.answer.filteredRows,expected.length)
+  assert.deepEqual(rows.columns.map(c=>c.name),['id','account','region'],'Salary never leaves the governed dimensions')
+  const csv=await call(actor.context,'/explore/'+result.snapshotId+'/export',{scope:'underlying',format:'csv'},200)
+  assert.equal(Number(csv.headers()['x-bifocal-row-count']),expected.length);assert.ok(!(await csv.text()).includes('9999'))
+  return result
+ }
+ let managerRun=await run(actors[0],['five','one','two']);
+ assert.equal((await call(reader,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},200)).subject.id,managerRun.snapshotId);
+ assert.ok((await call(owner,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},200)).members.some(m=>m.id===readerId));await run(rep,['one','two']);await run(next,[]);await run(nextManager,[])
+ assert.equal((await call(guest.context,'/explore/run',{...parameters,grantId:guest.grant.id},403)).error,'entitlement_mapping_missing')
+ await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id,email:rep.person.email},400)
+ // These are the clause's existing reader screens; only data scope changes.
+ const readerPage=await reader.newPage()
+ await readerPage.setViewportSize({width:1440,height:1000});await readerPage.goto(origin+'/app/questions/'+managerRun.snapshotId)
+ await readerPage.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
+ assert.match(await readerPage.locator('#scope-note').innerText(),/3 matching/);assert.doesNotMatch(await readerPage.locator('#results').innerText(),/9999/)
+ assert.ok(await readerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+ assert.equal(await readerPage.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0)
+ for(const width of [1440,390]){
+  await readerPage.setViewportSize({width,height:1000})
+  if(process.env.BIFOCAL_PROOF_DIR){const {mkdir}=await import('node:fs/promises');await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await readerPage.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/entitlements-manager-'+width+'.png',fullPage:true})}
+ }
+ await readerPage.close()
+ await publish({...definition,normalization:'exact'});await run(rep,['two'])
+ await publish();assert.equal(revision,3)
+ managerRun=await run(actors[0],['five','one','two'])
+ const exportPlan=await call(reader,'/explore/'+managerRun.snapshotId+'/export-plan',{scope:'underlying',format:'csv'},200)
+ const pendingReview=await call(owner,'/explore/entitlements/review',{definition,previousRevision:revision},200)
+ await upload(mapping,map(next.person.email),true)
+ assert.equal((await call(reader,'/explore/'+managerRun.snapshotId+'/export',{scope:'underlying',format:'csv'},409)).error,'entitlement_snapshot_changed')
+ await call(reader,'/explore/'+managerRun.snapshotId+'/full-export',{scope:'underlying',format:'csv',offset:0,planDigest:exportPlan.planDigest},409)
+ await call(owner,'/explore/entitlements/publish',{definition,previousRevision:revision,reviewedDigest:pendingReview.digest},409)
+ await publish();assert.equal(revision,4)
+ const history=await call(owner,'/explore/entitlements/'+model.modelId+'/accounts');assert.deepEqual(history.history.map(h=>h.revision),[1,2,3,4]);assert.notEqual(history.history[0].document.sources[0].revision,history.history[3].document.sources[0].revision)
+ await call(reader,'/explore/entitlements/'+model.modelId+'/accounts',undefined,403)
+ await call(owner,'/explore/entitlements/publish',{definition,previousRevision:1,reviewedDigest:pendingReview.digest},409)
+ await call(reader,'/explore/'+managerRun.snapshotId,undefined,409)
+ await call(reader,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},409)
+ await run(actors[0],['five','two']);await run(rep,['two']);await run(next,['one']);await run(nextManager,['one'])
+ assert.ok(!(await call(reader,'/explore')).questions.some(q=>q.id===managerRun.snapshotId),'Reassignment removes cached question metadata')
+ await upload(hierarchy,tree(true),true)
+ assert.equal((await call(owner,'/explore/entitlements/review',{definition,previousRevision:revision},409)).error,'cyclic_entitlement_hierarchy')
+ await upload(hierarchy,tree(),true);await upload(mapping,map(next.person.email),true)
+ // Freshness uses the source publication timestamp, never the policy review time.
+ const short={...definition,maxAgeSeconds:4};await publish(short)
+ const fresh=await run(next,['one'])
+ const source=await call(owner,'/datasets/'+mapping),hierarchySource=await call(owner,'/datasets/'+hierarchy)
+ const deadline=Math.min(Date.parse(source.table.updatedAt),Date.parse(hierarchySource.table.updatedAt))+4000
+ await new Promise(resolve=>setTimeout(resolve,Math.max(0,deadline-Date.now()+100)))
+ assert.equal((await call(next.context,'/explore/'+fresh.snapshotId+'/export',{scope:'summary',format:'csv'},409)).error,'entitlement_feed_stale')
+ assert.equal((await call(owner,'/explore/entitlements/review',{definition:short,previousRevision:revision},409)).error,'entitlement_feed_stale')
+ await call(owner,'/datasets/'+mapping+'/erase',{confirmDataset:mapping,reviewedRevision:source.revision},200)
+ assert.equal((await call(next.context,'/explore/run',{...parameters,grantId:next.grant.id},409)).error,'entitlement_feed_missing')
+ console.log('Entitlements: reviewed atomic snapshots, role union and manager inheritance, effective intervals, exact reassignment parity for native identities, scoped records and CSV, stale and missing feeds, cycles and old snapshot refusal passed')
+ } finally {for(const context of contexts)await context.close()}
+}

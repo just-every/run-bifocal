@@ -1,6 +1,6 @@
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
-import {proveExplorationAccess} from '../bifocal-exploration.mjs'
+import {proveExplorationAccess,proveEntitlements} from '../bifocal-exploration.mjs'
 import {proveExportPolicy} from './export-policy.mjs'
 import {proveUsageCohorts} from './content-cohorts.mjs'
 import {contentBrowser} from './content-browser.mjs'
@@ -37,7 +37,7 @@ export async function proveContentGovernance(){
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }
   assert.ok(ready,'native local entry starts')
-  browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+  browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
   const bootstrap=await owner.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-3'.repeat(3),displayName:'Synthetic content owner',returnTo:'/app'},maxRedirects:0})
@@ -64,6 +64,9 @@ export async function proveContentGovernance(){
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
+  if(process.env.BIFOCAL_FOCUS==='exploration-access'){await proveExplorationAccess(origin,owner,reader,readerSession.operator.id);await owner.close();await reader.close();return}
+  await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload})
+  if(process.env.BIFOCAL_FOCUS==='entitlements'){await owner.close();await reader.close();return}
   await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
