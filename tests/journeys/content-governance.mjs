@@ -1,4 +1,5 @@
 import {entitlementClock} from './entitlement-clock.mjs'
+import {provePortalTenants} from './portal-tenants.mjs'
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess,proveEntitlements} from '../bifocal-exploration.mjs'
@@ -64,13 +65,19 @@ export async function proveContentGovernance(){
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='collaboration'){await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-snapshots'){await proveDashboardSnapshots({origin,context:owner,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='dashboard-interactions'){await proveDashboardInteractions({origin,context:owner,page,upload,proveScreen});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='apps'){await proveReportingApps({origin,browser,owner,page,devKey:environment.RER_DEV_KEY,upload});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='exploration-access'){await proveExplorationAccess(origin,owner,reader,readerSession.operator.id);await owner.close();await reader.close();return}
-  await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload,clock,fixtureSql:command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],env:environment,timeout:60000}))[0].results})
+  const fixture=async(action,operatorId)=>{
+   const response=await owner.request.post(origin+'/__entitlement-fixture',{headers:{'x-rer-dev-key':environment.RER_DEV_KEY},data:{action,...operatorId?{operatorId}:{}}})
+   assert.equal(response.status(),200,await response.text());return response.json()
+  }
+  await proveEntitlements({origin,owner,reader,readerId:readerSession.operator.id,browser,devKey:environment.RER_DEV_KEY,upload,clock,fixture})
   if(process.env.BIFOCAL_FOCUS==='entitlements'){await owner.close();await reader.close();return}
+  await provePortalTenants({origin,owner,reader,upload})
   await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)

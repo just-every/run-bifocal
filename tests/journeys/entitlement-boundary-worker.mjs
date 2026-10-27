@@ -5,6 +5,22 @@ const statements=new WeakMap()
 export default {
  async fetch(request,env,execution){
   const url=new URL(request.url)
+  // Fixture writes share the live D1 owner; a second local Wrangler process
+  // can contend with this Worker's SQLite store while its clock is frozen.
+  if(url.pathname==='/__entitlement-fixture'&&request.method==='POST'){
+   if(!env.RER_DEV_KEY||request.headers.get('x-rer-dev-key')!==env.RER_DEV_KEY)return new Response(null,{status:404})
+   const input=await request.json()
+   if(input.action==='clock')return Response.json(await env.DB.prepare("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc").first())
+   if(input.action==='collision-insert'&&typeof input.operatorId==='string'){
+    await env.DB.prepare("INSERT INTO oa_operators(id,email,display_name,role,status,version,created_at) SELECT 'synthetic-bifocal-normalization-collision',upper(email),'Synthetic collision','member','active',1,created_at FROM oa_operators WHERE id=?").bind(input.operatorId).run()
+    return Response.json({ok:true})
+   }
+   if(input.action==='collision-remove'){
+    await env.DB.prepare("DELETE FROM oa_operators WHERE id='synthetic-bifocal-normalization-collision'").run()
+    return Response.json({ok:true})
+   }
+   return new Response(null,{status:400})
+  }
   if(url.pathname==='/__entitlement-boundary'&&request.method==='POST'){
    pending=await request.json();return Response.json({armed:true})
   }

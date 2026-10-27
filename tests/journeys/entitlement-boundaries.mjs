@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 /** Continue the native entitlement journey against its real sources and grants. */
-export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixtureSql,revision,map,browser,devKey,contexts}){
+export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,definition,parameters,mapping,upload,call,run,publish,grant,clock,fixture,revision,map,browser,devKey,contexts}){
  const rows=entries=>'principal,role,value,valid_from,valid_until\n'+entries.map(entry=>entry.join(',')).join('\n')+'\n'
  const row=(principal,value,from='01/01/2020',until='01/01/2099')=>[principal,'sales',value,from,until]
  const request=actor=>({...parameters,grantId:actor.grant.id})
@@ -24,13 +24,12 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
 
  // A stored native collision is a fixture, since the current invite door
  // lowercases addresses. Both publication and current response must refuse it.
- const collision='synthetic-bifocal-normalization-collision'
- fixtureSql(`INSERT INTO oa_operators(id,email,display_name,role,status,version,created_at) SELECT '${collision}',upper(email),'Synthetic collision','member','active',1,created_at FROM oa_operators WHERE id='${rep.person.id}'`)
+ await fixture('collision-insert',rep.person.id)
  try{
   assert.equal((await call(owner,'/explore/entitlements/review',{definition,previousRevision:revision()},409)).error,'ambiguous_entitlement_principal')
   assert.equal((await call(rep.context,'/explore/run',request(rep),409)).error,'ambiguous_entitlement_principal')
   await publish({...definition,normalization:'exact'});await run(rep,['one'])
- }finally{fixtureSql(`DELETE FROM oa_operators WHERE id='${collision}'`)}
+ }finally{await fixture('collision-remove')}
 
  // Pin both the server and SQLite around one UTC civil-day boundary. The
  // same published policy switches from B to A without a new source snapshot.
@@ -41,11 +40,11 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
  await publish(boundary)
  const before=await run(rep,['two'])
  assert.equal(before.context.exploration.entitlementDay,'2026-10-27')
- assert.equal(fixtureSql("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc")[0].utc,'2026-10-27T23:59:59.999Z')
+ assert.equal((await fixture('clock')).utc,'2026-10-27T23:59:59.999Z')
  await clock.set('2026-10-28T00:00:00.000Z')
  const after=await run(rep,['one'])
  assert.equal(after.context.exploration.entitlementDay,'2026-10-28')
- assert.equal(fixtureSql("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc")[0].utc,'2026-10-28T00:00:00.000Z')
+ assert.equal((await fixture('clock')).utc,'2026-10-28T00:00:00.000Z')
  assert.equal((await call(rep.context,'/explore/'+before.snapshotId,undefined,409)).error,'entitlement_snapshot_changed')
  assert.ok(!(await call(rep.context,'/explore')).questions.some(q=>q.id===before.snapshotId))
  await clock.set('2026-10-29T00:00:00.000Z');rep.grant=await grant(rep.person)
