@@ -16,7 +16,7 @@ import { modelProjectSource } from './source'
 import { eraseImportedProject, modelImportContext, projectGuard, readImportedProject } from './store.server'
 
 async function handleModelImport(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/model-imports\/([a-z][a-z0-9-]{0,63})(\/erase)?$/.exec(path)
+ const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/model-imports\/([a-z][a-z0-9-]{0,63})(\/erase|\/export)?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='model'))return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
@@ -24,8 +24,23 @@ async function handleModelImport(request:Request,original:Bindings):Promise<Resp
  if(!/^[a-z][a-z0-9-]{0,63}$/.test(id)||url.search)fail('model_project_id_required',400)
  if(resource){
   let current
-  try{current=await readImportedProject(env,ownerId,id)}catch(error){if(!(error instanceof QueryError)||error.code!=='model_project_not_found'||!resource[2])throw error}
-  if(resource[2]){
+  try{current=await readImportedProject(env,ownerId,id)}catch(error){if(!(error instanceof QueryError)||error.code!=='model_project_not_found'||resource[2]!=='/erase')throw error}
+  if(resource[2]==='/export'){
+   if(request.method!=='POST')fail('method_not_allowed',405)
+   const input=await jsonBody(request);exactKeys(input,['reviewedRevision'])
+   if(input.reviewedRevision!==current!.revision)fail('exact_project_export_revision_required',409)
+   const project=current!.value
+   if(!project.report.compatible||!project.definition)fail('unresolved_project_export',409)
+   // Export only native executable fields and explicit lineage. Original file
+   // bytes, connection definitions and installation authority never travel.
+   const artifact={version:1,project:{id,revision:current!.revision,format:project.input.format,digest:project.digest},definition:project.definition,
+    sources:project.report.project.tables.map(table=>({table:table.name,file:table.file,dataset:project.input.bindings[table.name]?.dataset,revision:project.sources.find(s=>s.id===project.input.bindings[table.name]?.dataset)?.revision,grain:project.input.bindings[table.name]?.grain??[],
+     columns:table.dimensions.map(d=>({source:d.name,column:project.input.bindings[table.name]?.columns?.[d.column]??d.column}))})),
+    measures:project.report.translations.map(t=>({sourceObject:t.sourceObject,view:t.view,measure:t.measure.id}))}
+   await transact(env.DB,owner,[assertion(projectGuard(current!)),...project.sources.map(s=>assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?)',s.id,s.revision)))])
+   const response=json(artifact);response.headers.set('content-disposition','attachment; filename="'+id+'.native.json"');return response
+  }
+  if(resource[2]==='/erase'){
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['confirmProject','reviewedRevision'])
    if(input.confirmProject!==id||input.reviewedRevision!==(current?.revision??null))fail('exact_project_erasure_confirmation_required',409)

@@ -93,9 +93,12 @@ project are diagnosed, never fetched.
 
 Choose Metabase for serialization YAML or individual Card, Table, Field and
 Database API response objects. Original identities, queries, field metadata and
-source dependencies remain in the inventory. MBQL, native SQL, source permission
-and visualization execution remain unproved; these objects cannot publish a
-native model. Collection and dashboard serialization metadata is also retained.
+source dependencies remain in the inventory. Bounded MBQL sum and distinct
+aggregates resolve physical field ids against the uploaded table catalog and
+can publish through explicit native source bindings. Other MBQL, native SQL,
+source permissions and visualization semantics remain unresolved and block
+publication. Connection details and unrecognized query clauses never disappear
+into a wider native aggregate. Collection and dashboard serialization metadata is also retained.
 
 Choose Tableau for textual TWB or TDS files, or a TWBX archive. The browser
 encodes the archive for the same project envelope; API clients supply its
@@ -106,7 +109,12 @@ unsafe archive paths, more than 64 archive entries, any expanded file above
 must still fit the ordinary project file limit (the browser accepts 192 KiB
 before encoding). Extracts, binary contents and scripts are named unsupported
 items. Nothing is extracted to disk, evaluated or fetched. Source and content
-execution remain explicit gaps; inventory is not a translated workbook.
+execution remain explicit gaps; inventory is not a translated workbook. A
+bounded source definition with one textscan table, physical typed columns and
+SUM and COUNTD measures can compile against explicitly reviewed native records.
+Source filters, connection settings and unrecognized elements block publication.
+Rebuilt native exports in Files retain reviewed source revisions and mappings
+without original file bytes or connection credentials.
 
 Every explicitly bound source dataset retains erasure custody even when a
 project has no executable definition or has an invalid source object. The exact
