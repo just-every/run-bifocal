@@ -10,7 +10,7 @@ export async function webEdgeResponse(request,state,origin) {
  assert.equal(url.origin,origin);assert.equal(request.method,'GET')
  assert.equal(request.headers.get('authorization'),'Bearer synthetic-bifocal-60')
  assert.equal(request.headers.has('cookie'),false)
- const second=url.searchParams.has('after') || Number(url.searchParams.get('page'))>1 || Number(url.searchParams.get('offset'))>0
+ const second=url.searchParams.has('$skiptoken') || url.searchParams.has('after') || Number(url.searchParams.get('page'))>1 || Number(url.searchParams.get('offset'))>0
  if(second && phase==='partial')return Response.json({items:[]},{status:206})
  if(second && phase==='rate')return new Response(null,{status:429,headers:{'retry-after':'120'}})
  if(second && phase==='expired')return new Response(null,{status:401,headers:{'www-authenticate':'Bearer error="invalid_token"'}})
@@ -19,7 +19,7 @@ export async function webEdgeResponse(request,state,origin) {
  if(phase==='empty')return Response.json({items:[],next:null})
  if(phase==='schema' && second)return Response.json({items:[{id:'3'}],next:null})
  if(url.pathname==='/xml')return new Response(phase==='active-xml'?'<!DOCTYPE feed [<!ENTITY x SYSTEM "https://private.example/secret">]><feed><row><id>&x;</id></row></feed>':'<feed xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><row><id>1</id><amount>12.30</amount><active>true</active><day>2026-06-01</day><note></note></row><row><id>2</id><amount>-2.05</amount><active>false</active><day>2026-06-02</day><note xsi:nil="true"/></row></feed>',{headers:{'content-type':'application/xml'}})
- if(url.pathname==='/odata')return Response.json(second?{value:[webRows[2]],'@odata.deltaLink':origin+'/odata?$deltatoken=opaque'}:{'@odata.context':origin+'/$metadata#Items',value:webRows.slice(0,2),'@odata.nextLink':origin+'/odata?after=opaque'})
+ if(url.pathname==='/odata')return Response.json(second?{value:[webRows[2]],'@odata.deltaLink':origin+'/odata?$deltatoken=opaque'}:{'@odata.context':origin+'/$metadata#Items',value:webRows.slice(0,2),'@odata.nextLink':origin+'/odata?$skiptoken=opaque'})
  if(url.pathname==='/rest')return Response.json(second?[webRows[2]]:webRows.slice(0,2),{headers:second?{}:{link:'<'+origin+'/rest?after=opaque>; rel="next", <'+origin+'/rest?before=opaque>; rel="prev"'}})
  if(url.pathname==='/paging') {
   assert.equal(url.searchParams.get('limit'),'2')

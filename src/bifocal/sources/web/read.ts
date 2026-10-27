@@ -12,6 +12,7 @@ export async function readWeb(input:WebInput,check:()=>Promise<void>,signal:Abor
   await check()
   requireValue(!signal.aborted,'web_read_cancelled',409)
   requireValue(pages<20 && !seen.has(next.href),'web_nonterminating_pagination',409)
+  requireValue(!next.href.includes(input.accessToken),'web_credentials_in_url',403)
   seen.add(next.href)
   let response:Response
   try { response=await fetch(next,{method:'GET',headers:{Authorization:'Bearer '+input.accessToken,Accept:input.format==='xml'?'application/xml':'application/json;IEEE754Compatible=true'},redirect:'manual',signal}) } catch { requireValue(false,signal.aborted?'web_read_cancelled':'web_read_unavailable',409) }

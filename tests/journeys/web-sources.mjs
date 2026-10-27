@@ -23,6 +23,8 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
  await post('web-source/preview',denied,401,{Origin:'https://foreign.example.test'})
  await post('web-source/preview',{...denied,confirmRead:false},400)
  await post('web-source/preview',{...denied,confirmSnapshot:false},400)
+ await preview('synthetic-bifocal-web-denied',{endpoint:webOrigin+'/nested?access_token=synthetic-bifocal-60'},403)
+ await preview('synthetic-bifocal-web-denied',{endpoint:webOrigin+'/odata?$deltatoken=opaque'},409)
  await preview('synthetic-bifocal-web-denied',{endpoint:'https://127.0.0.1/private'},400)
  await preview('synthetic-bifocal-web-denied',{endpoint:'https://synthetic-bifocal-foreign.workers.dev/items'},403)
  assert.equal(state.webCalls??0,count,'refused setup never contacts a provider')
