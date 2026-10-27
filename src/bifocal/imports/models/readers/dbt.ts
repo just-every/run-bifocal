@@ -58,7 +58,6 @@ export function readDBT(p: Project, files: ProjectFile[]) {
   if (file === manifest) continue
   const at = provenance(file, file.content)
   if (/\.sql$/i.test(file.path)) {
-   if (manifest && resources.some(r => r.name === file.path.split('/').at(-1)!.replace(/\.sql$/i, '') && (r.definition.raw_code === file.content || r.definition.raw_sql === file.content))) continue
    const name = file.path.split('/').at(-1)!.replace(/\.sql$/i, '')
    const kind = /(?:^|\/)tests\//.test(file.path) ? 'test' : /(?:^|\/)macros\//.test(file.path) ? 'macro' : /(?:^|\/)snapshots\//.test(file.path) ? 'snapshot' : /(?:^|\/)analyses\//.test(file.path) ? 'analysis' : 'model'
    const dependencies = [...file.content.matchAll(/\{\{\s*(ref|source)\(\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\2(?:\s*,\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\4)?\s*\)\s*\}\}/g)].map(m => m[1] === 'source' ? `source.${m[3]}.${m[5] ?? ''}` : `model.${m[5] ?? m[3]}`)

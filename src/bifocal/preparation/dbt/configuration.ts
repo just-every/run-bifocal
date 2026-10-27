@@ -7,7 +7,7 @@ import { object } from './types'
 export function dbtConfiguration(resource:ProjectResource) {
  const d=resource.definition
  const allowed=resource.kind==='project'?['name','version','config-version','profile','model-paths','test-paths','clean-targets','target-path','require-dbt-version']
-  :resource.kind==='source'?['name','description','columns','source']:resource.kind==='model'?['sql','schema']:['test']
+  :resource.kind==='source'?['name','description','columns','source']:resource.kind==='model'?['sql','schema']:['test','column']
  if(Object.keys(d).some(k=>!allowed.includes(k)))fail('unsupported_dbt_configuration')
  if(resource.kind==='model'&&object(d.schema)){
   if(Object.keys(d.schema).some(k=>!['name','description','columns','tests','data_tests'].includes(k)))fail('unsupported_dbt_configuration')

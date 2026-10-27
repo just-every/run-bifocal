@@ -159,14 +159,30 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   await apply(id,plan);const imported=await call('/model-imports/'+id);await call('/model-imports/'+id+'/export',{reviewedRevision:imported.revision},409)
   const current=await call('/datasets/'+source);await call('/datasets/'+source+'/erase',{confirmDataset:source,reviewedRevision:current.revision},200);await call('/model-imports/'+id,undefined,404)
  }
- for(const failure of ['sql','mapping','hook','custom-test','manifest-test']){
-  const input=structuredClone(failure==='manifest-test'?resolvedCloud:core);input.projectId='synthetic-bifocal-dbt-refused-'+failure
+ // SQL modifiers and mixed manifest envelopes must not become identity lineage
+ // or built-in quality results merely because a physical name also exists.
+ const distinctSource='synthetic-bifocal-dbt-distinct-source'
+ await upload(distinctSource,'distinct,invoice,region,revenue\n10,1,West,$10.01\n20,1,West,$10.01\n')
+ const distinct=structuredClone(core);distinct.projectId='synthetic-bifocal-dbt-distinct'
+ distinct.bindings.sales={dataset:distinctSource,grain:['distinct'],columns:{invoice:'distinct',net:'revenue'}}
+ distinct.files=distinct.files.slice(0,3);distinct.files[1].content=distinct.files[1].content.replace('tests: [not_null, unique]','tests: []')
+ distinct.files[2].content="select distinct invoice, region, revenue AS net FROM {{ source('raw','invoices') }}"
+ const distinctPlan=await prepare(distinct)
+ assert.equal(distinctPlan.project.report.compatible,false,'DISTINCT must retain a diagnostic instead of mapping the modifier as a column')
+ assert.ok(distinctPlan.project.report.issues.some(i=>i.code==='unsupported_dbt_sql'))
+ await apply(distinct.projectId,distinctPlan);const distinctImported=await call('/model-imports/'+distinct.projectId)
+ await call('/model-imports/'+distinct.projectId+'/export',{reviewedRevision:distinctImported.revision},409)
+ dbtProjects.push({input:distinct,plan:distinctPlan})
+ for(const failure of ['sql','mapping','hook','custom-test','manifest-test','manifest-shadow-sql','manifest-shadow-macro','manifest-shadow-metadata']){
+  const input=structuredClone(failure.startsWith('manifest-')?resolvedCloud:core);input.projectId='synthetic-bifocal-dbt-refused-'+failure
   if(failure==='sql')input.files[2].content+=' where invoice > 1'
   if(failure==='mapping')input.bindings.sales.columns.net='invoice'
   if(failure==='hook')input.files[0].content+='on-run-start: ["select 1"]\n'
   if(failure==='custom-test')input.files[1].content=input.files[1].content.replace('tests: [not_null, unique]','tests: [{unique: {config: {where: "invoice > 1"}}}]')
   if(failure==='manifest-test'){const changed=JSON.parse(input.files[0].content);changed.nodes['test.synthetic_bifocal.unique'].raw_code='{{ test_not_null(**_dbt_generic_test_kwargs) }}';input.files[0].content=JSON.stringify(changed)}
-  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false,failure);assert.ok(plan.project.report.issues.some(i=>({sql:['unsupported_dbt_sql'],mapping:['dbt_projection_binding_mismatch'],hook:['unsupported_property'], 'custom-test':['unsupported_dbt_test'],'manifest-test':['unsupported_dbt_test']}[failure]).includes(i.code)),JSON.stringify(plan.project.report.issues))
+  if(failure.startsWith('manifest-shadow-')){const changed=JSON.parse(input.files[0].content),test=changed.nodes['test.synthetic_bifocal.unique'];test.test='unique';test.column='invoice';if(failure==='manifest-shadow-sql')test.raw_code='select invoice from secret_table';if(failure==='manifest-shadow-macro')test.depends_on.macros=['macro.synthetic_bifocal.custom_unique'];if(failure==='manifest-shadow-metadata')delete test.test_metadata;input.files[0].content=JSON.stringify(changed)}
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false,failure);assert.ok(plan.project.report.issues.some(i=>({sql:['unsupported_dbt_sql'],mapping:['dbt_projection_binding_mismatch'],hook:['unsupported_property'], 'custom-test':['unsupported_dbt_test'],'manifest-test':['unsupported_dbt_test'],'manifest-shadow-sql':['unsupported_dbt_test','unsupported_property'],'manifest-shadow-macro':['unsupported_dbt_test','unsupported_property'],'manifest-shadow-metadata':['unsupported_dbt_test','unsupported_property']}[failure]).includes(i.code)),JSON.stringify(plan.project.report.issues))
+  if(failure.startsWith('manifest-shadow-'))assert.equal(plan.project.report.project.resources.find(r=>r.id==='test.synthetic_bifocal.unique').definition.translation,undefined,'A refused manifest check must never claim execution')
   await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId);await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},409);dbtProjects.push({input,plan})
  }
  // Adding a manifest must never hide an unsupported uploaded SQL definition.

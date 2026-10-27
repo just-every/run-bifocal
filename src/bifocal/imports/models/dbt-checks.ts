@@ -17,16 +17,18 @@ export function executeChecks(project: Project, resources: ProjectResource[], ru
  for (const r of resources.filter(resource=>resource.kind==='test')) {
   const fail = (code: string, message: string) => issue(project,r,r.id,code,message)
   if (!valid.get(r.id)) continue
-  const d = r.definition
+  const d = r.definition, before = project.issues.length
+  const manifest = 'unique_id' in d || 'resource_type' in d || 'test_metadata' in d
   let name: string | null = null, column: unknown = d.column
-  if ('test' in d) {
+  if (!manifest) {
+   unknownKeys(project,r,r.id,d,['test','column'])
    if (typeof d.test === 'string') name=d.test
    else if (record(d.test) && Object.keys(d.test).length===1) {
     const entry=Object.entries(d.test)[0]; name=entry[0]
     if (!record(entry[1]) || Object.keys(entry[1]).length) name=null
    }
-  } else if (record(d.test_metadata)) {
-   const test=d.test_metadata, args=test.kwargs
+  } else {
+   const test=record(d.test_metadata) ? d.test_metadata : {}, args=test.kwargs
    if ((!test.namespace || test.namespace==='dbt') && record(args) && Object.keys(args).every(key=>key==='column_name')) { name=text(test.name); column=args.column_name }
    unknownKeys(project,r,r.id,d,[...metadata,'test_metadata','column_name','raw_code','raw_sql','compiled_code','compiled_sql','language','database','schema','alias','checksum','compiled','build_path','unrendered_config','relation_name','extra_ctes_injected','extra_ctes','refs','sources','metrics','docs','patch_path','root_path','doc_blocks','attached_node','file_key_name'])
    const sql=d.raw_code ?? d.raw_sql
@@ -34,6 +36,7 @@ export function executeChecks(project: Project, resources: ProjectResource[], ru
    if (sql!==undefined && template?.[1]!==name || d.compiled_code!=null && d.compiled_code!=='' || d.compiled_sql!=null && d.compiled_sql!=='') name=null
    if (record(d.depends_on) && Array.isArray(d.depends_on.macros) && d.depends_on.macros.some(m=>m!==`macro.dbt.test_${name}` && m!==`macro.dbt.default__test_${name}`)) name=null
   }
+  if (project.issues.length !== before) continue
   if (!['not_null','unique'].includes(name ?? '') || typeof column!=='string' || r.dependencies.length!==1) { fail('unsupported_dbt_test','Only unconfigured built-in not_null and unique tests on one explicit column are executed; custom tests, arguments, filters and severities remain unsupported.'); continue }
   const targets=runs.get(r.dependencies[0])
   if (!targets?.length) { fail('dbt_test_source_unbound','Bind and prove the exact test dependency before running its checks.'); continue }

@@ -8,6 +8,7 @@ type Projection = {columns: Map<string, string>; root: string; resources: Set<st
 export type Run = {source: Source; projection: Projection}
 const identifier = '[A-Za-z_][A-Za-z0-9_$]*'
 const projectionColumn = new RegExp(`^(${identifier})(?:\\s+(?:as\\s+)?(${identifier}))?$`, 'i')
+const reserved = new Set(['select','distinct','all','as','from','where','group','having','order','limit','offset','fetch','top','with','union','intersect','except','into','qualify','window'])
 const metadata = ['unique_id','name','resource_type','package_name','path','original_file_path','fqn','description','meta','tags','created_at','config','depends_on']
 
 /** Interpret a deliberately small data language. The entire SQL string must
@@ -19,7 +20,7 @@ function projection(sql: unknown): {columns: {input: string; output: string}[]; 
  const columns: {input: string; output: string}[] = []
  for (const fragment of match[1].split(',')) {
   const column = projectionColumn.exec(fragment.trim())
-  if (!column || columns.some(c => c.output === (column[2] ?? column[1]))) return null
+  if (!column || reserved.has(column[1].toLowerCase()) || column[2] && reserved.has(column[2].toLowerCase()) || columns.some(c => c.output === (column[2] ?? column[1]))) return null
   columns.push({input: column[1], output: column[2] ?? column[1]})
  }
  return columns.length ? {columns,kind:match[2].toLowerCase(),names:match[6] ? [match[4],match[6]] : [match[4]]} : null
