@@ -40,11 +40,14 @@ function initials(name: string) {
 /** A person's initials disc, the one avatar the bar and People draw. */
 export const avatar = (name: string) => `<span class="avatar" aria-hidden="true">${escapeHtml(initials(name))}</span>`
 
+// On a phone the Settings control is its gear alone (named and titled "Settings"), so the bar keeps one row.
+const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>'
+
 function topBar(viewer: Viewer | null, place: Place) {
  if (!viewer) return `<header class="topbar">${lockup}</header>`
  const links = (list: Link[]) => list.filter(([, , , allowed]) => allowed(viewer.role)).map(([id, label, href]) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`).join('')
  const configuring = SETTINGS.some(([id]) => id === place)
- const menu = `<details class="menu"><summary${configuring ? ' data-current="true"' : ''}>Settings</summary><nav class="menu-panel" aria-label="Settings">${links(SETTINGS)}<form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></nav></details>`
+ const menu = `<details class="menu"><summary title="Settings"${configuring ? ' data-current="true"' : ''}>${GEAR}<span class="menu-label">Settings</span></summary><nav class="menu-panel" aria-label="Settings">${links(SETTINGS)}<form method="post" action="/auth/signout"><button type="submit" class="quiet">Sign out</button></form></nav></details>`
  return `<header class="topbar">${lockup}<nav class="tools" aria-label="App">${links(TOOLS)}</nav><div class="account">${avatar(viewer.displayName)}<span class="who">${escapeHtml(viewer.displayName)}</span>${menu}</div></header>`
 }
 

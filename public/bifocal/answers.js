@@ -13,7 +13,6 @@ async function request(path,data) {
 async function action(work) { if(pending)return; pending=true; status('Working…'); document.querySelectorAll('button').forEach(button=>{button.dataset.previousDisabled=String(button.disabled);button.disabled=true});try{await work()}catch(error){status(error.message,true)}finally{pending=false;document.querySelectorAll('button').forEach(button=>button.disabled=button.dataset.previousDisabled==='true')} }
 // A figure as a US reader expects it; any state other than a value reads as its own word.
 const shown = (item,currency) => item.state === 'value' ? figure(item.value,item.unit,currency) : item.state.toUpperCase()
-const KIND = {reports:'Saved report',dashboards:'Saved dashboard',queries:'Immutable snapshot'}
 // Parts joined by "·" never leave a dot at a line's end: each dot travels with the part after it, and a stamp stays whole.
 const dotted = (parts,whole=-1) => parts.flatMap((text,i)=>[...(i?[' ']:[]),element('span',(i?'·\u00a0':'')+text,i===whole?'nowrap':undefined)])
 // An answer is named as its list row reads: the dataset, then its measures ("Demo orders · Revenue, Orders").
@@ -34,7 +33,7 @@ function render(result) {
  if(renderBoard(result,request,action,status)){snapshot=result;return}
  snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';const name=result.title ?? answerName(result.definition.dataset,result.definition.measures.map(m=>m.id));$('answer-title').textContent=name;document.title=name+' · Bifocal'
  const currency=result.context.currency, measures=Object.keys(result.answer.totals), columns=[...result.definition.groupBy,...measures]
- $('snapshot-note').replaceChildren(...dotted([KIND[document.body.dataset.kind],stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
+ $('snapshot-note').replaceChildren(...dotted(['Immutable snapshot',stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
  // A cell is its figure over its name; money adds only its currency, never the measure id again.
  $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi'),name=element('span',label(id),'kpi-label');if(total.unit==='money')name.append(' ',element('span',currency,'kpi-unit'));const text=shown(total,currency);tile.append(name,element('strong',text,text.length>10?'kpi-value long':'kpi-value'));return tile}))
  $('groups').replaceChildren(table('Grouped results',columns.map(label),result.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],currency))]),columns.map((_,i)=>i>=result.definition.groupBy.length)))

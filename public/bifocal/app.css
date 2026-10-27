@@ -33,6 +33,7 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .menu{position:relative;margin:0}
 .menu>summary{gap:8px;min-height:40px;padding:7px 12px 7px 14px;border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text);font-weight:500;white-space:nowrap}
 .menu>summary:hover{background:var(--app-sunk)}
+.menu>summary svg{display:none}
 .menu>summary::before{content:none}
 .menu>summary::after{content:'';flex:none;width:7px;height:7px;margin:-3px 2px 0 2px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
 .menu[open]>summary::after{margin-top:3px;transform:rotate(-135deg)}
@@ -65,6 +66,7 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .side-note{margin:16px 14px 0;color:var(--app-muted);font-size:14px;line-height:1.55}
 .main{min-width:0;max-width:1180px;padding:36px 40px 64px}
 .single .main{max-width:880px;margin:0 auto}
+.single .main:has(.places){max-width:1180px}
 
 /* Headings and text: a bold heading face over ink body text, quiet meta lines. */
 h1,h2,h3{font-family:var(--font-sans);color:var(--app-text);text-wrap:balance;margin:0}
@@ -134,7 +136,7 @@ code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px sol
 
 /* Controls: one quiet border per field with focus on that border; outline buttons with a firm grey edge; one filled
    cobalt primary; a disabled action stays readable and says why in a plain helper line, never a tooltip box. */
-label{display:grid;gap:6px;color:var(--app-text);font-size:15px;font-weight:600}
+label{display:grid;align-content:start;gap:6px;color:var(--app-text);font-size:15px;font-weight:600}
 input,select,textarea{width:100%;min-width:0;min-height:44px;padding:10px 14px;background:var(--app-surface);border:1px solid var(--app-field);border-radius:var(--app-radius);color:var(--app-text);font-size:16px;font-weight:400}
 /* Dropdowns, the owner's rule: a quiet chevron 14px inside the border and 40px of end padding, drawn from same-origin
    files (the app's CSP allows no data: images); its dark colour follows the theme. */
@@ -229,7 +231,7 @@ td{padding:12px 24px;border-bottom:1px solid var(--app-line);color:var(--app-tex
    edge fades and the caption says more columns follow. */
 .tablewrap td{white-space:nowrap;overflow-wrap:normal;max-width:none}
 .tablewrap[data-more]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent)}
-caption .more{margin-left:14px;color:var(--app-link);font:500 14px/1.35 var(--font-ui);white-space:nowrap}
+caption .more{margin-left:14px;color:var(--app-text-2);font:500 14px/1.35 var(--font-ui);white-space:nowrap}
 tr:last-child td{border-bottom:0}
 td:first-child{white-space:nowrap}
 td.num{text-align:right;font-family:var(--font-mono);font-size:14px;white-space:nowrap;overflow-wrap:normal}
@@ -271,6 +273,9 @@ ul{padding-left:20px}
  .topbar{gap:28px;padding:0 20px}
  .tools{gap:22px}
  .who{display:none}
+ /* Five figure columns fit beside the side list down to about 800 px. */
+ th,td{padding-left:16px;padding-right:16px}
+ caption{padding:16px 16px 12px}
 }
 /* Tablets and phones: the tools take their own row under the lockup and the person, so none is ever cut off. */
 @media (max-width:960px){
@@ -290,6 +295,10 @@ ul{padding-left:20px}
  .topbar:has([data-rer-demo-exit]) .lockup{font-size:20px;gap:8px}
  .topbar:has([data-rer-demo-exit]) .lockup img{width:46px;height:22px}
  .topbar:has([data-rer-demo-exit]) .avatar{display:none}
+ .menu>summary{gap:4px;padding:7px 8px}
+ .menu>summary::after{margin-right:1px}
+ .menu>summary svg{display:block;width:20px;height:20px}
+ .menu-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
  .account{gap:8px}
  /* Every tool stays in view on a phone: the row wraps instead of scrolling a tool off the edge. */
  .tools{flex:0 0 calc(100% + 32px);flex-wrap:wrap;margin:10px -16px 0;padding:0 16px;gap:0 20px;overflow:visible}
