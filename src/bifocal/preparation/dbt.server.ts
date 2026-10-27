@@ -8,6 +8,7 @@ import { exactKeys, json, jsonBody } from '../models/validation/transport'
 import { fail, type Source } from '../query/types'
 import { dbtBindings, dbtDatasets } from './dbt/bindings'
 import { executeDBT } from './dbt/execute'
+import { readProject } from '../imports/models/readers'
 
 export async function reviewDBT(request:Request,env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string) {
  if(request.method!=='POST')fail('method_not_allowed',405)
@@ -21,7 +22,7 @@ export async function reviewDBT(request:Request,env:Bindings,owner:NonNullable<A
   if(!row)fail('preparation_source_unavailable',404)
   sources.push({...row,table:JSON.parse(row.value_json)})
  }
- const result=executeDBT({projectId:project.id,revision:project.revision,resources:project.value.report.project.resources??[],bindings},sources)
+ const result=executeDBT({projectId:project.id,revision:project.revision,resources:readProject('dbt',project.value.input.files).resources??[],bindings},sources)
  const digest=sha256(canonicalJson({ownerId,project:project.revision,bindings,result}))
  await transact(env.DB,owner,[assertion(projectGuard(project)),...sources.map(source=>assertion(sourceMatch(source)))])
  return json({...result,digest,published:false})

@@ -3,14 +3,23 @@
 // response transaction. No application authorization or SQL result is mocked.
 import worker from '../../dist/server/index.js'
 import { withDevIdentity } from '../../src/modules/operator-auth/dev/index.mjs'
+import { createOperatorAuth, createAuthHandler } from '../../src/modules/operator-auth/index.mjs'
 // The real local-only native CLI can issue a step-up-fenced native session.
 // It is available only in this fixture, with this journey's synthetic secrets.
 const local=withDevIdentity(worker,{config:env=>({dependencies:true,origin:env.AUTH_ORIGIN,local:true,OWNER_EMAIL:env.OWNER_EMAIL,SESSION_SECRET:env.SESSION_SECRET,INSTALLATION_KEY:env.INSTALLATION_KEY,SETUP_TOKEN:env.SETUP_TOKEN,MAIL_FROM:env.MAIL_FROM,branding:{productName:'Bifocal'}})})
+// The model import journey uses the unchanged native handlers with a mail
+// delivery sink. Sessions, invitation consumption and application checks are real.
+const mail=[]
 let pending
 const statements=new WeakMap()
 export default {
  async fetch(request,env,execution){
   const url=new URL(request.url)
+  if(url.pathname==='/__model-mail')return Response.json(mail)
+  if(request.headers.get('X-Bifocal-Test-Mail')==='synthetic-bifocal-mail'&&['/auth/invite','/auth/confirm'].includes(url.pathname)){
+   const auth=createOperatorAuth({db:env.DB,clientIp:()=>'127.0.0.1',config:{dependencies:true,origin:env.AUTH_ORIGIN,local:true,OWNER_EMAIL:env.OWNER_EMAIL,SESSION_SECRET:env.SESSION_SECRET,INSTALLATION_KEY:env.INSTALLATION_KEY,MAIL_FROM:env.MAIL_FROM},mailSender:{async send(message){mail.push(message);return {status:'accepted',provider:'resend',providerMessageId:'synthetic-bifocal-mail'}}}})
+   return createAuthHandler(auth)(request)
+  }
   if(['/auth/local/cli-session','/auth/dev/enter'].includes(url.pathname))return local.fetch(request,env,execution)
   if(url.pathname==='/__machine-boundary'&&request.method==='POST'){
    pending=await request.json()
