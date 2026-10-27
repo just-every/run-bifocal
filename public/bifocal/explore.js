@@ -1,5 +1,6 @@
 import {fullExportController} from './full-export.js'
 import {mountComposition} from './composition.js'
+import {when} from './format.js'
 const $=id=>document.getElementById(id)
 const node=(tag,text)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=String(text??'—');return element}
 let views=[],view,snapshot,parameters,scope='summary',offset=0,nextOffset=null,busy=false
@@ -54,7 +55,7 @@ $('next').onclick=()=>action(async()=>{if(nextOffset!==null){offset=nextOffset;a
 for(const format of ['csv','xlsx'])$(format).onclick=()=>action(async()=>{exportLimits((await api('')).limits);const response=await fetch('/api/operator/explore/'+snapshot.snapshotId+'/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope,format,...scope==='summary'&&parameters.pivot?{layout:'pivot'}:{}})});if(!response.ok){const error=await response.json();if(response.status===413&&error.fullExport){fullExport.offer(error.fullExport);status('This result exceeds the interactive file limit. Download every named part for the complete export.');return}throw Error(error.error.replaceAll('_',' '))}const url=URL.createObjectURL(await response.blob()),link=node('a');link.href=url;link.download='bifocal-'+scope+'.'+format;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Export complete: '+response.headers.get('x-bifocal-row-count')+' '+scope+' rows.')})
 await action(async()=>{
  const catalog=await api('');exportLimits(catalog.limits);views=catalog.views;$('model').replaceChildren();views.forEach((v,i)=>$('model').add(new Option(v.viewId+' · '+v.modelId.slice(0,8)+(v.grantId?' · '+(v.permissions.underlying?'With underlying rows':'Summary only')+' · '+v.grantId.slice(0,8):''),String(i))));chooseView()
- $('questions').replaceChildren();for(const q of catalog.questions){const a=node('a',q.viewId+' · '+q.createdAt);a.href='/app/questions/'+q.id;$('questions').append(a)}
+ $('questions').replaceChildren();for(const q of catalog.questions){const a=node('a'),time=node('time',when(q.createdAt,document.body.dataset.zone));time.dateTime=q.createdAt;time.className='row-meta';a.append(node('span',q.viewId),time);a.href='/app/questions/'+q.id;$('questions').append(a)}
  if(catalog.historyLimited)$('questions').append(node('p','Showing the latest 50 questions. Older saved links still work.'))
  if(!views.length){$('question').querySelector('button').disabled=true;status('No published models yet. Create and publish a semantic model first.');return}
  const combined=mountComposition(views);if(location.pathname.startsWith('/app/questions/compositions/')){await combined?.open(location.pathname.split('/')[4]);status('Ready to explore published models.');return}

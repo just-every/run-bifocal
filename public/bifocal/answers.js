@@ -33,7 +33,8 @@ function render(result) {
 function current() { for(const link of $('saved-list').querySelectorAll('a'))link.getAttribute('href')==='/app/queries/'+snapshot?.queryId?link.setAttribute('aria-current','true'):link.removeAttribute('aria-current') }
 async function history() {
  const result=await request('queries');boardChoices(result.queries);$('saved-list').replaceChildren()
- for(const item of result.queries){const link=element('a'),time=element('time',when(item.created_at,zone));time.dateTime=item.created_at;link.href='/app/queries/'+item.id;link.append(time,element('span','sha '+String(item.digest).slice(0,8),'digest'));$('saved-list').append(link)}
+ // Each row reads as h1's list: the answer's name first, then one quiet line with its time and digest.
+ for(const item of result.queries){const link=element('a'),meta=element('span',undefined,'row-meta'),time=element('time',when(item.created_at,zone)),[dataset,measures='']=String(item.label??'').split(' · ');time.dateTime=item.created_at;link.href='/app/queries/'+item.id;meta.append(time,' · sha '+String(item.digest).slice(0,8));link.append(element('span',[label(dataset),...(measures?[measures.split(', ').map(label).join(', ')]:[])].join(' · '),'row-name'),meta);$('saved-list').append(link)}
  if(!result.queries.length)$('saved-list').append(element('p','No saved answers yet.','side-note'))
  $('empty-answers').hidden=result.queries.length>0||!!document.body.dataset.id
  current()

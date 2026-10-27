@@ -1,8 +1,8 @@
 #ask-workspace .tablewrap{margin:12px 0 16px}
 #ask-workspace .metadata{margin:12px 0;padding:16px}
 #ask-workspace pre{max-height:560px;overflow:auto}
-#ask-workspace .ask-chart-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;margin:12px 0;color:var(--app-text);font-size:14px}
-#ask-workspace .ask-chart-value{font-family:var(--font-mono);text-align:right;overflow-wrap:anywhere}
+#ask-workspace .ask-chart-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;margin:14px 0;color:var(--app-text);font-size:15px}
+#ask-workspace .ask-chart-value{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
 #ask-workspace .ask-chart-row svg{grid-column:1 / -1;width:100%;height:24px;stroke:none;fill:var(--app-mark)}
 #ask-workspace .ask-chart-row .ask-chart-zero{stroke:var(--app-muted);stroke-width:1;vector-effect:non-scaling-stroke}
 #ask-workspace .ask-chart-row:hover{text-decoration:none}

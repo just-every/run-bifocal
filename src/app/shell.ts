@@ -1,6 +1,7 @@
-// The installed app's one frame, after the desk's approved app look (h1, 21 Oct 2026): a white top bar with mark 4, the
-// wordmark and the tools this account can open; a left column; one main pane. Every signed-in app document renders
-// through it, so the bar, its links and Sign out exist once. Only existing workflows are linked.
+// The installed app's one frame, after the owner's approved app look A (round 2, h1; 26 Oct 2026): a white top bar with
+// the vector mark 4 (the real spectacles), the wordmark and the tools this account can open; a left list; one main pane.
+// Every signed-in app document renders through it, so the bar, its links and Sign out exist once. Only existing
+// workflows are linked.
 import { fontHead } from '../base/font-head'
 import { iconHead } from '../base/icon-head'
 
@@ -21,7 +22,7 @@ const TOOLS: [Place, string, string, (role: string) => boolean][] = [
 /** Every app page's styles and fonts are same-origin files; nothing inline. */
 export const appPolicy = "style-src 'self'; font-src 'self'; img-src 'self'"
 
-const lockup = '<a class="lockup" href="/app"><picture><source srcset="/brand/mark-dark.svg" media="(prefers-color-scheme: dark)"><img src="/brand/mark.svg" alt="" width="67" height="32"></picture><span data-rer-name>Bifocal</span></a>'
+const lockup = '<a class="lockup" href="/app"><picture><source srcset="/brand/mark-dark.svg" media="(prefers-color-scheme: dark)"><img src="/brand/mark.svg" alt="" width="76" height="36"></picture><span data-rer-name>Bifocal</span></a>'
 
 function initials(name: string) {
  const letters = name.split(/\s+/).map(word => word.match(/[\p{L}\p{N}]/u)?.[0] ?? '').filter(Boolean)
@@ -40,7 +41,7 @@ function topBar(viewer: Viewer | null, place: Place) {
 /** The left column of the account pages: the signed-in person's own tools, then this installation's guides. */
 export function accountSide(role: string, place: Place) {
  const link = (id: Place | '', href: string, label: string) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`
- return `<nav class="sidelist" aria-label="Account and installation"><p class="side-heading">Your account</p>${link('settings', '/app/settings', 'Your settings')}${role === 'owner' ? link('', '/auth/settings/identity', 'Identity settings') : ''}<hr><p class="side-heading">This installation</p>${link('guide', '/docs', 'Installation guide')}${link('', '/', 'Lobby')}</nav>`
+ return `<nav class="sidelist" aria-label="Account and installation"><p class="side-heading">Your account</p>${link('settings', '/app/settings', 'Your settings')}${role === 'owner' ? link('', '/auth/settings/identity', 'Identity settings') : ''}<p class="side-heading">This installation</p>${link('guide', '/docs', 'Installation guide')}${link('', '/', 'Lobby')}</nav>`
 }
 
 export function appDocument({ title, viewer, place, side = '', main, skip = 'Skip to content', head = '', body = '' }: { title: string; viewer: Viewer | null; place: Place; side?: string; main: string; skip?: string; head?: string; body?: string }) {
