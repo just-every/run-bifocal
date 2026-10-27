@@ -1,3 +1,4 @@
+import {preparePortalRestore} from './journeys/portal-tenants.mjs'
 import test from 'node:test'
 import { prepareMachineRestore } from './journeys/machine-doors.mjs'
 import assert from 'node:assert/strict'
@@ -150,6 +151,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   }
   await search(cookie)
   const machineCredential = await prepareMachineRestore({ origin, cookie })
+  const portal = await preparePortalRestore({ origin, cookie, model: machineCredential.portalModel })
   worker.kill('SIGTERM')
   await new Promise(resolve => worker.exitCode !== null || worker.signalCode !== null ? resolve() : worker.once('exit', resolve))
   worker = undefined
@@ -200,6 +202,23 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const restoredPolicy = await restoredContext.request.get(origin + '/api/operator/credentials/sources/synthetic-bifocal-restore')
   assert.equal(restoredPolicy.status(), 200)
   assert.deepEqual((await restoredPolicy.json()).definition, { columns: ['invoice', 'region', 'revenue'], filters: [{ column: 'region', op: 'eq', value: 'West' }] }, 'archive preserves the exact source restrictions without machine activation')
+  const portalRoot=origin+'/api/operator/portal/tenants/'+portal.id
+  const portalArchive=await restoredContext.request.get(portalRoot+'/archive')
+  assert.equal(portalArchive.status(),200);assert.deepEqual((await portalArchive.json()).releases,portal.releases)
+  const portalUsage=await restoredContext.request.get(portalRoot+'/usage');assert.deepEqual(await portalUsage.json(),portal.usage)
+  const stalePortal=await restoredContext.request.post(portalRoot+'/jobs/'+portal.job.id+'/run',{headers:{Origin:origin,Authorization:'Bearer '+portal.issued.token},data:{}})
+  assert.equal(stalePortal.status(),409,'Restored installation cannot serve a pre-archive export')
+  const deniedPortal=await restoredContext.request.post(portalRoot+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}})
+  assert.equal(deniedPortal.status(),409,'Restored preview requires fresh owner review and activation')
+  const reviewedPortal=await (await restoredContext.request.get(portalRoot+'/releases/1')).json()
+  const activatedPortal=await restoredContext.request.post(portalRoot+'/activate',{headers:{Origin:origin},data:{version:reviewedPortal.version,previousGeneration:reviewedPortal.previousGeneration,reviewedDigest:reviewedPortal.reviewedDigest}})
+  assert.equal(activatedPortal.status(),200)
+  const newPortalToken=await (await restoredContext.request.post(portalRoot+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'export',ttlSeconds:300}})).json()
+  const absentPortalJob=await restoredContext.request.post(portalRoot+'/jobs/'+portal.job.id+'/run',{headers:{Origin:origin,Authorization:'Bearer '+newPortalToken.token},data:{}})
+  assert.equal(absentPortalJob.status(),404,'Fresh activation cannot revive archived jobs')
+  const newReadToken=await (await restoredContext.request.post(portalRoot+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}})).json()
+  const newPortalRead=await restoredContext.request.post(portalRoot+'/read',{headers:{Origin:origin,Authorization:'Bearer '+newReadToken.token},data:{}})
+  assert.equal(newPortalRead.status(),200);assert.equal((await newPortalRead.json()).result.totals.revenue.value,'1.01')
   const restoredSearch = await restoredContext.request.get(origin + '/api/operator/library/search?q=quarterly')
   assert.equal(restoredSearch.status(), 200)
   const restoredResults = await restoredSearch.json()

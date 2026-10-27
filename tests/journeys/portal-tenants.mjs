@@ -142,3 +142,34 @@ export async function provePortalTenants({origin,owner,reader,upload}) {
  assert.deepEqual(await admin('/'+east.id+'/usage'),currentUsage,'Processing an admitted export never charges twice')
  console.log('Portal tenants: owner-only reviewed release, exact isolated totals, scoped drill and export, signed audience and action and expiry and replay fences, per-tenant cache and quotas, atomic suspension and rotation, queued export cancellation, staged rollback and tenant erasure passed')
 }
+
+/** Prepare live preview authority for the supported installation archive door. */
+export async function preparePortalRestore({origin,cookie,model}) {
+ const root='/api/operator/portal/tenants',headers={cookie,Origin:origin,'content-type':'application'+'/json'}
+ const call=async(path,data,status=data===undefined?200:201)=>{const r=await fetch(origin+root+path,{method:data===undefined?'GET':'POST',headers,...data===undefined?{}:{body:JSON.stringify(data)}});assert.equal(r.status,status,await r.clone().text());return r.json()}
+ const tenant=await call('',{}),document={schema:1,sdk:1,name:'Synthetic retained portal',color:'#334455',modelId:model.modelId,revision:model.revision,viewId:'sales',rows:[{column:'region',op:'eq',value:'West'}],dimensions:['region'],budget:{queries:10,exports:10}}
+ const review=await call('/'+tenant.id+'/review',{document},200),stage=await call('/'+tenant.id+'/stages',{document,reviewedDigest:review.reviewedDigest})
+ const state=await call('/'+tenant.id+'/activate',{version:stage.version,previousGeneration:stage.previousGeneration,reviewedDigest:stage.reviewedDigest},200)
+ const token=async action=>call('/'+tenant.id+'/tokens',{audience:origin,action,ttlSeconds:300})
+ const invoke=async(action,issued,status=200)=>{const r=await fetch(origin+root+'/'+tenant.id+'/'+action,{method:'POST',headers:{...headers,Authorization:'Bearer '+issued.token},body:'{}'});assert.equal(r.status,status,await r.clone().text());return r.json()}
+ assert.equal((await invoke('read',await token('read'))).result.totals.revenue.value,'1.01')
+ const job=await invoke('queue',await token('queue'),201),issued=await token('export')
+ return {id:tenant.id,state,job,issued,releases:(await call('/'+tenant.id+'/archive')).releases,usage:await call('/'+tenant.id+'/usage')}
+}
+
+/** Deterministic real public suspension after computation, before final response. */
+export async function provePortalBoundary({origin,context}) {
+ const {prepareMachineRestore}=await import('./machine-doors.mjs')
+ const cookie=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')
+ const machine=await prepareMachineRestore({origin,cookie}),fixture=await preparePortalRestore({origin,cookie,model:machine.portalModel})
+ const path='/api/operator/portal/tenants/'+fixture.id
+ const armed=await context.request.post(origin+'/__machine-boundary',{data:{path:path+'/suspend',cookie,body:{previousGeneration:fixture.state.generation}}})
+ assert.equal(armed.status(),200)
+ const response=await context.request.post(origin+path+'/jobs/'+fixture.job.id+'/run',{headers:{Origin:origin,Authorization:'Bearer '+fixture.issued.token},data:{}})
+ assert.equal(response.status(),409,'An already computed export is refused after current suspension')
+ const body=await response.json();assert.equal(body.error,'portal_state_changed');assert.equal(body.result,undefined)
+ const state=await context.request.get(origin+path);assert.equal((await state.json()).status,'suspended')
+ const tokens=await context.request.post(origin+path+'/tokens',{headers:{Origin:origin},data:{audience:origin,action:'read',ttlSeconds:300}});assert.equal(tokens.status(),403)
+ const usage=await context.request.get(origin+path+'/usage');assert.deepEqual(await usage.json(),fixture.usage)
+ console.log('Portal boundary: authenticated suspension before final response refuses computed export and retains its single reservation')
+}
