@@ -4685,7 +4685,7 @@
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
-      "sha256": "a805b54488f0335e9229472a0448b7334902cdf83147c599fdc2a2d6d3e11bef",
+      "sha256": "8de16af769663e31643c0ab53137fcf0d4bfd4523331cae8dd7c5c46b8fad6e2",
       "executable": false
     },
     "tests/bifocal-questions.mjs": {
@@ -4721,7 +4721,7 @@
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
-      "sha256": "b72f582b5aa38ed42659661dd105d63f2672ec48331b87662f2e6ce4768779d0",
+      "sha256": "84a9a80fa12edb7a66d7b842a2d1c32ed34c2647e8998c395973bc7216ab91ad",
       "executable": false
     },
     "tests/journeys/calculation-context.mjs": {
@@ -4861,7 +4861,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "865f7a9c8e76a4d5472da03a518258fdd5eccbcbec8bd44cd6594f1a70930106",
+      "sha256": "d5af6c6e22f7836a12220ebf8f67569d76ee8528847f65e9d331f776f73c11ce",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {

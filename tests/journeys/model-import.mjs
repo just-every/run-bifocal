@@ -411,7 +411,7 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
  const cli=async(command,args=[],ok=true)=>{
   try{const result=await run(process.execPath,['src/bifocal/models/validation/cli.mjs',command,'--origin',origin,'--session-file',session,...args],{maxBuffer:8<<20});assert.equal(ok,true,'Expected CLI refusal');return JSON.parse(result.stdout)}catch(error){if(ok)throw error;assert.match(error.stderr??'',/refused|reviewed plan|required/);return null}
  }
- const call=async(path,data,method=data===undefined?'GET':'POST')=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...(data===undefined?{}:{data})});assert.ok(response.ok(),await response.text());return response.json()}
+ const call=async(path,data,method=data===undefined?'GET':'POST')=>{const expected=typeof method==='number'?method:null;if(expected!==null)method=data===undefined?'GET':'POST';const response=await context.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...(data===undefined?{}:{data})});if(expected!==null)assert.equal(response.status(),expected,await response.text());else assert.ok(response.ok(),await response.text());return response.json()}
  try{
   await writeFile(session,cookie,{mode:0o600});await writeFile(document,JSON.stringify(definition))
   const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')

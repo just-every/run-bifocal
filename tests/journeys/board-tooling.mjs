@@ -58,7 +58,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  assert.deepEqual(baseline.cards.map(card=>card.quality.state),['healthy','healthy'])
  assert.deepEqual(baseline.cards.map(card=>card.quality.lastGood.answer.totals.revenue.value),['30.00','9.98'])
  for(const card of baseline.cards){assert.equal(card.quality.lastGood.queryId,card.queryId);assert.equal(card.quality.lastGood.createdAt,card.createdAt);assert.ok(Number.isFinite(Date.parse(card.quality.lastGood.checkedAt)))}
- const unrelated=await call('/queries/run',{...all,measures:[{id:'rows',op:'count',unit:'count',scale:0}]})
+ const unrelated=await call('/queries/run',{...all,semantic:undefined,measures:[{id:'rows',op:'count',unit:'count',scale:0}]})
  const impact=await call('/quality/impact/'+dataset+'?column=revenue')
  assert.deepEqual(impact.cards.filter(card=>card.id===created.id).sort((a,b)=>a.position-b.position).map(card=>({position:card.position,snapshot:card.snapshot_id})),created.cards.map((card,position)=>({position,snapshot:card.queryId})))
  assert.ok(!impact.queries.includes(unrelated.queryId),'Dropping revenue does not affect a query that only counts rows')
@@ -73,7 +73,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  assert.deepEqual(runs.map(run=>run.result.state),['failed','failed']);assert.deepEqual(runs[0].result.failingRowNumbers,[2])
  const failed=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(failed.cards.map(card=>card.quality.state),['at risk','at risk'])
- for(const card of failed.cards){assert.deepEqual(card.quality.tests.map(test=>({rule:test.ruleId,run:test.runId,state:test.state})),rules.map(([id],i)=>({rule:id,run:runs[i].id,state:'failed'})));assert.deepEqual(card.quality.lastGood,baseline.cards.find(original=>original.queryId===card.queryId).quality.lastGood);assert.deepEqual(card.quality.lineage,[{dataset,columns:card.definition.filters.length?['region','revenue']:['revenue']}])}
+ for(const card of failed.cards){assert.deepEqual(card.quality.tests.map(test=>({rule:test.ruleId,run:test.runId,state:test.state})),rules.map(([id],i)=>({rule:id,run:runs[i].id,state:'failed'})).sort((a,b)=>a.rule.localeCompare(b.rule)));assert.deepEqual(card.quality.lastGood,baseline.cards.find(original=>original.queryId===card.queryId).quality.lastGood);assert.deepEqual(card.quality.lineage,[{dataset,columns:['invoice','region','revenue']}])}
  await page.reload();await page.getByRole('heading',{name:created.title,exact:true}).waitFor()
  assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality at risk'}).count(),2)
  assert.equal(await page.getByRole('link',{name:'Board invoice identity · failed',exact:true}).count(),2)
