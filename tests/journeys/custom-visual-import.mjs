@@ -15,7 +15,7 @@ const roles={Values:{projections:[{field:{Column:{Expression:{SourceRef:{Entity:
 const container=(name,type,spec)=>({name,position:{x:0,y:0,z:0,height:300,width:500,tabOrder:0},visual:{visualType:type,query:{queryState:roles},objects:{...(spec?{vega:[{properties:{jsonSpec:literal(JSON.stringify(spec)),jsonConfig:literal('{}')}}]}:{}),general:[{properties:{formatString:literal('$0.00')}}]},drillFilterOtherVisuals:true}})
 
 export async function proveCustomVisualInventory({base,prepare,apply,call,page,origin,proveScreen}){
- const capture=async name=>{await proveScreen(name);if(process.env.BIFOCAL_PROOF_DIR)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.getByRole('region',{name:'Custom visual mappings',exact:true}).screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,name+'-detail-'+width+'.png')})}}
+ const capture=async name=>{const menu=page.locator('.menu > summary'),tooltip=page.locator('#settings-menu-tooltip');await menu.hover();await tooltip.waitFor({state:'visible'});await page.mouse.move(0,0);await tooltip.waitFor({state:'hidden'});await menu.focus();assert.equal(await tooltip.isVisible(),true,'Settings tooltip is available on keyboard focus');await proveScreen(name);if(process.env.BIFOCAL_PROOF_DIR)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.getByRole('region',{name:'Custom visual mappings',exact:true}).screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,name+'-detail-'+width+'.png')})}}
  const input=structuredClone(base);input.projectId='synthetic-bifocal-custom-visuals'
  const metadataPath=type=>report+'CustomVisuals/'+type+'/resources/'+type+'.pbiviz.json'
  const manifestPath=type=>report+'CustomVisuals/'+type+'/package.json'

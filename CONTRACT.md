@@ -593,7 +593,7 @@ BIF-045 is done for current numerical/replay doors and BIF-060 for the proved an
 
 ## Status
 
-Judged from the code and tests at commit `22e66b37aad7514d3236de0045ef3a7c984edfa4` (28 October 2026). BIF-081 records bounded native custom-visual and declarative-chart work; full real-report parity and the governed extension lifecycle remain unproved. Other clause evidence and CT rulings remain as recorded in their rows. This partial update makes no new DONE judgment.
+Judged from the code and tests at commit `66117ec26ce2bce37f13e191843c6af2d4aa2580` (28 October 2026). BIF-081 records bounded native custom-visual and declarative-chart work; full real-report parity and the governed extension lifecycle remain unproved. Other clause evidence and CT rulings remain as recorded in their rows. This partial update makes no new DONE judgment.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |

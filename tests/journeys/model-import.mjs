@@ -35,7 +35,18 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const post=async(id,action,data,expected=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':id},data});assert.equal(r.status(),expected,await r.text());return r.json()}
  const prepare=async(input,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex'),u=await post(input.projectId,'uploads',{name:'synthetic-bifocal-project.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')});return post(input.projectId,'plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})}
  const apply=async(id,plan)=>{await post(id,'apply',{planId:plan.planId,reviewedFingerprint:'0'.repeat(64)},403);for(let i=0;i<20;i++){const a=await post(id,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(a.job.state==='completed'){const r=await post(id,'reconcile',{planId:plan.planId});assert.equal(r.ok,true);return}}assert.fail('Project import did not complete')}
- if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY==='1'){await proveCustomVisualInventory({base:pbipProject(projects[3]),prepare,apply,call,page,origin,proveScreen});return}
+ if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY==='1'){
+  const cases=await proveCustomVisualInventory({base:pbipProject(projects[3]),prepare,apply,call,page,origin,proveScreen})
+  const source=await call('/datasets/'+dataset)
+  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
+  for(const {input,plan} of cases){
+   await call('/model-imports/'+input.projectId,undefined,404)
+   const original=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}})
+   assert.equal(original.status(),200);assert.ok((await original.json()).originals.every(item=>item.original.status==='unavailable'))
+   await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)
+  }
+  return
+ }
  for(const input of projects){
   const plan=await prepare(input)
   assert.equal(plan.counts.rejected,0,JSON.stringify(plan));assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report));assert.deepEqual(plan.project.report.issues,[]);assert.ok(plan.project.definition.views.every(v=>v.query.semantic.dimensions.every(d=>d.column!=='internal-note')))

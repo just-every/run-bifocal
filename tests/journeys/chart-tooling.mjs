@@ -161,6 +161,10 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
    assert.equal(await page.locator('.native-chart .chart-zero').count(),0,'A zero baseline outside the declared domain is omitted')
    const table=page.getByRole('table',{name:'Exact grouped values and totals'})
    assert.deepEqual(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'North',exact:true})}).getByRole('cell').allTextContents(),['USD 12.00','USD 10.00'],'Clipping preserves accessible exact values')
+   const menu=page.locator('.menu > summary'),tooltip=page.locator('#settings-menu-tooltip')
+   await menu.hover();await tooltip.waitFor({state:'visible'})
+   await page.mouse.move(0,0);await tooltip.waitFor({state:'hidden'})
+   await menu.focus();assert.equal(await tooltip.isVisible(),true,'The phone gear tooltip is available immediately on keyboard focus')
    await proveScreen('declarative-domain-'+(reverse?'reversed':'forward')+'-'+width,{widths:[width],resize:false})
   }
   for(const format of ['pdf','pptx']){

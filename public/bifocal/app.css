@@ -33,6 +33,9 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .menu{position:relative;margin:0}
 .menu>summary{gap:8px;min-height:40px;padding:7px 12px 7px 14px;border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text);font-weight:500;white-space:nowrap}
 .menu>summary:hover{background:var(--app-sunk)}
+.menu>summary .control-tooltip{position:absolute;right:0;top:calc(100% + 8px);z-index:30;padding:6px 10px;border:1px solid var(--app-line);border-radius:6px;background:var(--app-text);color:var(--app-surface);font-size:14px;font-weight:500;line-height:1.4;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;transition:opacity 0s,visibility 0s}
+.menu:not([open])>summary:hover .control-tooltip{opacity:1;visibility:visible;transition-delay:.3s}
+.menu:not([open])>summary:focus .control-tooltip{opacity:1;visibility:visible;transition-delay:0s}
 .menu>summary svg{display:none}
 .menu>summary::before{content:none}
 .menu>summary::after{content:'';flex:none;width:7px;height:7px;margin:-3px 2px 0 2px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
