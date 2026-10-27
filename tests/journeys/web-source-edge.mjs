@@ -16,6 +16,7 @@ export async function webEdgeResponse(request,state,origin) {
  if(second && phase==='expired')return new Response(null,{status:401,headers:{'www-authenticate':'Bearer error="invalid_token"'}})
  if(phase==='redirect')return new Response(null,{status:302,headers:{location:'https://127.0.0.1/private'}})
  if(phase==='oversize')return Response.json({items:[{note:'x'.repeat(524289)}]})
+ if(phase==='credential-echo')return new Response(JSON.stringify({data:{items:[{id:'1',details:{...webRows[0],note:'synthetic-bifocal-60'}}]},next:null}).replace('synthetic-bifocal-60','\\u0073ynthetic-bifocal-60'),{headers:{'content-type':'application/json'}})
  if(phase==='empty')return Response.json({items:[],next:null})
  if(phase==='schema' && second)return Response.json({items:[{id:'3'}],next:null})
  if(url.pathname==='/xml')return new Response(phase==='active-xml'?'<!DOCTYPE feed [<!ENTITY x SYSTEM "https://private.example/secret">]><feed><row><id>&x;</id></row></feed>':'<feed xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><row><id>1</id><amount>12.30</amount><active>true</active><day>2026-06-01</day><note></note></row><row><id>2</id><amount>-2.05</amount><active>false</active><day>2026-06-02</day><note xsi:nil="true"/></row></feed>',{headers:{'content-type':'application/xml'}})

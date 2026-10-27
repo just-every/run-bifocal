@@ -24,7 +24,9 @@ export async function readWeb(input:WebInput,check:()=>Promise<void>,signal:Abor
   requireValue(!source.includes(input.accessToken),'web_credential_in_response',502)
   const {document,items}=decode(source,input)
   requireValue(rows.length+items.length<=2000,'web_row_limit',413)
-  rows.push(...items.map(row=>input.fields.map(field=>cell(row,field))));pages++
+  const pageRows=items.map(row=>input.fields.map(field=>cell(row,field)))
+  requireValue(!pageRows.some(row=>row.some(value=>value!==null && value.includes(input.accessToken))),'web_credential_in_response',502)
+  rows.push(...pageRows);pages++
   let continuation:unknown
   if(input.paging==='next-link') {
    if(input.format==='odata') {continuation=optional(document,'@odata.nextLink')??optional(document,'@nextLink');deltaAvailable=!!(optional(document,'@odata.deltaLink')??optional(document,'@deltaLink'))}

@@ -61,7 +61,7 @@ export async function proveWebSources(origin,context,page,state,webOrigin) {
   await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true')
   assert.deepEqual((await read(id)).table.rows,expected);assert.ok(state.webCalls-started<20,'cancellation stops pagination before its page bound');await shot('cancelled',width)
   state.webPhase='success'
-  for(const [phase,status,error] of [['partial',502,'web_partial_response_refused'],['oversize',413,'web_response_limit'],['rate',429,'web_rate_limited'],['expired',409,'web_authorization_expired'],['schema',502,'web_missing_path'],['private-next',400,'public_https_origin_required'],['foreign-next',403,'web_destination_not_approved'],['redirect',409,'web_redirect_refused'],['repeated',409,'web_nonterminating_pagination']]) {
+  for(const [phase,status,error] of [['credential-echo',502,'web_credential_in_response'],['partial',502,'web_partial_response_refused'],['oversize',413,'web_response_limit'],['rate',429,'web_rate_limited'],['expired',409,'web_authorization_expired'],['schema',502,'web_missing_path'],['private-next',400,'public_https_origin_required'],['foreign-next',403,'web_destination_not_approved'],['redirect',409,'web_redirect_refused'],['repeated',409,'web_nonterminating_pagination']]) {
    state.webPhase=phase
    const before=await read(id),historyBefore=await (await context.request.get(origin+'/api/operator/import/history',{headers:{'X-Import-Dataset':id}})).json()
    const failed=await preview(id,{catchup:true},status);assert.equal(failed.error,error);assert.deepEqual(await read(id),before,'failed page sequence preserves exact last-good dataset')

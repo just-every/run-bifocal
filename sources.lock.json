@@ -965,7 +965,7 @@
       "executable": false
     },
     "public/bifocal/web-source.js": {
-      "sha256": "67aa837458b22c5539ec2256c6af1967d418d26a4e185c7c89b62936caf8dc17",
+      "sha256": "7e198cdabb4076243c3af4fb628e0dee635ecf070fc2d7fe83e00ec321579682",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -2597,7 +2597,7 @@
       "executable": false
     },
     "src/bifocal/sources/web/read.ts": {
-      "sha256": "9876385b8cef331c35b3b252dbecb0e56bdd6672a06b58bd2b2b0783a19d8222",
+      "sha256": "16864a73bedec3f9c61bf36227bf3d61e891bf5413a5e8bdf32f82b414b825e4",
       "executable": false
     },
     "src/bifocal/sources/web/server.ts": {
@@ -4833,11 +4833,11 @@
       "executable": false
     },
     "tests/journeys/web-source-edge.mjs": {
-      "sha256": "2bb2a756351c00e9da14fcd050e85a14ef67f754868c423a6946c046d52939e2",
+      "sha256": "1cd3184ae7f09b74379dad1e115d542393a4bdd8152624c84021f2bb3e189425",
       "executable": false
     },
     "tests/journeys/web-sources.mjs": {
-      "sha256": "5a889f6d8e245d0455f23afe4a10695d372b697916b08eabe2f5857c3041c979",
+      "sha256": "1befcae59372b1c4f74eac44b41779f3ee6ca823dd011a656dc53a0f2878a0c4",
       "executable": false
     },
     "tests/runtime.mjs": {

@@ -1,4 +1,5 @@
 const readErrors={
+ web_credential_in_response:'The source response includes authorization data. Remove that data before importing.',
  web_read_cancelled:'Source read cancelled.',
  web_nonterminating_pagination:'The source did not finish paging. Check its continuation settings before another read.',
  web_rate_limited:'The source rate limit stopped this read. Wait until the source allows another request.',
