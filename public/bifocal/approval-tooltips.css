@@ -1,3 +1,0 @@
-.menu>summary{position:relative}
-#approval-settings-tooltip{position:absolute;right:0;top:calc(100% + 8px);z-index:50;white-space:nowrap;padding:8px 12px;border-radius:6px;background:#172033;color:#fff;font-size:14px;font-weight:500;line-height:1.4;pointer-events:none}
-#approval-settings-tooltip[hidden]{display:none}

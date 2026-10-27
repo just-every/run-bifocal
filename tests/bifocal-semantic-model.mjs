@@ -59,6 +59,7 @@ try {
   for(let i=0;i<20;i++){const a=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(a.job.state==='completed')return p}
   assert.fail('Shared source apply did not complete')
  }
+ if(process.env.BIFOCAL_CHART_ONLY==='1'){await proveModelLifecycle({origin,context,definition:{views:[],quality:[]},upload});await context.close();return}
  if(process.env.BIFOCAL_PORTAL_BOUNDARY_ONLY==='1'){await provePortalBoundary({origin,context});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'){await proveModelImports({origin,context,page,call,upload,proveScreen});await context.close();return}

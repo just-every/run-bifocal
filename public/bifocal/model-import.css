@@ -1,0 +1,5 @@
+#model-import-current pre,#model-import-review pre{max-height:36rem;overflow:auto}
+.model-visual-inventory{margin:24px 0}
+.model-visual-inventory summary{overflow-wrap:anywhere}
+.model-visual-inventory .metadata{margin:16px 20px;box-shadow:none;border:0;padding:0}
+.model-visual-inventory dd{overflow-wrap:anywhere}

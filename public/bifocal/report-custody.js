@@ -1,5 +1,3 @@
-import { approvalTooltips } from './approval-tooltips.js'
-approvalTooltips()
 import { instanceControls } from './report-instance.js'
 import { element, metadata, table } from './file-view.js'
 import { figure, label, stamp } from './format.js'

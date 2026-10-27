@@ -1,5 +1,6 @@
 import {upload} from './file-upload.js'
 import {element,metadata,table} from './file-view.js'
+import {visualInventory} from './model-visual-view.js'
 const $=id=>document.getElementById(id),form=$('model-import-form')
 if(form){
  let plan=null,current=null,projectId=null,busy=false
@@ -11,8 +12,9 @@ if(form){
   box.append(metadata([['Compatibility',report.compatible?'Compatible translation':'Unresolved source semantics'],['Source language',project.input.format],['Original files',project.input.files.map(f=>f.path).join(', ')],['Unresolved items',report.issues.length],...(fingerprint?[['Reviewed fingerprint',fingerprint]]:[])]))
   box.append(table('Source measure translations',['Source measure','Source expression','Native measure','Aggregation'],report.translations.map(t=>[t.sourceObject,t.sourceExpression,t.view+'.'+t.measure.id,t.measure.op+' '+(t.measure.column??'rows')+' · '+t.measure.unit])))
   if(report.project.resources?.length)box.append(table('Source project inventory',['Source object','Kind','Dependencies'],report.project.resources.map(r=>[r.id,r.kind,r.dependencies.join(', ')])))
+  const visuals=visualInventory(report.project.resources);if(visuals)box.append(visuals)
   if(report.issues.length)box.append(table('Unresolved source semantics',['Source object','Reason','Required work'],report.issues.map(i=>[i.object,i.code,i.message])))
-  const details=element('details'),summary=element('summary','Full source compatibility report'),pre=element('pre',JSON.stringify({report,definition:project.definition},null,2));details.append(summary,pre);box.append(details)
+  const details=element('details'),summary=element('summary','Full source compatibility report'),pre=element('pre',JSON.stringify({report,definition:project.definition},null,2));pre.tabIndex=0;pre.setAttribute('aria-label','Full source compatibility report data');details.append(summary,pre);box.append(details)
  }
  const call=async(action,data,id=projectId)=>{const r=await fetch('/api/operator/import/'+action,{method:data===undefined?'GET':'POST',headers:{'content-type':'application'+'/'+'json','X-Import-Kind':'model','X-Import-Dataset':id},...(data===undefined?{}:{body:JSON.stringify(data)})});const v=await r.json();if(!r.ok)throw Error(v.reason??v.error);return v}
  const perform=work=>async event=>{event?.preventDefault();if(busy)return;busy=true;try{await work()}catch(error){status('Semantic import unavailable: '+error.message)}finally{busy=false;$('model-import-apply').disabled=!plan||!!plan.counts.rejected||!$('model-import-confirm').checked}}

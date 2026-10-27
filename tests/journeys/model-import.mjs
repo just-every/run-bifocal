@@ -14,6 +14,14 @@ import {provePolicyTooling} from './policy-tooling.mjs'
 import {proveBoardTooling} from './board-tooling.mjs'
 import {proveRecurringTooling} from './recurring-tooling.mjs'
 import {proveEnvironmentTooling} from './environment-tooling.mjs'
+import {proveCustomVisualInventory} from './custom-visual-import.mjs'
+
+const pbipProject=source=>({...structuredClone(source),projectId:'synthetic-bifocal-pbip',format:'pbip',files:[
+  {path:'Sales.pbip',content:JSON.stringify({version:'1.0',artifacts:[{report:{path:'Sales.Report'}}],settings:{enableAutoRecovery:true}})},
+  {path:'Sales.Report/definition.pbir',content:JSON.stringify({version:'4.0',datasetReference:{byPath:{path:'../Sales.SemanticModel'}}})},
+  {path:'Sales.SemanticModel/definition.pbism',content:JSON.stringify({version:'4.0',settings:{}})},
+  {path:'Sales.SemanticModel/definition/tables/Sales.tmdl',content:source.files[0].content}
+ ]})
 
 export async function proveModelImports({origin,context,page,call,upload,proveScreen,signInMember}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
@@ -27,6 +35,18 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const post=async(id,action,data,expected=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':id},data});assert.equal(r.status(),expected,await r.text());return r.json()}
  const prepare=async(input,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex'),u=await post(input.projectId,'uploads',{name:'synthetic-bifocal-project.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')});return post(input.projectId,'plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})}
  const apply=async(id,plan)=>{await post(id,'apply',{planId:plan.planId,reviewedFingerprint:'0'.repeat(64)},403);for(let i=0;i<20;i++){const a=await post(id,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(a.job.state==='completed'){const r=await post(id,'reconcile',{planId:plan.planId});assert.equal(r.ok,true);return}}assert.fail('Project import did not complete')}
+ if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY==='1'){
+  const cases=await proveCustomVisualInventory({base:pbipProject(projects[3]),prepare,apply,call,page,origin,proveScreen})
+  const source=await call('/datasets/'+dataset)
+  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
+  for(const {input,plan} of cases){
+   await call('/model-imports/'+input.projectId,undefined,404)
+   const original=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}})
+   assert.equal(original.status(),200);const originals=(await original.json()).originals;assert.equal(originals.length,1,'The retained visual import bundle is accounted for after erasure');assert.ok(originals.every(item=>item.original.status==='unavailable'))
+   await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)
+  }
+  return
+ }
  for(const input of projects){
   const plan=await prepare(input)
   assert.equal(plan.counts.rejected,0,JSON.stringify(plan));assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report));assert.deepEqual(plan.project.report.issues,[]);assert.ok(plan.project.definition.views.every(v=>v.query.semantic.dimensions.every(d=>d.column!=='internal-note')))
@@ -213,15 +233,11 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
  const unsafePlan=await prepare(unsafe);assert.equal(unsafePlan.project.report.compatible,false);assert.deepEqual(unsafePlan.project.report.issues.filter(i=>['missing_dbt_dependency','cyclic_dbt_dependency'].includes(i.code)).map(i=>i.code).sort(),['cyclic_dbt_dependency','missing_dbt_dependency']);assert.match(unsafePlan.project.report.project.resources.find(r=>r.kind==='model').definition.raw_code,/run_query/);await apply(unsafe.projectId,unsafePlan);dbtProjects.push({input:unsafe,plan:unsafePlan})
- const pbip={...structuredClone(projects[3]),projectId:'synthetic-bifocal-pbip',format:'pbip',files:[
-  {path:'Sales.pbip',content:JSON.stringify({version:'1.0',artifacts:[{report:{path:'Sales.Report'}}],settings:{enableAutoRecovery:true}})},
-  {path:'Sales.Report/definition.pbir',content:JSON.stringify({version:'4.0',datasetReference:{byPath:{path:'../Sales.SemanticModel'}}})},
-  {path:'Sales.SemanticModel/definition.pbism',content:JSON.stringify({version:'4.0',settings:{}})},
-  {path:'Sales.SemanticModel/definition/tables/Sales.tmdl',content:projects[3].files[0].content}
- ]}
+ const pbip=pbipProject(projects[3])
  const pbipPlan=await prepare(pbip);assert.equal(pbipPlan.counts.rejected,0);assert.equal(pbipPlan.project.report.compatible,false);assert.deepEqual(pbipPlan.project.report.project.resources.map(r=>[r.id,r.dependencies]),[
   ['Sales.pbip',['Sales.Report/definition.pbir']],['Sales.Report/definition.pbir',['Sales.SemanticModel/definition.pbism']],['Sales.SemanticModel/definition.pbism',['Sales.SemanticModel/definition/tables/Sales.tmdl']],['Sales.SemanticModel/definition/tables/Sales.tmdl',[]]
  ]);assert.equal(pbipPlan.project.definition.views[0].query.measures[0].column,'revenue');assert.ok(pbipPlan.project.report.issues.some(i=>i.code==='pbip_report_translation_pending'));await apply(pbip.projectId,pbipPlan);const pbipRead=await call('/model-imports/'+pbip.projectId);assert.deepEqual(pbipRead.input.files,pbip.files);await call('/model-authoring/review',{document:dump(pbipRead.definition),importProject:pbip.projectId,importRevision:pbipRead.revision},409);dbtProjects.push({input:pbip,plan:pbipPlan})
+ dbtProjects.push(...await proveCustomVisualInventory({base:pbip,prepare,apply,call,page,origin,proveScreen}))
  const folder=await mkdtemp(join(tmpdir(),'bifocal-pbip-picker-'))
  try{
   for(const file of pbip.files){const target=join(folder,file.path);await mkdir(join(target,'..'),{recursive:true});await writeFile(target,file.content)}
@@ -387,7 +403,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
 /** Real CLI and Terraform model changes share exact native review and fences. */
 export async function proveModelLifecycle({origin,context,definition,upload}){
  const page=await context.newPage()
- const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow');assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0,'Every control has text');if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}
+ const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow');assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0,'Every control has text');if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}
  const {execFile}=await import('node:child_process'),{promisify}=await import('node:util'),{resolve}=await import('node:path')
  const run=promisify(execFile),directory=await mkdtemp(join(tmpdir(),'bifocal-model-tools-')),session=join(directory,'session'),document=join(directory,'model.native.json'),plan=join(directory,'create.plan.json')
  const cookie=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')
@@ -398,6 +414,10 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
  const call=async(path,data,method=data===undefined?'GET':'POST')=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...(data===undefined?{}:{data})});assert.ok(response.ok(),await response.text());return response.json()}
  try{
   await writeFile(session,cookie,{mode:0o600});await writeFile(document,JSON.stringify(definition))
+  const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
+  await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
+  const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
+  if(process.env.BIFOCAL_CHART_ONLY){await readFile(provider);await proveChartTooling({origin,context,page,call,upload,proveScreen,cli,tfRun,directory,tf});return}
   const review=await cli('plan',['--file',document,'--plan-file',plan]);assert.equal(review.compatible,true)
   const savedPlan=await readFile(plan,'utf8');assert.ok(!savedPlan.includes(cookie));assert.ok(!savedPlan.includes('answer'));assert.ok(!savedPlan.includes('securityScope'))
   await cli('apply',['--plan-file',plan,'--approve','0'.repeat(64)],false)
@@ -408,11 +428,8 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const dashboardReview=await cli('dashboard-import',['--file',draft,'--plan-file',join(directory,'dashboard.plan.json')]),dashboard=await cli('dashboard-import',['--file',draft,'--approve',dashboardReview.digest]),dashboardExport=join(directory,'dashboard-export.native.json');await cli('dashboard-export',['--id',dashboard.id,'--output',dashboardExport])
   assert.deepEqual(JSON.parse(await readFile(dashboardExport,'utf8')),{version:1,title:'Fiscal revenue from git',definition:dashboard.definition})
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/dashboards/'+dashboard.id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#totals').innerText(),/69\.06/);await proveScreen('model-cli-dashboard')}
-  const config=join(directory,'terraform.rc'),tf=join(directory,'main.tf.json')
-  await writeFile(config,`provider_installation {\n dev_overrides { "just-every/run-bifocal" = ${JSON.stringify(toolDirectory)} }\n direct {}\n}\n`,{mode:0o600})
   const tfDefinition=structuredClone(native);let resource,reviewSequence=0
   const writeConfig=async()=>{const source=join(directory,'tf-document.json');await writeFile(source,JSON.stringify(tfDefinition));const reviewed=await cli('plan',['--file',source,'--plan-file',join(directory,'tf-review-'+reviewSequence+++'.json'),...(resource?['--model',resource.model_id,'--branch',resource.branch_id]:[])]);return writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_model_branch:{main:{document:JSON.stringify(tfDefinition),review_digest:reviewed.digest}}}}))}
-  const tfRun=async(args,ok=true)=>{try{const result=await run(terraform,args,{cwd:directory,env:{...process.env,TF_CLI_CONFIG_FILE:config,BIFOCAL_SESSION_FILE:session,TF_IN_AUTOMATION:'1'},maxBuffer:8<<20});assert.equal(ok,true,'Expected Terraform refusal');return result.stdout}catch(error){if(ok)throw error;assert.match(error.stderr??'',/Bifocal refused|stale|published_branch/);return error.stderr}}
   await readFile(provider);await writeConfig()
   await tfRun(['plan','-input=false','-no-color','-out=create.tfplan']);await tfRun(['apply','-input=false','-no-color','create.tfplan'])
   let state=JSON.parse(await readFile(join(directory,'terraform.tfstate'),'utf8'));resource=state.resources[0].instances[0].attributes
@@ -699,8 +716,7 @@ export async function proveNativePreparation({imports=false}={}){
   const proveScreen=async(label)=>{
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
-  await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
-  await proveDBTExecution({origin,context,call,upload,signInMember})
+  if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY!=='1'){await provePreparation({origin,context,page,call,upload,signInMember,proveScreen});await proveDBTExecution({origin,context,call,upload,signInMember})}
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}

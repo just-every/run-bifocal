@@ -27,6 +27,7 @@ import { qualityResponse } from './bifocal/quality/server'
 import { metricResponse } from './bifocal/metrics/store.server'
 import { metricDefinitionResponse } from './bifocal/metrics/definitions.server'
 import { chartResponse } from './bifocal/charts/server'
+import { chartSnapshotResponse } from './bifocal/dashboards/snapshots/chart-response.server'
 import { policyDefinitionResponse } from './bifocal/policies/server'
 import { policyDefinitionPage } from './bifocal/policies/page.server'
 import { scheduleDefinitionPage } from './bifocal/schedules/page.server'
@@ -115,6 +116,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (policyPage) return policyPage
     const policy = await policyDefinitionResponse(request, env)
     if (policy) return policy
+    const chartSnapshot = await chartSnapshotResponse(request, env)
+    if (chartSnapshot) return chartSnapshot
     const chart = await chartResponse(request, env)
     if (chart) return chart
     const metricDefinition = await metricDefinitionResponse(request, env)
