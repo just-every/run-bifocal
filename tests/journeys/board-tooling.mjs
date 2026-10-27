@@ -22,7 +22,7 @@ export async function proveBoardTooling({origin,context,page,call,upload,proveSc
   const created=await cli(kind+'-import',['--file',file,'--approve',review.digest]);assert.equal(created.cards.length,2)
   retainedIds.push(...created.cards.map(card=>card.queryId))
   await proveBoardQuality({origin,context,page,call,upload,proveScreen,dataset,csv,all,kind,created,rules,runQuality})
-  review=await cli(kind+'-import',['--file',file,'--plan-file',plan])
+  review=await cli(kind+'-import',['--file',file,'--plan-file',join(directory,kind+'-board-quality-repaired.plan.json')])
   await proveRetainedExports({origin,context,snapshotId:created.cards[0].queryId,summary:[['30.00']],underlying:[['1','West','10.01'],['2','East','20.02'],['3','West','-0.03']]})
   await proveRetainedExports({origin,context,snapshotId:created.cards[1].queryId,summary:[['9.98']],underlying:[['1','West','10.01'],['3','West','-0.03']]})
   await cli(kind+'-export',['--id',created.id,'--output',exported]);assert.deepEqual(JSON.parse(await readFile(exported,'utf8')),document)
