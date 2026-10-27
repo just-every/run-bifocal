@@ -23,7 +23,7 @@ if(form){
  function graph(){renderGraph($('prep-steps'),steps,changed);$('prep-graph-source').textContent=(dataset.value||'Source dataset')+' → '+steps.length+' ordered steps → draft output';controls()}
  function editingMode(value){activeMode=value;mode.value=value;$('prep-visual').hidden=value!=='visual';$('prep-sql-editor').hidden=value!=='sql'}
  const call=async(preparation,action,body)=>{
-  const response=await fetch('/api/operator/preparations/'+preparation+(action?'/'+action:''),{method:body===undefined?'GET':'POST',headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})})
+  const response=await fetch('/api/operator/preparations/'+preparation+(action?'/'+action:''),{method:body===undefined?'GET':'POST',headers:{'content-type':'application'+'/'+'json'},...(body===undefined?{}:{body:JSON.stringify(body)})})
   const value=await response.json()
   if(!response.ok){const error=Error([value.error,value.reason].filter(Boolean).join(': '));error.status=response.status;throw error}
   return value
