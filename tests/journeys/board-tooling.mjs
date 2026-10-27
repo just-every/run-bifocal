@@ -75,6 +75,11 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
    await page.goto(origin+'/app/dashboard-authoring/'+saved.id+'/view');await page.getByRole('status').filter({hasText:interactive?'Published revision':'Published layout'}).waitFor()
    assert.equal(await page.locator('#published-dashboard .quality-notice').filter({hasText:'Quality '+state}).count(),2)
    if(state==='at risk'){for(const summary of await page.getByText('Last-good values',{exact:true}).all())await summary.click();assert.deepEqual(await page.getByRole('table',{name:'Retained last-good totals',exact:true}).evaluateAll(tables=>tables.map(table=>Array.from(table.querySelectorAll('tbody td'),cell=>cell.textContent))),[['Revenue','$30.00'],['Revenue','$9.98']])}
+   if(state==='at risk'){
+    for(const summary of await page.getByText('Source columns and definition lineage',{exact:true}).all())await summary.click()
+    const lineages=page.locator('.quality-notice details').filter({has:page.getByText('Source columns and definition lineage',{exact:true})})
+    assert.deepEqual(await lineages.locator('li:first-child').allTextContents(),[dataset+': invoice, region, revenue',dataset+': invoice, region, revenue'])
+   }
    await proveScreen('quality-'+(interactive?'interactive':'published')+'-'+phase)
   }
   if(kind==='dashboard'){
