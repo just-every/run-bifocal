@@ -72,14 +72,28 @@ literal `ref` and `source` calls; they do not compile Jinja. Missing dependencie
 cycles, unsupported files and execution obligations stay explicit. Project
 configuration, hooks, packages, macros and SQL are never run or fetched.
 
-This is an inert project inventory, not executable dbt preparation. Importing a
-test does not run it. Such a project cannot publish a native model. Bind model
-names to reviewed file datasets to track source custody; source erasure reaches
-the project and its retained originals. Reimport uses an exact reviewed revision,
+The bounded native translator recognizes a complete literal `SELECT` of physical
+columns, with optional aliases, from one uploaded `source` or `ref` dependency.
+It resolves chained projections without evaluating Jinja or sending SQL to a
+database. A semantic model must reference the exact uploaded model; its reviewed
+column bindings must match the full projection lineage. Every physical grain
+column must survive the projection. Compatible projects can export rebuilt
+native models and proceed through the separate Models review.
+
+Column-level built-in `not_null` and `unique` declarations run against the exact
+reviewed source records. Uniqueness ignores nulls and compares numeric values
+exactly. The compatibility report retains each check's source revision, mapped
+column, row count and failure count. A failed check blocks model export and
+publication. Custom tests, arguments, hooks, macros, arbitrary SQL, differing
+compiled artifacts and unsupported configuration remain unresolved; no dbt
+process or provider adapter runs. Merely retaining a test never proves it passed.
+
+Bind model names to reviewed datasets to track source custody; source erasure
+reaches the project and its originals. Reimport uses an exact reviewed revision,
 and shared Undo restores the earlier project. The bounded inventory accepts at
-most 512 resources within the existing file and byte limits. SQL transformation,
-validation execution, dependency schedules and automatic flow translation remain
-unfinished under BIF-005 and BIF-070.
+most 512 resources within the existing file and byte limits. General dbt
+execution, dependency schedules and automatic flow translation remain unfinished
+under BIF-005 and BIF-070.
 
 ## Other native project inventories
 
@@ -93,9 +107,17 @@ project are diagnosed, never fetched.
 
 Choose Metabase for serialization YAML or individual Card, Table, Field and
 Database API response objects. Original identities, queries, field metadata and
-source dependencies remain in the inventory. MBQL, native SQL, source permission
-and visualization execution remain unproved; these objects cannot publish a
-native model. Collection and dashboard serialization metadata is also retained.
+source dependencies remain in the inventory. Bounded MBQL sum, distinct and count
+aggregates resolve physical field ids against the uploaded table catalog and
+can publish through explicit native source bindings. Physical-field equality,
+value sets, inclusive numeric or date bounds, null predicates and conjunctions
+retain their restrictions before aggregation. Up to four plain physical-field
+breakouts retain their grouping and exact result metadata. Unsupported branches
+refuse the whole project; subsequent exploration intersects retained predicates.
+Other MBQL, native SQL,
+source permissions and visualization semantics remain unresolved and block
+publication. Connection details and unrecognized query clauses never disappear
+into a wider native aggregate. Collection and dashboard serialization metadata is also retained.
 
 Choose Tableau for textual TWB or TDS files, or a TWBX archive. The browser
 encodes the archive for the same project envelope; API clients supply its
@@ -106,7 +128,12 @@ unsafe archive paths, more than 64 archive entries, any expanded file above
 must still fit the ordinary project file limit (the browser accepts 192 KiB
 before encoding). Extracts, binary contents and scripts are named unsupported
 items. Nothing is extracted to disk, evaluated or fetched. Source and content
-execution remain explicit gaps; inventory is not a translated workbook.
+execution remain explicit gaps; inventory is not a translated workbook. A
+bounded source definition with one textscan table, physical typed columns and
+SUM and COUNTD measures can compile against explicitly reviewed native records.
+Source filters, connection settings and unrecognized elements block publication.
+Rebuilt native exports in Files retain reviewed source revisions and mappings
+without original file bytes or connection credentials.
 
 Every explicitly bound source dataset retains erasure custody even when a
 project has no executable definition or has an invalid source object. The exact
@@ -182,3 +209,21 @@ These drafts do not publish a model or change certified data.
 For directory-based semantic projects, choose **Original project folder**. Paths
 are retained relative to the selected folder, so local PBIP descriptor references
 and dbt dependencies can be inspected. Choose individual files for a flat project.
+
+Preparation reviews compare the staged output with current certified metrics
+and retained charts that use the source. The review shows published and staged
+totals separately. It never changes a certified definition or retained answer.
+A failed draft leaves a source-revision-bound warning on its affected charts;
+a successful review clears that warning. Source changes hide obsolete warnings,
+and source erasure removes their retained diagnostics.
+
+An owner can explicitly execute supported imported dbt definitions with
+`POST /api/operator/preparations/<id>/dbt-review`, supplying `projectId` and
+`bindings` from literal source resource identities to already imported dataset
+IDs. The result includes ordered dependencies, exact output rows, column
+lineage, generic column `not_null` and `unique` test outcomes, and the project
+and source revisions. A dependency or test failure makes the review incompatible.
+This native dialect supports one literal relation per model, projections,
+casts and exact arithmetic. It never evaluates Jinja or runs hooks, adapters,
+provider SQL or background jobs. Unsupported constructs stay diagnostic.
+Execution is ephemeral and does not publish a table or certify a metric.

@@ -122,7 +122,7 @@ The installed `/docs` guide is static edition documentation available signed out
 
 ### Dependency signing-key custody
 
-Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.79. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
+Selected Base source is pinned at `4280971d7c0295b8a88c3e1179048efcbbe14f30`; the command package remains exactly `@runeditrun/rer` 0.2.80. Setup manages `INSTALLATION_KEY` in private settings, including when upgrading an older setup. Dependency signing keys use Base’s authenticated encrypted envelopes. The forward-only `0023_dependency_key_custody.sql` migration adds custody metadata without changing applied SQL. Deploy declares the current installation key and an optional previous key for explicit rotation; rer manages these in its private deployment secrets file. Neither installation key nor dependency private signing keys travels in an installation archive. Preserve private deployment custody for older D1 backups; follow the adopted dependency module’s rotation/reopen instructions before retiring a key. This adoption does not change retained-owner or inactive-grant restore limitations.
 
 The forward-only company-default normalization (0024) gives untouched built-in defaults no owner-authored update time (`updatedAt: null` at the company API). Owner-saved revisions and timestamps are preserved. This makes a fresh destination’s migration row reproducible for Base’s exact empty-state restore check; populated destinations remain refused. Backward restore of archives preceding this migration remains unqualified; Base migration-data refusals remain enforced.
 
@@ -145,3 +145,48 @@ sender and, for Cloudflare, account ID. Enter these privately in setup; no
 provider key or usable sender is included in this source. Local development
 continues to suppress mail. Provider acceptance and hosted qualification remain
 separate checks before offering an installable release.
+
+
+## External traffic and disconnected native reporting
+
+The installed app serves its scripts, styles, fonts and native data from its
+own origin. Native file review and import, exact queries, saved tabular
+dashboards and reports, snapshot reproduction and CSV downloads use the
+installation's Worker and D1. They require no author service, marketplace,
+licence callback or telemetry endpoint. Links to the separate Run site and
+repository documentation navigate there only when opened. Installation and
+upgrade acquire source and tools; retain the checkout and its pinned tools
+before disconnecting those acquisition services.
+
+Optional features make the following external requests. Credentials stay in
+private configuration or an explicitly authorized request, never this guide.
+A configured endpoint is a data destination: inspect it before enabling the
+feature and keep credentials scoped to the intended installation.
+
+| Operation | Destination and data crossing the boundary | Activation |
+| --- | --- | --- |
+| Native sign-in mail and approved report sends | The selected Resend, SendGrid or Cloudflare mail API, or the assigned `MAIL_RELAY_URL`; recipient, sender, message and any explicitly approved attachment | Hosted mail configuration and the requested sign-in, invitation or exact approved report send. Development suppresses mail. |
+| Linked identity | The configured `IDENTITY_PROVIDER` origin and its validated discovery, signing-key, token and link endpoints; identity protocol messages | Explicit provider linking and linked sign-in. Native sessions remain installation-local. |
+| Google Sheets or Microsoft Excel range preview | `sheets.googleapis.com` or `graph.microsoft.com`; selected workbook and range identifiers and the fresh access token | One explicit owner-consented preview through the file door. |
+| Vane Stats preview | The owner-configured `BIFOCAL_VANE_ORIGIN`; selected site, dates, dimension and read grant | One explicit owner-consented Stats read. |
+| BigQuery source preview | `bigquery.googleapis.com`; selected project, dataset, table, permitted fields and read grant | One explicit owner-consented business-table read. |
+| Buyer warehouse export | `bigquery.googleapis.com`; the exact reviewed analytical rows, destination identifiers and write grant | One exact owner-approved export attempt; local preview makes no external request. |
+| AI question planning | The enabled `AI_BASE_URL` (the direct default is OpenAI) or selected `MODELS_SERVICE`; explicit question and permitted model metadata | AI must be enabled and configured. Native execution checks the returned plan; source rows and native query results are not sent by the question planner. |
+
+The publication and deployment tools separately contact source and package
+registries, GitHub and the owner's Cloudflare account. Mail doctor can contact
+Cloudflare DNS and the selected mail API. Those operator commands are not
+background reporting traffic. Native runtime does not automatically invoke
+them. Remote health, analytical jobs, complete installation independence and
+large reporting workloads still require the outstanding BIF-031 qualification.
+
+`tests/journeys/report-edge.mjs` runs the emitted production Worker over HTTPS
+with real migrated D1 and native sessions. Its owner-independence phase refuses
+**all** Worker subrequests and off-origin browser requests, exercises a failed
+optional source read, then asserts the exact two-region USD 300.00 answer,
+saved dashboard and report, reproduction and complete CSV download at 1440 and
+390. Its only attempted external request is the explicitly requested Vane
+read, which receives a failure and leaves the published source unchanged.
+This is bounded native runtime proof; it is not an empty buyer-owned hosted
+installation, a live connector receipt, an analytical health check, a complete
+archive restore or BIF-004 and BIF-023 scale proof.

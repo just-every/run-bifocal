@@ -1,3 +1,4 @@
+import { entitlementResponse } from '../entitlements/server'
 import {FILE_LIMITS} from '../imports/files/limits'
 import {fullExportPlan,fullExportSlice} from './full-export'
 import {compositionResponse} from './composition/server'
@@ -26,6 +27,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
  try {
   const actor=await currentAuthority(request,env);if(!actor)return json({error:'owner_required'},401)
   if(url.search)fail('query_parameters_not_supported',400)
+  const entitlementResult=await entitlementResponse(request,env,actor,path);if(entitlementResult)return entitlementResult
   const composed=await compositionResponse(request,env,actor,path);if(composed)return composed
   const accessResult=await accessResponse(request,env,actor,path);if(accessResult)return accessResult
   const policyResult=await exportPolicyResponse(request,env,actor,path);if(policyResult)return policyResult
@@ -56,7 +58,9 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
     AND g.operator_id=json_extract(q.context_json,'$.exploration.operatorId')
     AND g.model_id=json_extract(q.context_json,'$.exploration.modelId')
     AND g.revision=json_extract(q.context_json,'$.exploration.revision')
-    AND g.view_id=json_extract(q.context_json,'$.exploration.viewId'))`:'0'
+    AND g.view_id=json_extract(q.context_json,'$.exploration.viewId')
+    AND json_extract(q.context_json,'$.exploration.entitlementRevision') IS (SELECT e.revision FROM bf_entitlement_snapshots e WHERE e.owner_id=g.owner_id AND e.model_id=g.model_id AND e.view_id=g.view_id)
+    AND (json_extract(q.context_json,'$.exploration.entitlementRevision') IS NULL OR json_extract(q.context_json,'$.exploration.entitlementDay')=strftime('%Y-%m-%d','now')))`:'0'
    const questions=(await env.DB.prepare(`SELECT q.id,q.created_at,json_extract(q.context_json,'$.exploration.viewId') AS view_id FROM bf_query_snapshots q
     WHERE json_extract(q.context_json,'$.exploration') IS NOT NULL AND (${questionScope}) ORDER BY q.created_at DESC,q.id LIMIT 51`)
     .bind(...(isOwner?[actor.id]:grants.map(g=>g.id))).all<{id:string;created_at:string;view_id:string}>()).results
@@ -77,11 +81,11 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    if(candidate.groupBy.some(c=>!allowed.has(c))||candidate.filters.some(f=>!allowed.has(f.column)))fail('dimension_not_permitted',403)
    if(input.pivot!==undefined&&(typeof input.pivot!=='string'||candidate.groupBy.at(-1)!==input.pivot))fail('pivot_requires_final_grouped_dimension',400)
    if(input.fiscal!==undefined&&(!view.query.fiscal||candidate.fiscal?.column!==view.query.fiscal.column))fail('fiscal_dimension_not_permitted',403)
-   const query=queryInput({...scopedQuery(view,model.production),groupBy:candidate.groupBy,filters:[...view.query.filters,...view.rowRules,...(grant?.definition.filters??[]),...candidate.filters],...(candidate.fiscal?{fiscal:candidate.fiscal}:{})})
+   const query=queryInput({...scopedQuery(view,model.production),groupBy:candidate.groupBy,filters:[...view.query.filters,...view.rowRules,...(grant?.definition.filters??[]),...(access?.entitlements.filters??[]),...candidate.filters],...(candidate.fiscal?{fiscal:candidate.fiscal}:{})})
    const context=await queryContext(env,query,ownerId),sources=await readSources(env,query)
    context.guards=[...context.guards??[],modelGuard(model),...(access?.guards??[])]
    if(grant)context.securityScope={kind:'delegated-view',ownerId,operatorId:actor.id,grantId:grant.id}
-   context.exploration={...(grant?{grantId:grant.id,operatorId:actor.id}:{}),modelId:model.id,viewId:view.id,revision:model.production,parameters:input}
+   context.exploration={...(grant?{grantId:grant.id,operatorId:actor.id,entitlementRevision:access!.entitlements.revision,entitlementDay:access!.entitlements.day}:{}),modelId:model.id,viewId:view.id,revision:model.production,parameters:input}
    if(input.compareAsOf!==undefined){
     if(!query.fiscal)fail('fiscal_comparison_required',400)
     const comparison=queryInput({...query,fiscal:{...query.fiscal,asOf:input.compareAsOf}}),answer=execute(comparison,sources,context)
@@ -103,6 +107,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   }
   const {snapshot,sources,guard}=await readQuery(env,actor,ownerId,match[1]),exploration=snapshot.context.exploration
   if(!exploration)fail('question_not_found',404)
+  if(access&&((exploration.entitlementRevision??null)!==access.entitlements.revision||(exploration.entitlementDay??null)!==access.entitlements.day))fail('entitlement_snapshot_changed',409)
   const model=await readModel(env,ownerId,exploration.modelId)
   if(model.production!==exploration.revision)fail('published_model_changed',409)
   const modelFence=modelGuard(model),grant=access?.grant

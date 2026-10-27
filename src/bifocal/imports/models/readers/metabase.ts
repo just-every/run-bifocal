@@ -1,5 +1,6 @@
-import { issue, provenance, record, text, yaml } from './common'
-import type { Project, ProjectFile, ProjectResource } from './types'
+import { issue, physical, provenance, record, text, unknownKeys, yaml } from './common'
+import type { Dimension, Project, ProjectFile, ProjectResource } from './types'
+import { metabaseField, metabaseOutputs, metabaseQuery } from './metabase-query'
 
 /** Serialization YAML and individual API response objects, never live API calls. */
 export function readMetabase(p: Project, files: ProjectFile[]) {
@@ -44,8 +45,47 @@ export function readMetabase(p: Project, files: ProjectFile[]) {
   if (kind === 'Field' && root.table_id !== undefined) dependencies.push(`Table.${root.table_id}`)
   if (resources.some(r => r.id === id)) issue(p, at, id, 'duplicate_metabase_object', 'Resolve duplicate source identities before rebuilding the model.')
   resources.push({...provenance(file, root), id, name, kind: `metabase-${String(kind).toLowerCase()}`, definition: root, dependencies: [...new Set(dependencies)]})
-  issue(p, at, id, 'metabase_execution_pending', 'The source definition is retained. MBQL, native SQL, permissions and visualization semantics require explicit translation; no database is contacted and no expression runs.')
+  if(!['Card','Table','Database'].includes(String(kind)))issue(p, at, id, 'metabase_execution_pending', 'The source definition is retained. MBQL, native SQL, permissions and visualization semantics require explicit translation; no database is contacted and no expression runs.')
  }
  for (const resource of resources) for (const dependency of resource.dependencies) if (!resources.some(r => r.id === dependency)) issue(p, resource, resource.id, 'missing_metabase_dependency', `Include ${dependency}; missing source objects are not fetched or treated as translated.`)
+ // Resolve MBQL field ids against the uploaded catalog only. Unsupported
+ // clauses remain diagnostic and prevent a wider native query from publishing.
+ const metadataKey=['serdes','meta'].join('/')
+ for(const resource of resources){
+  const value=resource.definition
+  if(resource.kind==='metabase-database'){
+   unknownKeys(p,resource,resource.id,value,['id','entity_id','name','engine','details',metadataKey])
+   if(!record(value.details)||Object.keys(value.details).length)issue(p,resource,resource.id,'metabase_execution_pending','Connection settings require review; no credential or database connection is executed.')
+  }
+  if(resource.kind==='metabase-table')unknownKeys(p,resource,resource.id,value,['id','entity_id','name','db_id','fields',metadataKey])
+  if(resource.kind!=='metabase-card')continue
+  unknownKeys(p,resource,resource.id,value,['id','entity_id','name','dataset_query','result_metadata',metadataKey])
+  const dataset=value.dataset_query,table=p.tables.find(t=>t.name===resource.name)!
+  if(!record(dataset)){continue}
+  unknownKeys(p,resource,resource.id+'.dataset_query',dataset,['database','type','query'])
+  const query=dataset.query
+  if(dataset.type!=='query'||!record(query)||typeof query['source-table']!=='number'||!Array.isArray(query.aggregation)||!query.aggregation.length||query.aggregation.length>64){issue(p,resource,resource.id,'metabase_execution_pending','Only an explicit uploaded table and bounded aggregate MBQL query are translated.');continue}
+  unknownKeys(p,resource,resource.id+'.query',query,['source-table','aggregation','filter','breakout'])
+  const source=resources.find(r=>r.id==='Table.'+query['source-table']),database=resources.find(r=>r.id==='Database.'+dataset.database)
+  if(!source||!database||source.definition.db_id!==dataset.database||!Array.isArray(source.definition.fields)){issue(p,resource,resource.id,'metabase_execution_pending','Include the matching table field catalog and database identity.');continue}
+  table.sourceTable=String(source.definition.name)
+  const fields=new Map<unknown,{name:string;type:Dimension['type']}>()
+  for(const field of source.definition.fields){
+   if(!record(field)||typeof field.id!=='number'||!physical(field.name)||typeof field.base_type!=='string'){issue(p,resource,source.id,'unsupported_metabase_field','Each field needs an original numeric id, physical name and declared type.');continue}
+   unknownKeys(p,resource,source.id+'.'+field.id,field,['id','name','base_type'])
+   const sourceType=field.base_type.split('/').at(-1)!,type=({Integer:'number',BigInteger:'number',Float:'number',Decimal:'number',Text:'text',Boolean:'boolean',Date:'date'} as Record<string,Dimension['type']>)[sourceType]
+   if(!type||fields.has(field.id)||table.dimensions.some(d=>d.name===field.name)){issue(p,resource,source.id,'unsupported_metabase_field','Resolve duplicate fields and unsupported source types.');continue}
+   fields.set(field.id,{name:String(field.name),type});table.dimensions.push({...resource,name:String(field.name),column:String(field.name),type,sourceType,primaryKey:false,sourceExpression:JSON.stringify(['field',field.id,null])})
+  }
+  const groups=metabaseQuery(p,resource,query,fields,p.explores.find(e=>e.name===resource.name)!)
+  const outputs=metabaseOutputs(p,resource,value.result_metadata,groups,query.aggregation.length)
+  if(!outputs)continue
+  for(const [index,aggregate] of query.aggregation.entries()){
+   const output=outputs[index],resolved=Array.isArray(aggregate)?metabaseField(aggregate[1],fields):null,rowCount=Array.isArray(aggregate)&&aggregate.length===1&&aggregate[0]==='count'
+   if(!Array.isArray(aggregate)||!rowCount&&(aggregate.length!==2||!['sum','distinct','count'].includes(aggregate[0])||!resolved)||!record(output)||!physical(output.name)||aggregate[0]==='sum'&&!['number','money'].includes(resolved!.type)){issue(p,resource,resource.id,'metabase_execution_pending','Translate this aggregate expression; only sum, distinct and count of physical fields or row count are supported.');continue}
+   table.measures.push({...resource,name:String(output.name),...(resolved?{column:resolved.name}:{}),op:aggregate[0]==='sum'?'sum':aggregate[0]==='count'?'count':'count-distinct',sourceExpression:JSON.stringify(aggregate)})
+  }
+  issue(p,resource,table.name,'source_table_binding','Map this source table to reviewed native records; source permissions never grant native access.')
+ }
  p.resources = resources
 }

@@ -3,6 +3,7 @@ import { queryInput } from '../../query/validate'
 import { definitionInput, type Definition } from '../../models/validation/protocol'
 import type { Source, Query, Measure } from '../../query/types'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
+import { executeDBT } from './dbt-execution'
 
 export type Binding={dataset:string;grain:string[];columns?:Record<string,string>}
 export type ModelImportInput={version:1;projectId:string;format:ProjectFormat;files:ProjectFile[];bindings:Record<string,Binding>;context:Query['context'];formats:Record<string,{unit:Measure['unit'];scale:number;sourceCurrency?:string}>}
@@ -11,7 +12,9 @@ const nativeName=(name:string)=>{const normalized=name.toLowerCase().replace(/[^
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v)
 export function compileProject(value:unknown,id:string,ownerId:string,sources:Source[]):CompiledProject {
  if(!object(value)||Object.keys(value).some(k=>!['version','projectId','format','files','bindings','context','formats'].includes(k))||value.version!==1||value.projectId!==id||!object(value.bindings)||!object(value.formats)||!object(value.context))throw Error('MODEL_PROJECT_ENVELOPE_REQUIRED')
- const input=value as unknown as ModelImportInput,project=readProject(input.format,input.files),issues=[...project.issues],used=new Map<string,string>(),views:Definition['views']=[],translations:CompiledProject['report']['translations']=[]
+ const input=value as unknown as ModelImportInput,project=readProject(input.format,input.files)
+ executeDBT(project,input.bindings,sources)
+ const issues=[...project.issues],used=new Map<string,string>(),views:Definition['views']=[],translations:CompiledProject['report']['translations']=[]
  // Even an unresolved source definition owes custody to every explicitly bound
  // dataset. Erasure must reach its originals before it can ever be executable.
  for(const binding of Object.values(input.bindings))if(object(binding)&&typeof binding.dataset==='string'){const source=sources.find(s=>s.id===binding.dataset);if(source)used.set(source.id,source.revision)}
@@ -46,7 +49,7 @@ export function compileProject(value:unknown,id:string,ownerId:string,sources:So
   for(const j of explore.joins){const target=bind(j.table);if(target)joins.push({dataset:target.source.id,as:nativeName(j.name),left:base.column(j.left),right:target.column(j.right),duplicates:'reject',cardinality:j.cardinality})}
   if(!measures.length){problem(explore.name,'no_supported_measures','Implement at least one measure and its exact format before publication.');continue}
   try{
-   const query=queryInput({version:1,dataset:base.source.id,joins,filters:[],groupBy:[],measures,context:input.context,semantic:{grain:base.binding.grain,dimensions:[...new Set([...base.table.dimensions.map(d=>base.column(d.column)),...base.binding.grain])].map(name=>{const column=base.source.table.columns.find(c=>c.name===name);if(!column)throw Error('MODEL_DIMENSION_UNAVAILABLE');return {column:column.name,type:column.type}}),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}})
+   const query=queryInput({version:1,dataset:base.source.id,joins,filters:(explore.filters??[]).map(f=>({...f,column:base.column(f.column)})),groupBy:(explore.groupBy??[]).map(base.column),measures,context:input.context,semantic:{grain:base.binding.grain,dimensions:[...new Set([...base.table.dimensions.map(d=>base.column(d.column)),...base.binding.grain])].map(name=>{const column=base.source.table.columns.find(c=>c.name===name);if(!column)throw Error('MODEL_DIMENSION_UNAVAILABLE');return {column:column.name,type:column.type}}),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}})
    views.push({id:viewId,kind:'chart',query,rowRules:[]})
   }catch{problem(explore.name,'invalid_native_query','The selected source mapping, grain, relationships, formats or calendar cannot compile into an exact native query.')}
  }

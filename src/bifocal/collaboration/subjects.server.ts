@@ -25,6 +25,7 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
    if(exploration.operatorId){
     try{
      const person=await member(env,exploration.operatorId),access=await readGrant(env,{...actor,id:person.id},exploration.grantId)
+     if((exploration.entitlementRevision??null)!==access.entitlements.revision||(exploration.entitlementDay??null)!==access.entitlements.day)fail('entitlement_snapshot_changed',409)
      guards.push(...access.guards,person.guard);delegateId=person.id
     }catch(error){if(actor.id!==owner||!(error instanceof QueryError))throw error}
    }

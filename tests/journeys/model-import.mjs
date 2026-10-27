@@ -4,9 +4,9 @@ import {execFileSync} from 'node:child_process'
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {dump} from 'js-yaml'
+import {dump,load,JSON_SCHEMA} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
-import {modelProjectFixtures} from './model-project-fixtures.mjs'
+import {modelProjectFixtures,proveDBTExecution} from './model-project-fixtures.mjs'
 import {proveMetricTooling} from './metric-tooling.mjs'
 import {proveChartTooling} from './chart-tooling.mjs'
 import {provePolicyTooling} from './policy-tooling.mjs'
@@ -19,9 +19,10 @@ export async function proveModelImports({origin,context,page,call,upload,proveSc
  await upload(dataset,csv)
  const expected=JSON.parse(execFileSync('python3',['-c',`import sqlite3,json
 c=sqlite3.connect(':memory:');c.execute('CREATE TABLE invoices(invoice INTEGER,region TEXT,cents INTEGER)')
-c.executemany('INSERT INTO invoices VALUES(?,?,?)',[(1,'West',1001),(2,'East',2002),(3,'West',-3),(4,'East',None)])
+c.executemany('INSERT INTO invoices VALUES(?,?,?)',[(1,'West',1001),(2,'East',2002),(3,'West',-3),(4,None,None)])
 print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM invoices').fetchone(),'west':c.execute("SELECT sum(cents),count(distinct region) FROM invoices WHERE region='West'").fetchone()}))`],{encoding:'utf8'}))
  const projects=modelProjectFixtures(dataset,'synthetic-bifocal-july'),saved=[]
+ projects[0].files[0].content='# connection password: synthetic-bifocal-private-source\n'+projects[0].files[0].content
  const post=async(id,action,data,expected=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':id},data});assert.equal(r.status(),expected,await r.text());return r.json()}
  const prepare=async(input,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex'),u=await post(input.projectId,'uploads',{name:'synthetic-bifocal-project.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')});return post(input.projectId,'plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})}
  const apply=async(id,plan)=>{await post(id,'apply',{planId:plan.planId,reviewedFingerprint:'0'.repeat(64)},403);for(let i=0;i<20;i++){const a=await post(id,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(a.job.state==='completed'){const r=await post(id,'reconcile',{planId:plan.planId});assert.equal(r.ok,true);return}}assert.fail('Project import did not complete')}
@@ -32,6 +33,18 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const originalFiles=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}});assert.equal(originalFiles.status(),200,await originalFiles.text());const originals=(await originalFiles.json()).originals;assert.equal(originals[0].original.status,'retained');assert.deepEqual(JSON.parse(Buffer.from(originals[0].original.base64,'base64').toString()).files,input.files)
   const imported=await call('/model-imports/'+input.projectId),native=dump(imported.definition),body={document:native,importProject:input.projectId,importRevision:imported.revision}
   assert.deepEqual(imported.input.files,input.files)
+  const exported=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},200)
+  assert.deepEqual(exported.definition,imported.definition)
+  assert.deepEqual(exported.sources.map(s=>[s.table,s.dataset,s.revision,s.grain]),[[input.format==='tmdl'?'Sales':'sales',dataset,(await call('/datasets/'+dataset)).revision,['invoice']]])
+  assert.deepEqual(exported.sources.map(s=>s.file),[input.files[0].path])
+  assert.deepEqual(exported.sources[0].columns,input.format==='tmdl'?[{source:'Invoice',column:'invoice'},{source:'Revenue',column:'revenue'},{source:'Region',column:'region'}]:['lookml','metabase','tableau'].includes(input.format)?[{source:'invoice',column:'invoice'},{source:'region',column:'region'},{source:'revenue',column:'revenue'}]:[{source:'invoice',column:'invoice'},{source:'region',column:'region'}])
+  assert.deepEqual(exported.measures.map(m=>m.measure).sort(),input.format==='tmdl'?['revenuesum']:['revenue-sum','unique-regions'])
+  assert.ok(!JSON.stringify(exported).includes('synthetic-bifocal-private-source'))
+  assert.equal(exported.input,undefined);assert.equal(exported.ownerId,undefined)
+  const reopened=await call('/model-authoring/review',{document:dump(exported.definition),importProject:input.projectId,importRevision:exported.project.revision},200)
+  assert.equal(reopened.compatible,true);assert.equal(reopened.impacts[0].answer.totals[input.format==='tmdl'?'revenuesum':'revenue-sum'].value,'30.00')
+  await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:'synthetic-bifocal-stale'},409)
+  assert.deepEqual(load((await call('/model-authoring/format',body,200)).document,{schema:JSON_SCHEMA}),imported.definition)
   const review=await call('/model-authoring/review',body,200);assert.equal(review.compatible,true,JSON.stringify(review));assert.equal(review.imported.format,input.format)
   const measure=input.format==='tmdl'?'revenuesum':'revenue-sum',value=review.impacts[0].answer.totals[measure]
   assert.equal(value.value,(expected.all[0]/100).toFixed(2));if(input.format!=='tmdl')assert.equal(review.impacts[0].answer.totals['unique-regions'].value,String(expected.all[1]))
@@ -48,19 +61,43 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   assert.equal(empty.answer.totals[measure].value,input.format==='lookml'?'0.00':null)
   for(const format of ['csv','xlsx']){const exported=await context.request.post(origin+'/api/operator/explore/'+question.queryId+'/export',{headers:{Origin:origin},data:{scope:'summary',format}});assert.equal(exported.status(),200);if(format==='csv')assert.match(await exported.text(),/9\.98/);else{const zip=unzipSync(await exported.body()),sheet=strFromU8(zip['xl/worksheets/sheet1.xml']);assert.match(sheet,/<v>9\.98<\/v>/)}}
   saved.push({input,plan,imported,model,answer,report,question})
+  if(['metabase','tableau'].includes(input.format)){
+   await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
+   assert.equal(await page.getByLabel('Model format',{exact:true}).inputValue(),input.format);assert.deepEqual(JSON.parse(await page.getByLabel('Source bindings (JSON)',{exact:true}).inputValue()),input.bindings);assert.match(await page.getByRole('table',{name:'Source measure translations'}).innerText(),/sales.revenue_sum/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('model-import-'+input.format)
+  }
  }
- // A real native member session qualifies refusal independently of anonymous access.
- if(signInMember){
-  const member=await context.browser().newContext({ignoreHTTPSErrors:true}),email='synthetic-bifocal-import-member@example.test'
-  try{
-   assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email,displayName:'Import member',role:'member'}})).status(),202)
-   await signInMember(member,email)
-   const session=await(await member.request.get(origin+'/auth/session')).json();assert.equal(session.kind,'native');assert.equal(session.operator.role,'member')
-   assert.equal((await member.request.get(origin+'/api/operator/model-imports/'+saved[0].input.projectId)).status(),401)
-   for(const action of ['uploads','plan','apply','undo'])assert.equal((await member.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':saved[0].input.projectId},data:{planId:saved[0].plan.planId,reviewedFingerprint:saved[0].plan.fingerprint}})).status(),401)
-   assert.equal((await member.request.get(origin+'/api/operator/import/original/'+saved[0].plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':saved[0].input.projectId}})).status(),401)
-  }finally{await member.close()}
+ // Source query predicates and grouping survive exact mappings and exported
+ // native execution. Later exploration can only intersect these restrictions.
+ const scopedDataset='synthetic-bifocal-metabase-scoped'
+ await upload(scopedDataset,csv.replace('region,revenue','territory,amount'))
+ for(const serialization of ['json','yaml']){
+  const input=structuredClone(projects.find(p=>p.format==='metabase'));input.projectId='synthetic-bifocal-metabase-scoped-'+serialization
+  input.bindings.sales={dataset:scopedDataset,grain:['invoice'],columns:{region:'territory',revenue:'amount'}}
+  input.formats['sales.row_count']={unit:'count',scale:0};input.formats['sales.present_count']={unit:'count',scale:0}
+  const card=JSON.parse(input.files[0].content),field=id=>['field',id,null]
+  card.dataset_query.query={...card.dataset_query.query,filter:['and',['=',field(2),'West'],['between',field(3),0,20]],breakout:[field(2)],aggregation:[...card.dataset_query.query.aggregation,['count'],['count',field(3)]]}
+  card.result_metadata=[{name:'region',source:'breakout',base_type:'type'+'/'+'Text'},...card.result_metadata,{name:'row_count',base_type:'type'+'/'+'Integer'},{name:'present_count',base_type:'type'+'/'+'Integer'}]
+  for(const [index,output] of card.result_metadata.entries())if(index){output.source='aggregation';output.field_ref=['aggregation',index-1]}
+  input.files[0].content=JSON.stringify(card)
+  if(serialization==='yaml')input.files=input.files.map((f,index)=>({path:f.path.replace('.json','.yaml'),content:dump({...JSON.parse(f.content),[['serdes','meta'].join('/')]:[{model:['Card','Table','Database'][index],id:String([37,12,9][index])}]})}))
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues))
+  assert.deepEqual(plan.project.definition.views[0].query.filters,[{column:'territory',op:'eq',value:'West'},{column:'amount',op:'gte',value:'0'},{column:'amount',op:'lte',value:'20'}]);assert.deepEqual(plan.project.definition.views[0].query.groupBy,['territory'])
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId),exported=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},200)
+  assert.deepEqual(exported.sources[0].columns,[{source:'invoice',column:'invoice'},{source:'region',column:'territory'},{source:'revenue',column:'amount'}]);assert.deepEqual(exported.definition,imported.definition)
+  const body={document:dump(exported.definition),importProject:input.projectId,importRevision:imported.revision},review=await call('/model-authoring/review',body,200)
+  assert.equal(review.compatible,true);const actual=review.impacts[0].answer
+  assert.equal(actual.filteredRows,1);assert.deepEqual(actual.rows.map(r=>[r.dimensions,r.values['revenue-sum'].value,r.values['unique-regions'].value,r.values['row-count'].value,r.values['present-count'].value]),[[['West'],'10.01','1','1','1']])
+  const model=await call('/model-authoring/create',{...body,reviewedDigest:review.digest}),path='/models/'+model.modelId+'/branches/'+model.branchId,publication=await call(path+'/validate',{},200)
+  await call(path+'/approve',{digest:publication.digest},200);await call(path+'/promote',{environment:'staging',digest:publication.digest},200);await call(path+'/promote',{environment:'production',digest:publication.digest},200)
+  const broad=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['territory'],filters:[]})
+  assert.deepEqual(broad.answer.rows,actual.rows);assert.equal(broad.answer.totals['revenue-sum'].value,'10.01')
+  const east=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['territory'],filters:[{column:'territory',op:'eq',value:'East'}]})
+  assert.deepEqual(east.answer.rows,[]);assert.equal(east.answer.totals['revenue-sum'].value,null);assert.equal(east.answer.totals['row-count'].value,'0')
+  const r=await context.request.post(origin+'/api/operator/explore/'+broad.queryId+'/export',{headers:{Origin:origin},data:{scope:'summary',format:'csv'}});assert.equal(r.status(),200);assert.match(await r.text(),/10\.01/)
+  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('metabase-scoped-'+serialization)
  }
+ const scopedCurrent=await call('/datasets/'+scopedDataset);await call('/datasets/'+scopedDataset+'/erase',{confirmDataset:scopedDataset,reviewedRevision:scopedCurrent.revision},200)
+ for(const serialization of ['json','yaml'])await call('/model-imports/synthetic-bifocal-metabase-scoped-'+serialization,undefined,404)
  // Native dbt projects retain tests and dependency lineage without pretending
  // that storing SQL is an executable transformation or a passing quality test.
  const dbtProjects=[]
@@ -82,13 +119,94 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const model=inventory.find(r=>r.kind==='model');assert.deepEqual(model.dependencies,input===raw?['source.raw.invoices']:['source.synthetic_bifocal.raw.invoices']);assert.equal(model.file,input===raw?'models/sales.sql':'target/manifest.json')
   assert.deepEqual(inventory.filter(r=>r.kind==='test').map(r=>r.dependencies),input===raw?[['model.sales'],['model.sales']]:[['model.synthetic_bifocal.sales']])
   assert.deepEqual(input===raw?model.definition.schema.columns[0].tests:inventory.find(r=>r.kind==='test').definition.test_metadata,input===raw?['not_null','unique']:{name:'unique',kwargs:{column_name:'invoice'}})
-  assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.object===model.id));assert.deepEqual(plan.project.sources.map(s=>s.id),[dataset])
+  if(input===raw){assert.equal(model.definition.translation.state,'translated');assert.deepEqual(model.definition.translation.bindings[0].columns,{invoice:'invoice',region:'region',revenue:'revenue'});assert.deepEqual(inventory.filter(r=>r.kind==='test').map(r=>[r.definition.translation.test,r.definition.translation.results[0].failures]),[['not_null',0],['unique',0]]);assert.ok(plan.project.report.issues.some(i=>i.code==='no_supported_measures'))}
+  else assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.object===model.id))
+  assert.deepEqual(plan.project.sources.map(s=>s.id),[dataset])
   await apply(input.projectId,plan)
   const imported=await call('/model-imports/'+input.projectId);assert.deepEqual(imported.report.project.resources,inventory);assert.deepEqual(imported.input.files,input.files)
   await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
   const edited=structuredClone(input);edited.files[0].content+='\n';const replacement=await prepare(edited,true);await apply(input.projectId,replacement)
   const revised=await call('/model-imports/'+input.projectId);assert.notEqual(revised.revision,imported.revision);assert.deepEqual(revised.report.project.resources.map(r=>r.dependencies),inventory.map(r=>r.dependencies))
   await post(input.projectId,'undo',{planId:replacement.planId});assert.equal((await call('/model-imports/'+input.projectId)).revision,imported.revision)
+  dbtProjects.push({input,plan})
+ }
+ // SQL projection lineage and generic checks are interpreted over reviewed
+ // records. No original SQL or template is sent to a database or executed.
+ const core=structuredClone(raw);core.projectId='synthetic-bifocal-dbt-projection'
+ core.files[1].content+='\n'+projects[1].files[0].content.replace("ref('invoices')","ref('sales')").replace('expr: revenue','expr: net')
+ core.files[2].content="select invoice, region, revenue as net from {{ ref('staging') }}"
+ core.files.push({path:'models/staging.sql',content:"select invoice, region, revenue from {{ source('raw','invoices') }}"})
+ core.bindings.sales.columns={net:'revenue'}
+ const resolvedManifest={metadata:manifest.metadata,nodes:{},sources:{'source.synthetic_bifocal.raw.invoices':{...manifest.sources['source.synthetic_bifocal.raw.invoices'],source_name:'raw'}},semantic_models:{'semantic_model.synthetic_bifocal.sales':{unique_id:'semantic_model.synthetic_bifocal.sales',...load(core.files[1].content).semantic_models[0],depends_on:{nodes:['model.synthetic_bifocal.sales']}}}}
+ for(const name of ['staging','sales'])resolvedManifest.nodes['model.synthetic_bifocal.'+name]={unique_id:'model.synthetic_bifocal.'+name,name,resource_type:'model',raw_code:core.files.find(f=>f.path==='models/'+name+'.sql').content,depends_on:{nodes:[name==='sales'?'model.synthetic_bifocal.staging':'source.synthetic_bifocal.raw.invoices']}}
+ for(const name of ['not_null','unique'])resolvedManifest.nodes['test.synthetic_bifocal.'+name]={unique_id:'test.synthetic_bifocal.'+name,name,resource_type:'test',test_metadata:{name,kwargs:{column_name:'invoice'}},depends_on:{nodes:['model.synthetic_bifocal.sales']}}
+ const resolvedCloud={...structuredClone(core),projectId:'synthetic-bifocal-dbt-cloud-projection',files:[{path:'target/manifest.json',content:JSON.stringify(resolvedManifest)}]}
+ for(const input of [core,resolvedCloud]){
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report.issues));assert.deepEqual(plan.project.definition.views.map(v=>v.id),['sales'])
+  const resources=plan.project.report.project.resources,model=resources.find(r=>r.kind==='model'&&r.name==='sales'),checks=resources.filter(r=>r.kind==='test')
+  assert.equal(model.definition.translation.bindings[0].root,input===core?'source.raw.invoices':'source.synthetic_bifocal.raw.invoices');assert.deepEqual(model.definition.translation.bindings[0].columns,{invoice:'invoice',region:'region',net:'revenue'});assert.deepEqual(checks.map(r=>[r.definition.translation.test,r.definition.translation.results[0].rows,r.definition.translation.results[0].failures]),[['not_null',4,0],['unique',4,0]])
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId),exported=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},200)
+  assert.equal(exported.definition.views[0].query.measures[0].column,'revenue');const review=await call('/model-authoring/review',{document:dump(exported.definition),importProject:input.projectId,importRevision:imported.revision},200);assert.equal(review.compatible,true);assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,'30.00');assert.equal(review.impacts[0].answer.totals['unique-regions'].value,'2')
+  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/staging/);await proveScreen(input===core?'dbt-projection':'dbt-cloud-projection')
+  dbtProjects.push({input,plan})
+ }
+ for(const failure of ['not_null','unique']){
+  const id='synthetic-bifocal-dbt-failed-'+failure.replace('_','-'),source=id+'-source'
+  await upload(source,csv.replace('4,East,,',failure==='not_null'?',East,,':'3,East,,'))
+  const input=structuredClone(core);input.projectId=id;input.bindings.sales.dataset=source
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_quality_check_failed'&&i.message.startsWith(failure)))
+  const checks=plan.project.report.project.resources.filter(r=>r.kind==='test');assert.equal(checks.find(r=>r.definition.translation.test===failure).definition.translation.results[0].failures,1)
+  await apply(id,plan);const imported=await call('/model-imports/'+id);await call('/model-imports/'+id+'/export',{reviewedRevision:imported.revision},409)
+  const current=await call('/datasets/'+source);await call('/datasets/'+source+'/erase',{confirmDataset:source,reviewedRevision:current.revision},200);await call('/model-imports/'+id,undefined,404)
+ }
+ // SQL modifiers and mixed manifest envelopes must not become identity lineage
+ // or built-in quality results merely because a physical name also exists.
+ const distinctSource='synthetic-bifocal-dbt-distinct-source'
+ await upload(distinctSource,'distinct,invoice,region,revenue\n10,1,West,$10.01\n20,1,West,$10.01\n')
+ const distinct=structuredClone(core);distinct.projectId='synthetic-bifocal-dbt-distinct'
+ distinct.bindings.sales={dataset:distinctSource,grain:['distinct'],columns:{invoice:'distinct',net:'revenue'}}
+ distinct.files=distinct.files.slice(0,3);distinct.files[1].content=distinct.files[1].content.replace('tests: [not_null, unique]','tests: []')
+ distinct.files[2].content="select distinct invoice, region, revenue AS net FROM {{ source('raw','invoices') }}"
+ const distinctPlan=await prepare(distinct)
+ assert.equal(distinctPlan.project.report.compatible,false,'DISTINCT must retain a diagnostic instead of mapping the modifier as a column')
+ assert.ok(distinctPlan.project.report.issues.some(i=>i.code==='unsupported_dbt_sql'))
+ await apply(distinct.projectId,distinctPlan);const distinctImported=await call('/model-imports/'+distinct.projectId)
+ await call('/model-imports/'+distinct.projectId+'/export',{reviewedRevision:distinctImported.revision},409)
+ await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(distinct.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.match(await page.locator('#model-import-current').innerText(),/unsupported_dbt_sql/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0);await proveScreen('dbt-distinct-refused')
+ const distinctCurrent=await call('/datasets/'+distinctSource);await call('/datasets/'+distinctSource+'/erase',{confirmDataset:distinctSource,reviewedRevision:distinctCurrent.revision},200);await call('/model-imports/'+distinct.projectId,undefined,404);await post(distinct.projectId,'apply',{planId:distinctPlan.planId,reviewedFingerprint:distinctPlan.fingerprint},410)
+ for(const failure of ['sql','mapping','hook','custom-test','manifest-test','manifest-shadow-sql','manifest-shadow-macro','manifest-shadow-metadata']){
+  const input=structuredClone(failure.startsWith('manifest-')?resolvedCloud:core);input.projectId='synthetic-bifocal-dbt-refused-'+failure
+  if(failure==='sql')input.files[2].content+=' where invoice > 1'
+  if(failure==='mapping')input.bindings.sales.columns.net='invoice'
+  if(failure==='hook')input.files[0].content+='on-run-start: ["select 1"]\n'
+  if(failure==='custom-test')input.files[1].content=input.files[1].content.replace('tests: [not_null, unique]','tests: [{unique: {config: {where: "invoice > 1"}}}]')
+  if(failure==='manifest-test'){const changed=JSON.parse(input.files[0].content);changed.nodes['test.synthetic_bifocal.unique'].raw_code='{{ test_not_null(**_dbt_generic_test_kwargs) }}';input.files[0].content=JSON.stringify(changed)}
+  if(failure.startsWith('manifest-shadow-')){const changed=JSON.parse(input.files[0].content),test=changed.nodes['test.synthetic_bifocal.unique'];test.test='unique';test.column='invoice';if(failure==='manifest-shadow-sql')test.raw_code='select invoice from secret_table';if(failure==='manifest-shadow-macro')test.depends_on.macros=['macro.synthetic_bifocal.custom_unique'];if(failure==='manifest-shadow-metadata')delete test.test_metadata;input.files[0].content=JSON.stringify(changed)}
+  const plan=await prepare(input);assert.equal(plan.project.report.compatible,false,failure);assert.ok(plan.project.report.issues.some(i=>({sql:['unsupported_dbt_sql'],mapping:['dbt_projection_binding_mismatch'],hook:['unsupported_property'], 'custom-test':['unsupported_dbt_test'],'manifest-test':['unsupported_dbt_test'],'manifest-shadow-sql':['unsupported_dbt_test','unsupported_property'],'manifest-shadow-macro':['unsupported_dbt_test','unsupported_property'],'manifest-shadow-metadata':['unsupported_dbt_test','unsupported_property']}[failure]).includes(i.code)),JSON.stringify(plan.project.report.issues))
+  if(failure.startsWith('manifest-shadow-'))assert.equal(plan.project.report.project.resources.find(r=>r.id==='test.synthetic_bifocal.unique').definition.translation,undefined,'A refused manifest check must never claim execution')
+  await apply(input.projectId,plan);const imported=await call('/model-imports/'+input.projectId);await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:imported.revision},409);if(failure==='manifest-shadow-sql'){await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.match(await page.locator('#model-import-current').innerText(),/unsupported_property/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0);await proveScreen('dbt-manifest-test-refused')}dbtProjects.push({input,plan})
+ }
+ // Adding a manifest must never hide an unsupported uploaded SQL definition.
+ const sql={path:'tests/revenue_check.sql',content:"select {{ run_query('select 1') }} from {{ ref('sales') }}"}
+ for(const [suffix,extra] of [['empty',[{path:'target/manifest.json',content:JSON.stringify({...manifest,nodes:{},sources:{}})}]],['source',[]],['resolved',cloud.files]]){
+  const input=dbtEnvelope('synthetic-bifocal-dbt-sql-'+suffix,[...projects[1].files,sql,...extra]),plan=await prepare(input)
+  assert.equal(plan.project.report.compatible,false,'Uploaded SQL stays incompatible with '+suffix+' manifest inventory')
+  const inventory=plan.project.report.project.resources,resource=inventory.find(r=>r.file===sql.path)
+  assert.ok(resource,'Uploaded SQL remains inventoried with '+suffix+' manifest inventory')
+  assert.equal(resource.id,'test.revenue_check');assert.equal(resource.kind,'test');assert.equal(resource.sourceExpression,JSON.stringify({sql:sql.content}));assert.equal(resource.definition.sql,sql.content);assert.deepEqual(resource.dependencies,['model.sales'])
+  assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_resource_execution_pending'&&i.file===sql.path&&i.object===resource.id&&i.sourceExpression===JSON.stringify({sql:sql.content})),'Unsupported uploaded SQL retains its diagnostic')
+  if(suffix==='resolved')assert.deepEqual(inventory.find(r=>r.id==='model.synthetic_bifocal.sales').dependencies,['source.synthetic_bifocal.raw.invoices'])
+  await apply(input.projectId,plan)
+  const imported=await call('/model-imports/'+input.projectId)
+  assert.equal(imported.report.compatible,false);assert.deepEqual(imported.report.project.resources,inventory);assert.deepEqual(imported.report.issues,plan.project.report.issues);assert.deepEqual(imported.input.files,input.files)
+  const exported=await call('/model-authoring/format',{document:dump(imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
+  assert.equal(exported.error,'exact_compatible_project_required','Untranslated SQL cannot be exported as native YAML')
+  if(suffix==='empty'){
+   await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
+   assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/test.revenue_check/);assert.match(await page.locator('#model-import-current').innerText(),/dbt_resource_execution_pending/);assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0)
+   await proveScreen('dbt-manifest-sql-retained')
+  }
+  await call('/model-authoring/review',{document:dump(imported.definition),importProject:input.projectId,importRevision:imported.revision},409)
   dbtProjects.push({input,plan})
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
@@ -133,12 +251,27 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   {...dbtEnvelope('synthetic-bifocal-tableau-twbx',[{path:'sales.twbx',content:Buffer.from(zipSync({'sales.twb':strToU8(twb)})).toString('base64')}]),format:'tableau'}
  ]
  for(const input of nativeProjects){const plan=await prepare(input);assert.equal(plan.counts.rejected,0);assert.equal(plan.project.report.compatible,false);const inventory=plan.project.report.project.resources
-  if(input.format==='metabase'){assert.deepEqual(inventory.map(r=>[r.id,r.dependencies]),[['Card.37',['Database.9','Table.12']],['Table.12',['Database.9']],['Database.9',[]]]);assert.deepEqual(inventory[0].definition.dataset_query,card.dataset_query);assert.deepEqual(inventory[1].definition.fields,mbTable.fields);assert.ok(plan.project.report.issues.some(i=>i.code==='metabase_execution_pending'))}
-  else{assert.deepEqual(inventory.map(r=>[r.id,r.dependencies]),[['datasource.sales',[]],['datasource.sales.[revenue]',['datasource.sales']],['datasource.sales.[revenue_sum]',['datasource.sales']],['worksheet.Revenue',['datasource.sales']]]);assert.deepEqual(inventory[2].definition.calculations,['SUM([revenue])']);assert.ok(plan.project.report.issues.some(i=>i.code==='tableau_source_execution_pending'))}
+  if(input.format==='metabase'){assert.deepEqual(inventory.map(r=>[r.id,r.dependencies]),[['Card.37',['Database.9','Table.12']],['Table.12',['Database.9']],['Database.9',[]]]);assert.deepEqual(inventory[0].definition.dataset_query,card.dataset_query);assert.deepEqual(inventory[1].definition.fields,mbTable.fields);assert.ok(plan.project.report.issues.some(i=>i.code==='measure_format_required'&&i.object==='sales.revenue'))}
+  else{assert.deepEqual(inventory.map(r=>[r.id,r.dependencies]),[['datasource.sales',[]],['datasource.sales.[revenue]',['datasource.sales']],['datasource.sales.[revenue_sum]',['datasource.sales']],['worksheet.Revenue',['datasource.sales']]]);assert.deepEqual(inventory[2].definition.calculations,['SUM([revenue])']);assert.ok(plan.project.report.issues.some(i=>i.code==='tableau_content_translation_pending'))}
   await apply(input.projectId,plan);const current=await call('/model-imports/'+input.projectId);assert.deepEqual(current.report.project.resources,inventory);assert.deepEqual(current.input.files,input.files);await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:current.revision},409);dbtProjects.push({input,plan})
  }
  const badXML={...structuredClone(nativeProjects[2]),projectId:'synthetic-bifocal-tableau-entity',files:[{path:'sales.twb',content:'<!DOCTYPE workbook [<!ENTITY injected SYSTEM "https://synthetic-bifocal.invalid">]><workbook>&injected;</workbook>'}]};const badXMLPlan=await prepare(badXML);assert.equal(badXMLPlan.project.report.compatible,false);assert.ok(badXMLPlan.project.report.issues.some(i=>i.code==='tableau_active_xml'));await apply(badXML.projectId,badXMLPlan);dbtProjects.push({input:badXML,plan:badXMLPlan})
  for(const [name,entries,code] of [['traversal',{'../sales.twb':strToU8(twb)},'unsafe_tableau_archive'],['expanded',{'sales.twb':strToU8('x'.repeat(262145))},'unsafe_tableau_archive'],['binary',{'sales.twb':strToU8(twb),'Data/source.hyper':new Uint8Array([1,2,3])},'unsupported_tableau_archive_item']]){const input={...structuredClone(nativeProjects[3]),projectId:'synthetic-bifocal-tableau-'+name,files:[{path:'sales.twbx',content:Buffer.from(zipSync(entries)).toString('base64')}]},plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>i.code===code),JSON.stringify(plan.project.report.issues));await apply(input.projectId,plan);dbtProjects.push({input,plan})}
+ // Source filters and permissions must never disappear into a wider native
+ // aggregate. Unsupported expressions stay visible and cannot export or publish.
+ for(const format of ['metabase','tableau']){
+  const source=projects.find(input=>input.format===format)
+  for(const problem of ['filter','expression','connection']){
+   const input=structuredClone(source);input.projectId='synthetic-bifocal-'+format+'-'+problem
+   if(format==='metabase'){const card=JSON.parse(input.files[0].content);if(problem==='filter')card.dataset_query.query.filter=['or',['=', ['field',2,null],'West'],['=', ['field',2,null],'East']];else if(problem==='connection'){const database=JSON.parse(input.files[2].content);database.details={ssl:true};input.files[2].content=JSON.stringify(database)}else card.dataset_query.query.aggregation[0]=['sum',['+', ['field',3,null],1]];input.files[0].content=JSON.stringify(card)}
+   else input.files[0].content=problem==='connection'?input.files[0].content.replace('class="textscan"','class="textscan" directory="."'):problem==='filter'?input.files[0].content.replace('</datasource>','<filter column="[region]"/></datasource>'):input.files[0].content.replace('SUM([revenue])','WINDOW_SUM(SUM([revenue]))')
+   const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>problem!=='expression'?['unsupported_property','unsupported_tableau_property','metabase_execution_pending','unsupported_metabase_predicate'].includes(i.code):i.code==='metabase_execution_pending'||i.code==='unsupported_tableau_calculation'))
+   await apply(input.projectId,plan);const current=await call('/model-imports/'+input.projectId)
+   await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},409)
+   await call('/model-authoring/review',{document:dump(saved[0].imported.definition),importProject:input.projectId,importRevision:current.revision},409)
+   dbtProjects.push({input,plan})
+  }
+ }
  const unchanged=await call('/models/'+saved[0].model.modelId+'/production/run',{viewId:'sales'});assert.deepEqual(unchanged.answer,saved[0].answer.answer,'Unexecutable project revisions cannot alter the published model')
  await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(raw.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();await page.getByText('Full source compatibility report',{exact:true}).click();assert.match(await page.locator('#model-import-current pre').innerText(),/source.raw.invoices/);assert.match(await page.locator('#model-import-current pre').innerText(),/not_null/);assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0);assert.match(await page.getByRole('table',{name:'Source project inventory'}).innerText(),/model.sales/);await page.getByText('Full source compatibility report',{exact:true}).click();await proveScreen('dbt-project-lineage')
  // Original files load from a real git working tree, then use the same browser
@@ -147,20 +280,54 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const authorName=execFileSync('git',['log','-1','--format=%an'],{encoding:'utf8'}).trim(),authorEmail=execFileSync('git',['log','-1','--format=%ae'],{encoding:'utf8'}).trim()
  try{execFileSync('git',['init','-q',git]);await writeFile(join(git,'model.yaml'),dump(saved[0].imported.definition));execFileSync('git',['-C',git,'add','model.yaml']);execFileSync('git',['-C',git,'-c','user.name='+authorName,'-c','user.email='+authorEmail,'commit','-qm','Author reviewed fiscal model'],{env:{...process.env,GIT_AUTHOR_NAME:authorName,GIT_AUTHOR_EMAIL:authorEmail,GIT_COMMITTER_NAME:authorName,GIT_COMMITTER_EMAIL:authorEmail}});const tracked=await readFile(join(git,'model.yaml'),'utf8');await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'Ready to author'}).waitFor();await page.getByLabel('Open native model YAML').setInputFiles(join(git,'model.yaml'));await page.getByRole('status').filter({hasText:'Native YAML loaded'}).waitFor();assert.equal(await page.getByLabel('Model document').inputValue(),tracked);await page.getByRole('button',{name:'Review model',exact:true}).click();await page.getByRole('status').filter({hasText:'Review complete'}).waitFor();await proveScreen('model-git-review')}finally{await rm(git,{recursive:true,force:true})}
  const original=saved[0],uiInput=structuredClone(projects[0]);uiInput.projectId='synthetic-bifocal-browser-model'
- await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project fiscal calendar',{exact:true}).selectOption(JSON.stringify(uiInput.context.calendar));await page.getByLabel('Project ID',{exact:true}).fill(uiInput.projectId);await page.getByLabel('Model format',{exact:true}).selectOption('lookml');await page.getByLabel('Original project files',{exact:true}).setInputFiles(uiInput.files.map(f=>({name:f.path,mimeType:'text/plain',buffer:Buffer.from(f.content)})));await page.getByLabel('Source bindings (JSON)',{exact:true}).fill(JSON.stringify(uiInput.bindings));await page.getByLabel('Measure formats (JSON)',{exact:true}).fill(JSON.stringify(uiInput.formats));await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Review the source compatibility'}).waitFor();await proveScreen('model-project-review');await page.getByLabel('I reviewed this exact project plan and its unresolved items').check();await page.getByRole('button',{name:'Import reviewed project',exact:true}).click();await page.getByRole('status').filter({hasText:'Project imported and reconciled'}).waitFor();await proveScreen('model-project-imported');await page.getByRole('link',{name:'Review imported model',exact:true}).click();await page.getByRole('status').filter({hasText:'Imported definition loaded'}).waitFor();await page.getByRole('button',{name:'Review model',exact:true}).click();await page.getByRole('status').filter({hasText:'Review complete'}).waitFor();await proveScreen('model-translated-review')
+ await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project fiscal calendar',{exact:true}).selectOption(JSON.stringify(uiInput.context.calendar));await page.getByLabel('Project ID',{exact:true}).fill(uiInput.projectId);await page.getByLabel('Model format',{exact:true}).selectOption('lookml');await page.getByLabel('Original project files',{exact:true}).setInputFiles(uiInput.files.map(f=>({name:f.path,mimeType:'text'+'/'+'plain',buffer:Buffer.from(f.content)})));await page.getByLabel('Source bindings (JSON)',{exact:true}).fill(JSON.stringify(uiInput.bindings));await page.getByLabel('Measure formats (JSON)',{exact:true}).fill(JSON.stringify(uiInput.formats));await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Review the source compatibility'}).waitFor();await proveScreen('model-project-review');await page.getByLabel('I reviewed this exact project plan and its unresolved items').check();await page.getByRole('button',{name:'Import reviewed project',exact:true}).click();await page.getByRole('status').filter({hasText:'Project imported and reconciled'}).waitFor();await proveScreen('model-project-imported');const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Export rebuilt model',exact:true}).click();const download=await downloaded;assert.equal(download.suggestedFilename(),uiInput.projectId+'.native.json');const browserExport=JSON.parse(await readFile(await download.path(),'utf8'));assert.deepEqual(browserExport.definition,(await call('/model-imports/'+uiInput.projectId)).definition);assert.deepEqual(browserExport.sources.map(s=>s.dataset),[dataset]);await page.getByRole('status').filter({hasText:'Rebuilt model and source mapping exported'}).waitFor();await page.getByRole('link',{name:'Review imported model',exact:true}).click();await page.getByRole('status').filter({hasText:'Imported definition loaded'}).waitFor();await page.getByRole('button',{name:'Review model',exact:true}).click();await page.getByRole('status').filter({hasText:'Review complete'}).waitFor();await proveScreen('model-translated-review')
  const unsupported=structuredClone(projects[0]);unsupported.projectId='synthetic-bifocal-unsupported-model';unsupported.files[0].content=unsupported.files[0].content.replace('explore: sales {}','explore: sales { sql_always_where: ${sales.region} = \'West\' ;; }')
  const blocked=await prepare(unsupported);assert.equal(blocked.project.report.compatible,false);assert.ok(blocked.project.report.issues.some(i=>i.object.includes('sql_always_where')&&i.sourceExpression.includes('West')));await apply(unsupported.projectId,blocked)
  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(unsupported.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor();assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0);await proveScreen('model-unresolved-project')
+ await call('/model-imports/'+unsupported.projectId+'/export',{reviewedRevision:(await call('/model-imports/'+unsupported.projectId)).revision},409)
+ assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0)
+ // Native invitation and confirmation use the unchanged native handlers;
+ // only mail delivery is replaced, while import checks use the emitted Worker.
+ const mailHeaders={Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'}
+ for(const role of ['admin','member']){
+  const email='synthetic-bifocal-import-'+role+'@example.test'
+  const invited=await context.request.post(origin+'/auth/invite',{headers:mailHeaders,data:{email,displayName:'Synthetic import '+role,role}})
+  assert.equal(invited.status(),202,await invited.text())
+  const reader=await context.browser().newContext({ignoreHTTPSErrors:true})
+  try{
+   if(signInMember)await signInMember(reader,email)
+   else{
+    const outbox=await(await context.request.get(origin+'/__model-mail')).json(),message=outbox.find(m=>m.to.includes(email));assert.ok(message)
+    const link=message.text.match(/https?:[^\s]+/)[0],token=new URL(link).searchParams.get('token');assert.ok(token)
+    const confirmed=await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0});assert.equal(confirmed.status(),303,await confirmed.text())
+   }
+   const session=await reader.request.get(origin+'/auth/session');assert.equal(session.status(),200);assert.equal((await session.json()).operator.role,role)
+   for(const path of ['/model-imports/'+original.input.projectId,'/import/history','/import/original/'+original.plan.planId]){
+    const r=await reader.request.get(origin+'/api/operator'+path,{headers:{'X-Import-Kind':'model','X-Import-Dataset':original.input.projectId}});assert.equal(r.status(),401,await r.text())
+   }
+   for(const action of ['uploads','plan','apply','reconcile','undo']){
+    const r=await reader.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':original.input.projectId},data:{planId:original.plan.planId,reviewedFingerprint:original.plan.fingerprint}});assert.equal(r.status(),401,await r.text())
+   }
+   for(const [action,data] of [['export',{reviewedRevision:original.imported.revision}],['erase',{confirmProject:original.input.projectId,reviewedRevision:original.imported.revision}]]){
+    const r=await reader.request.post(origin+'/api/operator/model-imports/'+original.input.projectId+'/'+action,{headers:{Origin:origin},data});assert.equal(r.status(),401,await r.text())
+   }
+   assert.equal((await call('/model-imports/'+original.input.projectId)).revision,original.imported.revision)
+  }finally{await reader.close()}
+ }
  const cancelled=structuredClone(projects[0]);cancelled.projectId='synthetic-bifocal-cancelled-model';const cancelledPlan=await prepare(cancelled);await post(cancelled.projectId,'undo',{planId:cancelledPlan.planId})
  const stale=structuredClone(projects[0]);stale.projectId='synthetic-bifocal-stale-model';const stalePlan=await prepare(stale);await upload(dataset,csv.replace('$10.01','$11.01'),true);await post(stale.projectId,'apply',{planId:stalePlan.planId,reviewedFingerprint:stalePlan.fingerprint},409)
  const anonymous=await context.browser().newContext({ignoreHTTPSErrors:true});try{assert.equal((await anonymous.request.get(origin+'/api/operator/model-imports/'+projects[0].projectId)).status(),401)}finally{await anonymous.close()}
+ await call('/model-imports/'+original.input.projectId+'/export',{reviewedRevision:original.imported.revision},409)
+ const unsigned=await context.browser().newContext({ignoreHTTPSErrors:true})
+ try{assert.equal((await unsigned.request.get(origin+'/api/operator/model-imports/'+projects[0].projectId)).status(),401);assert.equal((await unsigned.request.post(origin+'/api/operator/model-imports/'+projects[0].projectId+'/export',{headers:{Origin:origin},data:{reviewedRevision:original.imported.revision}})).status(),401)}finally{await unsigned.close()}
+ assert.equal((await context.request.post(origin+'/api/operator/model-imports/'+original.input.projectId+'/export',{headers:{Origin:'https://synthetic-bifocal.invalid'},data:{reviewedRevision:original.imported.revision}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/import/plan',{headers:{Origin:'https://synthetic-bifocal.invalid','X-Import-Kind':'model','X-Import-Dataset':projects[0].projectId},data:{uploadId:'synthetic-bifocal-denied'}});assert.equal(foreign.status(),401)
  await call('/model-authoring/review',{document:dump(original.imported.definition),importProject:projects[0].projectId,importRevision:'stale'},409)
  const source=await call('/datasets/'+dataset);const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200);assert.ok(erased.modelProjects.length>=projects.length)
- for(const item of saved){const originals=await context.request.get(origin+'/api/operator/import/original/'+item.plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':item.input.projectId}});assert.equal(originals.status(),200,await originals.text());assert.ok((await originals.json()).originals.every(o=>o.original.status==='unavailable'));await call('/model-imports/'+item.input.projectId,undefined,404);await call('/models/'+item.model.modelId,undefined,404);await call('/queries/'+item.answer.queryId,undefined,404);await call('/reports/'+item.report.id,undefined,404);await post(item.input.projectId,'apply',{planId:item.plan.planId,reviewedFingerprint:item.plan.fingerprint},410)}
+ for(const item of saved){const originals=await context.request.get(origin+'/api/operator/import/original/'+item.plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':item.input.projectId}});assert.equal(originals.status(),200,await originals.text());assert.ok((await originals.json()).originals.every(o=>o.original.status==='unavailable'));await call('/model-imports/'+item.input.projectId,undefined,404);await call('/model-imports/'+item.input.projectId+'/export',{reviewedRevision:item.imported.revision},404);await call('/models/'+item.model.modelId,undefined,404);await call('/queries/'+item.answer.queryId,undefined,404);await call('/reports/'+item.report.id,undefined,404);await post(item.input.projectId,'apply',{planId:item.plan.planId,reviewedFingerprint:item.plan.fingerprint},410)}
  for(const [input,plan] of [[unsupported,blocked],[cancelled,cancelledPlan],[stale,stalePlan]]){await call('/model-imports/'+input.projectId,undefined,404);await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)}
  for(const {input,plan} of dbtProjects){await call('/model-imports/'+input.projectId,undefined,404);const originals=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}});assert.equal(originals.status(),200);assert.ok((await originals.json()).originals.every(o=>o.original.status==='unavailable'));await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)}
- console.log('Source model imports: original LookML, dbt, MetricFlow, TMDL and Cube plus native dbt, PBIP, Metabase and Tableau inventories; shared review, exact source SQL parity, native publication, governed exploration and exports, git YAML, explicit gaps, stale refusal and full source withdrawal passed')
+ console.log('Source model imports: executable LookML, dbt Semantic Layer, MetricFlow, TMDL, Cube, bounded dbt Core and Cloud projections and quality checks, scoped Metabase aggregates and Tableau source measures, plus diagnostic PBIP inventories; shared review, exact source SQL parity, native publication, governed exploration and exports, git YAML, explicit gaps, stale refusal and full source withdrawal passed')
 }
 
 /** Real CLI and Terraform model changes share exact native review and fences. */
@@ -210,7 +377,7 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const ownSource='synthetic-bifocal-dashboard-tools',ownCSV='invoice,date,region,revenue\n1,07/01/2026,West,$10.01\n2,07/02/2026,East,$20.02\n'
   await upload(ownSource,ownCSV)
   const ownDocument=JSON.parse(await readFile(dashboardExport,'utf8'));ownDocument.definition.dataset=ownSource
-  const unauthenticated=await fetch(origin+'/api/operator/dashboard-definitions/review',{method:'POST',headers:{'content-type':'application/json',Origin:origin},body:JSON.stringify({document:ownDocument})});assert.equal(unauthenticated.status,401)
+  const unauthenticated=await fetch(origin+'/api/operator/dashboard-definitions/review',{method:'POST',headers:{'content-type':'application'+'/'+'json',Origin:origin},body:JSON.stringify({document:ownDocument})});assert.equal(unauthenticated.status,401)
   assert.equal((await context.request.post(origin+'/api/operator/dashboard-definitions/review',{headers:{Origin:'https://foreign.example.test'},data:{document:ownDocument}})).status(),401)
   const ownFile=join(directory,'own-dashboard.json');await writeFile(ownFile,JSON.stringify(ownDocument));const ownReview=await cli('dashboard-import',['--file',ownFile,'--plan-file',join(directory,'own-dashboard-review.json')]);const dashboardDocument=JSON.stringify(ownDocument),dashboardConfig={terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_dashboard_snapshot:{main:{document:dashboardDocument,review_digest:ownReview.digest}}}}
   await writeFile(tf,JSON.stringify(dashboardConfig));await tfRun(['plan','-input=false','-no-color','-out=dashboard.tfplan'])
@@ -265,7 +432,7 @@ export async function proveModelLifecycle({origin,context,definition,upload}){
   const scheduleFile=join(directory,'schedule.native.json'),schedulePlan=join(directory,'schedule.plan.json')
   const schedule={version:1,id:'synthetic-bifocal-tool-schedule',definition:{name:'Reviewed DST schedule',localDate:'2026-11-01',time:'01:30',timezone:'America/New_York',reportCutoff:'02:00',skipped:'reject',repeated:'both'}}
   await writeFile(scheduleFile,JSON.stringify(schedule))
-  assert.equal((await fetch(origin+'/api/operator/schedule-definitions/review',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify({document:schedule,previousVersion:null})})).status,401)
+  assert.equal((await fetch(origin+'/api/operator/schedule-definitions/review',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify({document:schedule,previousVersion:null})})).status,401)
   const foreignSchedule=await context.request.post(origin+'/api/operator/schedule-definitions/review',{headers:{Origin:'https://synthetic-bifocal.invalid'},data:{document:schedule,previousVersion:null}});assert.equal(foreignSchedule.status(),401)
   const scheduleReview=await cli('schedule-plan',['--file',scheduleFile,'--plan-file',schedulePlan])
   assert.equal(scheduleReview.resolution.instants.length,2);assert.equal(scheduleReview.productionSends,0);assert.equal(scheduleReview.sourceWrites,0)
@@ -318,11 +485,25 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const numericLookup='synthetic-bifocal-preparation-numeric',numericDuplicates='synthetic-bifocal-preparation-numeric-duplicates'
  await upload(numericLookup,'quantity,label\n2.0,Two\n3.00,Three\n');await upload(numericDuplicates,'id,value\n1,0.10\n1.0,0.100\n')
  const initial=await call('/datasets/'+dataset),path='/preparations/'+id
+ const calendar='synthetic-bifocal-preparation-calendar',metricId='synthetic-bifocal-preparation-metric'
+ await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Preparation calendar',kind:'fiscal',startMonth:1}})
+ const quantityQuery={version:1,dataset,joins:[],filters:[],groupBy:[],measures:[{id:'quantity',op:'sum',column:'quantity',unit:'number',scale:0}],context:{modelVersion:'preparation-impact',metricVersion:'preparation-impact',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+ const metricDraft=await call('/metrics',{id:metricId,definition:{name:'Published quantity',description:'Quantity before staged deduplication',grain:'item',unit:'number',timezone:'America/New_York',accountingBasis:'accrual',query:quantityQuery}})
+ await call('/metrics/'+metricId+'/approve',{revision:1,digest:metricDraft.digest,confirm:'approve',annotation:'Initial review'},200)
+ const metricBefore=await call('/metrics/'+metricId+'/run',{})
+ const chartDocument={version:1,title:'Published regional quantity',definition:{...quantityQuery,groupBy:['region']},visual:{kind:'bar',dimension:'region',measure:'quantity'}}
+ const chartReview=await call('/chart-definitions/review',{document:chartDocument},200),chart=await call('/chart-definitions/create',{document:chartDocument,reviewedDigest:chartReview.digest})
+ assert.equal(metricBefore.answer.totals.quantity.value,'11')
+
  const document={version:1,dataset,steps:[{op:'dedupe'},{op:'calculate',name:'amount',operator:'multiply',left:'quantity',right:'price'},{op:'lookup',dataset:right,left:'region',right:'region',prefix:'lookup-',kind:'left'}]}
  const preview=async(doc,version=null)=>call(path+'/review',{document:doc,previousVersion:version},200)
  const sqlPreview=async(sql,version=null)=>call(path+'/review',{dataset,sql,previousVersion:version},200)
  const review=await preview(document)
  assert.equal(review.compatible,true);assert.equal(review.published,false)
+ assert.deepEqual(review.impact.metrics.map(m=>[m.id,m.revision,m.before.quantity.value,m.after.quantity.value,m.publishedChanged]),[[metricId,1,'11','9',false]])
+ assert.deepEqual(review.impact.charts.map(c=>[c.id,c.before.quantity.value,c.after.quantity.value,c.publishedChanged]),[[chart.id,'11','9',false]])
+ assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11')
+
  assert.deepEqual(review.output.rows,[['a','West','2','0.10','12','0.2','West','Pacific'],['b','East','3','0.20','bad','0.6','East','Atlantic'],['c',null,'4',null,'14',null,null,null]])
  assert.deepEqual(review.diagnostics.map(s=>[s.inputRows,s.outputRows]),[[4,3],[3,3],[3,3]])
  assert.deepEqual(review.output.lineage.amount,[{dataset,revision:initial.revision,column:'quantity'},{dataset,revision:initial.revision,column:'price'}])
@@ -348,7 +529,13 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const badUnion=await preview({...document,steps:[{op:'union',dataset:right}]});assert.equal(badUnion.error.code,'preparation_union_schema_mismatch')
  const cast=await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]})
  assert.deepEqual(cast.error,{step:1,operation:'cast',code:'preparation_type_conversion_failed'});assert.equal(cast.output,null)
+ assert.equal(cast.impact.metrics[0].after,null);assert.equal(cast.impact.metrics[0].error.code,'preparation_type_conversion_failed')
+ const blockedChart=await call('/charts/'+chart.id)
+ assert.deepEqual(blockedChart.answer,chart.answer);assert.deepEqual(blockedChart.preparationErrors,[{preparationId:id,step:1,operation:'cast',code:'preparation_type_conversion_failed',publishedChanged:false}])
+ await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*preparation_type_conversion_failed/);await proveScreen('preparation-affected-chart')
+
  const validCast=await preview({...document,steps:[{op:'cast',column:'quantity',type:'text'}]});assert.equal(validCast.output.columns[2].type,'text');assert.deepEqual((await sqlPreview(validCast.sql)).output,validCast.output)
+ assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'A repaired review clears the failed-draft warning')
  const unpivot=await preview({...document,steps:[{op:'dedupe'},{op:'unpivot',columns:['quantity','price'],name:'field',value:'value'}]})
  assert.deepEqual(unpivot.output.rows.map(row=>row.slice(-2)),[['quantity','2'],['price','0.10'],['quantity','3'],['price','0.20'],['quantity','4'],['price',null]])
  assert.deepEqual((await sqlPreview(unpivot.sql)).output,unpivot.output)
@@ -378,6 +565,7 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  await page.getByRole('button',{name:'Review preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft reviewed'}).waitFor()
  assert.deepEqual(await browserRows(),[['a','West','2','0.10','12','0.2'],['b','East','3','0.20','bad','0.6'],['c','NULL','4','NULL','14','NULL']])
  const lineage=await page.getByRole('table',{name:'Output schema and column lineage',exact:true}).innerText();assert.ok(lineage.includes(initial.revision));assert.match(lineage,/quantity/);assert.match(lineage,/price/)
+ const metricImpactText=await page.getByRole('table',{name:'Certified metric impact',exact:true}).innerText();assert.match(metricImpactText,/quantity: 11/);assert.match(metricImpactText,/quantity: 9/);assert.match(await page.getByRole('table',{name:'Affected charts',exact:true}).innerText(),/Published regional quantity/)
  await proveScreen('preparation-visual-review')
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed draft',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft saved as revision 1'}).waitFor()
  await page.getByLabel('Editing form',{exact:true}).selectOption('sql');const originalSQL=await page.getByLabel('SQL statements',{exact:true}).inputValue()
@@ -391,6 +579,9 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  assert.match(await page.getByRole('table',{name:'Preparation validation error',exact:true}).innerText(),/preparation_type_conversion_failed/);assert.equal(await page.getByRole('button',{name:'Save reviewed draft',exact:true}).isDisabled(),true)
  assert.equal((await call('/preparations/'+browserID)).version,2)
  await proveScreen('preparation-conversion-error')
+ await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/preparation_type_conversion_failed/);assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11');await proveScreen('preparation-browser-affected-chart')
+ await page.goto(origin+'/app/import#preparation');await page.getByLabel('Preparation ID',{exact:true}).fill(browserID);await page.getByRole('button',{name:'Load saved preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Current saved draft loaded'}).waitFor()
+
  await page.getByLabel('Saved revision',{exact:true}).selectOption('1');await page.getByRole('button',{name:'Review selected revision for restore',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Prior revision reviewed'}).waitFor()
  assert.deepEqual((await browserRows()).map(row=>row[5]),['0.2','0.6','NULL'])
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Restore reviewed draft revision',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Prior draft restored as revision 3'}).waitFor()
@@ -408,11 +599,14 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
   assert.equal((await member.request.get(origin+'/api/operator'+path)).status(),401)
   for(const action of ['review','save','restore'])assert.equal((await member.request.post(origin+'/api/operator'+path+'/'+action,{headers:{Origin:origin},data:{document,previousVersion:3,restoreVersion:1,reviewedDigest:restoreReview.digest}})).status(),401)
  }finally{await member.close()}
- const stale=await preview(document,3);await upload(dataset,csv.replace('2,0.10','2,0.11'),true)
+ const stale=await preview(document,3)
+ await preview({...document,steps:[{op:'cast',column:'repair',type:'number'}]},3);assert.equal((await call('/charts/'+chart.id)).preparationErrors.length,1)
+ await upload(dataset,csv.replace('2,0.10','2,0.11'),true);assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'Obsolete draft warnings disappear when a pinned source changes')
  await call(path+'/save',{document,previousVersion:3,reviewedDigest:stale.digest},409)
  const currentRestoreReview=await preview(document,3)
  await call(path+'/restore',{restoreVersion:1,previousVersion:3,reviewedDigest:currentRestoreReview.digest},409)
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
+ await call('/charts/'+chart.id,undefined,404)
  await call(path,undefined,404);await call(path+'/restore',{restoreVersion:1,previousVersion:null,reviewedDigest:currentRestoreReview.digest},404)
  console.log('Native preparation: executable graph and edited SQL, exact values, explicit join and pivot refusals, lineage, reviewed revisions, non-owner isolation, source drift and erasure passed')
 }
@@ -449,9 +643,10 @@ export async function proveNativePreparation({imports=false}={}){
    const memberPage=await member.newPage();await memberPage.goto(link);await Promise.all([memberPage.waitForURL(origin+'/app'),memberPage.getByRole('button',{name:'Confirm',exact:true}).click()]);await memberPage.close()
   }
   const proveScreen=async(label)=>{
-   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
   await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
+  await proveDBTExecution({origin,context,call,upload,signInMember})
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}

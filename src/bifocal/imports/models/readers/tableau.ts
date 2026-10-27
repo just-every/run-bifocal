@@ -1,7 +1,7 @@
 import { DOMParser, type Element } from '@xmldom/xmldom'
 import { strFromU8, unzipSync } from 'fflate'
 import { issue, provenance } from './common'
-import type { Project, ProjectFile, ProjectResource } from './types'
+import type { Dimension, ModelTable, Project, ProjectFile, ProjectResource } from './types'
 
 export function readTableau(p: Project, files: ProjectFile[]) {
  const resources: ProjectResource[] = [], documents: ProjectFile[] = []
@@ -33,6 +33,15 @@ export function readTableau(p: Project, files: ProjectFile[]) {
    root = new DOMParser({onError: () => { throw Error('xml') }}).parseFromString(file.content, 'application' + '/' + 'xml').documentElement!
    if (!root || !['workbook','datasource'].includes(root.tagName) || root.getElementsByTagName('*').length > 10000) throw Error('root')
   } catch { issue(p, at, file.path, 'invalid_tableau_xml', 'Supply a well-formed workbook or data source with at most 10,000 elements.'); continue }
+  const children=(element:Element)=>Array.from(element.childNodes).filter((n):n is Element=>n.nodeType===1)
+  const attributes=(element:Element,allowed:string[])=>{for(const attribute of Array.from(element.attributes))if(!allowed.includes(attribute.name))issue(p,provenance(file,element.toString()),element.tagName+'.'+attribute.name,'unsupported_tableau_property','Translate this source property before publication.')}
+  attributes(root,root.tagName==='datasource'?['name','version','caption']:['version'])
+  for(const child of children(root))if(!(root.tagName==='datasource'?['column','connection']:['datasources','worksheets','dashboards','stories']).includes(child.tagName))issue(p,provenance(file,child.toString()),child.tagName,'unsupported_tableau_property','This workbook or source element requires explicit translation.')
+  if(root.tagName==='workbook')for(const container of children(root)){
+   attributes(container,[])
+   const expected=({datasources:'datasource',worksheets:'worksheet',dashboards:'dashboard',stories:'story'} as Record<string,string>)[container.tagName]
+   for(const child of children(container))if(child.tagName!==expected)issue(p,provenance(file,child.toString()),child.tagName,'unsupported_tableau_property','Translate every workbook container item before publication.')
+  }
   const dataSources = root.tagName === 'datasource' ? [root] : Array.from(root.getElementsByTagName('datasource')).filter(e => e.parentNode?.nodeName === 'datasources')
   for (const ds of dataSources) {
    const name = ds.getAttribute('name'), source = provenance(file, ds.toString())
@@ -41,14 +50,39 @@ export function readTableau(p: Project, files: ProjectFile[]) {
    if (resources.some(r => r.id === id)) issue(p, source, id, 'duplicate_tableau_datasource', 'Resolve duplicate source identities.')
    const columns = Array.from(ds.getElementsByTagName('column')).filter(e => e.parentNode === ds)
    resources.push({...source, id, name, kind: 'tableau-datasource', definition: {xml: ds.toString()}, dependencies: []})
-   p.tables.push({...source, name, sourceTable: null, dimensions: [], measures: []})
+   const table:ModelTable={...source,name,sourceTable:null,dimensions:[],measures:[]};p.tables.push(table)
+   attributes(ds,['name','version','caption'])
+   for(const child of children(ds))if(!['column','connection'].includes(child.tagName))issue(p,provenance(file,child.toString()),id,'unsupported_tableau_property','Filters, joins, restrictions and other source elements require translation.')
+   const connections=children(ds).filter(e=>e.tagName==='connection')
+   if(connections.length!==1)issue(p,source,id,'tableau_source_execution_pending','Map one explicit textscan table; other connection graphs require translation.')
+   for(const connection of connections){
+    attributes(connection,['class'])
+    const relations=children(connection)
+    if(connection.getAttribute('class')!=='textscan'||relations.length!==1||relations[0].tagName!=='relation'||relations[0].getAttribute('type')!=='table'||children(relations[0]).length||!relations[0].getAttribute('table'))issue(p,source,id,'tableau_source_execution_pending','Only a single literal textscan table can bind to reviewed native records.')
+    else{attributes(relations[0],['type','table']);table.sourceTable=relations[0].getAttribute('table')}
+   }
    p.explores.push({...source, name, table: name, joins: []})
    for (const column of columns) {
     const columnName = column.getAttribute('name')
     if (!columnName) { issue(p, source, id, 'tableau_column_name', 'Each source column needs its original name.'); continue }
+    attributes(column,['name','datatype','role','type','caption'])
+    const parsed=/^\[((?:[^\]]|\]\])+)\]$/.exec(columnName),field=parsed?.[1].replace(/\]\]/g,']'),calculations=children(column).filter(c=>c.tagName==='calculation'),at=provenance(file,column.toString())
+    for(const child of children(column))if(child.tagName!=='calculation')issue(p,at,id+'.'+columnName,'unsupported_tableau_property','Translate every column property before publication.')
+    if(!field)issue(p,at,id,'unsupported_tableau_column','Use an original bracketed physical column name.')
+    else if(calculations.length){
+     const expression=calculations[0].getAttribute('formula')??'',match=/^(SUM|COUNTD)\s*\(\s*\[((?:[^\]]|\]\])+)\]\s*\)$/i.exec(expression)
+     attributes(calculations[0],['class','formula'])
+     if(calculations.length!==1||calculations[0].getAttribute('class')!=='tableau'||!match||children(calculations[0]).length)issue(p,at,id+'.'+field,'unsupported_tableau_calculation','Only SUM and COUNTD of one physical column are translated; other expressions remain unresolved.')
+     else table.measures.push({...at,name:field,column:match[2].replace(/\]\]/g,']'),op:match[1].toUpperCase()==='SUM'?'sum':'count-distinct',sourceExpression:expression})
+    }else{
+     const sourceType=column.getAttribute('datatype')??'',type=({string:'text',integer:'number',real:'number',boolean:'boolean',date:'date'} as Record<string,Dimension['type']>)[sourceType]
+     if(!type)issue(p,at,id+'.'+field,'unsupported_tableau_type','Translate this source type explicitly.')
+     else table.dimensions.push({...at,name:field,column:field,type,sourceType,primaryKey:false,sourceExpression:columnName})
+    }
     resources.push({...provenance(file, column.toString()), id: `${id}.${columnName}`, name: columnName, kind: 'tableau-column', definition: {xml: column.toString(), calculations: Array.from(column.getElementsByTagName('calculation')).map(c => c.getAttribute('formula'))}, dependencies: [id]})
    }
-   issue(p, source, id, 'tableau_source_execution_pending', 'Connections, joins, calculations, types and source restrictions are retained, but require executable translation and source equivalence. No connection or expression is evaluated.')
+   for(const measure of table.measures){const dimension=table.dimensions.find(d=>d.column===measure.column);if(!dimension||measure.op==='sum'&&!['number','money'].includes(dimension.type))issue(p,measure,id+'.'+measure.name,'unresolved_tableau_column','Bind a declared compatible physical column for this aggregate.')}
+   issue(p,source,name,'source_table_binding','Bind the original source table to reviewed native records; no connection is fetched.')
   }
   for (const tag of ['worksheet','dashboard','story']) for (const item of Array.from(root.getElementsByTagName(tag))) {
    const name = item.getAttribute('name') ?? '', dependencies = Array.from(item.getElementsByTagName('datasource-dependencies')).map(d => `datasource.${d.getAttribute('datasource')}`)

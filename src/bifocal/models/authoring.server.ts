@@ -47,12 +47,12 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion','importProject','importRevision'])
   const definition=nativeDocument(input.document), guards=[], impacts:{view:string;state:string;answer?:Answer;error?:string}[]=[]
-  if(path.endsWith('/format')){await transact(env.DB,owner,[]);return json({document:dump(definition,{schema:JSON_SCHEMA,noRefs:true,lineWidth:100})})}
   const imported=input.importProject===undefined?null:await readImportedProject(env,ownerId,String(input.importProject))
   if(imported){
    if(input.importRevision!==imported.revision||!imported.value.report.compatible||canonicalJson(definition)!==canonicalJson(imported.value.definition))fail('exact_compatible_project_required',409)
    guards.push(projectGuard(imported))
   }else if(input.importRevision!==undefined)fail('import_project_required',400)
+  if(path.endsWith('/format')){await transact(env.DB,owner,guards.map(assertion));return json({document:dump(definition,{schema:JSON_SCHEMA,noRefs:true,lineWidth:100})})}
   const model=input.modelId===undefined?null:await readModel(env,ownerId,String(input.modelId))
   const branch=model?await readBranch(env,model,String(input.branchId)):null
   if(branch){if(input.previousVersion!==branch.version)fail('stale_branch_version',409);guards.push(modelGuard(model!),branchGuard(branch))}
