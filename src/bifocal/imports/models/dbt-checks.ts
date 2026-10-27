@@ -13,7 +13,7 @@ function exactValue(value: unknown, numeric: boolean): string {
  return JSON.stringify(value)
 }
 
-export function executeChecks(project: Project, resources: ProjectResource[], runs: Map<string, Run[]>, valid: Map<string,boolean>, finish: (r: ProjectResource, result: Record<string,unknown>)=>void) {
+export function executeChecks(project: Project, resources: ProjectResource[], runs: Map<string, Run[]>, valid: Map<string,boolean>, finish: (r: ProjectResource, result: Record<string,unknown>)=>void, metadata:string[]) {
  for (const r of resources.filter(resource=>resource.kind==='test')) {
   const fail = (code: string, message: string) => issue(project,r,r.id,code,message)
   if (!valid.get(r.id)) continue

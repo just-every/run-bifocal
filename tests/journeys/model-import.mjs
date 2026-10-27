@@ -65,18 +65,6 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
    assert.equal(await page.getByLabel('Model format',{exact:true}).inputValue(),input.format);assert.deepEqual(JSON.parse(await page.getByLabel('Source bindings (JSON)',{exact:true}).inputValue()),input.bindings);assert.match(await page.getByRole('table',{name:'Source measure translations'}).innerText(),/sales.revenue_sum/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('model-import-'+input.format)
   }
  }
- // A real native member session qualifies refusal independently of anonymous access.
- if(signInMember){
-  const member=await context.browser().newContext({ignoreHTTPSErrors:true}),email='synthetic-bifocal-import-member@example.test'
-  try{
-   assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email,displayName:'Import member',role:'member'}})).status(),202)
-   await signInMember(member,email)
-   const session=await(await member.request.get(origin+'/auth/session')).json();assert.equal(session.kind,'native');assert.equal(session.operator.role,'member')
-   assert.equal((await member.request.get(origin+'/api/operator/model-imports/'+saved[0].input.projectId)).status(),401)
-   for(const action of ['uploads','plan','apply','undo'])assert.equal((await member.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':saved[0].input.projectId},data:{planId:saved[0].plan.planId,reviewedFingerprint:saved[0].plan.fingerprint}})).status(),401)
-   assert.equal((await member.request.get(origin+'/api/operator/import/original/'+saved[0].plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':saved[0].input.projectId}})).status(),401)
-  }finally{await member.close()}
- }
  // Source query predicates and grouping survive exact mappings and exported
  // native execution. Later exploration can only intersect these restrictions.
  const scopedDataset='synthetic-bifocal-metabase-scoped'
@@ -163,7 +151,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  }
  for(const failure of ['not_null','unique']){
   const id='synthetic-bifocal-dbt-failed-'+failure.replace('_','-'),source=id+'-source'
-  await upload(source,csv.replace('4,,,',failure==='not_null'?',,,':'3,,,'))
+  await upload(source,csv.replace('4,East,,',failure==='not_null'?',East,,':'3,East,,'))
   const input=structuredClone(core);input.projectId=id;input.bindings.sales.dataset=source
   const plan=await prepare(input);assert.equal(plan.project.report.compatible,false);assert.ok(plan.project.report.issues.some(i=>i.code==='dbt_quality_check_failed'&&i.message.startsWith(failure)))
   const checks=plan.project.report.project.resources.filter(r=>r.kind==='test');assert.equal(checks.find(r=>r.definition.translation.test===failure).definition.translation.results[0].failures,1)
@@ -264,11 +252,14 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   const email='synthetic-bifocal-import-'+role+'@example.test'
   const invited=await context.request.post(origin+'/auth/invite',{headers:mailHeaders,data:{email,displayName:'Synthetic import '+role,role}})
   assert.equal(invited.status(),202,await invited.text())
-  const outbox=await(await context.request.get(origin+'/__model-mail')).json(),message=outbox.find(m=>m.to.includes(email));assert.ok(message)
-  const link=message.text.match(/https?:[^\s]+/)[0],token=new URL(link).searchParams.get('token');assert.ok(token)
-  const reader=await context.browser().newContext()
+  const reader=await context.browser().newContext({ignoreHTTPSErrors:true})
   try{
-   const confirmed=await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0});assert.equal(confirmed.status(),303,await confirmed.text())
+   if(signInMember)await signInMember(reader,email)
+   else{
+    const outbox=await(await context.request.get(origin+'/__model-mail')).json(),message=outbox.find(m=>m.to.includes(email));assert.ok(message)
+    const link=message.text.match(/https?:[^\s]+/)[0],token=new URL(link).searchParams.get('token');assert.ok(token)
+    const confirmed=await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0});assert.equal(confirmed.status(),303,await confirmed.text())
+   }
    const session=await reader.request.get(origin+'/auth/session');assert.equal(session.status(),200);assert.equal((await session.json()).operator.role,role)
    for(const path of ['/model-imports/'+original.input.projectId,'/import/history','/import/original/'+original.plan.planId]){
     const r=await reader.request.get(origin+'/api/operator'+path,{headers:{'X-Import-Kind':'model','X-Import-Dataset':original.input.projectId}});assert.equal(r.status(),401,await r.text())
@@ -286,8 +277,8 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const stale=structuredClone(projects[0]);stale.projectId='synthetic-bifocal-stale-model';const stalePlan=await prepare(stale);await upload(dataset,csv.replace('$10.01','$11.01'),true);await post(stale.projectId,'apply',{planId:stalePlan.planId,reviewedFingerprint:stalePlan.fingerprint},409)
  const anonymous=await context.browser().newContext({ignoreHTTPSErrors:true});try{assert.equal((await anonymous.request.get(origin+'/api/operator/model-imports/'+projects[0].projectId)).status(),401)}finally{await anonymous.close()}
  await call('/model-imports/'+original.input.projectId+'/export',{reviewedRevision:original.imported.revision},409)
- assert.equal((await fetch(origin+'/api/operator/model-imports/'+projects[0].projectId)).status,401)
- assert.equal((await fetch(origin+'/api/operator/model-imports/'+projects[0].projectId+'/export',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify({reviewedRevision:original.imported.revision})})).status,401)
+ const unsigned=await context.browser().newContext({ignoreHTTPSErrors:true})
+ try{assert.equal((await unsigned.request.get(origin+'/api/operator/model-imports/'+projects[0].projectId)).status(),401);assert.equal((await unsigned.request.post(origin+'/api/operator/model-imports/'+projects[0].projectId+'/export',{headers:{Origin:origin},data:{reviewedRevision:original.imported.revision}})).status(),401)}finally{await unsigned.close()}
  assert.equal((await context.request.post(origin+'/api/operator/model-imports/'+original.input.projectId+'/export',{headers:{Origin:'https://synthetic-bifocal.invalid'},data:{reviewedRevision:original.imported.revision}})).status(),401)
  const foreign=await context.request.post(origin+'/api/operator/import/plan',{headers:{Origin:'https://synthetic-bifocal.invalid','X-Import-Kind':'model','X-Import-Dataset':projects[0].projectId},data:{uploadId:'synthetic-bifocal-denied'}});assert.equal(foreign.status(),401)
  await call('/model-authoring/review',{document:dump(original.imported.definition),importProject:projects[0].projectId,importRevision:'stale'},409)

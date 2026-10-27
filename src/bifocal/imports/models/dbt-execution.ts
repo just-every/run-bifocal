@@ -125,7 +125,7 @@ export function executeDBT(project: Project, bindings: Record<string, DBTBinding
   const executions = runs.get(r.id)
   if (executions?.length) finish(r,{state:'translated',kind:'identity-projection',bindings:executions.map(run=>({dataset:run.source.id,revision:run.source.revision,root:run.projection.root,columns:Object.fromEntries(run.projection.columns)}))})
  }
- executeChecks(project,resources,runs,valid,finish)
+ executeChecks(project,resources,runs,valid,finish,metadata)
  const internal = new Set(project.tables.filter(table=>table.sourceTable===null && !table.measures.length && !bindings[table.name] && resources.some(r=>r.kind==='model' && r.name===table.name && runs.has(r.id))).map(table=>table.name))
  project.tables=project.tables.filter(table=>!internal.has(table.name))
  project.explores=project.explores.filter(explore=>!internal.has(explore.table))
