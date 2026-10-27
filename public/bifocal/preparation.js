@@ -82,7 +82,7 @@ if(form){
  $('prep-load').addEventListener('click',()=>perform(async()=>{
   invalidate();const current=await loadHead(id()),revision=current.revisions.find(item=>item.version===current.version)
   if(revision){useDocument(revision.document);editingMode('visual');status('Current saved draft loaded. Review again before saving any change.')}
-  else status('No saved preparation with this ID. Build and review a new draft.')
+  else{useDocument({version:1,dataset:dataset.value,steps:[]});editingMode('visual');$('prep-flow-report').replaceChildren();$('prep-flow-status').textContent='';status('No saved preparation with this ID. Build and review a new draft.')}
  }))
  $('prep-source-load').addEventListener('click',()=>perform(async()=>{
   const source=validId(dataset.value,'source dataset ID'),response=await fetch('/api/operator/datasets/'+source),value=await response.json()
