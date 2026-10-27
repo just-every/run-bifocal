@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
+import { proveInputTemplates } from './input-templates.mjs'
 import { createHash, createHmac } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
@@ -24,14 +25,43 @@ export async function proveInputTables(origin,context,page,custody) {
  assert.equal((await fetch(root+'/inputs')).status,401)
  assert.equal((await context.request.post(root+'/inputs',{headers:{Origin:'https://foreign.example.test'},data:{id:'synthetic-bifocal-denied',name:'Denied',...definition}})).status(),401)
  if(process.env.BIFOCAL_PROOF_DIR)await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true})
- const shot=async(name,width)=>{for(const screenWidth of [1440,390]){await page.setViewportSize({width:screenWidth,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Input ${name} overflows ${width}`);assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/inputs-${name}-${screenWidth}.png`,fullPage:true})}await page.setViewportSize({width,height:1000})}
+ let tooltipChecked=false
+ const shot=async(name,width)=>{
+  for(const screenWidth of [1440,390]){
+   await page.setViewportSize({width:screenWidth,height:1000})
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Input ${name} overflows ${screenWidth}`)
+   assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0)
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/inputs-${name}-${screenWidth}.png`,fullPage:true})
+   if(screenWidth===390&&!tooltipChecked){
+    const gear=page.locator('body[data-input-tables] .menu > summary')
+    const tooltip=()=>gear.evaluate(element=>{const style=getComputedStyle(element,'::before');return {content:style.content,visibility:style.visibility,opacity:style.opacity}})
+    await page.mouse.move(0,0);await gear.evaluate(element=>element.blur())
+    let style=await tooltip();assert.equal(style.visibility,'hidden')
+    assert.ok(!['none','normal','""',"''"].includes(style.content)&&style.content.length<80,'Settings tooltip provides a short accessible hint')
+    await gear.hover();await page.waitForTimeout(350)
+    style=await tooltip();assert.equal(style.visibility,'visible');assert.equal(style.opacity,'1')
+    await page.mouse.move(0,0);await page.waitForTimeout(350);assert.equal((await tooltip()).visibility,'hidden')
+    await page.keyboard.press('Tab');await gear.focus()
+    assert.equal(await gear.evaluate(element=>element.matches(':focus-visible')),true)
+    style=await tooltip();assert.equal(style.visibility,'visible');assert.equal(style.opacity,'1')
+    if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/inputs-settings-tooltip-390.png`,fullPage:true})
+    await gear.evaluate(element=>element.blur());await page.waitForTimeout(350)
+    tooltipChecked=true
+   }
+  }
+  await page.setViewportSize({width,height:1000})
+ }
  for(const width of [1440]){
   const id='synthetic-bifocal-input-'+width,path='/inputs/'+id
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/inputs')
   await shot('create',width)
   for(const [label,value] of Object.entries({'Input table ID':id,'Table name':'West forecast '+width,'Dataset ID':dataset,'Reviewed source revision':source.revision,'Source key column':'id','Region column':'region','Allowed region':'West','Observed USD column':'amount'}))await page.getByLabel(label,{exact:true}).fill(value)
+  await page.getByRole('button',{name:'Review input table',exact:true}).click()
+  assert.deepEqual((await call('/inputs')).tables,[],'Reviewing a definition never creates a table')
+  await shot('review',width)
   await page.getByRole('button',{name:'Create input table',exact:true}).click();await page.waitForURL(origin+'/app'+path)
   const initial=await call(path)
+  base.schemaRevision=initial.schemaRevision
   assert.deepEqual(initial.rows,[{rowKey:'1',observed:'100.00',version:0,values:null,adjusted:'100.00'}])
   assert.deepEqual(initial.columns.map(c=>[c.name,c.type]),[['adjustment','money'],['note','text'],['effectiveOn','date'],['active','boolean']])
   await shot('empty',width)
@@ -41,10 +71,11 @@ export async function proveInputTables(origin,context,page,custody) {
   assert.equal(state.rows.length,1);assert.equal(state.rows[0].observed,'100.00');assert.equal(state.rows[0].adjusted,'125.50');assert.equal(state.rows[0].version,1)
   assert.deepEqual(state.history.map(h=>({row:h.rowKey,version:h.version,actor:h.actorId,before:h.before,after:h.after})),[{row:'1',version:1,actor:owner.id,before:null,after:{adjustment:'25.50',note:base.note,effectiveOn:base.effectiveOn,active:true}}])
   assert.equal(state.history[0].actorName,owner.displayName)
+  assert.equal(state.history[0].schemaVersion,state.schemaVersion)
   assert.match(state.history[0].recordedAt,/^\d{4}-\d{2}-\d{2}T/)
   await page.locator('summary').filter({hasText:'Before and after history'}).click();await shot('saved-audit',width)
   await call(path+'/rows',{...base,rowKey:'2',previousVersion:0},403)
-  for(const invalid of [{adjustment:'1.001'},{adjustment:25.5},{effectiveOn:'2026-02-30'},{active:'yes'},{note:''},{extra:true}])await call(path+'/rows',{...base,previousVersion:1,...invalid},400)
+  for(const invalid of [{adjustment:'1.001'},{adjustment:25.5},{effectiveOn:'2026-02-30'},{active:'yes'},{active:'true'},{note:''},{extra:true}])await call(path+'/rows',{...base,previousVersion:1,...invalid},400)
   await call(path+'/rows',base,409)
   assert.deepEqual(await call(path),state,'Refused edits leave row and audit unchanged')
   const requests=await Promise.all(['10.00','20.00'].map(adjustment=>context.request.post(root+path+'/rows',{headers,data:{...base,previousVersion:1,adjustment}})))
@@ -61,12 +92,16 @@ export async function proveInputTables(origin,context,page,custody) {
   await page.goto(origin+'/app'+path);await page.getByLabel('Adjustment (USD)',{exact:true}).fill('1.001');await page.getByRole('button',{name:'Save adjustment',exact:true}).click()
   await page.getByRole('alert').filter({hasText:'USD_two_decimal_places_required'}).waitFor();await shot('validation-refusal',width)
  }
+ const extra=await proveInputTemplates({origin,context,page,call,definition,source,owner,shot})
  // Native memberships and sessions are obtained through the real local doors.
  const {reader,persist,environment}=custody
  const id='synthetic-bifocal-input-1440',path='/inputs/'+id,beforeAuthority=await call(path)
+ const deniedDefinition={id:'synthetic-bifocal-denied',name:'Denied',...definition}
+ const schemaMutation={previousSchemaRevision:beforeAuthority.schemaRevision,schema:beforeAuthority.schema}
+ const deniedMutations=[['/inputs',deniedDefinition],['/inputs/review',deniedDefinition],[path+'/rows',{...base,previousVersion:3}],[path+'/schema/review',schemaMutation],[path+'/schema',{...schemaMutation,reviewedDigest:'unreviewed'}]]
  const refuse=async(client)=>{
   for(const route of ['/inputs',path])assert.equal((await client.request.get(root+route)).status(),401)
-  for(const [route,data] of [['/inputs',{id:'synthetic-bifocal-denied',name:'Denied',...definition}],[path+'/rows',{...base,previousVersion:3}]])assert.equal((await client.request.post(root+route,{headers,data})).status(),401)
+  for(const [route,data] of deniedMutations)assert.equal((await client.request.post(root+route,{headers,data})).status(),401)
   assert.equal((await client.request.get(origin+'/app'+path)).status(),401)
  }
  const readerSession=(await(await reader.request.get(origin+'/auth/session')).json())
@@ -95,9 +130,10 @@ export async function proveInputTables(origin,context,page,custody) {
   assert.equal((await fetch(root+route,{headers:machineHeaders})).status,401)
   assert.equal((await context.request.get(root+route,{headers:machineHeaders})).status(),401)
  }
- for(const [route,data] of [['/inputs',{id:'synthetic-bifocal-copied',name:'Copied owner context',...definition,operatorId:owner.id}],[path+'/rows',{...base,previousVersion:3}]]){
-  assert.equal((await context.request.post(root+route,{headers:machineHeaders,data})).status(),401)
-  assert.equal((await reader.request.post(root+route,{headers,data})).status(),401)
+ for(const [route,data] of deniedMutations){
+  const copied={...data,operatorId:owner.id}
+  assert.equal((await context.request.post(root+route,{headers:machineHeaders,data:copied})).status(),401)
+  assert.equal((await reader.request.post(root+route,{headers,data:copied})).status(),401)
  }
  await call('/credentials/'+credential.id+'/revoke',{})
  await call('/explore/access/'+grant.id+'/revoke',{})
@@ -138,6 +174,7 @@ export async function proveInputTables(origin,context,page,custody) {
   assert.equal(protectedResponse.status(),200,await protectedResponse.text());previousRevision=(await protectedResponse.json()).revision
   await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},423)
   assert.deepEqual(await call(path),beforeAuthority,'Held erasure preserves input notes and value-bearing history')
+  for(const [extraPath,state] of extra.states)assert.deepEqual(await call(extraPath),state,'Held erasure preserves all typed values and schema revisions')
  }
  const release=await context.request.put(retention,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
  assert.equal(release.status(),200,await release.text())
@@ -147,15 +184,18 @@ export async function proveInputTables(origin,context,page,custody) {
   await call(path,undefined,409);await call(path+'/rows',{...base,previousVersion:3},409)
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app'+path);await page.getByRole('alert').filter({hasText:'source_changed_or_removed'}).waitFor();await shot('source-refusal',width)
  }
+ for(const [extraPath,state] of extra.states){await call(extraPath,undefined,409);await call(extraPath+'/rows',{rowKey:'1',previousVersion:state.rows[0].version,schemaRevision:state.schemaRevision,...state.rows[0].values},409)}
  const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision})
- for(const [store,rows] of [['bf_input_tables',1],['bf_input_rows',1],['bf_input_history',3]])assert.equal(erased.stores.find(s=>s.store===store).rows,rows)
+ for(const [store,rows] of [['bf_input_tables',5],['bf_input_rows',5],['bf_input_history',12],['bf_input_schemas',6]])assert.equal(erased.stores.find(s=>s.store===store).rows,rows)
  assert.deepEqual((await call('/inputs')).tables,[])
  await call(path,undefined,404);await call(path+'/rows',{...base,previousVersion:3},404)
+ for(const [extraPath,state] of extra.states){await call(extraPath,undefined,404);await call(extraPath+'/rows',{rowKey:'1',previousVersion:state.rows[0].version,schemaRevision:state.schemaRevision,...state.rows[0].values},404)}
  // Inspect the independent persisted store, including orphan rows the API could hide.
  const inspect=command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',env:environment,stdio:['ignore','pipe','pipe']}))[0].results
- for(const store of ['bf_input_tables','bf_input_rows','bf_input_history'])assert.deepEqual(inspect('SELECT count(*) AS n FROM '+store),[{n:0}],store+' retains no orphaned values, notes or history')
+ for(const store of ['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas'])assert.deepEqual(inspect('SELECT count(*) AS n FROM '+store),[{n:0}],store+' retains no orphaned values, notes or history')
  const receipt=await call('/erasure-receipts/'+erased.auditId)
  for(const value of [dataset,base.note,owner.email,owner.displayName,'25.50','-10.25'])assert.equal(JSON.stringify(receipt).includes(value),false,'Minimal receipt must not retain erased values')
+ for(const value of extra.erasedValues)assert.equal(JSON.stringify(receipt).includes(JSON.stringify(value)),false,'Minimal receipt must not retain added typed values or notes')
  console.log('Input tables: typed separate USD adjustments, conflicts and attributed history; native member and admin, working analytical grant and machine credential refusal; owner suspension and stale-session refusal; held erasure, independent persisted note and history withdrawal and minimal receipt passed. Assertions at 1440; screens at 1440 and 390.')
 }
 export async function proveConventions(origin, context, page) {
