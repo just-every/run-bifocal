@@ -5,9 +5,16 @@ export function mountComposition(views){
  let result,scope='summary',offset=0,next=null,pending=false,fullPlan,fullOffset=0,fullDownloaded=0
  const status=(message,error=false)=>{$('composition-status').textContent=message;$('composition-status').dataset.error=String(error)}
  const request=async(path,data)=>{const response=await fetch('/api/operator/explore/compositions'+path,{method:data===undefined?'GET':'POST',headers:{'content-type':'application/json'},...data===undefined?{}:{body:JSON.stringify(data)}}),body=await response.json();if(!response.ok)throw Error(String(body.error??'Composition unavailable').replaceAll('_',' '));return body}
- const action=async(work)=>{if(pending)return;pending=true;form.inert=true;form.setAttribute('aria-busy','true');try{await work()}catch(error){if(!error.keepResult)$('composition-result').hidden=true;status(error.message,true)}finally{pending=false;form.inert=false;form.removeAttribute('aria-busy')}}
+ const controls=()=>{
+  form.inert=pending
+  if(pending)form.setAttribute('aria-busy','true');else form.removeAttribute('aria-busy')
+  for(const button of $('composition').querySelectorAll('button'))button.disabled=pending
+  $('compose-previous').disabled=pending||offset===0;$('compose-next').disabled=pending||next===null
+  $('composition-full-export-next').disabled=pending||fullOffset===null
+ }
+ const action=async(work)=>{if(pending)return;pending=true;controls();try{await work()}catch(error){if(!error.keepResult)$('composition-result').hidden=true;status(error.message,true)}finally{pending=false;controls()}}
  const resetFullExport=()=>{fullPlan=null;fullOffset=0;fullDownloaded=0;$('composition-full-export').hidden=true}
- const fullNote=()=>{$('composition-full-export-note').textContent=fullDownloaded+' of '+fullPlan.totalRows+' rows downloaded. This complete export has '+fullPlan.parts+' named parts with headers and up to '+fullPlan.partRows+' rows each. '+(fullOffset===null?'Every part has been offered for download.':'Download the next part to continue.');$('composition-full-export-next').disabled=fullOffset===null}
+ const fullNote=()=>{$('composition-full-export-note').textContent=fullDownloaded+' of '+fullPlan.totalRows+' rows downloaded. This complete export has '+fullPlan.parts+' named parts with headers and up to '+fullPlan.partRows+' rows each. '+(fullOffset===null?'Every part has been offered for download.':'Download the next part to continue.');$('composition-full-export-next').disabled=pending||fullOffset===null}
  const offerFullExport=plan=>{fullPlan=plan;fullOffset=0;fullDownloaded=0;$('composition-full-export').hidden=false;fullNote()}
  for(const side of ['left','right']){
   const select=$('compose-'+side);views.forEach((view,index)=>{if(!view.grantId)select.add(new Option(view.viewId+' · '+view.modelId.slice(0,8),String(index)))})
@@ -21,7 +28,7 @@ export function mountComposition(views){
   const wrap=element('div');wrap.className='tablewrap';wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',scope==='summary'?'Combined summary':'Combined underlying rows')
   const table=element('table'),head=element('thead'),header=element('tr');table.append(element('caption',scope==='summary'?'Combined summary':'Combined underlying rows'));for(const column of data.columns){const cell=element('th',column.name);cell.scope='col';header.append(cell)}head.append(header);table.append(head)
   const body=element('tbody');for(const row of data.rows){const line=element('tr');row.forEach((value,index)=>{const cell=element('td');cell.append(sourceLink(value,data.columns[index].name)||element('span',value));line.append(cell)});body.append(line)}table.append(body);wrap.append(table);$('composition-table').replaceChildren(wrap)
-  $('composition-page').textContent='Showing '+(data.rows.length?offset+1:0)+'–'+(offset+data.rows.length)+' of '+data.totalRows+' '+scope+' rows.';$('compose-previous').disabled=offset===0;$('compose-next').disabled=next===null
+  $('composition-page').textContent='Showing '+(data.rows.length?offset+1:0)+'–'+(offset+data.rows.length)+' of '+data.totalRows+' '+scope+' rows.';$('compose-previous').disabled=pending||offset===0;$('compose-next').disabled=pending||next===null
   $('compose-summary').setAttribute('aria-pressed',String(scope==='summary'));$('compose-underlying').setAttribute('aria-pressed',String(scope==='underlying'))
  }
  const show=async()=>{
