@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "4ee2b1d0a1ae94a1fc226ca734cca4d2a15a8a76d6a5175844535964d55e27a0",
+      "sha256": "338de6ec158bf7944dfd11d0e7a6fbed23fd53328a839a7addc9405336f7d7ac",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "739c0339bc0c52df27d3b8864dd17ab67be165bf4cef83ff4deec944b874d04e",
+      "sha256": "9d7e08876582abd80db1d5d6d96b1c5570e62812286eadd12b160686757abbcb",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -489,7 +489,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "076dc363778bfd69692f70356f3db1fe0e6bbbc43a80f9c854446221c8a547cc",
+      "sha256": "8844bcd5959ecb0ea75058a4e032cc6e0ebb4a1e89e320c1f7bf8f26f3cd7975",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -4585,7 +4585,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "e7f145d5fa8c12f64abb79d12d3fa3aefcd32e3ca10fb09e22b8a6a64f8fc4ad",
+      "sha256": "feb950cacbe377ae09ba57208d31f68813bd2d40da5cc7e400771383484707d8",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -4673,7 +4673,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-snapshots.mjs": {
-      "sha256": "0f082516eb34128e101a7a6b302c4f9331e311955d73507d6ae5ad9cc0a3b82d",
+      "sha256": "ed084bf39c0e68aaeb2fec6992d3caa84c481e8092afb4d9402090ea59980ba1",
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {

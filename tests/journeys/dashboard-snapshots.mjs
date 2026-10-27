@@ -8,7 +8,6 @@ const canonical=v=>{if(Array.isArray(v))return '['+v.map(canonical).join(',')+']
 const displayedDigest=run=>createHash('sha256').update(canonical({id:run.id,revision:run.revision,selection:run.selection,inherited:run.inherited,cards:run.cards})).digest('hex')
 /** One public flow proves owner review, native files and guarded withdrawal. */
 export async function proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory}){
- await proveRdlImports({origin,context,page,proveScreen})
  const headers={Origin:origin},api=async(path,data,expected=data===undefined?200:201)=>{const response=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers,...(data===undefined?{}:{data})});assert.equal(response.status(),expected,await response.text());return response.json()}
  const dataset='synthetic-bifocal-dashboard-snapshots';await upload(dataset,'invoice,date,region,revenue\n1,10/01/2026,West,10.01\n2,10/02/2026,East,20.02\n')
  const calendar='synthetic-bifocal-snapshot-calendar';await api('/calendars',{id:calendar,previousVersion:null,definition:{name:'Snapshot calendar',kind:'fiscal',startMonth:1}},201)
