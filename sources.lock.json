@@ -4649,7 +4649,7 @@
       "executable": false
     },
     "tests/journeys/dbt-predicate-import.mjs": {
-      "sha256": "3f7a18e0fe750f27dccb78a9fee8298cfcee319dad4f71e1e526bcbbf334a360",
+      "sha256": "6e715923b8ec76d093a556745793bcef808c4a37676ee6f98049f5cadc2b508f",
       "executable": false
     },
     "tests/journeys/entitlement-boundaries.mjs": {

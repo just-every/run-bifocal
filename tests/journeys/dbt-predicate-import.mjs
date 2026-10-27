@@ -25,7 +25,7 @@ export async function proveDBTPredicates({core,resolvedManifest,resolvedCloud,pr
   assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,'9.98');assert.equal(review.impacts[0].answer.filteredRows,2);assert.equal(review.impacts[0].answer.totals['unique-regions'].value,'1')
   const wider=structuredClone(exported.definition);wider.views[0].query.filters=[];await call('/model-authoring/review',{...body,document:dump(wider)},409)
   const model=await call('/model-authoring/create',{...body,reviewedDigest:review.digest}),path='/models/'+model.modelId+'/branches/'+model.branchId
-  const validation=await call(path+'/validate',{},200);await call(path+'/approve',{digest:validation.digest},200);await call(path+'/promote',{environment:'production',digest:validation.digest},200)
+  const validation=await call(path+'/validate',{},200);await call(path+'/approve',{digest:validation.digest},200);await call(path+'/promote',{environment:'staging',digest:validation.digest},200);await call(path+'/promote',{environment:'production',digest:validation.digest},200)
   const answer=await call('/models/'+model.modelId+'/production/run',{viewId:'sales'});assert.equal(answer.answer.totals['revenue-sum'].value,'9.98')
   const east=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:[],filters:[{column:'region',op:'eq',value:'East'}]})
   assert.equal(east.answer.filteredRows,0);assert.equal(east.answer.totals['revenue-sum'].value,null)
