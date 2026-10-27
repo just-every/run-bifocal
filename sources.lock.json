@@ -1257,7 +1257,7 @@
       "executable": false
     },
     "src/app/people.ts": {
-      "sha256": "b7889cc095bb97bcd26a8417900dd6ab3a7f50ef16897b6582c4a4c876eb0c40",
+      "sha256": "d5c5fcba01b893a982f097c9491df2b5dfd2dccc9a9ac928c937cb40fb00ac18",
       "executable": false
     },
     "src/app/protection-settings.ts": {
@@ -1633,7 +1633,7 @@
       "executable": false
     },
     "src/bifocal/collaboration/page.server.ts": {
-      "sha256": "bbb860507aa92cfa78028d7532cd525ab5399785a601fb5016bfed72ab5c5d76",
+      "sha256": "57e8b0805528be3b8e4032905a61891cb5e24707105a1d8ede4ab1544b0123ec",
       "executable": false
     },
     "src/bifocal/collaboration/server.ts": {

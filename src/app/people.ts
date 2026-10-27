@@ -28,7 +28,7 @@ function inviteProblem(refusal: InviteRefusal, people: Person[], actor: Operator
   const name = escapeHtml(existing.displayName), sameRole = existing.role === refusal.role
   if (existing.id === actor.id) return { field: 'email', message: 'That’s your own email address. Enter the email of the person you want to invite.' }
   if (existing.status === 'invited' && !sameRole) return { field: 'email', message: `${name} is already invited as ${roleName(existing.role)}. To send their invitation again, choose ${roleLabel(existing.role)} as the foundation role.` }
-  if (existing.status === 'active') return { field: 'email', message: `${name} is already a member here, as ${roleName(existing.role)}.` }
+  if (existing.status === 'active') return { field: 'email', message: `${name} is already a member here${existing.role === 'member' ? '' : `, as ${roleName(existing.role)}`}.` }
   if (existing.status === 'inactive') return { field: 'email', message: sameRole ? `${name} is already a member here, with an inactive account. Reactivate them in the list above.` : `${name} already has an inactive account here, as ${roleName(existing.role)}. Reactivate them in the list above or, if their invitation was cancelled, invite them again as ${roleName(existing.role)}.` }
  }
  const field = refusal.code === 'invalid_email' ? 'email' : refusal.code === 'invalid_display_name' ? 'displayName' : null
