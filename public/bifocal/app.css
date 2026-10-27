@@ -166,6 +166,23 @@ button.quiet:hover{background:var(--app-sunk);border-color:var(--app-line)}
 .inline-form{display:flex;align-items:flex-end;gap:12px}
 .inline-form label{flex:1;max-width:420px}
 .checkbox{display:flex;align-items:center;gap:10px;margin-top:16px;font-weight:500}
+/* Owner forms (Metrics, Goals, Data quality): a control is its label, the field, then its hint or the plain sentence a
+   refused value earned; the field at fault keeps its one border, drawn in the danger colour. Records are quiet rows. */
+.control{display:grid;gap:6px;align-content:start;min-width:0}
+.fields>label{align-content:start}
+.control>.hint,.control>.field-error{margin:0}
+.panel>form>.control+.control,.panel>form>.fields+.control,.panel>form>.control+.fields{margin-top:18px}
+.field-error{margin:0;color:var(--app-danger);font-size:15px;font-weight:500}
+input[aria-invalid=true],textarea[aria-invalid=true],select[aria-invalid=true]{border-color:var(--app-danger)}
+.panel>.status[data-error=true]{margin:0 0 18px}
+.panel>form>details{margin:16px 0 0}
+.records{list-style:none;margin:0;padding:0}
+.records li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 0;border-top:1px solid var(--app-line)}
+.records li:first-child{padding-top:0;border-top:0}
+.records li:last-child{padding-bottom:0}
+.record{display:flex;flex-direction:column;gap:2px;min-width:0}
+.record>a,.record>strong{font-weight:600}
+.record .row-meta{color:var(--app-muted);font-size:14px;font-variant-numeric:tabular-nums}
 form{margin:0}
 fieldset{min-width:0;margin:16px 0;padding:14px 18px 18px;border:1px solid var(--app-line);border-radius:var(--app-radius)}
 legend{padding:0 6px;color:var(--app-text);font-size:15px;font-weight:600}

@@ -1,4 +1,3 @@
-import {collaborationLink} from '../collaboration/page.server'
 import { rejectedUpload } from '../http/rejected'
 import { runtimeBindings, operatorAuth, type Bindings } from '../../auth.server'
 import { fileOwner } from '../imports/files/owner.server'
@@ -9,9 +8,11 @@ import { execute } from '../query/execute'
 import { fail, QueryError, type Query } from '../query/types'
 import { canonicalJson, sha256 } from '../../modules/import-kit/src/provenance/identity.ts'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
-import { details, document, exact, field, hidden, ident, input, json, object, result, text } from './transport'
+import { document, exact, ident, input, json, object, result, text } from './transport'
+import { refusalLine } from './forms'
+import { metricMain, metricsMain, type MetricView } from './pages'
+import { metricRefusal } from './refusals'
 import { goalPeriod } from '../goals/period'
-import { escapeHtml } from '../../app/shell'
 export type MetricDocument={name:string;description:string;grain:string;unit:string;timezone:string;accountingBasis:string;query:Query}
 export type MetricRow={id:string;owner_id:string;head_revision:number;published_revision:number|null;deprecated_at:string|null;deprecated_by:string|null;deprecated_reason:string|null}
 export type Revision={metric_id:string;revision:number;dataset_id:string;document_json:string;digest:string;created_at:string;approved_at:string|null;annotation:string|null}
@@ -55,11 +56,12 @@ async function handleMetricResponse(request:Request,original:Bindings):Promise<R
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return page?new Response('Current installation owner required.',{status:403,headers:{'cache-control':'no-store'}}):json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),viewer=(await operatorAuth(env).getSession(request))!.operator
+ const id=match[1],action=match[2]
+ let data:Record<string,unknown>={}
  try {
   if(url.search)fail('query_parameters_not_supported',400)
-  const id=match[1],action=match[2]
   if(request.method==='POST') {
-   const data=await input(request)
+   data=await input(request)
    if(!id||action==='propose') {
     exact(data,!id?['id','definition']:['previousRevision','definition'])
     const {prepareMetricDraft,saveMetricDraft}=await import('./drafts.server')
@@ -94,46 +96,68 @@ async function handleMetricResponse(request:Request,original:Bindings):Promise<R
   }
   if(request.method!=='GET')fail('method_not_allowed',405)
   if(!id) {
+   if(page)return document('Metrics',viewer,metricsMain(await metricList(env,owner,ownerId)))
    const rows=(await env.DB.prepare('SELECT * FROM bf_metrics WHERE owner_id=? ORDER BY id LIMIT 100').bind(ownerId).all<MetricRow>()).results
    await transact(env.DB,owner,[])
-   if(!page)return json({metrics:rows})
-   return document('Metrics',viewer,`<p>Owner-only definitions with immutable revisions. A draft never changes the certified version. Spreadsheet, agent and portal integration remains unfinished.</p><ul>${rows.map(r=>`<li><a href="/app/metrics/${r.id}">${r.id}</a> · ${r.deprecated_at?'Deprecated':r.published_revision?'<span class="lens">Certified revision '+r.published_revision+'</span>'+(r.head_revision!==r.published_revision?' · Draft revision '+r.head_revision:''):'Draft'}</li>`).join('')}</ul><h2>Create a metric</h2><form method="post" action="/api/operator/metrics">${field('id','Stable metric ID')}<label>Metric definition (JSON)<textarea name="definition" rows="12" required></textarea></label><p class="hint">Include name, description, grain, unit, timezone, accountingBasis and one scalar exact query. Use the same conventions as Exact answers.</p><button type="submit">Save draft</button></form>`)
+   return json({metrics:rows})
   }
-  const row=await metric(env,ownerId,id),revisions=(await env.DB.prepare('SELECT * FROM bf_metric_revisions WHERE metric_id=? ORDER BY revision DESC').bind(id).all<Revision>()).results
-  const dependencies=(await env.DB.prepare(`SELECT u.snapshot_id,u.revision,a.id AS artifact_id,a.kind,a.title FROM bf_metric_uses u LEFT JOIN bf_query_artifacts a ON a.snapshot_id=u.snapshot_id WHERE u.metric_id=? UNION ALL SELECT u.snapshot_id,u.revision,b.id,b.kind,b.title FROM bf_metric_uses u JOIN bf_analytics_cards c ON c.snapshot_id=u.snapshot_id JOIN bf_analytics_boards b ON b.id=c.board_id WHERE u.metric_id=?`).bind(id,id).all()).results
-  const goals=(await env.DB.prepare('SELECT g.id,g.version,v.document_json FROM bf_goals g JOIN bf_goal_versions v ON v.goal_id=g.id AND v.version=g.version WHERE g.metric_id=? AND g.owner_id=? ORDER BY g.id').bind(id,ownerId).all<{id:string;version:number;document_json:string}>()).results
-  const goalDependencies=goals.map(g=>({artifact_id:g.id,kind:'goal',version:g.version,paired:{state:'unknown',reason:'metric_value_unavailable'} as unknown}))
-  dependencies.push(...goalDependencies)
-  const head=revisions[0],doc=JSON.parse(head.document_json) as MetricDocument
-  let impact:unknown
-  const previewGuards=[metricGuard(row)]
-  const evaluate=async(rev:Revision)=>{
-   const value=await metricValue(env,ownerId,row,rev)
-   previewGuards.push(...value.sources.map(sourceMatch),...value.context.guards??[])
-   return value
-  }
-  try{
-   const certified=row.published_revision?(await revision(env,id,row.published_revision))!:null
-   const next=await evaluate(head),old=certified?await evaluate(certified):null
-   for(const goal of goals) {
-    const def=JSON.parse(goal.document_json),asOf=new Date().toISOString().slice(0,10)
-    previewGuards.push(sql('EXISTS(SELECT 1 FROM bf_goals WHERE id=? AND version=?)',goal.id,goal.version))
-    let paired:unknown
-    try{
-     const previous=certified?await evaluate(goalPeriod(certified,def,asOf).revision):null,next=await evaluate(goalPeriod(head,def,asOf).revision)
-     const stale=[...(previous?.sources??[]),...next.sources].some(source=>{const at=Date.parse(source.table.source.lineage?.observedAt??source.table.updatedAt);return !Number.isFinite(at)||at>Date.now()||Date.now()-at>def.maxAgeSeconds*1000})
-     paired=stale?{state:'stale',before:null,after:null,reason:'source_freshness'}:{before:previous?.value??null,after:next.value,asOf,from:def.from,to:def.to}
-    }
-    catch(error){if(!(error instanceof QueryError))throw error;paired={state:'unknown',reason:error.code}}
-    goalDependencies.find(d=>d.artifact_id===goal.id)!.paired=paired
+  const view=await metricView(env,owner,ownerId,id)
+  if(!page)return json({metric:view.row,revisions:view.revisions.map(r=>({...r,definition:JSON.parse(r.document_json),document_json:undefined})),impact:view.impact})
+  return document(view.doc.name,viewer,metricMain(view,owner.email))
+ }catch(e){
+  const error=e instanceof QueryError?e:new QueryError('metric_conflict',409)
+  if(!page&&!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return json({error:error.code},error.status)
+  // A refused page or form re-renders the same page with the person's values and a plain sentence; the status stays.
+  const refusal=metricRefusal(request.method==='POST'?action??(id?'page':'create'):'page',error.code,data)
+  try {
+   if(id&&error.code!=='metric_not_found'){const view=await metricView(env,owner,ownerId,id);return document(view.doc.name,viewer,metricMain(view,owner.email,refusal),error.status)}
+   return document('Metrics',viewer,metricsMain(await metricList(env,owner,ownerId),refusal),error.status)
+  }catch{return document('Metrics',viewer,refusalLine({...refusal,form:'page',field:null},'page')+'<p><a href="/app/metrics">Return to Metrics</a></p>',error.status)}
+ }
+}
+
+/** The Metrics page's records, each with its head revision's name. */
+async function metricList(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string) {
+ const rows=(await env.DB.prepare('SELECT m.*,r.document_json FROM bf_metrics m JOIN bf_metric_revisions r ON r.metric_id=m.id AND r.revision=m.head_revision WHERE m.owner_id=? ORDER BY m.id LIMIT 100').bind(ownerId).all<MetricRow&{document_json:string}>()).results
+ await transact(env.DB,owner,[])
+ return rows
+}
+
+/** One metric with its revisions and the paired before/after impact on dependent content, read under one guard. */
+async function metricView(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string,id:string):Promise<MetricView> {
+ const row=await metric(env,ownerId,id),revisions=(await env.DB.prepare('SELECT * FROM bf_metric_revisions WHERE metric_id=? ORDER BY revision DESC').bind(id).all<Revision>()).results
+ const dependencies=(await env.DB.prepare(`SELECT u.snapshot_id,u.revision,a.id AS artifact_id,a.kind,a.title FROM bf_metric_uses u LEFT JOIN bf_query_artifacts a ON a.snapshot_id=u.snapshot_id WHERE u.metric_id=? UNION ALL SELECT u.snapshot_id,u.revision,b.id,b.kind,b.title FROM bf_metric_uses u JOIN bf_analytics_cards c ON c.snapshot_id=u.snapshot_id JOIN bf_analytics_boards b ON b.id=c.board_id WHERE u.metric_id=?`).bind(id,id).all()).results
+ const goals=(await env.DB.prepare('SELECT g.id,g.version,v.document_json FROM bf_goals g JOIN bf_goal_versions v ON v.goal_id=g.id AND v.version=g.version WHERE g.metric_id=? AND g.owner_id=? ORDER BY g.id').bind(id,ownerId).all<{id:string;version:number;document_json:string}>()).results
+ const goalDependencies=goals.map(g=>({artifact_id:g.id,kind:'goal',version:g.version,paired:{state:'unknown',reason:'metric_value_unavailable'} as unknown}))
+ dependencies.push(...goalDependencies)
+ const head=revisions[0],doc=JSON.parse(head.document_json) as MetricDocument
+ let impact:unknown
+ const previewGuards=[metricGuard(row)]
+ const evaluate=async(rev:Revision)=>{
+  const value=await metricValue(env,ownerId,row,rev)
+  previewGuards.push(...value.sources.map(sourceMatch),...value.context.guards??[])
+  return value
+ }
+ try{
+  const certified=row.published_revision?(await revision(env,id,row.published_revision))!:null
+  const next=await evaluate(head),old=certified?await evaluate(certified):null
+  for(const goal of goals) {
+   const def=JSON.parse(goal.document_json),asOf=new Date().toISOString().slice(0,10)
+   previewGuards.push(sql('EXISTS(SELECT 1 FROM bf_goals WHERE id=? AND version=?)',goal.id,goal.version))
+   let paired:unknown
+   try{
+    const previous=certified?await evaluate(goalPeriod(certified,def,asOf).revision):null,next=await evaluate(goalPeriod(head,def,asOf).revision)
+    const stale=[...(previous?.sources??[]),...next.sources].some(source=>{const at=Date.parse(source.table.source.lineage?.observedAt??source.table.updatedAt);return !Number.isFinite(at)||at>Date.now()||Date.now()-at>def.maxAgeSeconds*1000})
+    paired=stale?{state:'stale',before:null,after:null,reason:'source_freshness'}:{before:previous?.value??null,after:next.value,asOf,from:def.from,to:def.to}
    }
-   impact={before:old?.value??null,after:next.value,sourceWatermarks:next.answer.sourceWatermarks,lineage:next.sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source})),dependencies}
+   catch(error){if(!(error instanceof QueryError))throw error;paired={state:'unknown',reason:error.code}}
+   goalDependencies.find(d=>d.artifact_id===goal.id)!.paired=paired
   }
-  catch(e){if(!(e instanceof QueryError))throw e;impact={state:'unknown',reason:e.code,dependencies}}
-  await transact(env.DB,owner,previewGuards.map(assertion))
-  if(!page)return json({metric:row,revisions:revisions.map(r=>({...r,definition:JSON.parse(r.document_json),document_json:undefined})),impact})
-  return document(doc.name,viewer,`${row.published_revision&&!row.deprecated_at?collaborationLink('metric',id):''}<p>${escapeHtml(doc.description)}</p><p class="status">${row.deprecated_at?'Deprecated — unavailable for new use':row.published_revision?'<span class="lens">Certified revision '+row.published_revision+'</span>':'Draft — not certified'} · ${row.head_revision!==row.published_revision?'Draft revision ':'Latest revision '}${row.head_revision}</p><p>Owner: ${escapeHtml(owner.email)}. ${escapeHtml(doc.grain)} · ${escapeHtml(doc.unit)} · ${escapeHtml(doc.timezone)} · ${escapeHtml(doc.accountingBasis)}</p>${details('Change impact and dependent content',impact)}${row.deprecated_at?`<p role="status">Deprecated on ${escapeHtml(row.deprecated_at)}. ${escapeHtml(row.deprecated_reason??'')}</p>`:''}${!row.deprecated_at&&!head.approved_at?`<form method="post" action="/api/operator/metrics/${id}/approve"><h2>Review exact definition</h2>${hidden('revision',head.revision)}${hidden('digest',head.digest)}${details('Definition to approve',doc)}${field('annotation','Dated change annotation')}<label><input type="checkbox" name="confirm" value="approve" required> I approve this exact metric definition</label><button type="submit">Certify revision ${head.revision}</button></form>`:''}${!row.deprecated_at?`<form method="post" action="/api/operator/metrics/${id}/propose"><h2>Propose a change</h2>${hidden('previousRevision',row.head_revision)}<label>Revised metric definition (JSON)<textarea name="definition" rows="10" required>${escapeHtml(head.document_json)}</textarea></label><button type="submit">Save proposed revision</button></form>`:''}${!row.deprecated_at&&row.published_revision?`<form method="post" action="/api/operator/metrics/${id}/deprecate"><h2>Deprecate metric</h2><p>New runs and goal actuals will be unavailable. Retained reports keep their original definitions and values.</p>${hidden('revision',row.head_revision)}${hidden('digest',head.digest)}${hidden('publishedRevision',row.published_revision)}${field('reason','Deprecation reason')}<label><input type="checkbox" name="confirm" value="deprecate" required> I reviewed this definition and its dependent content</label><button type="submit">Deprecate metric</button></form>`:''}${details('Immutable revision history',revisions.map(r=>({revision:r.revision,definition:JSON.parse(r.document_json),digest:r.digest,createdAt:r.created_at,approvedAt:r.approved_at,annotation:r.annotation})))}`)
- }catch(e){const error=e instanceof QueryError?e:new QueryError('metric_conflict',409);return page||request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded')?document('Metric unavailable',viewer,`<p role="alert">${escapeHtml(error.code)}</p><a href="/app/metrics">Return to metrics</a>`,error.status):json({error:error.code},error.status)}
+  impact={before:old?.value??null,after:next.value,sourceWatermarks:next.answer.sourceWatermarks,lineage:next.sources.map(s=>({dataset:s.id,revision:s.revision,source:s.table.source})),dependencies}
+ }
+ catch(e){if(!(e instanceof QueryError))throw e;impact={state:'unknown',reason:e.code,dependencies}}
+ await transact(env.DB,owner,previewGuards.map(assertion))
+ return {row,revisions,head,doc,impact}
 }
 
 export async function metricResponse(request:Request,env:Bindings):Promise<Response|null> {
