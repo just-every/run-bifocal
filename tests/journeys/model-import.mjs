@@ -38,7 +38,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY==='1'){
   const cases=await proveCustomVisualInventory({base:pbipProject(projects[3]),prepare,apply,call,page,origin,proveScreen})
   const source=await call('/datasets/'+dataset)
-  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
+  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
   for(const {input,plan} of cases){
    await call('/model-imports/'+input.projectId,undefined,404)
    const original=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}})

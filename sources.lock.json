@@ -4805,7 +4805,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "591bf7af5dc711e77f8a353ce635982d64be61853bcf6dbe81ce56a5db3d4f58",
+      "sha256": "b47843f6bc67d8a4342d62125d55abf4ebc5cd178d6fbf8190c8a7d9f4770dfe",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
