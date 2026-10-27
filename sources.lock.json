@@ -4421,7 +4421,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "3e767fbb16eab5e1a3b29586db1b125a1cd425e4b91a79852de9474d1bba86ce",
+      "sha256": "2a8f6c5a4870b759e11304bdec6a0509c11110c0c08cfc968da67da82acc4c3f",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
