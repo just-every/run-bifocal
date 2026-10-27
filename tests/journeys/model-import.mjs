@@ -389,7 +389,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
 /** Real CLI and Terraform model changes share exact native review and fences. */
 export async function proveModelLifecycle({origin,context,definition,upload}){
  const page=await context.newPage()
- const proveScreen=async(label)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow');assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0,'Every control has text');if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}
+ const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow');assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0,'Every control has text');if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/'+label+'-'+width+'.png',fullPage:true})}}
  const {execFile}=await import('node:child_process'),{promisify}=await import('node:util'),{resolve}=await import('node:path')
  const run=promisify(execFile),directory=await mkdtemp(join(tmpdir(),'bifocal-model-tools-')),session=join(directory,'session'),document=join(directory,'model.native.json'),plan=join(directory,'create.plan.json')
  const cookie=(await context.cookies()).map(c=>c.name+'='+c.value).join('; ')

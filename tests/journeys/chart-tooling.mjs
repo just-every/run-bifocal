@@ -48,7 +48,7 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
   assert.equal(geometry.Positive.start,geometry.Positive.zero);assert.ok(geometry.Positive.end>geometry.Positive.zero)
   assert.equal(geometry.Zero.dot,true);assert.equal(geometry.Missing.start,null);assert.equal(geometry.Missing.dot,false)
   assert.ok(await plot.locator('svg').first().evaluate(svg=>{const bounds=svg.getBoundingClientRect();return bounds.width>bounds.height}),'The chart has a horizontal responsive plotting area')
-  await proveScreen('native-retained-chart')
+  await proveScreen('native-retained-chart',{widths:[width],resize:false})
  }
  await proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document})
  const writeConfig=async(digest)=>writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_chart_snapshot:{main:{document:JSON.stringify(document),...(digest?{review_digest:digest}:{})}}}}))
@@ -142,6 +142,7 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
   const data={...input,exportedAt:review.exportedAt,reviewedDigest:review.digest},response=await post(endpoint+'/download',data)
   assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['cache-control'],'no-store')
   const bytes=await response.body();await writeFile(join(directory,'declarative-chart.'+format),bytes)
+  if(process.env.BIFOCAL_PROOF_DIR)await writeFile(join(process.env.BIFOCAL_PROOF_DIR,'declarative-chart.'+format),bytes)
   if(format==='pdf'){
    const pdf=bytes.toString('latin1').replace(/\\([0-7]{3})/g,(_,octal)=>String.fromCharCode(parseInt(octal,8)))
    assert.ok(pdf.startsWith('%PDF-1.7'));assert.match(pdf,/North \| amount: USD 12.00/);assert.match(pdf,/variance: USD 2.00/);assert.match(pdf,/\/StructTreeRoot/)

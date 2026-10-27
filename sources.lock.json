@@ -1661,7 +1661,7 @@
       "executable": false
     },
     "src/bifocal/charts/page.server.ts": {
-      "sha256": "780de66b0bf7969a92c8afa276a16892fa76c30e06ccdf7a8918f634fac475c4",
+      "sha256": "6cf8c563fb9a3271b0948773425b85b4737ed30a86e3c734b0d93ea8d7696df3",
       "executable": false
     },
     "src/bifocal/charts/plot.ts": {
@@ -4641,7 +4641,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "74540d3c2e012e35afd7f87d5f36f7a33d87c21eb9780793799786b8ea28b65e",
+      "sha256": "a4fa43ed502f1ad2ef6130c0ca9059a9c2baef815de123853333a2db8ed71a7f",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
@@ -4757,7 +4757,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "c13d06aa628a8905c394c1a94fdabd3bd24d0d1c706d87e21652bd5e24b7948b",
+      "sha256": "9ec4aa787488543d62ea989f750acb1a2afa3028147dedfb3f0eea94b514f001",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
