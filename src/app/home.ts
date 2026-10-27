@@ -8,7 +8,7 @@ const appsPanel = (apps: HomeApp[]) => apps.length ? `<section class="panel" id=
 // App home leads with the owner's daily places, h1's list rows in three cards: the latest dashboards, retained answers and
 // datasets, each with its way in. Other people see the apps shared with them. Installation links sit in one quiet row.
 function place(id: string, title: string, rows: PlaceRow[], empty: string, more: [string, string]) {
- const list = rows.length ? `<ul class="place-list">${rows.map(row => `<li><a href="${escapeHtml(row.href)}">${escapeHtml(row.name)}</a>${row.meta ? `<span class="row-meta">${escapeHtml(row.meta)}</span>` : ''}</li>`).join('')}</ul>` : `<p class="muted">${empty}</p>`
+ const list = rows.length ? `<ul class="place-list">${rows.map(row => `<li><a href="${escapeHtml(row.href)}">${escapeHtml(row.name).replaceAll(' · ', ' ·\u00a0')}</a>${row.meta ? `<span class="row-meta">${escapeHtml(row.meta)}</span>` : ''}</li>`).join('')}</ul>` : `<p class="muted">${empty}</p>`
  return `<section class="panel place" aria-labelledby="place-${id}"><h2 class="cardhead" id="place-${id}">${title}</h2>${list}<p class="place-more"><a href="${more[1]}">${more[0]}</a></p></section>`
 }
 

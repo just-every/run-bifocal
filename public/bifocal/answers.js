@@ -16,7 +16,7 @@ const shown = (item,currency) => item.state === 'value' ? figure(item.value,item
 // Parts joined by "·" never leave a dot at a line's end: each dot travels with the part after it, and a stamp stays whole.
 const dotted = (parts,whole=-1) => parts.flatMap((text,i)=>[...(i?[' ']:[]),element('span',(i?'·\u00a0':'')+text,i===whole?'nowrap':undefined)])
 // An answer is named as its list row reads: the dataset, then its measures ("Demo orders · Revenue, Orders").
-const answerName = (dataset,measures) => [label(dataset),...(measures.length?[measures.map(label).join(', ')]:[])].join(' · ')
+const answerName = (dataset,measures) => [label(dataset),...(measures.length?[measures.map(label).join(', ')]:[])].join(' ·\u00a0')
 // The held notice carries its own way to the exact test, as h1's notice carries its action.
 function notice(quality,common) {
  const parts=[]
@@ -31,7 +31,7 @@ function facts(result) {
 }
 function render(result) {
  if(renderBoard(result,request,action,status)){snapshot=result;return}
- snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';const name=result.title ?? answerName(result.definition.dataset,result.definition.measures.map(m=>m.id));$('answer-title').textContent=name;document.title=name+' · Bifocal'
+ snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';const name=result.title?.replaceAll(' · ',' ·\u00a0') ?? answerName(result.definition.dataset,result.definition.measures.map(m=>m.id));$('answer-title').textContent=name;document.title=name+' · Bifocal'
  const currency=result.context.currency, measures=Object.keys(result.answer.totals), columns=[...result.definition.groupBy,...measures]
  $('snapshot-note').replaceChildren(...dotted(['Immutable snapshot',stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
  // A cell is its figure over its name; money adds only its currency, never the measure id again.
