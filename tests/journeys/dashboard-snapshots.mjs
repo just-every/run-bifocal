@@ -112,6 +112,21 @@ export async function proveRdlImports({origin,context,page,proveScreen}){
  const delta=structuredClone(input);delta.files[0].content=statement.replace('Synthetic statement','Edited native draft');const deltaPlan=await prepare(delta,true);await apply(input.reportId,deltaPlan);assert.notEqual((await api(input.reportId)).revision,current.revision);assert.equal((await api(input.reportId)).definition.subscriptions.length,1)
  await post(input.reportId,'undo',{planId:deltaPlan.planId});console.log('RDL: delta and Undo complete');assert.equal((await api(input.reportId)).digest,current.digest)
  // Missing, cyclic and unknown content must be named rather than omitted.
+ const scoped=structuredClone(input);scoped.reportId='synthetic-bifocal-rdl-scopes'
+ scoped.files[0].content=statement.replace('</DataSets>','<DataSet Name="Other"><Fields><Field Name="OtherAmount"><DataField>OtherAmount</DataField></Field></Fields></DataSet></DataSets>')
+ const scopedPlan=await prepare(scoped)
+ assert.deepEqual(scopedPlan.project.report.elements.filter(e=>e.expression?.kind==='aggregate').map(e=>({dataset:e.dataset,field:e.expression.expression.field})),[{dataset:'Invoices',field:'Amount'}])
+ scoped.reportId='synthetic-bifocal-rdl-wrong-scope';scoped.files[0].content=scoped.files[0].content.replace('<Tablix Name="Invoices"><DataSetName>Invoices</DataSetName>','<Tablix Name="Invoices"><DataSetName>Other</DataSetName>')
+ const wrongScope=await prepare(scoped)
+ assert.equal(wrongScope.project.report.elements.filter(e=>e.expression?.kind==='aggregate'||e.expression?.kind==='field').length,0,'A field from another dataset never counts as translated')
+ assert.ok(wrongScope.project.report.issues.some(i=>i.code==='unsupported_expression'&&i.dependency==='=Sum(Fields!Amount.Value)'))
+ scoped.reportId='synthetic-bifocal-rdl-missing-scope';scoped.files[0].content=scoped.files[0].content.replace('<DataSetName>Other</DataSetName>','<DataSetName>Missing</DataSetName>')
+ const missingScope=await prepare(scoped)
+ assert.ok(missingScope.project.report.issues.some(i=>i.code==='unresolved_dataset'&&i.dependency==='Missing'&&i.location.endsWith('/DataSetName[1]')))
+ assert.equal(missingScope.project.report.elements.filter(e=>e.expression?.kind==='aggregate').length,0)
+ scoped.reportId='synthetic-bifocal-rdl-lookup-scope';scoped.files[0].content=statement.replace('<ValueField>Region</ValueField>','<ValueField>Absent</ValueField>')
+ const missingLookup=await prepare(scoped)
+ assert.ok(missingLookup.project.report.issues.some(i=>i.code==='unresolved_parameter_field'&&i.dependency==='Invoices:Absent'&&i.location.endsWith('/ValueField[1]')))
  const unresolved=structuredClone(input);unresolved.reportId='synthetic-bifocal-rdl-unresolved';unresolved.files=[{path:'statement.rdl',content:statement.replace('<ReportName>detail</ReportName>','<ReportName>https://invalid.example.test/report</ReportName>').replace('</Report>','<UnknownWidget>retained</UnknownWidget></Report>')}]
  const unresolvedPlan=await prepare(unresolved);assert.ok(unresolvedPlan.project.report.issues.some(i=>i.code==='external_subreport'&&i.dependency.includes('invalid.example.test')));assert.ok(unresolvedPlan.project.report.issues.some(i=>i.code==='unsupported_element'&&i.dependency==='UnknownWidget'))
  const cyclic=structuredClone(input);cyclic.reportId='synthetic-bifocal-rdl-cyclic';cyclic.files[1].content=detail.replace('</ReportItems>','<Subreport Name="Loop"><ReportName>statement</ReportName></Subreport></ReportItems>');const cyclePlan=await prepare(cyclic);assert.equal(cyclePlan.project.report.issues.filter(i=>i.code==='subreport_cycle').length,2)
