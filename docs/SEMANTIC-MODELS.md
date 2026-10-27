@@ -74,14 +74,24 @@ configuration, hooks, packages, macros and SQL are never run or fetched.
 
 The bounded native translator recognizes a complete literal `SELECT` of physical
 columns, with optional aliases, from one uploaded `source` or `ref` dependency.
-It resolves chained projections without evaluating Jinja or sending SQL to a
-database. A semantic model must reference the exact uploaded model; its reviewed
+It resolves chained projections and bounded `WHERE` conjunctions without
+evaluating Jinja or sending SQL to a database. Supported predicates are typed
+literal equality and inequality, numeric `>=` and `<=`, `IS NULL` and
+`IS NOT NULL`, joined with `AND`. String literals preserve escaped quotes and
+embedded words such as AND. Numeric comparison uses exact decimals. Inequality
+excludes nulls under SQL semantics; it never widens a native query to include
+them. Predicates bind dependency columns before projection aliases, accumulate
+across the full chain and remain fixed in the rebuilt native model. Missing
+columns, mismatched literal types, disjunctions, expressions, comments, extra
+statements and unsupported predicates block publication of the complete project. A semantic model must reference the exact uploaded model; its reviewed
 column bindings must match the full projection lineage. Every physical grain
 column must survive the projection. Compatible projects can export rebuilt
 native models and proceed through the separate Models review.
 
 Column-level built-in `not_null` and `unique` declarations run against the exact
-reviewed source records. Uniqueness ignores nulls and compares numeric values
+reviewed records after that dependency’s complete predicate chain. The report
+retains the physical predicates and resulting row count for each model, without
+copying its source rows. Uniqueness ignores nulls and compares numeric values
 exactly. The compatibility report retains each check's source revision, mapped
 column, row count and failure count. A failed check blocks model export and
 publication. Custom tests, arguments, hooks, macros, arbitrary SQL, differing

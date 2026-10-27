@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "51eac2d944dd3841c8420d13bbfff3020865fea50a16f28722ecd269715847af",
+      "sha256": "ed10bf90cc35ac5283f727964250ec15e26b00b95b6c6b3d2090570cbbccb039",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "286cc7a6ed0968115972fb9a6778733d75e689b899320c1e57e9b1838c8b23ce",
+      "sha256": "e8f339de386892de1bb79aef0ea568a31dbf30be40831c44cf1da9a3c5093b66",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -453,7 +453,7 @@
       "executable": false
     },
     "docs/SEMANTIC-MODELS.md": {
-      "sha256": "8a700663de2d3b982eb2695f8cbecc96d078142e80ae885e5a5f44d5f4de7a6a",
+      "sha256": "d4007c4a659dbc1cec32c12c46e238b7626cac0fc8828f0dc545123ae8568001",
       "executable": false
     },
     "docs/sign-in.md": {
@@ -2093,7 +2093,7 @@
       "executable": false
     },
     "src/bifocal/imports/models/dbt-projection.ts": {
-      "sha256": "71f0e70187b9cfc3db8c07b67c14706cc5a7cb173e2765390aa3b49dc64207c4",
+      "sha256": "fbc64f5e73821beeb791ae96c03593e7449c64c23d6a7ec639ebea7895256542",
       "executable": false
     },
     "src/bifocal/imports/models/door.server.ts": {
@@ -4649,7 +4649,7 @@
       "executable": false
     },
     "tests/journeys/dbt-predicate-import.mjs": {
-      "sha256": "6e715923b8ec76d093a556745793bcef808c4a37676ee6f98049f5cadc2b508f",
+      "sha256": "c9bda6b3bef6c9ad70feb183dbedf5113f242dade87282e9265ba0dbad949108",
       "executable": false
     },
     "tests/journeys/entitlement-boundaries.mjs": {

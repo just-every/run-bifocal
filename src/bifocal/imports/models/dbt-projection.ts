@@ -3,7 +3,7 @@ import type { Cell, Filter, Source } from '../../query/types'
 
 const identifier = '[A-Za-z_][A-Za-z0-9_$]*'
 const columnPattern = new RegExp(`^(${identifier})(?:\\s+(?:as\\s+)?(${identifier}))?$`, 'i')
-const reserved = new Set(['select','distinct','all','as','from','where','group','having','order','limit','offset','fetch','top','with','union','intersect','except','into','qualify','window'])
+const reserved = new Set(['select','distinct','all','as','from','where','group','having','order','limit','offset','fetch','top','with','union','intersect','except','into','qualify','window','and','or','not','is','null','true','false','join','inner','left','right','full','cross','on','case','when','then','else','end','over'])
 type Predicate = {column:string; op:Filter['op']; value?:Cell; type?:'text'|'number'|'boolean'}
 
 /** A closed data language, never passed to a SQL or template interpreter. */
