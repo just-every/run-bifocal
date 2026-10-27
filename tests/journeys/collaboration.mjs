@@ -235,7 +235,7 @@ async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call
   await page.goto(origin+'/app/charts/'+id)
   const point=page.locator('.native-chart li').filter({hasText:'2026-10-02'})
   assert.equal(await point.locator('.metric-annotation').innerText(),'October 2 renewal recognised in revenue. · Metric revision 1')
-  assert.ok((await point.innerText()).includes('USD 9450.00'))
+  assert.ok((await point.innerText()).includes('$9,450.00'))
   assert.equal(await page.locator('.native-chart li').filter({hasText:'2026-10-01'}).locator('.metric-annotation').count(),0)
   assert.equal((await reader.request.get(origin+'/api/operator/charts/'+id)).status(),401)
  }

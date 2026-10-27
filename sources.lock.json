@@ -4633,11 +4633,11 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "bceda835ba52b0dc2e912cdba412959ba07536007b54afe635dcdc1bf8d984ae",
+      "sha256": "c3418bec6ef5b6173f36290fbe6c865b49f8e19e1df20fa07c293125775c9564",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "3fc4a385ca9943382cb42dd80667c00c856492073fae3e8d95543da50be3377a",
+      "sha256": "0b8efd0153396812cf453e5f2423b38a96b357b3072e59133c2972d23d052f58",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
