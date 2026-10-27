@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "651dd91fd2fd3899d5b0b0b3b76ae2b7c61e0aac42a7d70224a0ad68d4ebea15",
+      "sha256": "ec7c762fe6b00991c60208081bb2193e09f5989eb1312764508b542285d0abf9",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "12fc8937d63c705b893eaadf5703bcaaf7ee337645e1a419eea0d8e400a454d2",
+      "sha256": "bc62c10e69fd786a730677b7df8c2b52617ebc283b704d2da23a90f4f6d4a422",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -441,7 +441,7 @@
       "executable": false
     },
     "docs/PORTAL-PREVIEW.md": {
-      "sha256": "890d6cf7ae43d0ec4ea2cffd37583a94aec701a3e396e0e10eadecf416bc69a5",
+      "sha256": "129456c580be7d7d8d3dffb560c819d998c973573b8d3a954c213b3614a62231",
       "executable": false
     },
     "docs/QUESTIONS.md": {
@@ -4581,11 +4581,11 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "8b8370e7c4974916a739fbee57212b156f629eee152d285635c86cf6d16d06a8",
+      "sha256": "e05095f96d1d6dd914beba0354c5307e6e7bc00cd630cc67ceabef87b079a754",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "3dbcde1e4c68b480853677f2a377adcb8b64e1b530b9bf22c3260e92c4b80c60",
+      "sha256": "2a8f6c5a4870b759e11304bdec6a0509c11110c0c08cfc968da67da82acc4c3f",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -4725,11 +4725,11 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "f0a27a563039971071c7de87034f43bfc1ee14230df2dfd6db332125e5bdc1a5",
+      "sha256": "5ca86dce536870c9788666d607d21f292d2771e40935c686c3a46cff15afdea7",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "84cc2dccb442ef47b2b68eeac6e8270ada4fac0aafee853c9cbbe67061bb5439",
+      "sha256": "4157d64637f5b318a99d1113342d6ed88cec294675d115f616a21824e85bbbe0",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
@@ -4757,7 +4757,7 @@
       "executable": false
     },
     "tests/journeys/portal-tenants.mjs": {
-      "sha256": "db76835843e69f6fb6a1c425d700bbfd2df78426c754069ba637b4af561bd046",
+      "sha256": "4d873248b6c3c9fd7cf6d288cd5b1efcd25daba9658ebe00090e6d263d5e19cf",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {
