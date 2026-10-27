@@ -267,6 +267,11 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
    await page.getByLabel('Original project files',{exact:true}).setInputFiles(source.files.map(f=>join(directory,f.path)))
    await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Choose the project root folder'}).waitFor()
    assert.equal(await page.locator('#model-import-review').isVisible(),false)
+   if(label==='dbt-singular-test'){
+    await page.getByLabel('Original project folder',{exact:true}).setInputFiles(join(directory,'tests'))
+    await page.getByRole('button',{name:'Preview semantic import',exact:true}).click();await page.getByRole('status').filter({hasText:'Choose the dbt project root containing'}).waitFor()
+    assert.equal(await page.locator('#model-import-review').isVisible(),false)
+   }
    await page.getByLabel('Original project folder',{exact:true}).setInputFiles(directory)
    assert.equal(await page.getByLabel('Original project files',{exact:true}).evaluate(el=>el.files.length),0)
    const selected=await page.getByLabel('Original project folder',{exact:true}).evaluate(el=>Array.from(el.files,f=>f.webkitRelativePath))
