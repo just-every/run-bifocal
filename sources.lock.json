@@ -2205,7 +2205,7 @@
       "executable": false
     },
     "src/bifocal/inputs/pages.ts": {
-      "sha256": "3064061232551b715df580c0773d212a8b4bf7cdd4376345e34ee926697b7904",
+      "sha256": "1a09392df44684d098a19be6269175490b21470428a6bef16fce2c7103cc85df",
       "executable": false
     },
     "src/bifocal/inputs/schema.ts": {
@@ -4765,7 +4765,7 @@
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
-      "sha256": "dd817fb93e2b3335f1b5d08b701e814772af307de0ecd284c12c889c63912213",
+      "sha256": "3047d70473956c9e8ba028d7ade5a9dde02aece850a6053aaa8d72f1e9a8b6b3",
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {

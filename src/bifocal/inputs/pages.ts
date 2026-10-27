@@ -19,10 +19,10 @@ export function reviewMain(action: string, values: Record<string, unknown>, dige
 
 export function tableMain(table: InputTable, schema: InputSchema, definition: {region: string}, rows: ReturnType<typeof inputRows>, history: unknown[], historyCount: number, schemaHistory: unknown[]) {
  const effect = schema.effect
- const button = effect?.kind === 'target' ? 'Save target' : effect?.kind === 'correction' ? 'Save correction' : effect?.kind === 'adjustment' ? 'Save adjustment' : 'Save note'
+ const button = effect?.kind === 'target' ? 'Save target' : effect?.kind === 'correction' ? 'Save correction' : effect?.kind === 'adjustment' ? 'Save adjustment' : schema.template === 'note-only' ? 'Save note' : 'Save values'
  const controls = (row: typeof rows[number]) => schema.columns.map(c => {
   const value = row.values?.[c.name]
-  if (c.type === 'boolean') return `<label>${escapeHtml(c.label)}<select name="${c.name}" aria-label="${escapeHtml(c.label)}"><option value="true"${value !== false ? ' selected' : ''}>Active</option><option value="false"${value === false ? ' selected' : ''}>Inactive</option></select></label>`
+  if (c.type === 'boolean') return `<label>${escapeHtml(c.label)}<select name="${c.name}" aria-label="${escapeHtml(c.label)}"><option value="true"${value !== false ? ' selected' : ''}>${effect?.activeColumn === c.name ? 'Active' : 'True'}</option><option value="false"${value === false ? ' selected' : ''}>${effect?.activeColumn === c.name ? 'Inactive' : 'False'}</option></select></label>`
   if (c.type === 'text') return `<label>${escapeHtml(c.label)}<textarea name="${c.name}" aria-label="${escapeHtml(c.label)}" maxlength="${c.maxLength}" required>${escapeHtml(typeof value === 'string' ? value : '')}</textarea></label>`
   return field(c.name, c.label, typeof value === 'string' ? value : c.type === 'money' ? '0.00' : '', c.type === 'date' ? 'date' : 'text')
  }).join('')

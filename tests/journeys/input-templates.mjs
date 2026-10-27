@@ -156,10 +156,9 @@ export async function proveInputTemplates({origin,context,page,call,definition,s
  const normalized={budget:'0.00',memo:valid.memo,dueOn:valid.dueOn,approved:true}
  assertState(custom,normalized,'100.00');assert.deepEqual(custom.history[0].after,normalized)
  const edited={...normalized,budget:'12.50',memo:'Edited memo',approved:false}
- await call(customPath+'/rows',{rowKey:'1',previousVersion:1,schemaRevision:custom.schemaRevision,...edited})
- custom=await call(customPath);assertState(custom,edited,'100.00')
+ custom=await browserEdit(customPath,edited,{budget:'Budget (USD)',memo:'Scoped memo',dueOn:'Due date',approved:'Approved'},'Save values','custom-saved')
+ assertState(custom,edited,'100.00')
  assert.deepEqual(custom.history[0].before,normalized);assert.deepEqual(custom.history[0].after,edited)
- await page.goto(origin+'/app'+customPath);await shot('custom-saved',1440)
  await unchangedSource();states.push([customPath,custom]);erasedValues.push(valid.memo,edited.memo,'12.50')
  return {states,erasedValues}
 }
