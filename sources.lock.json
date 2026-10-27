@@ -708,6 +708,10 @@
       "sha256": "9ccb1db7b1cf7434fb2f9acca43b85e2bde725134aa5b514868f2d0ccfdb731f",
       "executable": false
     },
+    "migrations/core/0057_collaboration_participants.sql": {
+      "sha256": "56cc06fdb4c9bbc439bb2c4b02d4d00dcca75df70a585e510bf307a9d345ab17",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -1605,7 +1609,7 @@
       "executable": false
     },
     "src/bifocal/charts/page.server.ts": {
-      "sha256": "eb1a203a0d23b77655c561ad5c7cfb1c4defc5eae3c4bb5460f68213e4ab0959",
+      "sha256": "7bca9989d4ebfac2d6220530df2db101b1f3a00c710751f7d2805d696fc8591b",
       "executable": false
     },
     "src/bifocal/charts/protocol.ts": {
@@ -1613,7 +1617,7 @@
       "executable": false
     },
     "src/bifocal/charts/server.ts": {
-      "sha256": "d582e0ba1c8cff1232ffa67418de3cfc61f2695800725815e01125fe874fe972",
+      "sha256": "6e38c12bca743ccb0473e13a06c3c6c43be4d41374e2814fffa699e07c0c2624",
       "executable": false
     },
     "src/bifocal/charts/store.server.ts": {
@@ -1638,6 +1642,10 @@
     },
     "src/bifocal/collaboration/page.server.ts": {
       "sha256": "bbb860507aa92cfa78028d7532cd525ab5399785a601fb5016bfed72ab5c5d76",
+      "executable": false
+    },
+    "src/bifocal/collaboration/participants.server.ts": {
+      "sha256": "903919a1c0eb1ea76a42cd27f5d9dcc8aada3c282da050176ae929096f1ba823",
       "executable": false
     },
     "src/bifocal/collaboration/server.ts": {
@@ -4449,7 +4457,7 @@
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "e199bd3818963d89d4bedb13f642ea0ac1a6629e12da59e9e974cf81d9d369dd",
+      "sha256": "fa2b7ca767b410205c931d3d14462e353da208b495828d5ffb7d96a77e449963",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {

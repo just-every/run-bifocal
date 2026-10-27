@@ -147,6 +147,8 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   await chartPage.setViewportSize({width:1440,height:1000})
   await chartPage.goto(origin+'/app/charts/'+scopedChart.id)
   assert.equal(await chartPage.locator('.native-chart li').innerText(),'West · USD 550.00')
+  assert.equal(await chartPage.getByRole('button',{name:'Export summary CSV',exact:true}).count(),0)
+  assert.equal(await chartPage.getByRole('link',{name:'Open the retained exact answer',exact:true}).count(),0)
   await chartPage.getByRole('link',{name:'Comments and sharing',exact:true}).waitFor()
   for(const width of [1440,390]){await chartPage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await chartPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await chartPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-colleague-chart-'+width+'.png'),fullPage:true})}
   await chartPage.close()

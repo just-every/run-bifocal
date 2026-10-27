@@ -41,7 +41,7 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
    if(saved[1]==='app') {
     const session=await operatorAuth(env).getSession(request)
     if(!session)fail('owner_required',401)
-    return chartPage(chart,session.operator)
+    return chartPage(chart,session.operator,!delegated)
    }
    return json(chart)
   }
