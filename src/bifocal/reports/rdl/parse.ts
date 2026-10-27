@@ -78,8 +78,15 @@ export function compileRdl(value:unknown,id:string,ownerId:string):RdlProject {
   }
   return {file:file.path,tree:visit(root,file.path+':/Report[1]')}
  })
- const cyclic=(start:string,current:string,seen:Set<string>):boolean=>references.some(r=>r.from===current&&(r.to===start||!seen.has(r.to)&&cyclic(start,r.to,new Set([...seen,r.to]))))
- for(const r of references)if(cyclic(r.from,r.to,new Set([r.from,r.to]))){const entry=elements.find(e=>e.location===r.location)!;entry.disposition='unsupported';issue(r.location,'subreport_cycle','Recursive subreports cannot render safely.',r.to,'Remove the cycle or implement a bounded equivalent and reconcile its output.')}
+ // Compute each file's reachable set once. Repeated subreport instances and
+ // dense acyclic graphs must not cause exponential path enumeration.
+ const graph=new Map(files.map(file=>[file.path,new Set(references.filter(r=>r.from===file.path).map(r=>r.to))])),reachable=new Map<string,Set<string>>()
+ for(const file of files){
+  const seen=new Set<string>(),pending=[...(graph.get(file.path)??[])]
+  while(pending.length){const next=pending.pop()!;if(seen.has(next))continue;seen.add(next);for(const target of graph.get(next)??[])if(!seen.has(target))pending.push(target)}
+  reachable.set(file.path,seen)
+ }
+ for(const r of references)if(reachable.get(r.to)?.has(r.from)){const entry=elements.find(e=>e.location===r.location)!;entry.disposition='unsupported';issue(r.location,'subreport_cycle','Recursive subreports cannot render safely.',r.to,'Remove the cycle or implement a bounded equivalent and reconcile its output.')}
  for(const s of subscriptions)issue('subscriptions:'+s.id,'subscription_reauthorization_required','Imported subscription is inactive and has no send capability.',s.destinationReference,'Review current recipient authority, parameter mappings and policy through BIF-015 and BIF-058 before new issuance.')
  const input={version:1 as const,reportId:id,root:value.root,files,subscriptions:subscriptions.map(({active,...definition})=>definition)}
  return {ownerId,input,digest:sha256(canonicalJson(input)),definition:{version:1,kind:'paginated-draft',root:value.root,reports,subscriptions,active:false},report:{elements,issues,switchReady:false,execution:'unavailable',pageReconciliation:'pending'}}
