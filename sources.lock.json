@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d9d8e2f38b192cde2da17fbe9dc86d8184405c168944a65b5c4437e5d3594651",
+      "sha256": "d8cfa1fa244df7092650b6c07b9b589e12dc9e31e683ea4bcda6aeeedac7bf15",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d555a3683c8af5b63cf33e874b4d699615c74acfa70b51cf672aca3d50d65108",
+      "sha256": "f154f3e0081cf3e9cc27e6a3b70f1327c343148de3a43f0c7583e9ece4b26327",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -4717,7 +4717,7 @@
       "executable": false
     },
     "tests/journeys/export-policy.mjs": {
-      "sha256": "daa4fa46ce1acef5652450b2c8c544ac78c984491298f3be524400af5a9d1f84",
+      "sha256": "62e840619cfc2e96adc2a01502fd4814b6aea95582a9143ccaf3d5600c89321f",
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
