@@ -459,6 +459,13 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const repairedImpact=await page.getByRole('table',{name:'Certified metric impact',exact:true}).innerText()
  assert.match(repairedImpact,/Unavailable/);assert.match(repairedImpact,/numeric_column_required/);assert.match(repairedImpact,/quantity: 5/)
  await proveScreen('preparation-type-repair')
+ // The narrow table remains readable through its native keyboard scroll door.
+ const impactScroll=page.getByLabel('Certified metric impact, scroll horizontally',{exact:true})
+ await impactScroll.focus()
+ for(let i=0;i<6;i++)await page.keyboard.press('ArrowRight')
+ await page.waitForTimeout(300)
+ assert.ok(await impactScroll.evaluate(node=>node.scrollLeft>0))
+ if(process.env.BIFOCAL_PROOF_DIR)await impactScroll.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/preparation-type-repair-impact-390.png'})
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed draft',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft saved as revision 4'}).waitFor()
  assert.deepEqual((await call(path)).revisions.at(-1).document,repairDocument)
  assert.deepEqual(await call('/datasets/'+dataset),drifted,'Saving a repair leaves the source and certified definition unchanged')
