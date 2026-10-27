@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ed10bf90cc35ac5283f727964250ec15e26b00b95b6c6b3d2090570cbbccb039",
+      "sha256": "44d9a1f31747a66ad3076112ccd904ee2587536721eec21058ed2f5aef41a2c7",
       "executable": false
     },
     "AGENTS.md": {
@@ -453,7 +453,7 @@
       "executable": false
     },
     "docs/SEMANTIC-MODELS.md": {
-      "sha256": "d4007c4a659dbc1cec32c12c46e238b7626cac0fc8828f0dc545123ae8568001",
+      "sha256": "996040fef5b0f256519501383c3951a7c964ea96cd10ea216d68bf774af743c3",
       "executable": false
     },
     "docs/sign-in.md": {
@@ -909,7 +909,7 @@
       "executable": false
     },
     "public/bifocal/model-import.js": {
-      "sha256": "9dbae756aa625141d25f3ad25e811c2373d77a77b5ffe4592d79be9533296f3e",
+      "sha256": "ab8443a17c9a13b78e99e3b99633ca863b917259538602825e172cf1d5859f19",
       "executable": false
     },
     "public/bifocal/models.js": {
@@ -4709,7 +4709,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "f5539fa989d90e9294cb9a82760b4a82a63347b2691f05e7dfc63f1aa8388997",
+      "sha256": "997ed114825d3be3f830c8a53545b0017df94a43513cb2b84f7688e070e33f8d",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
