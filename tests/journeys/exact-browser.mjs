@@ -8,6 +8,7 @@ export async function proveExactBrowser(origin, page, query, phase, artifact) {
   }
   if(phase==='create') {
    await page.goto(origin+'/app/queries')
+   await page.getByText('New exact answer',{exact:true}).click()
    await page.getByLabel('Query definition (JSON)',{exact:true}).fill(JSON.stringify(query,null,2))
    await page.getByRole('button',{name:'Run exact query',exact:true}).click()
    await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor()

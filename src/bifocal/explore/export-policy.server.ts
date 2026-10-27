@@ -1,5 +1,5 @@
 import { runtimeBindings, operatorAuth, type Bindings } from '../../auth.server'
-import { appDocument, appPolicy } from '../../app/shell'
+import { accountSide, appDocument, appPolicy } from '../../app/shell'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { currentAuthority, type Authority } from '../catalog/authority.server'
 import { discardBody, exactKeys, json, jsonBody } from '../models/validation/transport'
@@ -46,7 +46,7 @@ export async function exportPolicyPage(request:Request,original:Bindings):Promis
  if(request.method!=='GET')return new Response(null,{status:405})
  const actor=await currentAuthority(request,env)
  const headers={'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':`default-src 'none'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; ${appPolicy}`}
- const document=(main:string,script=false)=>appDocument({title:'Export limits · Bifocal',viewer:session.operator,place:'settings',head:script?'<script type="module" src="/bifocal/export-policy.js"></script>':'',side:'<nav class="sidelist" aria-label="Export settings"><a href="/app/settings">Your settings</a><a href="/app/questions">Explore questions</a></nav>',main})
+ const document=(main:string,script=false)=>appDocument({title:'Export limits · Bifocal',viewer:session.operator,place:'export',head:script?'<script type="module" src="/bifocal/export-policy.js"></script>':'',side:accountSide(session.operator.role,'export'),main})
  if(!actor||actor.role!=='owner')return new Response(document('<h1>Export settings unavailable</h1><p>Only the current installation owner can change interactive export limits.</p>'),{status:403,headers})
  try {
   const policy=await readExportPolicy(env)

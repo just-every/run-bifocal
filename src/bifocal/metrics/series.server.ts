@@ -8,6 +8,8 @@ import {fail} from '../query/types'
 import {metric,metricGuard,metricValue,revision} from './store.server'
 import {chartDocument} from '../charts/protocol'
 import {details,document,exact,hidden,result,text} from './transport'
+import {actions} from './forms'
+import {escapeHtml} from '../../app/shell'
 
 /** A series varies only the date grouping of the exact certified measure. */
 export async function metricSeries(request:Request,env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,ownerId:string,viewer:{displayName:string;role:string},id:string,action:string,input:Record<string,unknown>){
@@ -27,7 +29,7 @@ export async function metricSeries(request:Request,env:Bindings,owner:NonNullabl
  if(action==='series-review'){
   await transact(env.DB,owner,guards.map(assertion))
   if(!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return result(request,{title,dateColumn,revision:rev.revision,digest,answer:prepared.snapshot.answer},'',200)
-  return document('Review certified metric chart',viewer,`<p>This retained date series uses certified metric revision ${rev.revision}. Creating a chart grants no new access.</p>${details('Exact date values',prepared.snapshot.answer)}<form method="post" action="/api/operator/metrics/${id}/series-create">${hidden('title',title)}${hidden('dateColumn',dateColumn)}${hidden('revision',rev.revision)}${hidden('reviewedDigest',digest)}<button type="submit">Create reviewed chart</button></form>`)
+  return document('Review certified metric chart',viewer,`<p class="lead">${escapeHtml(title)} groups certified metric revision ${rev.revision} by ${escapeHtml(dateColumn)}. Creating a chart grants no new access.</p>${details('Exact date values',prepared.snapshot.answer)}<form method="post" action="/api/operator/metrics/${id}/series-create">${hidden('title',title)}${hidden('dateColumn',dateColumn)}${hidden('revision',rev.revision)}${hidden('reviewedDigest',digest)}${actions('Create reviewed chart')}</form>`)
  }
  if(input.reviewedDigest!==digest)fail('exact_current_metric_chart_review_required',409)
  const chartId=randomUUID(),createdAt=new Date().toISOString()
