@@ -14,8 +14,8 @@ body[data-dashboard-authoring] .single .main{width:100%;max-width:1440px}
 .dashboard-authoring .published-table .tablewrap{margin:0;max-width:100%}
 .dashboard-authoring .published-totals{display:flex;flex-wrap:wrap;gap:20px;margin:16px 0}
 .dashboard-authoring .published-totals div{min-width:0}
-.dashboard-authoring .published-totals dt{font-size:13px;color:var(--app-muted)}
-.dashboard-authoring .published-totals dd{margin:0;font-weight:600;font-size:24px;overflow-wrap:anywhere}
+.dashboard-authoring .published-totals dt{font-size:14px;color:var(--app-text-2)}
+.dashboard-authoring .published-totals dd{margin:0;font:700 26px/1.2 var(--font-sans);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 @media(max-width:760px){.dashboard-authoring .placement-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-authoring .published-dashboard{grid-template-columns:minmax(0,1fr)}.dashboard-authoring .published-tile{grid-column:1;grid-row:calc(var(--phone-y) + 1) / span var(--phone-h)}}
 .dashboard-reader-controls{margin-top:20px}
 .dashboard-reader-controls>details{margin-top:16px}
@@ -28,8 +28,8 @@ body[data-dashboard-authoring] .single .main{width:100%;max-width:1440px}
 .dashboard-authoring .dashboard-text-tile{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px}
 .dashboard-authoring dialog{max-width:min(1000px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid var(--app-line);border-radius:var(--app-control);padding:24px;font-size:15px}
 .dashboard-authoring:fullscreen{overflow:auto;padding:24px;background:var(--app-bg,#fff)}
-.dashboard-authoring .dashboard-scenario{margin-top:20px;padding:16px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:var(--app-control)}
-.dashboard-authoring .reader-tile-state{overflow-wrap:anywhere;font-size:14px}
+.dashboard-authoring .dashboard-scenario{margin-top:20px;padding:18px 20px;background:var(--app-soft);border:1px solid var(--app-line);border-radius:var(--app-radius)}
+.dashboard-authoring .reader-tile-state{overflow-wrap:anywhere;font-size:15px}
 .dashboard-authoring .reader-cross .actions{max-height:240px;overflow:auto}
 dialog.dashboard-reader-dialog{max-width:min(1000px,calc(100vw - 32px));max-height:85vh;overflow:auto;border:1px solid var(--app-line);border-radius:var(--app-control);padding:24px;font-size:15px}
 dialog.dashboard-reader-dialog .published-table{max-width:100%;overflow:auto}

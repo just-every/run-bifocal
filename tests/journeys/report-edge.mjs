@@ -104,6 +104,7 @@ async function proveOfflineReporting(origin,owner,page,fixtures,state){
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000})
    await page.goto(origin+'/app/queries')
+   await page.getByText('New exact answer',{exact:true}).click()
    await page.getByLabel('Query definition (JSON)',{exact:true}).fill(JSON.stringify(query))
    const response=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST')
    await page.getByRole('button',{name:'Run exact query',exact:true}).click()

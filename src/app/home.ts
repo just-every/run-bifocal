@@ -1,19 +1,20 @@
 import { escapeHtml } from './shell'
 import { identity } from '../identity'
-
-const icon = (path: string) => `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="${path}"/></svg>`
-const FILE = icon('M5 2.5h6.5L15 6v11.5H5zM11.5 2.5V6H15M7.5 10h5M7.5 13h5')
-const CALENDAR = icon('M3.5 4.5h13v12h-13zM3.5 8h13M7 2.5v4M13 2.5v4')
-const SNAPSHOT = icon('M3.5 4.5h13v11h-13zM3.5 8.5h13M8 8.5v7M3.5 12h13')
-const READY = icon('M4 10.5l3.5 3.5L16 5.5')
+import type { OwnerPlaces, PlaceRow } from '../bifocal/home/places.server'
 
 export type HomeApp = { href: string; title: string; version: number; audiences: { name: string }[] }
 const appsPanel = (apps: HomeApp[]) => apps.length ? `<section class="panel" id="home-apps"><h2 class="cardhead">Your apps</h2><ul class="library-list">${apps.map(app => `<li class="library-row"><div><a class="library-name" href="${escapeHtml(app.href)}">${escapeHtml(app.title)}</a><p class="meta">${app.audiences.map(a => escapeHtml(a.name)).join(', ')} · version ${app.version}</p></div></li>`).join('')}</ul></section>` : ''
 
-export function homePage(operator: { displayName: string; role: string }, apps: HomeApp[] = []) {
- return `<div class="pagehead"><div><h1>App home</h1><p class="meta">Signed in as ${escapeHtml(operator.displayName)}<span class="dot">·</span>${escapeHtml(operator.role)}</p></div></div>
-${appsPanel(apps)}<div class="cards"><section class="panel"><h2 class="cardhead"><span class="disc">${READY}</span>Foundation is ready</h2><p>Sign-in, first-run setup and account tools are available in this installation.</p></section>
-<section class="panel"><h2 class="cardhead">Native data tools</h2><p>Owners can review and import bounded CSV/XLSX files, manage US company calendars and currency rates, run exact queries and retain tabular dashboard/report answers.</p><ul class="facts"><li>${FILE}<span>CSV and XLSX files</span><span class="fact">up to 512 KiB, 2,000 rows, 64 columns</span></li><li>${CALENDAR}<span>US calendars and currency rates</span><span class="fact">versioned</span></li><li>${SNAPSHOT}<span>Exact answers</span><span class="fact">immutable snapshots</span></li></ul></section></div>
-<p class="note">General source sync, semantic-model authoring, SQL/notebooks and scheduled delivery remain unfinished. Installation archives are separate from business-data imports.</p>
-<p class="links"><a href="/app/library">Library</a> <span class="dot">·</span> <a href="${escapeHtml(identity.runSite!)}/run">Run and installation guide</a> <span class="nowrap"><span class="dot">·</span><a href="${escapeHtml(identity.runSite!)}/contract">Product contract</a></span></p>`
+// App home leads with the owner's daily places, h1's list rows in three cards: the latest dashboards, retained answers and
+// datasets, each with its way in. Other people see the apps shared with them. Installation links sit in one quiet row.
+function place(id: string, title: string, rows: PlaceRow[], empty: string, more: [string, string]) {
+ const list = rows.length ? `<ul class="place-list">${rows.map(row => `<li><a href="${escapeHtml(row.href)}">${escapeHtml(row.name).replaceAll(' · ', ' ·\u00a0')}</a>${row.meta ? `<span class="row-meta">${escapeHtml(row.meta)}</span>` : ''}</li>`).join('')}</ul>` : `<p class="muted">${empty}</p>`
+ return `<section class="panel place" aria-labelledby="place-${id}"><h2 class="cardhead" id="place-${id}">${title}</h2>${list}<p class="place-more"><a href="${more[1]}">${more[0]}</a></p></section>`
+}
+
+export function homePage(apps: HomeApp[] = [], places: OwnerPlaces | null = null) {
+ const links = `<p class="links"><a href="/docs">Installation guide</a> <span class="dot">·</span><a href="/">Lobby</a> <span class="dot">·</span><a href="${escapeHtml(identity.runSite!)}/run">Run and installation guide</a> <span class="nowrap"><span class="dot">·</span><a href="${escapeHtml(identity.runSite!)}/contract">Product contract</a></span></p>`
+ const body = places ? `<div class="places">${place('dashboards', 'Dashboards', places.dashboards, 'No saved dashboards yet. Save one from an answer.', ['Open the Library', '/app/library'])}${place('answers', 'Retained answers', places.answers, 'No answers yet.', ['All answers', '/app/queries'])}${place('files', 'Files', places.files, 'No datasets yet.', ['Import a file', '/app/import#prepare'])}</div>`
+  : appsPanel(apps) || `<p class="lead"><a href="/app/library">Open the Library</a> for the dashboards and reports shared with you.</p>`
+ return `<div class="pagehead"><div><h1>App home</h1></div></div>${body}${links}`
 }

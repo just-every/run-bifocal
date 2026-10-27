@@ -26,7 +26,7 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
   json(report+'definition/report.json',{publicCustomVisuals:[unknown],resourcePackages:[deneb,licensed].map(name=>({name,type:'CustomVisual',items:[{name:name+'.pbiviz.json',path:name+'.pbiviz.json',type:'CustomVisualMetadata'}]}))}),
   json(pagePath,{name:'synthetic-bifocal-page',displayName:'Synthetic custom visuals',visualInteractions:interactions}),
   json(visualPath('synthetic-bifocal-deneb'),container('synthetic-bifocal-deneb',deneb,specification)),
-  json(visualPath('synthetic-bifocal-licensed'),container('synthetic-bifocal-licensed',licensed)),
+  json(visualPath('synthetic-bifocal-licensed'),{...container('synthetic-bifocal-licensed',licensed),visual:{...container('synthetic-bifocal-licensed',licensed).visual,drillFilterOtherVisuals:undefined}}),
   json(visualPath('synthetic-bifocal-marketplace'),container('synthetic-bifocal-marketplace',unknown)),
   ...[deneb,licensed].flatMap(type=>[json(manifestPath(type),{visual:{guid:type,name:type,version},author:{name:publisher,email:'synthetic-bifocal@example.test'}}),json(metadataPath(type),metadata(type))])
  )
@@ -61,6 +61,13 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click();await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click();await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
  assert.ok((await page.getByRole('table',{name:'Source project inventory'}).innerText()).includes(source.file))
  const mapping=page.getByRole('region',{name:'Custom visual mappings',exact:true});await mapping.waitFor();assert.ok((await mapping.innerText()).includes(publisher));assert.ok((await mapping.innerText()).includes(version));assert.ok((await mapping.innerText()).includes('native-declarative-chart'))
+ const pageOnly=mapping.locator('details').filter({has:page.locator('summary').filter({hasText:'synthetic-bifocal-licensed-visual'})}).first()
+ await pageOnly.locator('summary').click()
+ const pageOnlyText=await pageOnly.innerText()
+ assert.ok(pageOnlyText.includes('Page:')&&pageOnlyText.includes('DataFilter')&&pageOnlyText.includes('synthetic-bifocal-deneb')&&pageOnlyText.includes('synthetic-bifocal-licensed'),'Page-level interactions remain visible without visual-level declarations')
+ assert.ok(!pageOnlyText.includes('No interaction declarations'))
+ const combinedText=await mapping.locator('details').first().innerText()
+ assert.ok(combinedText.includes('Visual:')&&combinedText.includes('Page:'),'Both interaction scopes are retained')
  await page.getByText('Full source compatibility report',{exact:true}).click()
  const visible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(visible.report.project.resources.find(item=>item.id===source.id).definition.inventory,inventory)

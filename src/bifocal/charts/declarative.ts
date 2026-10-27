@@ -6,7 +6,7 @@ export type Specification={language:'vega-lite'|'vega';spec:Record<string,unknow
 export type Column={id:string;unit:Measure['unit'];scale:number}
 type Predicate={field:string;equal?:Cell;notEqual?:Cell;oneOf?:Cell[];range?:[string,string];gte?:string;lte?:string}
 export type Transform={kind:'calculate';as:string;expression:Expression}|{kind:'sum';as:string;field:string;cumulative:boolean}|{kind:'filter';predicate:Predicate}
-export type Plan={mark:'bar'|'point';dimension:string;measure:string;end?:string;scale:{domain?:[string,string];zero:boolean;reverse:boolean};columns:Column[];transforms:Transform[];selection?:{field:string;label:string};language?:string}
+export type Plan={mark:'bar'|'point';dimension:string;measure:string;end?:string;scale:{domain?:[string,string];domainField?:string;zero:boolean;reverse:boolean};columns:Column[];transforms:Transform[];selection?:{field:string;label:string};language?:string}
 export function record(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))fail('chart_object_required',400);return value as Record<string,unknown>}
 function list(value:unknown,max=16):unknown[]{if(!Array.isArray(value)||value.length>max)fail('chart_bounded_array_required',400);return value}
 function text(value:unknown):string{if(typeof value!=='string'||!value.trim()||value.length>100||/[\u0000-\u001f]/.test(value))fail('chart_text_required',400);return value}
@@ -88,14 +88,13 @@ export function compileSpecification(value:unknown,query:Query):{specification:S
   const x=record(scales[0]),y=record(scales[1]);exactKeys(x,['name','type','domain','range','zero','reverse']);exactKeys(y,['name','type','domain','range']);if(x.name!=='x'||x.type!=='linear'||x.range!=='width'||y.name!=='y'||y.type!=='band'||y.range!=='height')fail('chart_native_scales_required',400)
   const yDomain=record(y.domain);exactKeys(yDomain,['data','field']);if(yDomain.data!=='answer')fail('chart_retained_answer_required',400);dimension=field(yDomain.field,'dimension')
   const domain=record(x.domain);exactKeys(domain,['data','field']);if(domain.data!=='answer')fail('chart_retained_answer_required',400);const domainField=field(domain.field,'numeric')
-  numericScale=scale({type:'linear',...(x.zero!==undefined?{zero:x.zero}:{}),...(x.reverse!==undefined?{reverse:x.reverse}:{})})
+  numericScale={...scale({type:'linear',...(x.zero!==undefined?{zero:x.zero}:{}),...(x.reverse!==undefined?{reverse:x.reverse}:{})}),domainField}
   const marks=list(spec.marks,1);if(marks.length!==1)fail('chart_one_mark_required',400);const node=record(marks[0]);exactKeys(node,['type','from','encode']);if(node.type!=='rect'&&node.type!=='symbol')fail('chart_mark_unsupported',400);mark=node.type==='rect'?'bar':'point'
   const from=record(node.from);exactKeys(from,['data']);if(from.data!=='answer')fail('chart_retained_answer_required',400)
   const encode=record(node.encode);exactKeys(encode,['enter']);const enter=record(encode.enter);exactKeys(enter,['x','x2','y'])
   const binding=(value:unknown,axis:'x'|'y')=>{const b=record(value);exactKeys(b,['scale','field','value']);if(b.scale!==axis)fail('chart_scale_binding_required',400);if(axis==='x'&&b.value===0&&b.field===undefined)return undefined;if(b.value!==undefined)fail('chart_field_binding_required',400);return field(b.field,axis==='x'?'numeric':'dimension')}
   if(binding(enter.y,'y')!==dimension)fail('chart_dimension_binding_mismatch',400)
   const start=binding(enter.x,'x');if(enter.x2===undefined){if(!start)fail('chart_measure_binding_required',400);measure=start}else{if(mark!=='bar')fail('chart_interval_bar_required',400);const finish=binding(enter.x2,'x');if(!finish)fail('chart_measure_binding_required',400);measure=start??finish;end=start?finish:undefined}
-  if(domainField!==(end??measure))fail('chart_domain_binding_mismatch',400)
  }
  if(mark==='bar'&&!end&&!numericScale.zero)fail('chart_bar_zero_baseline_required',400)
  if(columns.find(c=>c.id===measure)!.unit!==columns.find(c=>c.id===(end??measure))!.unit)fail('chart_interval_units_mismatch',400)

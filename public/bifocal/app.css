@@ -1,9 +1,11 @@
-/* The installed app's frame and parts, after the desk's approved app look (h1, 21 Oct 2026): white, near-black text,
-   hairlines, cobalt for the current place, the selection, the one primary action and links, yellow only where
-   something waits for a check. Every value is a token from /rer-theme.css. Nothing rounded carries a one-sided border. */
+/* The installed app's frame and parts, after the owner's approved app look A (round 2, h1; owner 26 Oct 2026): a white
+   bar with mark 4 and the wordmark, a roomy question list at left, one answer pane. Ink text at 16 px, hairlines, cobalt
+   for the current place, the selection, the one filled action, links and bars; yellow only where something waits for
+   a check. Mona Sans sets headings and figures, system UI the rest, mono only queries and rows. Every value is a token
+   from /app-theme.css. Nothing rounded carries a one-sided border; selection is a highlight. */
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;background:var(--app-page);color:var(--app-text);font:400 15px/1.55 var(--font-ui);-webkit-font-smoothing:antialiased;overflow-wrap:anywhere}
+body{margin:0;min-height:100vh;background:var(--app-page);color:var(--app-text);font:400 16px/1.55 var(--font-ui);-webkit-font-smoothing:antialiased;overflow-wrap:anywhere}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--app-link);text-decoration:none}
 a:hover{text-decoration:underline;text-underline-offset:3px}
@@ -13,71 +15,99 @@ svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:
 .skip{position:absolute;left:-9999px}
 .skip:focus{left:16px;top:12px;z-index:10;padding:10px 14px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-control)}
 
-/* Top bar: mark 4 and the wordmark, the tools this account can open, the signed-in person. */
-.topbar{display:flex;align-items:center;gap:40px;min-height:64px;padding:0 28px;background:var(--app-surface);border-bottom:1px solid var(--app-line)}
-.lockup{display:inline-flex;align-items:center;gap:10px;color:var(--app-text);font:500 25px/1 var(--font-sans);letter-spacing:-.01em;text-decoration:none;white-space:nowrap}
+/* Top bar: mark 4 and the wordmark at h1's size, the daily tools this account can open (the current one cobalt over a
+   cobalt rule), a hairline divider, then the person's initials disc and name and the Settings menu that holds
+   configuration and Sign out. Nothing in the bar scrolls or clips: below 1000 px the tools take their own row. */
+.topbar{display:flex;align-items:center;gap:40px;min-height:70px;padding:0 32px;background:var(--app-surface);border-bottom:1px solid var(--app-line)}
+.lockup{display:inline-flex;align-items:center;gap:12px;color:var(--app-text);font:500 29px/1 var(--font-sans);letter-spacing:-.015em;text-decoration:none;white-space:nowrap}
 .lockup:hover{text-decoration:none}
-.lockup img{display:block;width:58px;height:28px}
-.tools{display:flex;align-self:stretch;gap:28px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
-.tools a{display:flex;align-items:center;white-space:nowrap;color:var(--app-text-2);font-size:15px;font-weight:500;border-bottom:2px solid transparent;padding-top:2px}
+.lockup img{display:block;width:76px;height:36px}
+.tools{display:flex;align-self:stretch;gap:32px;margin-left:auto}
+.tools a{display:flex;align-items:center;white-space:nowrap;color:var(--app-text-2);font-size:16px;font-weight:500;border-bottom:3px solid transparent;padding-top:3px}
 .tools a:hover{color:var(--app-text);text-decoration:none}
-.tools a[aria-current=page]{color:var(--app-link);border-bottom-color:var(--app-mark);font-weight:600}
-.account{display:flex;align-items:center;gap:12px;padding-left:24px;border-left:1px solid var(--app-line);min-height:32px;font-size:15px}
-.account form{margin:0}
-.account button{white-space:nowrap}
-.avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:34px;height:34px;border-radius:50%;background:var(--app-sunk);border:1px solid var(--app-line);color:var(--app-text-2);font-size:13px;font-weight:600;letter-spacing:.02em}
+.tools a[aria-current=page]{color:var(--app-link);border-bottom-color:var(--app-mark);font-weight:650}
+.tools a:focus-visible{outline-offset:-3px}
+.account{display:flex;align-items:center;gap:12px;padding-left:28px;border-left:1px solid var(--app-line);min-height:36px;font-size:16px}
+/* Settings: one quiet outline control with a chevron; its panel drops below, right-aligned, and lists configuration
+   pages with the current one highlighted, then Sign out after a hairline. */
+.menu{position:relative;margin:0}
+.menu>summary{gap:8px;min-height:40px;padding:7px 12px 7px 14px;border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text);font-weight:500;white-space:nowrap}
+.menu>summary:hover{background:var(--app-sunk)}
+.menu>summary svg{display:none}
+.menu>summary::before{content:none}
+.menu>summary::after{content:'';flex:none;width:7px;height:7px;margin:-3px 2px 0 2px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(45deg)}
+.menu[open]>summary::after{margin-top:3px;transform:rotate(-135deg)}
+.menu>summary[data-current]{color:var(--app-link);border-color:var(--app-mark);font-weight:650}
+.menu>.menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:20;display:flex;flex-direction:column;gap:2px;width:max-content;min-width:220px;margin:0;padding:8px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius);box-shadow:0 12px 32px rgb(17 24 39 / 12%)}
+.menu-panel a{padding:10px 12px;border-radius:6px;color:var(--app-text);font-size:16px;font-weight:500;white-space:nowrap}
+.menu-panel a:hover{background:var(--app-sunk);text-decoration:none}
+.menu-panel a[aria-current]{background:var(--app-select);font-weight:650}
+.menu-panel form{margin:6px 0 0;padding-top:6px;border-top:1px solid var(--app-line)}
+.menu-panel button.quiet{width:100%;justify-content:flex-start;min-height:44px;padding:10px 12px;color:var(--app-text);font-size:16px}
+.avatar{display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:40px;border-radius:50%;background:var(--app-avatar);color:var(--app-text);font-size:14px;font-weight:600;letter-spacing:.02em}
 .who{color:var(--app-text);font-weight:500;white-space:nowrap;max-width:24ch;overflow:hidden;text-overflow:ellipsis}
 
-/* Left column and main pane. */
-.layout{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:calc(100vh - 65px)}
+/* The question list at left and the answer pane. List rows are a name over one quiet meta line; the current row is a
+   light cobalt highlight with no edge. */
+.layout{display:grid;grid-template-columns:340px minmax(0,1fr);min-height:calc(100vh - 71px)}
 .layout.single{grid-template-columns:minmax(0,1fr)}
-.side{padding:24px 16px 32px 20px;border-right:1px solid var(--app-line);background:var(--app-surface)}
-.side-heading{margin:4px 12px 8px;color:var(--app-muted);font:600 13px/1.4 var(--font-ui)}
-.side-heading:not(:first-child){margin-top:20px}
-.sidelist{display:flex;flex-direction:column;gap:2px}
-.sidelist a{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:var(--app-control);color:var(--app-text);font-size:15px}
+.side{padding:28px 20px 40px 24px;border-right:1px solid var(--app-line);background:var(--app-surface)}
+.side-heading{margin:4px 14px 10px;color:var(--app-text-2);font:400 16px/1.4 var(--font-ui)}
+.side-heading:not(:first-child){margin-top:24px;padding-top:24px;border-top:1px solid var(--app-line)}
+.sidelist{display:flex;flex-direction:column;gap:4px}
+.sidelist a{display:flex;flex-direction:column;gap:3px;padding:10px 14px;border-radius:var(--app-radius);color:var(--app-text);font-size:16px;font-weight:500;line-height:1.4}
 .sidelist a:hover{background:var(--app-sunk);text-decoration:none}
-.sidelist a[aria-current]{background:var(--app-select);color:var(--app-text);font-weight:600}
-.sidelist .digest{color:var(--app-muted);font:400 12px/1.4 var(--font-mono)}
-.sidelist hr{width:100%;margin:12px 0 4px;border:0;border-top:1px solid var(--app-line)}
-.side-note{margin:16px 12px 0;color:var(--app-muted);font-size:13px;line-height:1.55}
-.main{min-width:0;max-width:1180px;padding:32px 40px 56px}
-.single .main{max-width:860px;margin:0 auto}
+.sidelist a[aria-current]{background:var(--app-select);color:var(--app-text);font-weight:650}
+.sidelist .row-meta{color:var(--app-muted);font:400 14px/1.4 var(--font-ui);font-variant-numeric:tabular-nums}
+.sidelist hr{width:100%;margin:16px 0 8px;border:0;border-top:1px solid var(--app-line)}
+/* Tools beside a list sit in a quiet group below it, lighter than the list's rows. */
+.sidelist.tools-group{gap:0}
+.sidelist.tools-group a{padding:8px 14px;color:var(--app-text-2);font-weight:400}
+.side-note{margin:16px 14px 0;color:var(--app-muted);font-size:14px;line-height:1.55}
+.main{min-width:0;max-width:1180px;padding:36px 40px 64px}
+.single .main{max-width:880px;margin:0 auto}
+.single .main:has(.places){max-width:1180px}
 
-/* Headings and text. */
+/* Headings and text: a bold heading face over ink body text, quiet meta lines. */
 h1,h2,h3{font-family:var(--font-sans);color:var(--app-text);text-wrap:balance;margin:0}
-h1{font-size:32px;line-height:1.2;font-weight:700;letter-spacing:-.015em}
-h2{font-size:20px;line-height:1.3;font-weight:650;letter-spacing:-.01em}
-h3{font-size:16px;line-height:1.4;font-weight:650}
+h1{font-size:34px;line-height:1.18;font-weight:750;letter-spacing:-.02em}
+h2{font-size:21px;line-height:1.3;font-weight:700;letter-spacing:-.01em}
+h3{font-size:17px;line-height:1.4;font-weight:700}
 p{margin:0 0 12px;text-wrap:pretty}
+.main>h1{margin-bottom:12px}
 .pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:24px}
-.lead,.meta{margin:6px 0 0;color:var(--app-muted);font-size:15px}
+.pagehead>button{flex:none;white-space:nowrap}
+.lead,.meta{margin:8px 0 0;color:var(--app-text-2);font-size:16px}
 .dot{margin:0 8px;color:var(--app-muted)}
-.section{margin:36px 0 4px}
-.hint,.muted{color:var(--app-muted);font-size:14px}
-.note{margin:20px 0;padding:14px 16px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text-2);font-size:14px}
+.section{margin:40px 0 4px}
+.hint,.muted{color:var(--app-muted);font-size:15px}
+/* A field with a hint: the label (its name stays just the label text), then the hint, tied by aria-describedby. */
+.field{display:grid;align-content:start;gap:6px}
+.field>.hint{margin:0}
+.note{margin:20px 0;padding:16px 20px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);color:var(--app-text-2);font-size:15px}
 /* A wrapped links line breaks before its "·", never after it, with room for 24 px targets. */
-.links{margin-top:20px;font-size:15px;line-height:2}
+.links{margin-top:24px;font-size:16px;line-height:2}
 .links .dot{margin-left:4px}
 .mono,code,pre,.digest{font-family:var(--font-mono)}
 .nowrap{white-space:nowrap}
-code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px solid var(--app-line);font-size:13px}
+code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px solid var(--app-line);font-size:14px}
 
-/* Cards. */
-.panel{margin:16px 0;padding:20px 24px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius)}
-.panel>h2,.panel>h3,.cardhead{margin:0 0 10px}
+/* Cards: white, one hairline all round, 8 px corners, h1's roomy padding. */
+.panel{margin:20px 0;padding:24px 28px;background:var(--app-surface);border:1px solid var(--app-line);border-radius:var(--app-radius)}
+.panel>h2,.panel>h3,.cardhead{margin:0 0 12px}
+.panel>h2{font-size:19px}
 .panel>p:last-child{margin-bottom:0}
-.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:20px}
 .cards .panel{margin:0}
-.cardhead{display:flex;align-items:center;gap:10px;font-size:18px}
-.disc{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--app-select);color:var(--app-link)}
+.cardhead{display:flex;align-items:center;gap:10px;font-size:19px}
+.disc{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--app-select);color:var(--app-link)}
 .disc svg{width:16px;height:16px;stroke-width:2}
 .facts{list-style:none;margin:14px 0 0;padding:0}
-.facts li{display:grid;grid-template-columns:18px auto 1fr;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--app-line);font-size:14px}
+.facts li{display:grid;grid-template-columns:18px auto 1fr;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--app-line);font-size:15px}
 .facts li svg{color:var(--app-muted)}
 .fact{justify-self:end;text-align:right;color:var(--app-muted)}
-.facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;margin:0 0 16px}
-.facts-grid dt{color:var(--app-muted);font-size:13px}
+.facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px 24px;margin:0 0 16px}
+.facts-grid dt{color:var(--app-muted);font-size:14px}
 .facts-grid dd{margin:2px 0 0;color:var(--app-text)}
 .cardlist{list-style:none;margin:16px 0 0;padding:0}
 .cardlist .panel{margin:0 0 12px}
@@ -85,11 +115,22 @@ code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px sol
 .session .facts-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .session form button{display:inline-block;max-width:100%;text-align:left}
 
+/* App home: three place cards, each a short list of h1's rows (a name over one quiet line) and its way in. */
+.places{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:20px}
+.places .panel{margin:0}
+.place-list{list-style:none;margin:0;padding:0}
+.place-list li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--app-line)}
+.place-list a{color:var(--app-text);font-weight:500;line-height:1.4}
+.place-list .row-meta{color:var(--app-muted);font-size:14px}
+.place-more{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--app-line);font-weight:600}
+
 /* People. */
-.people{list-style:none;padding:0 24px}
-.person{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:start;gap:16px;padding:20px 0}
+.people{list-style:none;padding:0 28px}
+.person{display:grid;grid-template-columns:40px minmax(16rem,1fr) auto;align-items:start;gap:16px;padding:22px 0}
 .person+.person{border-top:1px solid var(--app-line)}
-.person h2{font-size:17px;margin:4px 0 10px}
+.person h2{font-size:18px;margin:6px 0 10px;overflow-wrap:normal}
+.person-main>p a{overflow-wrap:normal}
+.person form button{white-space:normal;text-align:left}
 .person .facts-grid{margin:0}
 .person p{margin:10px 0 0}
 .state{display:inline-flex;align-items:center;gap:6px}
@@ -97,166 +138,285 @@ code{padding:1px 6px;border-radius:4px;background:var(--app-sunk);border:1px sol
 .state-active::before{background:var(--app-mark)}
 .state-invited::before{background:var(--app-held)}
 
-/* Controls: thin, quiet fields with a clear focus ring; one filled primary. */
-label{display:grid;gap:6px;color:var(--app-text);font-size:14px;font-weight:600}
-input,select,textarea{width:100%;min-width:0;min-height:40px;padding:8px 12px;background:var(--app-surface);border:1px solid var(--app-field);border-radius:var(--app-control);color:var(--app-text);font-size:15px;font-weight:400}
+/* Controls: one quiet border per field with focus on that border; outline buttons with a firm grey edge; one filled
+   cobalt primary; a disabled action stays readable and says why in a plain helper line, never a tooltip box. */
+label{display:grid;align-content:start;gap:6px;color:var(--app-text);font-size:15px;font-weight:600}
+input,select,textarea{width:100%;min-width:0;min-height:44px;padding:10px 14px;background:var(--app-surface);border:1px solid var(--app-field);border-radius:var(--app-radius);color:var(--app-text);font-size:16px;font-weight:400}
 /* Dropdowns, the owner's rule: a quiet chevron 14px inside the border and 40px of end padding, drawn from same-origin
    files (the app's CSP allows no data: images); its dark colour follows the theme. */
 select{appearance:none;-webkit-appearance:none;padding-right:40px;background-image:url(/bifocal/chevron.svg);background-repeat:no-repeat;background-position:right 14px center;background-size:12px 8px;text-overflow:ellipsis}
 @media (prefers-color-scheme:dark){select{background-image:url(/bifocal/chevron-dark.svg)}}
 @media (forced-colors:active){select{appearance:auto;-webkit-appearance:auto;padding-right:12px;background-image:none}}
-input[type=file]{padding:6px 8px}
+input[type=file]{padding:8px 10px}
+/* The file button sits inside the field's one border as a quiet tinted chip, never a second bordered control. */
+input[type=file]::file-selector-button{margin-right:12px;padding:5px 12px;border:0;border-radius:6px;background:var(--app-sunk);color:var(--app-text);font:500 15px var(--font-ui);cursor:pointer}
 input[type=checkbox]{width:18px;height:18px;min-height:0;margin:0;padding:0;accent-color:var(--app-accent);flex:none}
 textarea{min-height:96px;line-height:1.5}
-#definition,textarea[name=rates],textarea[name=transactions],textarea[name=columns]{font:13px/1.6 var(--font-mono)}
+#definition,textarea[name=rates],textarea[name=transactions],textarea[name=columns]{font:14px/1.6 var(--font-mono)}
 input:hover,select:hover,textarea:hover{border-color:var(--app-field-strong)}
-input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--app-mark);outline-offset:0;border-color:var(--app-mark);border-radius:var(--app-control)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--app-mark);outline-offset:0;border-color:var(--app-mark);border-radius:var(--app-radius)}
 ::placeholder{color:var(--app-muted)}
-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:8px 16px;background:var(--app-surface);border:1px solid var(--app-field);border-radius:var(--app-control);color:var(--app-text);font-size:15px;font-weight:500;cursor:pointer}
-button:hover{border-color:var(--app-field-strong);background:var(--app-sunk)}
-button.primary{background:var(--app-accent);border-color:var(--app-accent);color:var(--app-on-accent)}
+button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 18px;background:var(--app-surface);border:1px solid var(--app-button-line);border-radius:var(--app-radius);color:var(--app-text);font-size:16px;font-weight:500;line-height:1.35;cursor:pointer}
+button:hover{border-color:var(--app-text-2);background:var(--app-sunk)}
+button.primary{background:var(--app-accent);border-color:var(--app-accent);color:var(--app-on-accent);font-weight:600}
 button.primary:hover{background:var(--app-accent-hover);border-color:var(--app-accent-hover)}
 button:disabled,button:disabled:hover{cursor:not-allowed;background:var(--app-disabled);border-color:var(--app-disabled);color:var(--app-disabled-text)}
-button.quiet{min-height:32px;padding:4px 10px;border-color:transparent;background:transparent;color:var(--app-text-2);font-weight:500}
+button.quiet{min-height:36px;padding:6px 12px;border-color:transparent;background:transparent;color:var(--app-text-2);font-weight:500}
 button.quiet:hover{background:var(--app-sunk);border-color:var(--app-line)}
-.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px;margin-bottom:16px}
-.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 24px;margin-bottom:18px}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:24px}
 .inline-form{display:flex;align-items:flex-end;gap:12px}
 .inline-form label{flex:1;max-width:420px}
 .checkbox{display:flex;align-items:center;gap:10px;margin-top:16px;font-weight:500}
+/* Owner forms (Metrics, Goals, Data quality): a control is its label, the field, then its hint or the plain sentence a
+   refused value earned; the field at fault keeps its one border, drawn in the danger colour. Records are quiet rows. */
+.control{display:grid;gap:6px;align-content:start;min-width:0}
+.fields>label{align-content:start}
+.control>.hint,.control>.field-error{margin:0}
+.panel>form>.control+.control,.panel>form>.fields+.control,.panel>form>.control+.fields{margin-top:18px}
+.field-error{margin:0;color:var(--app-danger);font-size:15px;font-weight:500}
+input[aria-invalid=true],textarea[aria-invalid=true],select[aria-invalid=true]{border-color:var(--app-danger)}
+.panel>.status[data-error=true]{margin:0 0 18px}
+.panel>form>details{margin:16px 0 0}
+.records{list-style:none;margin:0;padding:0}
+.records li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 0;border-top:1px solid var(--app-line)}
+.records li:first-child{padding-top:0;border-top:0}
+.records li:last-child{padding-bottom:0}
+.record{display:flex;flex-direction:column;gap:2px;min-width:0}
+.record>a,.record>strong{font-weight:600}
+.record .row-meta{color:var(--app-muted);font-size:14px;font-variant-numeric:tabular-nums}
 form{margin:0}
-details{margin:16px 0}
+fieldset{min-width:0;margin:16px 0;padding:14px 18px 18px;border:1px solid var(--app-line);border-radius:var(--app-radius)}
+legend{padding:0 6px;color:var(--app-text);font-size:15px;font-weight:600}
+details{margin:20px 0}
 details.panel{padding:0}
-summary{display:flex;align-items:center;gap:10px;padding:14px 20px;cursor:pointer;font-weight:600;list-style:none}
+summary{display:flex;align-items:center;gap:12px;min-height:52px;padding:14px 24px;cursor:pointer;font-weight:600;list-style:none}
 summary::-webkit-details-marker{display:none}
-summary::before{content:'';width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+summary::before{content:'';flex:none;width:8px;height:8px;border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
 details[open]>summary::before{transform:rotate(45deg)}
-details>:not(summary){margin-left:20px;margin-right:20px}
-details[open]>:last-child{margin-bottom:20px}
+details>:not(summary){margin-left:24px;margin-right:24px}
+details[open]>:last-child{margin-bottom:24px}
 .panel details{margin:16px 0 0;border-top:1px solid var(--app-line)}
 .panel details summary{padding:14px 0}
 .panel details>:not(summary){margin-left:0;margin-right:0}
-pre{margin:0;padding:16px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-control);font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+/* A plain disclosure outside a card lines up with the fields above it. */
+.main details:not(.panel)>summary{padding-left:0;padding-right:0}
+.main details:not(.panel)>:not(summary){margin-left:0;margin-right:0}
+pre{margin:0;padding:16px 18px;background:var(--app-sunk);border:1px solid var(--app-line);border-radius:var(--app-radius);font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 
-/* Status, the held notice (yellow, outlined on every side) and errors. */
-.status{margin:0 0 16px;color:var(--app-text-2);font-size:14px}
+/* Status, the held notice (pale yellow, a full yellow edge and a yellow "!" disc) and errors. */
+.status{margin:0 0 16px;color:var(--app-text-2);font-size:15px}
 .status:empty{display:none}
-.status[data-quiet=true],body[data-answer=shown]:not([data-id=""]) .main>h1{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.status[data-error=true]{padding:12px 16px;background:var(--app-danger-tint);border:1px solid var(--app-danger-line);border-radius:var(--app-radius);color:var(--app-danger)}
-.warning{position:relative;margin:16px 0;padding:14px 16px 14px 52px;background:var(--app-held-tint);border:1px solid var(--app-held);border-radius:var(--app-radius);color:var(--app-text);font-size:15px;line-height:1.5}
-.warning::before{content:'!';position:absolute;left:16px;top:13px;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--app-held);color:#000;font-weight:800;font-size:15px;line-height:1}
+.status[data-quiet=true]{position:absolute;width:1px;height:1px;margin:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.status[data-error=true]{padding:14px 18px;background:var(--app-danger-tint);border:1px solid var(--app-danger-line);border-radius:var(--app-radius);color:var(--app-danger)}
+.warning{position:relative;margin:20px 0;padding:18px 22px 18px 60px;background:var(--app-held-tint);border:2px solid var(--app-held);border-radius:var(--app-radius);color:var(--app-text);font-size:16px;line-height:1.5}
+.warning::before{content:'!';position:absolute;left:20px;top:16px;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--app-held);color:#000;font-weight:800;font-size:16px;line-height:1}
 .warning:empty{display:none}
+/* Inside the held notice the resolving decision is the one filled cobalt button and the other stays an outline. */
+.warning button:not(.primary){background:var(--app-surface)}
 
-/* Exact answers: title and meta, modest figures, the held notice, then the rows. */
-.answer{margin-top:8px}
-body:not([data-id=""]) .main>h1{font:500 14px/1.4 var(--font-ui);letter-spacing:0;color:var(--app-muted);margin-bottom:6px}
-.answerhead{display:flex;align-items:flex-start;justify-content:space-between;gap:24px}
-.answer-title{font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.015em}
-.answer-actions{display:flex;gap:12px;flex:none}
+/* Exact answers: the title and meta with the actions at right, a modest KPI card in ink, the held notice in context,
+   then the rows. */
+.answer{margin-top:4px}
+/* The page name is the eyebrow over the answer's own title. */
+.eyebrow-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 20px;margin-bottom:8px}
+.eyebrow{font:500 15px/1.4 var(--font-ui);letter-spacing:0;color:var(--app-muted)}
+/* Main's "Comments and sharing" link sits beside "Open dashboard TV" at the row's right. */
+.eyebrow-links{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 20px}
+.eyebrow-links:empty{display:none}
+.eyebrow-links p{margin:0}
+/* The title keeps at least 360 px; narrower, the actions move below it. */
+.answerhead{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px 28px}
+.answerhead>div:first-child{flex:1 1 360px;min-width:0}
+.answer-title{font-size:36px;line-height:1.15;font-weight:750;letter-spacing:-.02em}
+.answer-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px;flex:none}
 #snapshot-note{font-family:var(--font-ui)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin:20px 0 0;border:1px solid var(--app-line);border-radius:var(--app-radius);background:var(--app-surface)}
-.kpi{display:grid;gap:2px;padding:16px 20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin:24px 0 0;border:1px solid var(--app-line);border-radius:var(--app-radius);background:var(--app-surface)}
+.kpi{display:flex;flex-direction:column;gap:4px;padding:20px 24px;min-width:0;container-type:inline-size}
 .kpi+.kpi{border-left:1px solid var(--app-line)}
-.kpi-label{color:var(--app-text-2);font:500 14px/1.4 var(--font-ui)}
-.kpi-value{font:700 28px/1.2 var(--font-sans);font-variant-numeric:tabular-nums;letter-spacing:-.01em;color:var(--app-text)}
-.kpi-id{color:var(--app-muted);font:400 12px/1.4 var(--font-mono)}
+/* A figure never splits: it stays on one line and scales with its cell, up to 32 px. */
+.kpi-value{order:-1;font:700 32px/1.15 var(--font-sans);font-size:clamp(20px,16cqi,32px);font-variant-numeric:tabular-nums;letter-spacing:-.015em;color:var(--app-text);white-space:nowrap;overflow-wrap:normal}
+.kpi-value.long{font-size:clamp(18px,12cqi,28px)}
+.kpi-label{color:var(--app-text);font:400 17px/1.35 var(--font-ui)}
+.kpi-unit{color:var(--app-muted)}
 #artifact-links p{margin:12px 0 0}
-.emptystate{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 20px;align-items:start;margin:24px 0 0;padding:24px;border:1px dashed var(--app-field);border-radius:var(--app-radius);background:var(--app-surface)}
+.emptystate{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 20px;align-items:start;margin:24px 0 0;padding:28px;border:1px dashed var(--app-field);border-radius:var(--app-radius);background:var(--app-surface)}
 .emptystate svg{grid-row:span 2;width:56px;height:44px;color:var(--app-field-strong);stroke-width:1.4}
 .emptystate svg .mark-line{color:var(--app-mark);stroke:var(--app-mark)}
-.emptystate h2{font-size:17px}
-.emptystate p{margin:0;color:var(--app-muted);max-width:60ch}
+.emptystate h2{font-size:18px}
+.emptystate p{margin:0;color:var(--app-text-2);max-width:60ch}
 
-/* Tables: hairlines, quiet heads, numbers right-aligned in mono. */
+/* Tables: hairlines, quiet heads, numbers right-aligned in mono (the Rows view). */
 .tablepanel{padding:0;overflow:hidden}
 .tablewrap{overflow-x:auto;max-width:100%}
 .tablewrap:focus-visible{outline-offset:-2px}
-table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
-caption{padding:14px 20px;text-align:left;font-weight:650;font-size:15px;color:var(--app-text)}
-th{padding:9px 20px;background:var(--app-sunk);color:var(--app-text-2);font-size:13px;font-weight:600;text-align:left;white-space:nowrap;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}
-td{padding:10px 20px;border-bottom:1px solid var(--app-line);color:var(--app-text);vertical-align:top;max-width:320px}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums;overflow-wrap:break-word}
+caption{padding:18px 24px 14px;text-align:left;font:700 18px/1.35 var(--font-sans);color:var(--app-text)}
+th{padding:10px 24px;background:var(--app-sunk);color:var(--app-text-2);font-size:14px;font-weight:600;text-align:left;white-space:nowrap;border-top:1px solid var(--app-line);border-bottom:1px solid var(--app-line)}
+td{padding:12px 24px;border-bottom:1px solid var(--app-line);color:var(--app-text);vertical-align:top;max-width:320px}
+/* Inside a scrolling table no value splits (a date at its hyphens, an id, a figure); the table scrolls instead, its right
+   edge fades and the caption says more columns follow. */
+.tablewrap td{white-space:nowrap;overflow-wrap:normal;max-width:none}
+.tablewrap[data-more]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 56px),transparent)}
+.tablewrap>.more{position:sticky;left:0;margin:0;padding:12px 24px 0;text-align:right;color:var(--app-text-2);font:500 14px/1.35 var(--font-ui)}
+.tablewrap>.more:not([hidden])+table>caption{padding-top:4px}
 tr:last-child td{border-bottom:0}
-td.num{text-align:right;font-family:var(--font-mono);font-size:13px;white-space:nowrap;overflow-wrap:normal}
+td:first-child{white-space:nowrap}
+td.num{text-align:right;font-family:var(--font-mono);font-size:14px;white-space:nowrap;overflow-wrap:normal}
 th.num{text-align:right}
-.panel:not(.tablepanel) .tablewrap{margin:12px -24px -20px}
+.panel:not(.tablepanel) .tablewrap{margin:12px -28px -24px;max-width:none}
+.panel:not(.tablepanel)>.tablewrap:first-child{margin-top:-24px}
 .panel h3+.tablewrap,.panel p+.tablewrap{margin-top:12px}
 
-/* Files and company: workflow tabs, file metadata, history. */
-.tabs{display:flex;flex-wrap:wrap;gap:24px;margin:16px 0;border-bottom:1px solid var(--app-line)}
-.tabs a,.tabs button{padding:10px 0;border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--app-text-2);font-size:15px;font-weight:500;min-height:0}
-.tabs a:hover{text-decoration:none;color:var(--app-text)}
-.tabs button[aria-pressed=true]{color:var(--app-link);border-bottom-color:var(--app-mark)}
-.metadata{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;padding:0}
-.metadata .meta{margin:0;padding:14px 20px;border-bottom:1px solid var(--app-line)}
-.metadata dt{color:var(--app-muted);font-size:13px}
-.metadata dd{margin:2px 0 0;font-size:14px;overflow-wrap:anywhere}
-.history-item{padding:14px 0;border-bottom:1px solid var(--app-line)}
+/* Tabs: the current one cobalt over a 3 px cobalt rule, the rest ink-grey, on one hairline. */
+.tabs{display:flex;flex-wrap:wrap;gap:8px 36px;margin:20px 0;border-bottom:1px solid var(--app-line)}
+.tabs a,.tabs button{padding:12px 0;margin-bottom:-1px;border:0;border-bottom:3px solid transparent;border-radius:0;background:none;color:var(--app-text-2);font-size:17px;font-weight:500;min-height:0}
+.tabs a:hover,.tabs button:hover{text-decoration:none;color:var(--app-text);background:none}
+.tabs button[aria-pressed=true],.tabs a[aria-current]{color:var(--app-link);border-bottom-color:var(--app-mark);font-weight:650}
+.metadata{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;padding:0;overflow:hidden}
+.metadata .meta{margin:0 0 -1px;padding:16px 24px;border-bottom:1px solid var(--app-line)}
+.metadata dt{color:var(--app-muted);font-size:14px}
+.metadata dd{margin:2px 0 0;font-size:15px;overflow-wrap:anywhere}
+.history-item{padding:16px 0;border-bottom:1px solid var(--app-line)}
 .history-item:last-child{border-bottom:0}
-.history-item p{margin:0 0 6px;font-size:14px}
+.history-item p{margin:0 0 6px;font-size:15px}
 .history-item button{margin:6px 12px 0 0}
 .history-item a{margin-right:16px}
 #plan-summary{margin-top:12px}
+/* A review's sections are a plain row of jump links, not tabs: every section stays on the page. */
+.jump{display:flex;flex-wrap:wrap;gap:4px 24px;margin:16px 0;font-weight:500}
 .panel>.subhead{margin:28px 0 12px;padding-top:24px;border-top:1px solid var(--app-line)}
 ul{padding-left:20px}
 
+/* Certified and verified content carries the small lens glyph, mark 4's left lens, as its one motif. */
+.lens::before,.library-badge::before{content:'';flex:none;display:inline-block;width:.8em;height:.8em;margin-right:6px;border:2.5px solid var(--app-mark);border-radius:50%;vertical-align:-.08em}
+
+/* Comments and sharing: each comment a list row (name, text, one quiet meta line); forms keep the field rhythm. */
+body[data-collaboration-kind] .main{width:100%}
+.subject-title{margin:0;font-size:24px;line-height:1.3}
+.thread{list-style:none;margin:0;padding:0}
+.thread li{padding:14px 0;border-top:1px solid var(--app-line)}
+.thread li:first-child{padding-top:4px;border-top:0}
+.thread li:last-child{padding-bottom:0}
+.thread p{margin:0}
+.thread-author{font-weight:600}
+.thread-body{margin-top:2px;white-space:pre-line}
+.row-meta{color:var(--app-muted);font-size:14px;font-variant-numeric:tabular-nums}
+.thread .row-meta{margin-top:4px}
+.records .row-meta{flex:1 1 12rem;margin:0}
+.thread-form{margin-top:20px;padding-top:20px;border-top:1px solid var(--app-line)}
+.panel form>.control+.control,details form>.control+.control{margin-top:18px}
+.form-error{margin:0 0 18px}
+/* Authenticated links: the rows sit inside the card's padding like the form above them, a field gap and a hairline
+   below Create; each row is the link over one quiet line, then its action. */
+details>.records{margin:24px 24px 0;padding-top:18px;border-top:1px solid var(--app-line)}
+details>.records li{flex-direction:column;align-items:flex-start;gap:2px}
+details>.records .row-meta{flex:none}
+details>.records li>button{margin-top:10px}
+/* The Answers tab: a new answer and a combined dashboard fold behind one disclosure under the list. */
+#new-answer form+form{margin-top:28px;padding-top:24px;border-top:1px solid var(--app-line)}
+#compose-form h3{margin:0 0 6px}
+#answer{scroll-margin-top:16px}
+
+@media (max-width:1280px){
+ .layout{grid-template-columns:300px minmax(0,1fr)}
+ .topbar{gap:32px;padding:0 24px}
+ .tools{gap:26px}
+}
 @media (max-width:1100px){
- .layout{grid-template-columns:260px minmax(0,1fr)}
- .main{padding:28px 28px 48px}
+ .layout{grid-template-columns:268px minmax(0,1fr)}
+ .main{padding:32px 28px 52px}
+ .side{padding:24px 14px 32px 16px}
  .topbar{gap:28px;padding:0 20px}
  .tools{gap:22px}
  .who{display:none}
+ /* A member's control moves under their facts, so the name column keeps the row's width. */
+ .person{grid-template-columns:40px minmax(0,1fr)}
+ .person form{grid-column:2}
+ /* Five figure columns fit beside the side list down to about 800 px. */
+ th,td{padding-left:16px;padding-right:16px}
+ caption{padding:16px 16px 12px}
 }
 /* Tablets and phones: the tools take their own row under the lockup and the person, so none is ever cut off. */
 @media (max-width:960px){
  .topbar{flex-wrap:wrap;gap:0 12px;padding:12px 20px 0;min-height:0}
  .account{margin-left:auto;padding-left:0;border-left:0}
- .tools{order:3;flex:0 0 calc(100% + 40px);margin:10px -20px 0;padding:0 20px;min-height:44px;border-top:1px solid var(--app-line)}
+ .tools{order:3;flex:0 0 calc(100% + 40px);margin:10px -20px 0;padding:0 20px;min-height:48px;border-top:1px solid var(--app-line)}
 }
 @media (max-width:760px){
- body{font-size:15px}
+ body{font-size:16px}
  .topbar{padding:12px 16px 0}
- .lockup{font-size:21px}
- .lockup img{width:50px;height:24px}
+ .lockup{font-size:22px;gap:10px}
+ .lockup img{width:54px;height:26px}
+ .avatar{width:36px;height:36px}
+ /* A demo's Run link sits beside the lockup; the bar keeps one row by setting the lockup smaller and leaving out the
+    decorative initials disc (Sign out stays). */
+ .topbar:has([data-rer-demo-exit]){gap:0 10px}
+ .topbar:has([data-rer-demo-exit]) .lockup{font-size:20px;gap:8px}
+ .topbar:has([data-rer-demo-exit]) .lockup img{width:46px;height:22px}
+ .topbar:has([data-rer-demo-exit]) .avatar{display:none}
+ .menu>summary{gap:4px;padding:7px 8px}
+ .menu>summary::after{margin-right:1px}
+ .menu>summary svg{display:block;width:20px;height:20px}
+ .menu-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
  .account{gap:8px}
- .tools{flex:0 0 calc(100% + 32px);margin:10px -16px 0;padding:0 16px;gap:14px}
- .tools a{font-size:14px}
+ /* Every tool stays in view on a phone: the row wraps instead of scrolling a tool off the edge. */
+ .tools{flex:0 0 calc(100% + 32px);flex-wrap:wrap;margin:10px -16px 0;padding:0 16px;gap:0 20px;overflow:visible}
+ .tools a{min-height:44px;font-size:15px}
  .layout,.layout.single{display:flex;flex-direction:column;min-height:0}
- .main{order:1;padding:24px 16px 32px}
+ .main{order:1;padding:24px 16px 36px}
  .side{order:2;padding:20px 8px 28px;border-right:0;border-top:1px solid var(--app-line)}
- h1{font-size:26px}
- .answer-title{font-size:24px}
- .pagehead,.answerhead{flex-direction:column;gap:12px}
- .cards,.fields{grid-template-columns:minmax(0,1fr)}
- .panel{padding:16px}
- .panel:not(.tablepanel) .tablewrap{margin:12px -16px -16px}
- .people{padding:0 16px}
- .person{grid-template-columns:34px minmax(0,1fr)}
+ body[data-kind=queries][data-id=""] .side{order:0;padding-top:12px;border-top:0;border-bottom:1px solid var(--app-line)}
+ h1{font-size:28px}
+ .answer-title{font-size:28px}
+ .pagehead{flex-direction:column;gap:14px}
+ .answerhead{gap:14px}
+ .answer-actions{justify-content:flex-start}
+ .cards,.fields,.places{grid-template-columns:minmax(0,1fr)}
+ .panel{padding:18px}
+ .tablepanel{padding:0}
+ .panel:not(.tablepanel) .tablewrap{margin:12px -18px -18px}
+ .panel:not(.tablepanel)>.tablewrap:first-child{margin-top:-18px}
+ .people{padding:0 18px}
+ .person{grid-template-columns:40px minmax(0,1fr)}
  .person form{grid-column:2}
  .inline-form{flex-direction:column;align-items:stretch}
  .inline-form label{max-width:none}
- .kpi+.kpi{border-left:0;border-top:1px solid var(--app-line)}
+ /* Figures pair up two to a row on a phone, each cell parted by a hairline. */
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .kpi{padding:16px}
+ .kpi+.kpi{border-left:0}
+ .kpi:nth-child(even){border-left:1px solid var(--app-line)}
+ .kpi:nth-child(n+3){border-top:1px solid var(--app-line)}
+ .kpi-label{font-size:16px}
+ .warning{padding:16px 16px 16px 52px}
+ .warning::before{left:16px;top:15px}
  .actions button{flex:1 1 auto}
  th,td{padding-left:16px;padding-right:16px}
- caption{padding:12px 16px}
+ caption{padding:14px 16px 12px}
+ summary{padding:14px 18px}
+ details>:not(summary){margin-left:18px;margin-right:18px}
+ details>.records{margin-left:18px;margin-right:18px}
+ .tabs{gap:8px 24px}
  .facts li{grid-template-columns:18px 1fr}
  .fact{grid-column:2;justify-self:start;text-align:left;margin-top:-6px}
 }
 
 /* The installed guide: one readable column. */
-.guide h2{margin:32px 0 8px;font-size:20px}
+.guide h2{margin:36px 0 8px;font-size:21px}
 .guide p{max-width:68ch;color:var(--app-text-2)}
 .guide-links ul{display:flex;flex-wrap:wrap;gap:8px 24px;margin:32px 0 0;padding:20px 0 0;list-style:none;border-top:1px solid var(--app-line)}
 .guide-links a{font-weight:600}
 
-/* Cross-system cards use the existing frame and panel vocabulary. */
+/* Charts share h1's chart card: cobalt bars, ink value labels, muted axis text. */
 .business-chart{margin:20px 0;max-width:100%;overflow:hidden}
-.business-chart svg{display:block;width:100%;height:auto;stroke:none;fill:var(--app-text);font:14px var(--font-ui)}
+.business-chart svg{display:block;width:100%;height:auto;stroke:none;fill:var(--app-text);font:15px var(--font-ui)}
 .business-chart rect{fill:var(--app-mark)}
 #board-cards>.panel{margin-top:24px}
 #board-cards details{margin-top:16px}
-#business-board>h2{font-size:28px}
+#business-board>h2{font-size:34px;font-weight:750;letter-spacing:-.02em}
 #business-board>.actions{margin:24px 0}
-#compose-form fieldset{min-width:0;border:1px solid var(--app-line);margin:16px 0;padding:12px}
+#compose-form fieldset{min-width:0;border:1px solid var(--app-line);border-radius:var(--app-radius);margin:16px 0;padding:14px 16px}
 #board-choices .checkbox{align-items:flex-start}
 
 #warehouse-rows>.tablewrap{margin-bottom:16px}

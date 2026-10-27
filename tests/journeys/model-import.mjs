@@ -592,7 +592,7 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  assert.equal(cast.impact.metrics[0].after,null);assert.equal(cast.impact.metrics[0].error.code,'preparation_type_conversion_failed')
  const blockedChart=await call('/charts/'+chart.id)
  assert.deepEqual(blockedChart.answer,chart.answer);assert.deepEqual(blockedChart.preparationErrors,[{preparationId:id,step:1,operation:'cast',code:'preparation_type_conversion_failed',publishedChanged:false}])
- await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*preparation_type_conversion_failed/);await proveScreen('preparation-affected-chart')
+ await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/step 1/);assert.equal(await page.getByRole('alert').getAttribute('data-code'),'preparation_type_conversion_failed');await proveScreen('preparation-affected-chart')
 
  const validCast=await preview({...document,steps:[{op:'cast',column:'quantity',type:'text'}]});assert.equal(validCast.output.columns[2].type,'text');assert.deepEqual((await sqlPreview(validCast.sql)).output,validCast.output)
  assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'A repaired review clears the failed-draft warning')
@@ -636,10 +636,10 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  await page.getByLabel('I reviewed these exact rows, errors, source revisions and digest',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed draft',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft saved as revision 2'}).waitFor()
  await page.getByLabel('SQL statements',{exact:true}).fill('SELECT * REPLACE (CAST("repair" AS NUMBER) AS "repair") FROM INPUT;')
  await page.getByRole('button',{name:'Review preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Draft blocked at step 1'}).waitFor()
- assert.match(await page.getByRole('table',{name:'Preparation validation error',exact:true}).innerText(),/preparation_type_conversion_failed/);assert.equal(await page.getByRole('button',{name:'Save reviewed draft',exact:true}).isDisabled(),true)
+ assert.equal(await page.getByRole('table',{name:'Preparation validation error',exact:true}).getAttribute('data-code'),'preparation_type_conversion_failed');assert.equal(await page.getByRole('button',{name:'Save reviewed draft',exact:true}).isDisabled(),true)
  assert.equal((await call('/preparations/'+browserID)).version,2)
  await proveScreen('preparation-conversion-error')
- await page.goto(origin+'/app/charts/'+chart.id);assert.match(await page.getByRole('alert').innerText(),/preparation_type_conversion_failed/);assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11');await proveScreen('preparation-browser-affected-chart')
+ await page.goto(origin+'/app/charts/'+chart.id);assert.equal(await page.getByRole('alert').getAttribute('data-code'),'preparation_type_conversion_failed');assert.equal((await call('/metrics/'+metricId+'/run',{})).answer.totals.quantity.value,'11');await proveScreen('preparation-browser-affected-chart')
  await page.goto(origin+'/app/import#preparation');await page.getByLabel('Preparation ID',{exact:true}).fill(browserID);await page.getByRole('button',{name:'Load saved preparation',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Current saved draft loaded'}).waitFor()
 
  await page.getByLabel('Saved revision',{exact:true}).selectOption('1');await page.getByRole('button',{name:'Review selected revision for restore',exact:true}).click();await page.locator('#prep-status').filter({hasText:'Prior revision reviewed'}).waitFor()

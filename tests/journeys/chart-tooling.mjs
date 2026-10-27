@@ -39,8 +39,8 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
   await page.getByRole('status').filter({hasText:'Export complete: 4'}).waitFor()
   const table=page.getByRole('table',{name:'Exact grouped values and totals'})
   await table.getByRole('rowheader',{name:'Negative',exact:true}).waitFor()
-  assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Negative',exact:true})}).getByRole('cell').innerText(),'USD -4.00')
-  assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Zero',exact:true})}).getByRole('cell').innerText(),'USD 0.00')
+  assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Negative',exact:true})}).getByRole('cell').innerText(),'-$4.00')
+  assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Zero',exact:true})}).getByRole('cell').innerText(),'$0.00')
   assert.equal(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'Missing',exact:true})}).getByRole('cell').innerText(),'NULL')
   const plot=page.getByRole('figure',{name:'amount by segment'})
   const geometry=await plot.locator('li').evaluateAll(rows=>Object.fromEntries(rows.map(row=>{const rect=row.querySelector('rect'),line=row.querySelector('line');return [row.querySelector('strong').textContent,{start:rect?Number(rect.getAttribute('x')):null,end:rect?Number(rect.getAttribute('x'))+Number(rect.getAttribute('width')):null,zero:Number(line.getAttribute('x1')),dot:!!row.querySelector('circle')}]})))
@@ -149,6 +149,27 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
  const pointReview=await call('/chart-definitions/review',{document:chartDocument(point)}),pointChart=await call('/chart-definitions/create',{document:chartDocument(point),reviewedDigest:pointReview.digest})
  await page.goto(origin+'/app/charts/'+pointChart.id);assert.equal(await page.locator('.native-chart circle').count(),3)
  await proveScreen('declarative-chart-points')
+ const domainCharts=[]
+ for(const reverse of [false,true]){
+  const specification={language:'vega',spec:{data:[{name:'answer'}],scales:[{name:'x',type:'linear',domain:{data:'answer',field:'target'},range:'width',zero:false,reverse},{name:'y',type:'band',domain:{data:'answer',field:'segment'},range:'height'}],marks:[{type:'rect',from:{data:'answer'},encode:{enter:{x:{scale:'x',field:'amount'},x2:{scale:'x',field:'target'},y:{scale:'y',field:'segment'}}}}]}}
+  const doc=chartDocument(specification),review=await call('/chart-definitions/review',{document:doc}),created=await call('/chart-definitions/create',{document:doc,reviewedDigest:review.digest})
+  domainCharts.push(created)
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/charts/'+created.id)
+   const bars=await page.locator('.native-chart li').evaluateAll(rows=>Object.fromEntries(rows.map(row=>{const rect=row.querySelector('rect'),dot=row.querySelector('circle');return [row.querySelector('strong').textContent,rect?{x:Number(rect.getAttribute('x')),width:Number(rect.getAttribute('width'))}:{dot:dot?Number(dot.getAttribute('cx')):null}]})))
+   assert.deepEqual(bars,{East:{x:reverse?120:360,width:120},North:{x:reverse?0:600,width:0},West:{dot:reverse?600:0}},'Only declared target values define the scale; out-of-domain amount values are clipped')
+   assert.equal(await page.locator('.native-chart .chart-zero').count(),0,'A zero baseline outside the declared domain is omitted')
+   const table=page.getByRole('table',{name:'Exact grouped values and totals'})
+   assert.deepEqual(await table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'North',exact:true})}).getByRole('cell').allTextContents(),['USD 12.00','USD 10.00'],'Clipping preserves accessible exact values')
+   await proveScreen('declarative-domain-'+(reverse?'reversed':'forward')+'-'+width,{widths:[width],resize:false})
+  }
+  for(const format of ['pdf','pptx']){
+   const snapshot=await call('/charts/'+created.id+'/snapshot/review',{format})
+   const east=snapshot.pages.flatMap(page=>page.shapes).filter(shape=>shape.label?.startsWith('Plot East |'))
+   assert.equal(east.length,1);assert.equal(east[0].kind,'rect');assert.equal(east[0].x,reverse?264:664);assert.equal(east[0].w,200,'Protected snapshot geometry uses the same declared domain')
+   assert.equal(snapshot.pages.flatMap(page=>page.shapes).filter(shape=>shape.label?.startsWith('Plot North |')).length,0,'The out-of-range interval contributes no export geometry')
+  }
+ }
  const selected={field:'segment',value:'North'},endpoint='/charts/'+artifacts[0].id+'/snapshot',snapshots=[]
  for(const format of ['pdf','pptx']){
   const input={format,selection:selected},review=await call(endpoint+'/review',input)
@@ -196,7 +217,7 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
  }
  const source=await call('/datasets/'+dataset)
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision})
- for(const artifact of [...artifacts,pointChart])assert.equal((await context.request.get(origin+'/api/operator/charts/'+artifact.id)).status(),404)
+ for(const artifact of [...artifacts,pointChart,...domainCharts])assert.equal((await context.request.get(origin+'/api/operator/charts/'+artifact.id)).status(),404)
  for(const data of snapshots)assert.equal((await post(endpoint+'/download',data)).status(),404,'Erasure withdraws previously reviewed declarative chart snapshots')
  console.log('Declarative charts: retained exact variance and cumulative intervals, equivalent languages, safe point scales, native selections, protected files and unsafe specification refusal passed')
 }

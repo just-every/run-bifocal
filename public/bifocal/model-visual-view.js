@@ -11,7 +11,9 @@ export function visualInventory(resources=[]){
   const inventory=resource.definition.inventory,details=element('details',undefined,'panel'),mapping=inventory.mapping
   details.open=index===0
   details.append(element('summary',(inventory.visualType??resource.name)+' · '+(inventory.version.value??'Version unknown')+' · '+statuses[mapping.status]))
-  const publishers=inventory.publisher.declarations.map(value=>value.name),roles=Object.keys(inventory.dataRoles.bindings??{}),formatting=Object.keys(inventory.formatting.objects??{}),interactions=Object.entries(inventory.interactions.visual??{}).map(([name,value])=>name+': '+JSON.stringify(value))
+  const publishers=inventory.publisher.declarations.map(value=>value.name),roles=Object.keys(inventory.dataRoles.bindings??{}),formatting=Object.keys(inventory.formatting.objects??{})
+  const interactions=Object.entries(inventory.interactions.visual??{}).map(([name,value])=>'Visual: '+name+': '+JSON.stringify(value))
+  if(inventory.interactions.page?.length)interactions.push('Page: '+JSON.stringify(inventory.interactions.page))
   const licences=inventory.licence.requirements.map(value=>JSON.stringify(value.declaration))
   details.append(metadata([
    ['Source visual',resource.file],['Publisher',publishers.length?publishers.join(', '):'Unknown; supply publisher evidence'],

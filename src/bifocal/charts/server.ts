@@ -8,7 +8,8 @@ import { discardBody, exactKeys, json, jsonBody } from '../models/validation/tra
 import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
 import { fail, QueryError } from '../query/types'
-import { chartPage } from './page.server'
+import { displayZone } from '../company/display-zone'
+import { chartPage, chartUnavailable } from './page.server'
 import { chartDocument } from './protocol'
 import { readChart } from './store.server'
 import { chartStyles } from './styles'
@@ -27,10 +28,11 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
   if(url.search&&(!saved||saved[1]!=='app'))fail('query_parameters_not_supported',400)
   if(saved) {
    if(request.method!=='GET')fail('method_not_allowed',405)
-   const chart=await readChart(env,owner,ownerId,saved[2])
    if(saved[1]==='app') {
     const session=await operatorAuth(env).getSession(request)
     if(!session)fail('owner_required',401)
+    try {
+    const chart=await readChart(env,owner,ownerId,saved[2])
     let selection:Selection|undefined
     if(url.search){
      if([...url.searchParams.keys()].some(key=>key!=='selection')||url.searchParams.getAll('selection').length!==1)fail('chart_selection_required',400)
@@ -38,9 +40,11 @@ export async function chartResponse(request:Request,original:Bindings):Promise<R
      if(!view.selection)fail('chart_selection_not_permitted',400)
      if(selected!=='all'){if(!selected||!/^\d+$/.test(selected)||!Object.hasOwn(choices,Number(selected)))fail('chart_selection_not_permitted',400);selection={field:view.selection.field,value:choices[Number(selected)]}}
     }
-    return chartPage(chart,session.operator,selection)
+    return chartPage(chart,session.operator,selection,await displayZone(env,session.operator.email))
+    }catch(error){if(error instanceof QueryError&&error.status===404)return chartUnavailable(session.operator);throw error}
+
    }
-   return json(chart)
+   return json(await readChart(env,owner,ownerId,saved[2]))
   }
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest'])
