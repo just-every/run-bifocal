@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {dump} from 'js-yaml'
+import {join} from 'node:path'
 
 // Synthetic PBIR containers and unpacked metadata in the documented Power BI
 // shapes. These fixtures convey no real publisher licence or binary rights.
@@ -14,6 +15,7 @@ const roles={Values:{projections:[{field:{Column:{Expression:{SourceRef:{Entity:
 const container=(name,type,spec)=>({name,position:{x:0,y:0,z:0,height:300,width:500,tabOrder:0},visual:{visualType:type,query:{queryState:roles},objects:{...(spec?{vega:[{properties:{jsonSpec:literal(JSON.stringify(spec)),jsonConfig:literal('{}')}}]}:{}),general:[{properties:{formatString:literal('$0.00')}}]},drillFilterOtherVisuals:true}})
 
 export async function proveCustomVisualInventory({base,prepare,apply,call,page,origin,proveScreen}){
+ const capture=async name=>{await proveScreen(name);if(process.env.BIFOCAL_PROOF_DIR)for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.getByRole('region',{name:'Custom visual mappings',exact:true}).screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,name+'-detail-'+width+'.png')})}}
  const input=structuredClone(base);input.projectId='synthetic-bifocal-custom-visuals'
  const metadataPath=type=>report+'CustomVisuals/'+type+'/resources/'+type+'.pbiviz.json'
  const manifestPath=type=>report+'CustomVisuals/'+type+'/package.json'
@@ -63,7 +65,7 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  const visible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(visible.report.project.resources.find(item=>item.id===source.id).definition.inventory,inventory)
  assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0)
- await proveScreen('custom-visual-source-inventory')
+ await capture('custom-visual-source-inventory')
  const unsafe=structuredClone(input);unsafe.projectId='synthetic-bifocal-custom-visuals-unsafe'
  const activeSpec={...specification,data:{url:'https://synthetic-bifocal-exfil.invalid/salary'},transform:[{calculate:"fetch('/api/operator/datasets')",as:'salary'}]}
  unsafe.files.find(item=>item.path===source.file).content=JSON.stringify(container('synthetic-bifocal-deneb',deneb,activeSpec))
@@ -81,6 +83,6 @@ export async function proveCustomVisualInventory({base,prepare,apply,call,page,o
  const unsafeVisible=JSON.parse(await page.locator('#model-import-current pre').innerText())
  assert.deepEqual(unsafeVisible.report.project.resources,retained.report.project.resources)
  assert.equal(await page.evaluate(()=>globalThis.__syntheticBifocalVisualExecuted),undefined,'Reviewing imported metadata never evaluates its JavaScript')
- await proveScreen('custom-visual-denied-inventory')
+ await capture('custom-visual-denied-inventory')
  return [{input,plan},{input:unsafe,plan:blocked}]
 }

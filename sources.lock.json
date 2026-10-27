@@ -4685,7 +4685,7 @@
       "executable": false
     },
     "tests/journeys/custom-visual-import.mjs": {
-      "sha256": "8d727be5a60256b9124014a8915ece59779209845f8378f19d0674cce69376f7",
+      "sha256": "1e76f8c52c5d617fbbc3de3f9dc3719a4446b66abd1c99d6467f5e373f08e150",
       "executable": false
     },
     "tests/journeys/dashboard-authoring.mjs": {
@@ -4765,7 +4765,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "9ec4aa787488543d62ea989f750acb1a2afa3028147dedfb3f0eea94b514f001",
+      "sha256": "95af644cfa1cd4f4f81cf12d7651bc5cec281bcfe92ea713bf76e3e0458bf9cb",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {

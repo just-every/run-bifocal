@@ -16,6 +16,13 @@ import {proveRecurringTooling} from './recurring-tooling.mjs'
 import {proveEnvironmentTooling} from './environment-tooling.mjs'
 import {proveCustomVisualInventory} from './custom-visual-import.mjs'
 
+const pbipProject=source=>({...structuredClone(source),projectId:'synthetic-bifocal-pbip',format:'pbip',files:[
+  {path:'Sales.pbip',content:JSON.stringify({version:'1.0',artifacts:[{report:{path:'Sales.Report'}}],settings:{enableAutoRecovery:true}})},
+  {path:'Sales.Report/definition.pbir',content:JSON.stringify({version:'4.0',datasetReference:{byPath:{path:'../Sales.SemanticModel'}}})},
+  {path:'Sales.SemanticModel/definition.pbism',content:JSON.stringify({version:'4.0',settings:{}})},
+  {path:'Sales.SemanticModel/definition/tables/Sales.tmdl',content:source.files[0].content}
+ ]})
+
 export async function proveModelImports({origin,context,page,call,upload,proveScreen,signInMember}){
  const dataset='synthetic-bifocal-model-imports',csv='invoice,region,revenue,internal-note\n1,West,$10.01,Restricted source detail\n2,East,$20.02,Other source detail\n3,West,-$0.03,Return detail\n4,East,,Missing revenue detail\n'
  await upload(dataset,csv)
@@ -28,6 +35,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  const post=async(id,action,data,expected=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':id},data});assert.equal(r.status(),expected,await r.text());return r.json()}
  const prepare=async(input,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex'),u=await post(input.projectId,'uploads',{name:'synthetic-bifocal-project.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')});return post(input.projectId,'plan',{uploadId:u.uploadId,...(catchup?{catchup:true}:{})})}
  const apply=async(id,plan)=>{await post(id,'apply',{planId:plan.planId,reviewedFingerprint:'0'.repeat(64)},403);for(let i=0;i<20;i++){const a=await post(id,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(a.job.state==='completed'){const r=await post(id,'reconcile',{planId:plan.planId});assert.equal(r.ok,true);return}}assert.fail('Project import did not complete')}
+ if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY==='1'){await proveCustomVisualInventory({base:pbipProject(projects[3]),prepare,apply,call,page,origin,proveScreen});return}
  for(const input of projects){
   const plan=await prepare(input)
   assert.equal(plan.counts.rejected,0,JSON.stringify(plan));assert.equal(plan.project.report.compatible,true,JSON.stringify(plan.project.report));assert.deepEqual(plan.project.report.issues,[]);assert.ok(plan.project.definition.views.every(v=>v.query.semantic.dimensions.every(d=>d.column!=='internal-note')))
@@ -214,12 +222,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  }
  const unsafe=structuredClone(cloud);unsafe.projectId='synthetic-bifocal-dbt-unresolved';const broken=structuredClone(manifest);broken.nodes['model.synthetic_bifocal.sales'].depends_on.nodes=['model.synthetic_bifocal.sales','model.synthetic_bifocal.missing'];broken.nodes['model.synthetic_bifocal.sales'].raw_code="{{ run_query('select 1') }}";unsafe.files[0].content=JSON.stringify(broken)
  const unsafePlan=await prepare(unsafe);assert.equal(unsafePlan.project.report.compatible,false);assert.deepEqual(unsafePlan.project.report.issues.filter(i=>['missing_dbt_dependency','cyclic_dbt_dependency'].includes(i.code)).map(i=>i.code).sort(),['cyclic_dbt_dependency','missing_dbt_dependency']);assert.match(unsafePlan.project.report.project.resources.find(r=>r.kind==='model').definition.raw_code,/run_query/);await apply(unsafe.projectId,unsafePlan);dbtProjects.push({input:unsafe,plan:unsafePlan})
- const pbip={...structuredClone(projects[3]),projectId:'synthetic-bifocal-pbip',format:'pbip',files:[
-  {path:'Sales.pbip',content:JSON.stringify({version:'1.0',artifacts:[{report:{path:'Sales.Report'}}],settings:{enableAutoRecovery:true}})},
-  {path:'Sales.Report/definition.pbir',content:JSON.stringify({version:'4.0',datasetReference:{byPath:{path:'../Sales.SemanticModel'}}})},
-  {path:'Sales.SemanticModel/definition.pbism',content:JSON.stringify({version:'4.0',settings:{}})},
-  {path:'Sales.SemanticModel/definition/tables/Sales.tmdl',content:projects[3].files[0].content}
- ]}
+ const pbip=pbipProject(projects[3])
  const pbipPlan=await prepare(pbip);assert.equal(pbipPlan.counts.rejected,0);assert.equal(pbipPlan.project.report.compatible,false);assert.deepEqual(pbipPlan.project.report.project.resources.map(r=>[r.id,r.dependencies]),[
   ['Sales.pbip',['Sales.Report/definition.pbir']],['Sales.Report/definition.pbir',['Sales.SemanticModel/definition.pbism']],['Sales.SemanticModel/definition.pbism',['Sales.SemanticModel/definition/tables/Sales.tmdl']],['Sales.SemanticModel/definition/tables/Sales.tmdl',[]]
  ]);assert.equal(pbipPlan.project.definition.views[0].query.measures[0].column,'revenue');assert.ok(pbipPlan.project.report.issues.some(i=>i.code==='pbip_report_translation_pending'));await apply(pbip.projectId,pbipPlan);const pbipRead=await call('/model-imports/'+pbip.projectId);assert.deepEqual(pbipRead.input.files,pbip.files);await call('/model-authoring/review',{document:dump(pbipRead.definition),importProject:pbip.projectId,importRevision:pbipRead.revision},409);dbtProjects.push({input:pbip,plan:pbipPlan})
@@ -702,8 +705,7 @@ export async function proveNativePreparation({imports=false}={}){
   const proveScreen=async(label)=>{
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.png')})}}
   }
-  await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
-  await proveDBTExecution({origin,context,call,upload,signInMember})
+  if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY!=='1'){await provePreparation({origin,context,page,call,upload,signInMember,proveScreen});await proveDBTExecution({origin,context,call,upload,signInMember})}
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}
