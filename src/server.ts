@@ -1,3 +1,6 @@
+import { securityBoundary } from './bifocal/security/boundary.server'
+import { securityPage } from './bifocal/security/page.server'
+import { securityResponse } from './bifocal/security/policy.server'
 import { portalResponse } from './bifocal/portal/server'
 import {collaborationResponse} from './bifocal/collaboration/server'
 import { withDemo } from './modules/demo/index.mjs'
@@ -69,12 +72,16 @@ function noTransform(response: Response): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
-export default withDemo<Bindings, ExportedHandler<Bindings>>({
+const application: ExportedHandler<Bindings> = {
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const auth = await authResponse(request, env)
     if (auth) return auth
+    const securitySettings = await securityPage(request, env)
+    if (securitySettings) return securitySettings
+    const security = await securityResponse(request, env)
+    if (security) return security
     const collaboration = await collaborationResponse(request, env)
     if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)
@@ -173,4 +180,7 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (lobby) return lobby
     return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
   },
-} satisfies ExportedHandler<Bindings>, { seed: seedDemo })
+}
+export default withDemo<Bindings, ExportedHandler<Bindings>>({
+ fetch: (request, env, execution) => securityBoundary(request, env, async () => application.fetch!(request, env, execution)),
+}, { seed: seedDemo })

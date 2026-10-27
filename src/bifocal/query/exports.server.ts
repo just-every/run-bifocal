@@ -1,3 +1,4 @@
+import { noteQuery } from '../security/audit.server'
 import type { Bindings } from '../../auth.server'
 import { assertion, transact } from '../../modules/import-kit/src/door/store.ts'
 import { readQuery } from '../data/snapshots/store'
@@ -24,6 +25,7 @@ export async function retainedExportResponse(request:Request,env:Bindings,owner:
   if(input.scope!=='summary'&&input.scope!=='underlying')fail('explicit_export_scope_required',400)
   if(input.format!=='csv'&&input.format!=='xlsx')fail('export_format_required',400)
   const {snapshot,sources,guard}=await readQuery(env,owner,ownerId,match[1]),policy=await readExportPolicy(env)
+  noteQuery(request,env,snapshot,{exportScope:input.scope})
   if(input.scope==='summary'&&snapshot.answer.rows.some(row=>Object.values(row.values).some(value=>!['value','null'].includes(value.state))))fail('incomplete_summary_export_refused',409)
   const {columns,rows}=retainedTable(snapshot,sources,input.scope==='underlying')
   const plan=fullExportPlan(snapshot.snapshotId,snapshot.digest,input.scope,input.format,columns,rows,policy)

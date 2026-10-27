@@ -1,3 +1,4 @@
+import { noteQuery } from '../security/audit.server'
 import { entitlementResponse } from '../entitlements/server'
 import {FILE_LIMITS} from '../imports/files/limits'
 import {fullExportPlan,fullExportSlice} from './full-export'
@@ -94,6 +95,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    }
    const snapshot=await saveQuery(env,actor,query,context,sources)
    if(grant)await transact(env.DB,actor,[...access!.guards.map(assertion),audit(actor,grant,'question-run')])
+   noteQuery(request,env,snapshot)
    return json(snapshot,201)
   }
   const match=/^\/api\/operator\/explore\/([a-f0-9-]{36})(?:\/(page|export|export-plan|full-export))?$/.exec(path)
@@ -108,6 +110,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   const {snapshot,sources,guard}=await readQuery(env,actor,ownerId,match[1]),exploration=snapshot.context.exploration
   if(!exploration)fail('question_not_found',404)
   if(access&&((exploration.entitlementRevision??null)!==access.entitlements.revision||(exploration.entitlementDay??null)!==access.entitlements.day))fail('entitlement_snapshot_changed',409)
+  noteQuery(request,env,snapshot)
   const model=await readModel(env,ownerId,exploration.modelId)
   if(model.production!==exploration.revision)fail('published_model_changed',409)
   const modelFence=modelGuard(model),grant=access?.grant
@@ -115,6 +118,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   if(!match[2]){await transact(env.DB,actor,fences);return json(snapshot)}
   const input=await jsonBody(request);exactKeys(input,match[2]==='page'?['scope','offset','layout']:['scope','format','layout',...(match[2]==='full-export'?['offset','planDigest']:[])])
   if(!['summary','underlying'].includes(String(input.scope)))fail('explicit_export_scope_required',400)
+  noteQuery(request,env,snapshot,{exportScope:input.scope})
   if(grant&&(input.scope==='underlying'&&!grant.definition.underlying||match[2]!=='page'&&(input.scope==='summary'?!grant.definition.summaryExport:!grant.definition.underlyingExport)))fail('exploration_scope_not_permitted',403)
   if(input.layout!==undefined&&(input.layout!=='pivot'||input.scope!=='summary'||typeof exploration.parameters.pivot!=='string'))fail('saved_pivot_layout_required',400)
   const pivot=input.scope==='summary'&&typeof exploration.parameters.pivot==='string'?pivotTable(snapshot,exploration.parameters.pivot):null

@@ -1,6 +1,6 @@
 // Test scheduling only: real native requests and D1 handle both operations.
 import worker from '../../src/server.dev'
-let pending
+let pending,originalAuditEntry
 const statements=new WeakMap()
 export default {
  async fetch(request,env,execution){
@@ -10,6 +10,25 @@ export default {
   if(url.pathname==='/__entitlement-fixture'&&request.method==='POST'){
    if(!env.RER_DEV_KEY||request.headers.get('x-rer-dev-key')!==env.RER_DEV_KEY)return new Response(null,{status:404})
    const input=await request.json()
+   if(input.action==='audit-mutation-guards'){
+    const row=await env.DB.prepare('SELECT sequence FROM bf_security_audit ORDER BY sequence LIMIT 1').first()
+    let updateRefused=false,deleteRefused=false
+    try{await env.DB.prepare('UPDATE bf_security_audit SET event_json=event_json WHERE sequence=?').bind(row.sequence).run()}catch{updateRefused=true}
+    try{await env.DB.prepare('DELETE FROM bf_security_audit WHERE sequence=?').bind(row.sequence).run()}catch{deleteRefused=true}
+    return Response.json({updateRefused,deleteRefused})
+   }
+   if(input.action==='audit-corrupt'){
+    originalAuditEntry=await env.DB.prepare('SELECT sequence,event_json FROM bf_security_audit ORDER BY sequence LIMIT 1').first()
+    await env.DB.prepare('DROP TRIGGER bf_security_audit_no_update').run()
+    await env.DB.prepare('UPDATE bf_security_audit SET event_json=? WHERE sequence=?').bind(JSON.stringify({...JSON.parse(originalAuditEntry.event_json),outcome:'synthetic-bifocal-altered'}),originalAuditEntry.sequence).run()
+    return Response.json({changed:true})
+   }
+   if(input.action==='audit-repair-fixture'){
+    await env.DB.prepare('UPDATE bf_security_audit SET event_json=? WHERE sequence=?').bind(originalAuditEntry.event_json,originalAuditEntry.sequence).run()
+    await env.DB.prepare("CREATE TRIGGER bf_security_audit_no_update BEFORE UPDATE ON bf_security_audit BEGIN SELECT RAISE(ABORT,'security_audit_append_only'); END").run()
+    originalAuditEntry=null
+    return Response.json({repaired:true})
+   }
    if(input.action==='clock')return Response.json(await env.DB.prepare("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc").first())
    if(input.action==='collision-insert'&&typeof input.operatorId==='string'){
     await env.DB.prepare("INSERT INTO oa_operators(id,email,display_name,role,status,version,created_at) SELECT 'synthetic-bifocal-normalization-collision',upper(email),'Synthetic collision','member','active',1,created_at FROM oa_operators WHERE id=?").bind(input.operatorId).run()
@@ -45,6 +64,13 @@ export default {
    }
    const value=target[key];return typeof value==='function'?value.bind(target):value
   }})
+  // The network edge supplies the authoritative ingress address in this test.
+  if(request.headers.has('x-security-test-ip')){
+   const headers=new Headers(request.headers),ip=headers.get('x-security-test-ip')
+   headers.delete('x-security-test-ip');headers.delete('CF-Connecting-IP')
+   if(ip!=='unknown')headers.set('CF-Connecting-IP',ip)
+   request=new Request(request,{headers})
+  }
   return worker.fetch(request,{...env,DB:database},execution)
  }
 }

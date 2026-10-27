@@ -1,3 +1,4 @@
+import { noteQuery } from '../security/audit.server'
 import { qualityState } from '../quality/server'
 import { boardDocument, readBoard, saveBoard } from '../dashboards/store.server'
 import { randomUUID } from 'node:crypto'
@@ -53,7 +54,9 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if (path==='/api/operator/queries/run') {
    if (request.method!=='POST') return json({error:'method_not_allowed'},405)
    const definition=queryInput(await body(request)), context=await queryContext(env,definition,ownerId), sources=await readSources(env,definition)
-   return json(await saveQuery(env,authority,definition,context,sources),201)
+   const snapshot=await saveQuery(env,authority,definition,context,sources)
+   noteQuery(request,env,snapshot)
+   return json(snapshot,201)
   }
   if (path==='/api/operator/queries') {
    if (request.method!=='GET') return json({error:'method_not_allowed'},405)
@@ -67,6 +70,7 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
    if (request.method!==(query[2]?'POST':'GET')) return json({error:'method_not_allowed'},405)
    if (query[2]) {const supplied=await body(request);if(Object.keys(supplied).length) fail('snapshot_scope_immutable',403)}
    const {snapshot,sources,guard}=await readQuery(env,authority,ownerId,query[1])
+   noteQuery(request,env,snapshot)
    if (query[2]) {
     const answer=execute(snapshot.definition,sources,snapshot.context)
     if(canonicalJson(answer)!==canonicalJson(snapshot.answer)) fail('snapshot_reproduction_failed',409)

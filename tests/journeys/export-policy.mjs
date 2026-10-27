@@ -85,3 +85,80 @@ export async function proveExportPolicy({origin,context,page,upload,proveScreen,
  }
  console.log('Interactive export policy: owner autosave, stale and failed input retention, invited-member denial, effective catalog caps, complete-or-refused files and independent download permissions passed at 1440 and 390')
 }
+
+/** Bounded native network policy and attributable restricted-export audit. */
+export async function proveSecurity({origin,owner,reader,readerId,page,upload,proveScreen,fixture}) {
+ const ingress='198.51.100.7',edge={'x-security-test-ip':ingress},headers={Origin:origin,...edge}
+ const secret='synthetic-bifocal-private-row'
+ const call=async(path,data,client=owner,status=200,extra={})=>{const response=await client.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...data===undefined?{}:{data}});assert.equal(response.status(),status,await response.text());return response.json()}
+ const policy=async(data,client=owner,status=200,extra={})=>{const response=await client.request.fetch(origin+'/api/operator/security/ip-policy',{method:data===undefined?'GET':'PUT',headers:{...headers,...extra},...data===undefined?{}:{data}});assert.equal(response.status(),status,await response.text());return response.json()}
+ const audit=()=>call('/security/audit')
+ const original=await policy()
+ assert.equal((await fetch(origin+'/api/operator/security/audit')).status,401)
+ await call('/security/audit',undefined,reader,403);await policy(undefined,reader,403)
+ await policy({previousRevision:original.revision,enabled:true,prefixes:[ingress]},reader,403)
+ await policy({previousRevision:original.revision,enabled:true,prefixes:[ingress]},owner,401,{Origin:'https://foreign.example.test'})
+ for(const prefixes of [[],['198.51.100.999'],['198.51.100.0/33'],['2001:db8::/129'],['127.0.0.1/8/8']])await policy({previousRevision:original.revision,enabled:true,prefixes},owner,400)
+ await policy({previousRevision:original.revision,enabled:true,prefixes:['203.0.113.0/24']},owner,400)
+ let active=await policy({previousRevision:original.revision,enabled:true,prefixes:['198.51.100.0/24','2001:db8:7::/48']})
+ try {
+  await policy({previousRevision:original.revision,enabled:false,prefixes:[]},owner,409)
+  for(const [ip,expected] of [['198.51.100.255',200],['198.51.101.1',403],['2001:db8:7::22',200],['2001:db8:8::22',403],['unknown',403],['::ffff:198.51.100.7',403]]){
+   const response=await owner.request.get(origin+'/api/operator/security/ip-policy',{headers:{'x-security-test-ip':ip,'X-Forwarded-For':ingress}})
+   assert.equal(response.status(),expected,'Only the ingress address controls network admission: '+ip)
+  }
+  for(const path of ['/app/settings','/app/settings/security','/auth/session','/api/operator/explore','/api/v1/definitions','/api/operator/portal/tenants']){
+   const response=await owner.request.get(origin+path,{headers:{'x-security-test-ip':'203.0.113.9'}})
+   assert.equal(response.status(),403,'Every private router is behind IP admission')
+  }
+  await page.setExtraHTTPHeaders(edge)
+  await page.goto(origin+'/app/settings');await page.getByRole('link',{name:'Security and audit',exact:true}).waitFor();await proveScreen('security-settings-entry')
+  await page.getByRole('link',{name:'Security and audit',exact:true}).click();await page.getByRole('status').filter({hasText:'IP allowlist is enabled.'}).waitFor();await proveScreen('security-policy-enabled')
+  await page.getByLabel('Allowed addresses and prefixes').fill(ingress+'\n2001:db8:7::/48');await page.getByLabel('I approve this exact network policy').check();await page.getByRole('button',{name:'Save reviewed policy'}).click();await page.getByRole('status').filter({hasText:'Network policy saved.'}).waitFor()
+  active=await policy();assert.deepEqual(active.prefixes,[ingress,'2001:db8:7::/48'])
+  await page.getByLabel('Allowed addresses and prefixes').fill('invalid');await page.getByLabel('I approve this exact network policy').check();await page.getByRole('button',{name:'Save reviewed policy'}).click();await page.getByRole('status').filter({hasText:'Not saved:'}).waitFor();assert.equal(await page.getByLabel('Allowed addresses and prefixes').inputValue(),'invalid');await proveScreen('security-policy-refused')
+  const dataset='synthetic-bifocal-security',calendar=dataset
+  await upload(dataset,'invoice,region,revenue,note\ninv-west,West,$10.01,'+secret+'\ninv-east,East,$20.02,excluded\ninv-hidden,Hidden,$99.00,excluded\n',false,false,edge)
+  await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Security year',kind:'fiscal',startMonth:1}},owner,201)
+  const query={version:1,dataset,joins:[],filters:[],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',sourceCurrency:'USD',scale:2}],context:{modelVersion:'security',metricVersion:'security',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'},semantic:{grain:['invoice'],dimensions:[{column:'invoice',type:'text'},{column:'region',type:'text'},{column:'revenue',type:'money'}],hierarchies:[['region','invoice']],slowlyChanging:'reject-duplicate-grain'}}
+  const model=await call('/models',{definition:{views:[{id:'sales',kind:'chart',query,rowRules:[{column:'region',op:'ne',value:'Hidden'}]}],quality:[]}},owner,201),branch='/models/'+model.modelId+'/branches/'+model.branchId
+  const reviewed=await call(branch+'/validate',{});await call(branch+'/approve',{digest:reviewed.digest});await call(branch+'/promote',{environment:'staging',digest:reviewed.digest});await call(branch+'/promote',{environment:'production',digest:reviewed.digest})
+  const person=(await(await owner.request.get(origin+'/auth/operators',{headers:edge})).json()).find(p=>p.id===readerId)
+  const grant={operatorId:readerId,operatorVersion:person.version,modelId:model.modelId,revision:model.revision,viewId:'sales',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['region'],underlying:false,summaryExport:true,underlyingExport:false,expiresAt:new Date(Date.now()+300000).toISOString()}
+  const review=await call('/explore/access/review',grant),issued=await call('/explore/access',{...grant,reviewedDigest:review.digest},owner,201)
+  const ownerQuestion=await call('/queries/run',query,owner,201)
+  assert.equal(ownerQuestion.answer.totals.revenue.value,'129.03')
+  const ownerDownload=await owner.request.post(origin+'/api/operator/queries/'+ownerQuestion.snapshotId+'/export',{headers,data:{scope:'summary',format:'csv'}})
+  assert.equal(ownerDownload.status(),200,await ownerDownload.text())
+  assert.ok((await ownerDownload.text()).includes('20.02'))
+  const question=await call('/explore/run',{modelId:model.modelId,revision:model.revision,viewId:'sales',groupBy:['region'],filters:[],grantId:issued.id},reader,201)
+  assert.equal(question.answer.filteredRows,1);assert.equal(question.answer.totals.revenue.value,'10.01')
+  const download=await reader.request.post(origin+'/api/operator/explore/'+question.snapshotId+'/export',{headers,data:{scope:'summary',format:'csv'}})
+  assert.equal(download.status(),200,await download.text());assert.equal(await download.text(),'"region","revenue"\r\n"West","10.01"\r\n')
+  await call('/explore/'+question.snapshotId+'/export',{scope:'underlying',format:'csv'},reader,403)
+  const evidence=await audit();assert.equal(evidence.valid,true);assert.ok(evidence.head.sequence>0)
+  const ownerEvent=evidence.events.find(e=>e.action==='export'&&e.queryId===ownerQuestion.snapshotId)
+  assert.ok(ownerEvent);assert.equal(ownerEvent.scope.kind,'installation-owner');assert.equal(ownerEvent.outcome,'allowed')
+  const exports=evidence.events.filter(e=>e.action==='export'&&e.queryId===question.snapshotId)
+  assert.deepEqual(exports.map(e=>e.outcome),['allowed','refused'])
+  const exported=exports[0];assert.equal(exported.actorId,readerId);assert.equal(exported.delegatedCredential,null);assert.equal(exported.tenantId,null)
+  assert.equal(exported.scope.kind,'delegated-view');assert.equal(exported.scope.grantId,issued.id);assert.equal(exported.scope.modelId,model.modelId);assert.equal(exported.scope.modelRevision,model.revision);assert.equal(exported.scope.viewId,'sales');assert.equal(exported.scope.exportScope,'summary');assert.equal(exported.scope.exportRows,1);assert.equal(exported.httpStatus,200);assert.ok(Number.isFinite(Date.parse(exported.recordedAt)))
+  const {createHmac}=await import('node:crypto'),canonical=value=>value===null||typeof value!=='object'?JSON.stringify(value):Array.isArray(value)?'['+value.map(canonical).join(',')+']':'{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}'
+  const expectedScope={filters:[{column:'region',op:'ne',value:'Hidden'},{column:'region',op:'eq',value:'West'}],fiscal:null}
+  assert.equal(exported.scope.rowScopeDigest,createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('bifocal-security-v1\n'+canonical(expectedScope)).digest('hex'))
+  assert.ok(evidence.events.some(e=>e.action==='query'&&e.queryId===question.snapshotId&&e.actorId===readerId))
+  const text=JSON.stringify(evidence);for(const forbidden of [secret,'West','Hidden','10.01','20.02','synthetic-bifocal-2'.repeat(3),'cookie','authorization','value_json'])assert.ok(!text.includes(forbidden),'Audit excludes raw values and credentials')
+  assert.deepEqual(await fixture('audit-mutation-guards'),{updateRefused:true,deleteRefused:true})
+  await page.goto(origin+'/app/settings/security');await page.getByRole('status').filter({hasText:'Audit chain verified.'}).waitFor();await proveScreen('security-audit-verified')
+  await fixture('audit-corrupt')
+  try{const changed=await audit();assert.equal(changed.valid,false);assert.deepEqual(changed.events,[]);await page.getByRole('button',{name:'Verify audit chain'}).click();await page.getByRole('status').filter({hasText:'Audit integrity failed.'}).waitFor();await proveScreen('security-audit-tampered')}finally{await fixture('audit-repair-fixture')}
+  assert.equal((await audit()).valid,true)
+  await call('/explore/access/'+issued.id+'/revoke',{})
+  await call('/explore/'+question.snapshotId+'/export',{scope:'summary',format:'csv'},reader,403)
+  const memberPage=await reader.newPage();await memberPage.setExtraHTTPHeaders(edge)
+  try{for(const width of [1440,390]){await memberPage.setViewportSize({width,height:1000});assert.equal((await memberPage.goto(origin+'/app/settings/security')).status(),403);assert.equal(await memberPage.getByRole('heading',{name:'Security settings unavailable'}).count(),1);if(process.env.BIFOCAL_PROOF_DIR)await memberPage.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/security-member-refused-'+width+'.png',fullPage:true})}}finally{await memberPage.close()}
+  await page.setExtraHTTPHeaders({'x-security-test-ip':'203.0.113.9'});assert.equal((await page.goto(origin+'/app/settings/security')).status(),403);await proveScreen('security-network-refused')
+ } finally {const current=await policy();await policy({previousRevision:current.revision,enabled:original.enabled,prefixes:original.prefixes});await page.setExtraHTTPHeaders({})}
+ assert.equal((await audit()).valid,true)
+ console.log('Security public doors: native owner policy, IPv4 and IPv6 admission and refusal, restricted member export, current scope, redaction, append-only guards and tamper detection passed at 1440 and 390')
+}

@@ -4,7 +4,7 @@ import {proveInputTables} from './conventions.mjs'
 import {proveCollaboration} from './collaboration.mjs'
 import assert from 'node:assert/strict'
 import {proveExplorationAccess,proveEntitlements} from '../bifocal-exploration.mjs'
-import {proveExportPolicy} from './export-policy.mjs'
+import {proveSecurity,proveExportPolicy} from './export-policy.mjs'
 import {proveUsageCohorts} from './content-cohorts.mjs'
 import {contentBrowser} from './content-browser.mjs'
 import { createHash } from 'node:crypto'
@@ -41,7 +41,7 @@ export async function proveContentGovernance(){
    try{ready=(await fetch(origin+'/health')).ok}catch{}
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
   }
-  assert.ok(ready,'native local entry starts')
+  assert.ok(ready,'native local entry starts: '+output.slice(-5000))
   browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
   const owner=await browser.newContext(),reader=await browser.newContext()
   for(const context of [owner,reader])assert.equal((await context.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:environment.RER_DEV_KEY}})).status(),204)
@@ -57,15 +57,17 @@ export async function proveContentGovernance(){
   assert.ok(target?.signInUrl);await reader.request.get(new URL(target.signInUrl,origin).href)
   const readerSession=await(await reader.request.get(origin+'/auth/session')).json(),ownerSession=await(await owner.request.get(origin+'/auth/session')).json()
   assert.equal(readerSession.operator.role,'member')
-  const upload=async(dataset,data,replace=false,stage=false)=>{
+  const upload=async(dataset,data,replace=false,stage=false,extraHeaders={})=>{
    const bytes=Buffer.from(JSON.stringify({version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:null,formulaTreatment:'literal-text',data})),hash=createHash('sha256').update(bytes).digest('hex')
-   const post=async(action,data)=>{const r=await owner.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Dataset':dataset},data});assert.equal(r.status(),200,await r.text());return r.json()}
+   const post=async(action,data)=>{const r=await owner.request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Dataset':dataset,...extraHeaders},data});assert.equal(r.status(),200,await r.text());return r.json()}
    const uploaded=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')}),plan=await post('plan',{uploadId:uploaded.uploadId,...replace?{catchup:true}:{}})
    if(stage)return {path:'/api/operator/import/apply',headers:{'X-Import-Dataset':dataset},body:{planId:plan.planId,reviewedFingerprint:plan.fingerprint}}
    for(let i=0;i<20;i++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return
    assert.fail('Reviewed export-policy source import did not finish')
   }
   const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.equal(await page.locator('button').evaluateAll(buttons=>buttons.filter(button=>!button.textContent.trim()).length),0);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}
+  const securityFixture=async action=>{const response=await owner.request.post(origin+'/__entitlement-fixture',{headers:{'x-rer-dev-key':environment.RER_DEV_KEY},data:{action}});assert.equal(response.status(),200,await response.text());return response.json()}
+  if(process.env.BIFOCAL_FOCUS==='security'){await proveSecurity({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen,fixture:securityFixture});await owner.close();await reader.close();return}
   if(process.env.BIFOCAL_FOCUS==='portal'){await provePortalTenants({origin,owner,reader,upload});await owner.close();await reader.close();return}
   if(!process.env.BIFOCAL_FOCUS||process.env.BIFOCAL_FOCUS==='inputs')await proveInputTables(origin,owner,page,{reader,persist,environment})
   if(process.env.BIFOCAL_FOCUS==='inputs'){await owner.close();await reader.close();return}
@@ -82,6 +84,7 @@ export async function proveContentGovernance(){
   if(process.env.BIFOCAL_FOCUS==='entitlements'){await owner.close();await reader.close();return}
   await provePortalTenants({origin,owner,reader,upload})
   await proveCollaboration({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen})
+  await proveSecurity({origin,owner,reader,readerId:readerSession.operator.id,page,upload,proveScreen,fixture:securityFixture})
   await proveExportPolicy({origin,context:owner,page,reader,readerId:readerSession.operator.id,upload,proveScreen})
   await proveExplorationAccess(origin,owner,reader,readerSession.operator.id)
   const fixtures=await importDataset(origin,owner)
