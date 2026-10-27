@@ -4677,7 +4677,7 @@
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
-      "sha256": "cba2ffd74d5ccf43b5ca47e27ad11b5bfe87ff2e18640eecbb2ecd51804f6d21",
+      "sha256": "38dc04cbf613bb810323a031554b6c83b59a1acfa9ed37b311edaa613ecc214b",
       "executable": false
     },
     "tests/bifocal-exploration.mjs": {
@@ -4878,6 +4878,10 @@
     },
     "tests/journeys/portal-tenants.mjs": {
       "sha256": "4d873248b6c3c9fd7cf6d288cd5b1efcd25daba9658ebe00090e6d263d5e19cf",
+      "executable": false
+    },
+    "tests/journeys/quality-clock-worker.mjs": {
+      "sha256": "04f13b1c200ec8cb65fb92275749bb466f2419f507b769087cc79d606127560b",
       "executable": false
     },
     "tests/journeys/question-cases.mjs": {

@@ -2,22 +2,23 @@ import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
-import {mkdtemp,mkdir,rm} from 'node:fs/promises'
+import {mkdtemp,mkdir,rm,readFile,writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {chromium} from '@playwright/test'
 import {proveScorecards,proveEaselTargets} from './bifocal-scorecards.mjs'
 import {proveQualityLineage} from './bifocal-quality-lineage.mjs'
-import {entitlementClock} from './journeys/entitlement-clock.mjs'
 
 export async function proveCertifiedMetrics() {
 const socket=createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r))
 const origin=`http://127.0.0.1:${port}`,persist=await mkdtemp(join(tmpdir(),'bifocal-governance-')),headers={Origin:origin},setup='synthetic-bifocal-1'.repeat(3)
-const clock=await entitlementClock(persist)
-const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/wrangler.json'],env={...process.env,...clock.environment,CI:'1',WRANGLER_SEND_METRICS:'false'}
+const wrangler=['node_modules/wrangler/bin/wrangler.js'],config=['--config','dist/server/quality-clock-wrangler.json'],env={...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}
 let output='',worker
 let browser
 try {
+ const configuration=JSON.parse(await readFile('dist/server/wrangler.json','utf8'));configuration.main='quality-clock.mjs';configuration.no_bundle=false
+ await writeFile('dist/server/quality-clock-wrangler.json',JSON.stringify(configuration))
+ await writeFile('dist/server/quality-clock.mjs',(await readFile('tests/journeys/quality-clock-worker.mjs','utf8')).replace('../../dist/server/index.js','./index.js'))
  execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe'})
  worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-1@example.test','--var','MAIL_FROM:synthetic-bifocal-2@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`],{env,stdio:['ignore','pipe','pipe']})
  worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
@@ -28,7 +29,9 @@ try {
  const call=async(path,data,expected=data===undefined?200:201,extra={})=>{const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...(data===undefined?{}:{data})});assert.equal(r.status(),expected,await r.text());return r.json()}
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)
  await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])
- await clock.set(new Date().toISOString())
+ let pinnedTime=Date.now()-60000
+ const clock={now:()=>pinnedTime,set:async at=>{pinnedTime=Date.parse(at);const response=await context.request.post(origin+'/__quality-clock',{data:{at}});assert.equal(response.status(),200)}}
+ await clock.set(new Date(pinnedTime).toISOString())
  await call('/calendars',{id:'synthetic-bifocal-calendar',previousVersion:null,definition:{name:'Calendar year',kind:'fiscal',startMonth:1}})
  const dataset='synthetic-bifocal-governance'
  const upload=async(data,catchup=false,lineage)=>{
@@ -143,6 +146,7 @@ try {
  await rm(persist,{recursive:true,force:true})
  // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
  await rm('dist/server/.wrangler',{recursive:true,force:true})
+ for(const file of ['dist/server/quality-clock-wrangler.json','dist/server/quality-clock.mjs'])await rm(file,{force:true})
 }
 
 }
