@@ -36,7 +36,8 @@ export async function proveContentGovernance(){
   child=spawn(process.execPath,['node_modules/vite/bin/vite.js','--config',configFile,'--host','127.0.0.1','--port',String(port),'--strictPort'],{env:environment,stdio:['ignore','pipe','pipe']})
   child.stdout.on('data',chunk=>{output+=chunk});child.stderr.on('data',chunk=>{output+=chunk})
   let ready=false
-  for(let attempt=0;attempt<120;attempt++){
+  const startupDeadline=Date.now()+120000
+  while(Date.now()<startupDeadline){
    assert.equal(child.exitCode,null,'native local entry remains running')
    try{ready=(await fetch(origin+'/health')).ok}catch{}
    if(ready)break;await new Promise(resolve=>setTimeout(resolve,250))
