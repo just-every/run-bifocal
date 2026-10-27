@@ -91,6 +91,11 @@ async function qualityView(env:Bindings,owner:NonNullable<Awaited<ReturnType<typ
  const rules=(await env.DB.prepare('SELECT * FROM bf_quality_rules WHERE owner_id=? ORDER BY id').bind(ownerId).all<Rule>()).results
  const histories=(await env.DB.prepare('SELECT r.* FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE q.owner_id=? ORDER BY r.rowid DESC LIMIT 100').bind(ownerId).all<{id:string;rule_id:string;source_revision:string|null;result_json:string;created_at:string}>()).results.map(r=>({...r,result:JSON.parse(String(r.result_json)),result_json:undefined}))
  const quality=await qualityState(env,rules.map(r=>r.dataset_id),ownerId)
+ // Keep every linked current run reachable even when newer runs fill the recent list.
+ for(const test of quality.tests)if(test.runId&&!histories.some(run=>run.id===test.runId)){
+  const run=await env.DB.prepare('SELECT r.* FROM bf_quality_runs r JOIN bf_quality_rules q ON q.id=r.rule_id WHERE r.id=? AND q.owner_id=?').bind(test.runId,ownerId).first<{id:string;rule_id:string;source_revision:string|null;result_json:string;created_at:string}>()
+  if(run)histories.push({...run,result:JSON.parse(run.result_json),result_json:undefined})
+ }
  await transact(env.DB,owner,[])
  return {rules,histories,quality}
 }

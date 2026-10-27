@@ -127,7 +127,7 @@ export async function proveEnvironmentTooling({origin,context,page,call,upload,p
  const staged=await status(),stagedModel=await call('/models/'+model.modelId),stagedMetric=await call('/metric-definitions/'+metric.id)
  await cli('environment-promote',[...envFlags,'--version','3','--digest',review.digest,'--environment','production'],false)
  assert.deepEqual(await status(),staged);assert.deepEqual(await call('/models/'+model.modelId),stagedModel);assert.deepEqual(await call('/metric-definitions/'+metric.id),stagedMetric)
- const unknown=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(unknown.compatible,false);assert.equal(unknown.qualityImpact.state,'unknown');assert.equal(unknown.qualityImpact.blocking,true)
+ const unknown=await cli('environment-review',[...envFlags,'--version','3']);assert.equal(unknown.compatible,false);assert.equal(unknown.qualityImpact.state,'unknown');assert.equal(unknown.qualityImpact.blocking,true);const uncheckedSource=unknown.qualityImpact.tests.find(test=>test.ruleId===qualityRule);assert.notEqual(uncheckedSource.runSourceRevision,uncheckedSource.sourceRevision)
  await cli('environment-approve',[...envFlags,'--version','3','--digest',unknown.digest],false)
  await page.goto(origin+'/app/environments/'+document.id);assert.match(await page.locator('[data-environment="development"] [data-quality-impact]').innerText(),/Current quality: unknown/);await proveScreen('environment-unknown-quality-refusal')
  await upload(dataset,'invoice,region,revenue,private-note\n1,West,$11.01,Confidential payroll detail\n1,East,$20.02,Other confidential payroll detail\n',true)

@@ -106,7 +106,7 @@ async function proveBoardQuality({origin,context,page,call,upload,proveScreen,da
  const failed=await call('/'+kind+'s/'+created.id)
  assert.deepEqual(failed.cards.map(card=>card.quality.state),['at risk','at risk'])
  for(const card of failed.cards){assert.deepEqual(card.quality.tests.map(test=>({rule:test.ruleId,run:test.runId,state:test.state})),rules.map(([id],i)=>({rule:id,run:runs[i].id,state:'failed'})).sort((a,b)=>a.rule.localeCompare(b.rule)));assert.deepEqual(card.quality.lastGood,baseline.cards.find(original=>original.queryId===card.queryId).quality.lastGood);assert.deepEqual(card.quality.lineage,[{dataset,columns:['invoice','region','revenue']}])}
- await page.reload();await page.getByRole('heading',{name:created.title,exact:true}).waitFor()
+ await page.goto(origin+'/app/'+kind+'s/'+created.id);await page.getByRole('heading',{name:created.title,exact:true}).waitFor()
  assert.equal(await page.locator('#board-cards .quality-notice').filter({hasText:'Quality at risk'}).count(),2)
  assert.equal(await page.getByRole('link',{name:'Board invoice identity · failed',exact:true}).count(),2)
  assert.equal(await page.getByRole('link',{name:'Retained last-good result',exact:true}).count(),2)
