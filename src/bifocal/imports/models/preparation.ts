@@ -51,7 +51,6 @@ export function compilePreparation(input:ModelImportInput,sources:Source[]):Flow
     report.inputSchema=tables[0]?.outputSchema??(document?sources.find(s=>s.id===document!.dataset)!.table.columns:null)
     try{
      if(!document)throw Error('Map this inactive source reference to a reviewed dataset using binding '+(step.binding??step.name)+'.')
-     if(step.binding&&step.operations===undefined)step={...step,operations:[]}
      if(step.operations===undefined)throw Error('No executable translation is available for this source construct.')
      const operations=structuredClone(step.operations)
      for(const op of operations)if(typeof op.dataset==='string'&&op.dataset.startsWith('$step:')){

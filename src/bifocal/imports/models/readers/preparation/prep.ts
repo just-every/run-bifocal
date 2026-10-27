@@ -107,7 +107,7 @@ function readDocument(file: FlowFile, document: Record<string, unknown>): Source
   if (extra.length) nodeIssues.push(`Unsupported Tableau Prep node configuration: ${extra.join(', ')}.`)
   if (inputTypes.has(type ?? '')) {
    if (!string(node.name)) nodeIssues.push('Tableau Prep input requires an explicit node name for source binding.')
-   else step.binding = node.name as string
+   else {step.binding = node.name as string;step.operations=[]}
    if (step.dependencies.length) nodeIssues.push('Tableau Prep input with upstream dependencies is unsupported.')
   } else if (type === '.v1.PublishExtract') {
    if (step.dependencies.length !== 1) nodeIssues.push('Tableau Prep extract output requires exactly one upstream step.')
