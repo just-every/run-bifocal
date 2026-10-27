@@ -25,7 +25,7 @@ form.elements.dataset.addEventListener('input', () => {
  $('current-table').replaceChildren(); $('history-list').replaceChildren(); $('erase-id').value = ''
 })
 function showErrors(validation, append = false) {
- $('errors').hidden = !validation?.errorCount
+ $('errors').hidden = !validation?.errorCount; document.querySelector('a[href="#errors"]').hidden = $('errors').hidden
  if (!validation) return
  $('error-total').textContent = `${validation.errorCount} cell errors. Fix the file or explicitly map a replacement schema. No rows will publish.`
  if (!append) $('error-list').replaceChildren()

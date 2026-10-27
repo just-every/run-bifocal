@@ -25,7 +25,7 @@ function chart(card,metric) {
 }
 export function boardChoices(queries) {
  const choices=$('board-choices');choices.replaceChildren()
- for(const item of queries){const wrapper=element('label',undefined,'checkbox'),input=element('input');input.type='checkbox';input.name='queryIds';input.value=item.id;wrapper.append(input,document.createTextNode(item.label+' · '+stamp(item.created_at,zone)));choices.append(wrapper)}
+ for(const item of queries){const wrapper=element('label',undefined,'checkbox'),input=element('input');input.type='checkbox';input.name='queryIds';input.value=item.id;wrapper.append(input,document.createTextNode(item.label.replaceAll(' · ',' ·\u00a0')+' ·\u00a0'+stamp(item.created_at,zone)));choices.append(wrapper)}
  if(!queries.length)choices.append(element('p','Run and retain answers before combining them.','muted'))
 }
 export function renderBoard(result,request,action,status) {

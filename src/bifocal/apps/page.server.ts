@@ -32,7 +32,7 @@ function cards(content:Awaited<ReturnType<typeof pageView>>):string {
  }).join('')+(content.target?`<section class="panel app-target"><h2>Target</h2><p>${h(content.target.title)}: ${h(content.target.amount)} USD from ${h(content.target.from)} to ${h(content.target.to)} (exclusive). Actual is the certified metric over that period.</p></section>`:'')
 }
 function document(title:string,viewer:{displayName:string;role:string},main:string,side='',status=200) {
- return new Response(appDocument({title:title+' · Bifocal',viewer,place:'apps',side,main,head:'<link rel="stylesheet" href="/bifocal/apps.css"><link rel="stylesheet" href="/bifocal/dashboard-authoring.css"><script type="module" src="/bifocal/apps.js"></script>'}),{status,headers})
+ return new Response(appDocument({title:title+' · Bifocal',viewer,place:'library',side,main,head:'<link rel="stylesheet" href="/bifocal/apps.css"><link rel="stylesheet" href="/bifocal/dashboard-authoring.css"><script type="module" src="/bifocal/apps.js"></script>'}),{status,headers})
 }
 const unavailable=(viewer:{displayName:string;role:string})=>document('App unavailable',viewer,'<h1>App unavailable</h1><p class="lead">This app is not available to your account.</p><p><a href="/app/apps">Back to apps</a></p>',undefined,404)
 function ownerList(apps:Awaited<ReturnType<typeof appList>>,content:Content[]) {
