@@ -43,16 +43,23 @@ function render(result) {
  $('context').textContent=JSON.stringify({snapshot:{id:result.snapshotId,createdAt:result.createdAt,...(result.artifactCreatedAt?{savedAt:result.artifactCreatedAt}:{})},exact:{totals:result.answer.totals,rows:result.answer.rows},definition:result.definition,context:result.context,sources:result.answer.sourceWatermarks,joinDiagnostics:result.answer.joinDiagnostics,digest:result.digest},null,2)
  $('title').value=result.title??'';current();status('Answer loaded. Exact values and retained context are shown below.')
 }
-// The retained answer on screen is the current row of the list, for a saved dashboard or report too.
-function current() { for(const link of $('saved-list').querySelectorAll('a'))link.getAttribute('href')==='/app/queries/'+snapshot?.queryId?link.setAttribute('aria-current','true'):link.removeAttribute('aria-current') }
+// The retained answer on screen is the current row of the Answers list. Saved dashboards and reports are filed in
+// Library, so they draw Library's side list and name their source answer with a plain link instead.
+function current() {
+ const list=$('saved-list'),source=$('source-answer')
+ if(source&&snapshot?.queryId){source.href='/app/queries/'+snapshot.queryId;source.hidden=false}
+ if(list)for(const link of list.querySelectorAll('a'))link.getAttribute('href')==='/app/queries/'+snapshot?.queryId?link.setAttribute('aria-current','true'):link.removeAttribute('aria-current')
+}
 async function history() {
- const result=await request('queries');boardChoices(result.queries);$('saved-list').replaceChildren()
+ const result=await request('queries'),list=$('saved-list');boardChoices(result.queries)
+ $('empty-answers').hidden=result.queries.length>0||!!document.body.dataset.id
+ if(!list)return
+ list.replaceChildren()
  // Each row reads as h1's list: the answer's name first, then one quiet line with its author and time. Answers are the
  // owner's own, so the author is the signed-in owner; the digest lives in the definition.
  const author=document.querySelector('.topbar .who')?.textContent
- for(const item of result.queries){const link=element('a'),meta=element('span',undefined,'row-meta'),time=element('time',when(item.created_at,zone)),[dataset,measures='']=String(item.label??'').split(' · ');time.dateTime=item.created_at;link.href='/app/queries/'+item.id;meta.append(...(author?[author,' · ']:[]),time);link.append(element('span',answerName(dataset,measures?measures.split(', '):[]),'row-name'),meta);$('saved-list').append(link)}
- if(!result.queries.length)$('saved-list').append(element('p','No saved answers yet.','side-note'))
- $('empty-answers').hidden=result.queries.length>0||!!document.body.dataset.id
+ for(const item of result.queries){const link=element('a'),meta=element('span',undefined,'row-meta'),time=element('time',when(item.created_at,zone)),[dataset,measures='']=String(item.label??'').split(' · ');time.dateTime=item.created_at;link.href='/app/queries/'+item.id;meta.append(...(author?[author,' · ']:[]),time);link.append(element('span',answerName(dataset,measures?measures.split(', '):[]),'row-name'),meta);list.append(link)}
+ if(!result.queries.length)list.append(element('p','No saved answers yet.','side-note'))
  current()
 }
 $('query-form').onsubmit=event=>{event.preventDefault();action(async()=>{let definition;try{definition=JSON.parse($('definition').value)}catch{throw Error('Enter a valid JSON query definition.')}render(await request('queries/run',definition));await history()})}
@@ -67,6 +74,6 @@ $('rerun').onclick=()=>action(async()=>{
  }
  status('Snapshot reproduced exactly from retained source and convention versions.')
 })
-action(async()=>{await history();if(document.body.dataset.id)render(await request(document.body.dataset.kind+'/'+document.body.dataset.id));else status('Paste a definition for your real imported data and saved calendar.')})
+action(async()=>{await history();if(document.body.dataset.id)render(await request(document.body.dataset.kind+'/'+document.body.dataset.id));else status('Open a retained answer, or paste a definition under New exact answer.')})
 
 if($('compose-form').tagName==='FORM')$('compose-form').onsubmit=event=>{event.preventDefault();action(async()=>{const form=event.currentTarget,queryIds=[...form.querySelectorAll('input[name=queryIds]:checked')].map(input=>input.value);const result=await request('dashboards',{title:form.elements.title.value,queryIds}),link=element('a','Open cross-system dashboard');link.href='/app/dashboards/'+result.id;$('board-created').replaceChildren(link);status('Dashboard saved with the exact selected answers.')})}

@@ -8,11 +8,12 @@ import { decimal, plus, rational } from '../currency/decimal'
 import type { Table } from '../imports/files/csv'
 import { fail, QueryError } from '../query/types'
 import { randomUUID } from 'node:crypto'
-import { document, exact, ident, input, json, object, result, text } from '../metrics/transport'
+import { sectionDocument, exact, ident, input, json, object, result, text } from '../metrics/transport'
 import { refusalLine } from '../metrics/forms'
 import { qualityRefusal } from '../metrics/refusals'
 import { qualityMain } from './page'
 import { sourceImpact } from '../models/lineage/server'
+const document = sectionDocument('quality')
 type Rule={id:string;owner_id:string;dataset_id:string;rule_json:string}
 type RuleDefinition={name:string;kind:'freshness'|'not-null'|'unique'|'accepted-values'|'count'|'money';column?:string;maxAgeSeconds?:number;values?:unknown[];expected?:string}
 type SourceRow={revision:string;value_json:string}

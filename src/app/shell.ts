@@ -51,10 +51,11 @@ function topBar(viewer: Viewer | null, place: Place) {
  return `<header class="topbar">${lockup}<nav class="tools" aria-label="App">${links(TOOLS)}</nav><div class="account">${avatar(viewer.displayName)}<span class="who">${escapeHtml(viewer.displayName)}</span>${menu}</div></header>`
 }
 
-/** The left column of the account pages: the signed-in person's own tools, then this installation's guides. */
+/** The left column of every Settings page and the guide: the Settings menu's places with the current one marked, then
+ * this installation's guides. One list, so each Settings page reads as the same place. */
 export function accountSide(role: string, place: Place) {
- const link = (id: Place | '', href: string, label: string) => `<a href="${href}"${id === place ? ' aria-current="page"' : ''}>${label}</a>`
- return `<nav class="sidelist" aria-label="Account and installation"><p class="side-heading">Your account</p>${link('settings', '/app/settings', 'Your settings')}${role === 'owner' ? link('', '/auth/settings/identity', 'Identity settings') : ''}<p class="side-heading">This installation</p>${link('guide', '/docs', 'Installation guide')}${link('', '/', 'Lobby')}</nav>`
+ const link = (id: Place | '', href: string, label: string) => `<a href="${href}"${id && id === place ? ' aria-current="page"' : ''}>${label}</a>`
+ return `<nav class="sidelist" aria-label="Settings and installation"><p class="side-heading">Settings</p>${SETTINGS.filter(([, , , allowed]) => allowed(role)).map(([id, label, href]) => link(id, href, label)).join('')}<p class="side-heading">This installation</p>${link('guide', '/docs', 'Installation guide')}${link('', '/', 'Lobby')}</nav>`
 }
 
 export function appDocument({ title, viewer, place, side = '', main, skip = 'Skip to content', head = '', body = '' }: { title: string; viewer: Viewer | null; place: Place; side?: string; main: string; skip?: string; head?: string; body?: string }) {

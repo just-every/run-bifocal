@@ -9,10 +9,11 @@ import { fail, QueryError } from '../query/types'
 import { easelTarget } from './easel'
 import { goalPeriod } from './period'
 import { randomUUID } from 'node:crypto'
-import { document, exact, ident, input, json, result, text } from '../metrics/transport'
+import { sectionDocument, exact, ident, input, json, result, text } from '../metrics/transport'
 import { refusalLine } from '../metrics/forms'
 import { goalRefusal } from '../metrics/refusals'
 import { goalMain, goalsMain, type GoalDefinition as PageDefinition, type GoalRow, type GoalView } from './pages'
+const document = sectionDocument('goals')
 type Goal=GoalRow
 type GoalDefinition=Omit<PageDefinition,'easel'>&{easel?:NonNullable<Awaited<ReturnType<typeof easelTarget>>>['provenance']}
 function date(v:unknown):string {const s=text(v,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s))||new Date(s).toISOString().slice(0,10)!==s)fail('valid_date_required',400);return s}

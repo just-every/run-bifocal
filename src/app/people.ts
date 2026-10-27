@@ -2,13 +2,17 @@ import type { Operator } from '../modules/operator-auth/index.mjs'
 import { avatar, escapeHtml } from './shell'
 
 type Person = Operator & { signInUrl?: string }
+// An email may wrap only before its @ and dots, never between two letters of a word.
+const emailBreaks = (email: string) => escapeHtml(email).replace(/[@.]/g, '<wbr>$&')
+// The row already names the person, so the control shows only its verb; its accessible name still says whom it acts on.
+// A short control leaves the name its room at every width (the name never breaks letter by letter).
 function personControls(person: Person, actor: Operator) {
  if (person.id === actor.id || person.role === 'owner' || (actor.role !== 'owner' && person.role !== 'member')) return ''
  const name = escapeHtml(person.displayName)
  const id = `<input type="hidden" name="operatorId" value="${escapeHtml(person.id)}">`
- if (person.status === 'invited') return `<form method="post" action="/auth/invite/cancel">${id}<button type="submit">Cancel invitation for ${name}</button></form>`
- const inactive = person.status === 'inactive'
- return `<form method="post" action="/auth/operator/status">${id}<input type="hidden" name="status" value="${inactive ? 'active' : 'inactive'}"><button type="submit">${inactive ? 'Reactivate' : 'Deactivate'} ${name}</button></form>`
+ if (person.status === 'invited') return `<form method="post" action="/auth/invite/cancel">${id}<button type="submit" aria-label="Cancel invitation for ${name}">Cancel invitation</button></form>`
+ const verb = person.status === 'inactive' ? 'Reactivate' : 'Deactivate'
+ return `<form method="post" action="/auth/operator/status">${id}<input type="hidden" name="status" value="${person.status === 'inactive' ? 'active' : 'inactive'}"><button type="submit" aria-label="${verb} ${name}">${verb}</button></form>`
 }
 
 /** A refused invitation: the native refusal code and what the person typed into the invite form. */
@@ -45,7 +49,7 @@ export function peoplePage(people: Person[], actor: Operator, notice = '', refus
  const role = actor.role
  const problem = refusal ? inviteProblem(refusal, people, actor) : null
  const roles = [['member', 'Member'], ...(role === 'owner' ? [['admin', 'Admin']] : [])].map(([value, label]) => `<option value="${value}"${refusal?.role === value ? ' selected' : ''}>${label}</option>`).join('')
- const rows = people.map(person => `<li class="person">${avatar(person.displayName)}<div class="person-main"><h2>${escapeHtml(person.displayName)}</h2><dl class="facts-grid"><div><dt>Email</dt><dd>${escapeHtml(person.email)}</dd></div><div><dt>Foundation role</dt><dd>${escapeHtml(person.role)}</dd></div><div><dt>Status</dt><dd><span class="state state-${escapeHtml(person.status)}">${escapeHtml(person.status)}</span></dd></div></dl>${person.signInUrl ? `<p><a href="${escapeHtml(person.signInUrl)}">Sign in as ${escapeHtml(person.displayName)}</a></p>` : ''}</div>${personControls(person, actor)}</li>`).join('')
+ const rows = people.map(person => `<li class="person">${avatar(person.displayName)}<div class="person-main"><h2>${escapeHtml(person.displayName)}</h2><dl class="facts-grid"><div><dt>Email</dt><dd>${emailBreaks(person.email)}</dd></div><div><dt>Foundation role</dt><dd>${escapeHtml(person.role)}</dd></div><div><dt>Status</dt><dd><span class="state state-${escapeHtml(person.status)}">${escapeHtml(person.status)}</span></dd></div></dl>${person.signInUrl ? `<p><a href="${escapeHtml(person.signInUrl)}">Sign in as ${escapeHtml(person.displayName)}</a></p>` : ''}</div>${personControls(person, actor)}</li>`).join('')
  return `<div class="pagehead"><div><h1>People</h1><p class="lead">Manage this installation’s foundation accounts.</p></div></div><p class="note">Deactivation ends existing sessions and refuses new sign-ins. Reactivation never restores old sessions. Cancel an invitation to revoke its pending sign-in links; invite that person again to let them join. Owner changes require a separate fresh-proof path and are not offered here.</p>${notice}<ul class="panel people" aria-label="People">${rows}</ul><section class="panel"><h2 class="cardhead">Invite a person</h2><p>Invitations grant only the selected foundation role.</p>${problem && !problem.field ? `<p class="status" data-error="true" role="alert">${problem.message}</p>` : ''}<form method="post" action="/auth/invite"><div class="fields">${inviteField('displayName', 'Name', 'required maxlength="120" autocomplete="name"', refusal?.displayName ?? '', problem)}${inviteField('email', 'Email', 'type="email" required maxlength="254" autocomplete="email"', refusal?.email ?? '', problem)}<label>Foundation role <select name="role">${roles}</select></label></div><div class="actions"><button type="submit" class="primary">Send invitation</button></div></form></section>`
 }
 
