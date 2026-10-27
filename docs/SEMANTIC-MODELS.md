@@ -72,14 +72,28 @@ literal `ref` and `source` calls; they do not compile Jinja. Missing dependencie
 cycles, unsupported files and execution obligations stay explicit. Project
 configuration, hooks, packages, macros and SQL are never run or fetched.
 
-This is an inert project inventory, not executable dbt preparation. Importing a
-test does not run it. Such a project cannot publish a native model. Bind model
-names to reviewed file datasets to track source custody; source erasure reaches
-the project and its retained originals. Reimport uses an exact reviewed revision,
+The bounded native translator recognizes a complete literal `SELECT` of physical
+columns, with optional aliases, from one uploaded `source` or `ref` dependency.
+It resolves chained projections without evaluating Jinja or sending SQL to a
+database. A semantic model must reference the exact uploaded model; its reviewed
+column bindings must match the full projection lineage. Every physical grain
+column must survive the projection. Compatible projects can export rebuilt
+native models and proceed through the separate Models review.
+
+Column-level built-in `not_null` and `unique` declarations run against the exact
+reviewed source records. Uniqueness ignores nulls and compares numeric values
+exactly. The compatibility report retains each check's source revision, mapped
+column, row count and failure count. A failed check blocks model export and
+publication. Custom tests, arguments, hooks, macros, arbitrary SQL, differing
+compiled artifacts and unsupported configuration remain unresolved; no dbt
+process or provider adapter runs. Merely retaining a test never proves it passed.
+
+Bind model names to reviewed datasets to track source custody; source erasure
+reaches the project and its originals. Reimport uses an exact reviewed revision,
 and shared Undo restores the earlier project. The bounded inventory accepts at
-most 512 resources within the existing file and byte limits. SQL transformation,
-validation execution, dependency schedules and automatic flow translation remain
-unfinished under BIF-005 and BIF-070.
+most 512 resources within the existing file and byte limits. General dbt
+execution, dependency schedules and automatic flow translation remain unfinished
+under BIF-005 and BIF-070.
 
 ## Other native project inventories
 
@@ -93,9 +107,14 @@ project are diagnosed, never fetched.
 
 Choose Metabase for serialization YAML or individual Card, Table, Field and
 Database API response objects. Original identities, queries, field metadata and
-source dependencies remain in the inventory. Bounded MBQL sum and distinct
+source dependencies remain in the inventory. Bounded MBQL sum, distinct and count
 aggregates resolve physical field ids against the uploaded table catalog and
-can publish through explicit native source bindings. Other MBQL, native SQL,
+can publish through explicit native source bindings. Physical-field equality,
+value sets, inclusive numeric or date bounds, null predicates and conjunctions
+retain their restrictions before aggregation. Up to four plain physical-field
+breakouts retain their grouping and exact result metadata. Unsupported branches
+refuse the whole project; subsequent exploration intersects retained predicates.
+Other MBQL, native SQL,
 source permissions and visualization semantics remain unresolved and block
 publication. Connection details and unrecognized query clauses never disappear
 into a wider native aggregate. Collection and dashboard serialization metadata is also retained.

@@ -207,8 +207,9 @@ erasure withdraws these downloads.
 ## Rebuilt semantic model exports
 
 In Files, load an imported semantic project and choose **Export rebuilt model**.
-Compatible LookML, dbt Semantic Layer, MetricFlow, TMDL and Cube imports,
-bounded Metabase aggregate queries and Tableau source definitions export
+Compatible LookML, dbt Semantic Layer, MetricFlow, supported dbt Core and Cloud
+projections, TMDL and Cube imports, bounded Metabase aggregate queries and
+Tableau source definitions export
 native executable definitions with the reviewed project revision and digest,
 source dataset revisions, original filenames, column mappings and physical grain.
 The JSON also maps source measures to native views and measures. It omits
@@ -218,15 +219,21 @@ Export requires the current owner, the exact displayed project revision and
 unchanged bound source revisions. Unresolved projects cannot export a rebuilt
 model. Reload and review after a source or project changes. Source erasure
 withdraws the export door as well as the imported project. This native export
-does not establish execution of dbt SQL or tests, full PBIP report translation,
+does not establish general dbt execution or custom tests, full PBIP report translation,
 general Tableau workbook execution or broader Metabase query and permission
 equivalence, nor live
 file-service refresh or network-share qualification.
 
 Metabase imports resolve numeric field references from the included table and
-database catalog. Only sum and distinct aggregates with explicit result names
-are translated. Tableau source definitions support one textscan table with
+database catalog. Sum, distinct and count aggregates, physical-field conjunctions,
+equality and value sets, inclusive bounds, null checks and plain grouped
+breakouts retain exact source mappings in native execution and exports. Result
+metadata must match the aggregate and breakout order. Unsupported predicates,
+joins, expressions, connection settings and source permissions keep the whole
+project unresolved. Tableau source definitions support one textscan table with
 physical typed columns and SUM and COUNTD measures. Both use explicitly reviewed
-native dataset bindings. Filters, joins, unsupported expressions, connection
-settings and source permissions require translation and keep the project
-unresolved. Workbook layouts and binary extracts remain inert inventory.
+native dataset bindings. Tableau filters, workbook layouts and binary extracts
+remain unresolved. The bounded dbt translator proves literal column projections
+through local dependency references and checks built-in column nullability and
+uniqueness against exact reviewed records. A failed quality check, mismatched
+alias mapping, unsupported SQL or test, or project hook blocks rebuilt export.
