@@ -1,0 +1,26 @@
+import {upload,base64} from './file-upload.js'
+import {element,metadata,table} from './file-view.js'
+const $=id=>document.getElementById(id),form=$('rdl-import-form')
+if(form){
+ let plan=null,current=null,reportId=null,busy=false
+ const status=text=>{$('status').textContent=text}
+ const invalidate=()=>{plan=null;$('rdl-review').hidden=true;$('rdl-confirm').checked=false;$('rdl-apply').disabled=true}
+ const id=()=>{const value=form.elements.report.value;if(!/^[a-z][a-z0-9-]{0,63}$/.test(value))throw Error('Enter a valid report import ID.');return value}
+ const call=async(action,data)=>{const r=await fetch('/api/operator/import/'+action,{method:data===undefined?'GET':'POST',headers:{'content-type':'application/json','X-Import-Kind':'rdl','X-Import-Dataset':reportId},...(data===undefined?{}:{body:JSON.stringify(data)})});const v=await r.json();if(!r.ok)throw Error(v.reason??v.error);return v}
+ function show(box,project){
+  box.replaceChildren()
+  if(!project){box.append(element('p','The source was refused. Inspect the plan errors before importing.'));return}
+  box.append(metadata([['State','Inactive draft; switch not accepted'],['Source elements',project.report.elements.length],['Unresolved items',project.report.issues.length],['Page reconciliation','Pending'],['Subscriptions',project.definition.subscriptions.length+' inactive']]))
+  if(project.report.issues.length)box.append(table('Report translation gaps',['Source location','Reason','Dependency','Required resolution'],project.report.issues.map(i=>[i.location,i.reason,i.dependency,i.resolution])))
+  const details=element('details'),pre=element('pre',JSON.stringify({definition:project.definition,report:project.report},null,2));details.append(element('summary','Full native draft and source inventory'),pre);box.append(details)
+ }
+ async function load(){reportId=id();const r=await fetch('/api/operator/rdl-imports/'+reportId);if(r.status!==200&&r.status!==404)throw Error('Report draft could not be read.');current=r.ok?await r.json():null;const box=$('rdl-current');if(current)show(box,current);else box.replaceChildren(element('p','No imported report draft.'))}
+ const perform=work=>async event=>{event?.preventDefault();if(busy)return;busy=true;try{await work()}catch(error){status('Report import unavailable: '+error.message)}finally{busy=false;$('rdl-apply').disabled=!plan||!!plan.counts.rejected||!$('rdl-confirm').checked}}
+ form.addEventListener('input',invalidate)
+ form.addEventListener('submit',perform(async()=>{reportId=id();const files=[];for(const file of form.elements.files.files){if(file.size>524288)throw Error('Each original RDL file is limited to 512 KiB.');const bytes=new Uint8Array(await file.arrayBuffer()),encoding=bytes[0]===255&&bytes[1]===254||bytes[0]===60&&bytes[1]===0?'utf-16le':bytes[0]===254&&bytes[1]===255||bytes[0]===0&&bytes[1]===60?'utf-16be':'utf-8';files.push({path:file.name,content:new TextDecoder(encoding,{fatal:true}).decode(bytes),originalBase64:base64(bytes)})}const input={version:1,reportId,root:form.elements.root.value,files,subscriptions:JSON.parse(form.elements.subscriptions.value)};invalidate();await load();const uploadId=await upload(input,call,status,'rdl:'+reportId),history=await call('history');plan=await call('plan',{uploadId,...history.history.length?{catchup:true}:{}});show($('rdl-report'),plan.project);if(plan.counts.rejected)$('rdl-report').append(element('pre',JSON.stringify(plan,null,2)));$('rdl-review').hidden=false;status('Review the inactive report draft and every unresolved source element.')}))
+ $('rdl-confirm').addEventListener('change',()=>{$('rdl-apply').disabled=!plan||!!plan.counts.rejected||!$('rdl-confirm').checked})
+ $('rdl-apply').addEventListener('click',perform(async()=>{if(!plan||!$('rdl-confirm').checked)return;for(let i=0;i<20;i++){const result=await call('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(result.job.state==='completed'){await call('reconcile',{planId:plan.planId});invalidate();await load();status('Report draft imported and reconciled. Switch acceptance and sends remain unavailable.');return}}status('Import checkpoint saved; continue the same reviewed draft.')}))
+ $('rdl-load').addEventListener('click',perform(async()=>{invalidate();await load();status('Current report draft loaded.')}))
+ $('rdl-cancel').addEventListener('click',perform(async()=>{if(plan)await call('undo',{planId:plan.planId});invalidate();await load();status('Report import undone.')}))
+ $('rdl-erase').addEventListener('click',perform(async()=>{if(reportId!==id()||$('rdl-erase-id').value!==reportId)throw Error('Load the draft and confirm its exact ID first.');const r=await fetch('/api/operator/rdl-imports/'+reportId+'/erase',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({confirmReport:reportId,reviewedRevision:current?.revision??null})});if(!r.ok)throw Error((await r.json()).error);invalidate();await load();status('Report draft and retained originals withdrawn.')}))
+}
