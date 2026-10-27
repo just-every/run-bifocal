@@ -161,6 +161,10 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   for(const scope of ['summary','underlying'])for(const format of ['csv','xlsx']){
    const response=await owner.request.post(origin+'/api/operator'+combinedPath+'/export',{headers,data:{scope,format}})
    assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['x-bifocal-row-count'],'4')
+   const plan=await call(combinedPath+'/export-plan',{scope,format})
+   assert.equal(plan.totalRows,4)
+   const part=await owner.request.post(origin+'/api/operator'+combinedPath+'/full-export',{headers,data:{scope,format,offset:0,planDigest:plan.planDigest}})
+   assert.equal(part.status(),200,await part.text());assert.equal(part.headers()['x-bifocal-row-count'],'4')
   }
   const combinedAudit=await audit();assert.equal(combinedAudit.valid,true)
   const failures=[]
@@ -171,15 +175,15 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   }catch(error){failures.push(error)}
   try{
    const combinedExports=combinedAudit.events.filter(e=>e.sequence>beforeReads&&e.action==='export'&&e.outcome==='allowed')
-   assert.equal(combinedExports.length,4)
-   assert.deepEqual(combinedExports.map(e=>e.queryId),[combined.id,combined.id,combined.id,combined.id],'Every composition export must identify its immutable query')
-   assert.deepEqual(combinedExports.map(e=>e.scope.exportScope),['summary','summary','underlying','underlying'])
+   assert.equal(combinedExports.length,8)
+   assert.deepEqual(combinedExports.map(e=>e.queryId),Array(8).fill(combined.id),'Every composition export must identify its immutable query')
+   assert.deepEqual(combinedExports.map(e=>e.scope.exportScope),['summary','summary','summary','summary','underlying','underlying','underlying','underlying'])
    const digest=value=>createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('bifocal-security-v1\n'+canonical(value)).digest('hex')
    for(const event of combinedExports){
     assert.equal(event.actorId,ownerEvent.actorId);assert.equal(event.scope.kind,'installation-owner');assert.equal(event.scope.ownerId,ownerEvent.actorId);assert.equal(event.scope.exportRows,4)
     assert.equal(event.httpStatus,200);assert.match(event.recordedAt,/^\d{4}-\d{2}-\d{2}T/)
     assert.equal(event.scope.rowScopeDigest,digest({left:{filters:[{column:'region',op:'ne',value:'Hidden'}],fiscal:null},right:{filters:[{column:'region',op:'ne',value:'Hidden'}],fiscal:null}}))
-    for(const side of ['left','right']){assert.equal(event.scope[side].modelId,model.modelId);assert.equal(event.scope[side].modelRevision,model.revision);assert.equal(event.scope[side].viewId,'sales');assert.equal(event.scope[side].grantId,null);assert.match(event.scope[side].queryId,/^[a-f0-9-]{36}$/)}
+    for(const side of ['left','right']){assert.equal(event.scope[side].modelId,model.modelId);assert.equal(event.scope[side].modelRevision,model.revision);assert.equal(event.scope[side].viewId,'sales');assert.equal(event.scope[side].grantId,null);assert.equal(event.scope[side].rowScopeDigest,digest({filters:[{column:'region',op:'ne',value:'Hidden'}],fiscal:null}));assert.match(event.scope[side].queryId,/^[a-f0-9-]{36}$/)}
    }
    assert.equal(combinedExports[0].scope.queryDigest,combinedExports[3].scope.queryDigest,'Scope and format changes retain the same immutable combined query')
   }catch(error){failures.push(error)}
@@ -193,6 +197,7 @@ export async function proveSecurity({origin,owner,reader,readerId,page,upload,pr
   await fixture('audit-invalidate-head')
   try{
    await call('/queries/'+ownerQuestion.snapshotId,undefined,owner,503)
+   await call(combinedPath+'/export',{scope:'summary',format:'csv'},owner,503)
    await call('/security/audit',undefined,owner,503)
    await page.getByRole('button',{name:'Verify audit chain'}).click();await page.getByRole('status').filter({hasText:'Audit verification unavailable.'}).waitFor();await proveScreen('security-audit-unavailable')
   }finally{await fixture('audit-repair-head')}
