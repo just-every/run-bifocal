@@ -33,7 +33,7 @@ if(form){
    if(archive&&file.size>196608)throw Error('Each TWBX archive is limited to 192 KiB before base64 encoding.')
    files.push({path,content:archive?btoa(Array.from(new Uint8Array(await file.arrayBuffer()),byte=>String.fromCharCode(byte)).join('')):await file.text()})
   }
-  if(form.elements.format.value==='dbt'&&files.some(f=>/\.sql$/i.test(f.path))&&!files.some(f=>/^dbt_project\.ya?ml$/i.test(f.path)))throw Error('Choose the dbt project root containing dbt_project.yml, not an individual models or tests folder.')
+  if(form.elements.format.value==='dbt'&&files.some(f=>/\.sql$/i.test(f.path))&&!files.some(f=>/^dbt_project\.ya?ml$/i.test(f.path)||/(?:^|\/)manifest\.json$/i.test(f.path)))throw Error('Choose the dbt project root containing dbt_project.yml or a manifest.json artifact, not an individual models or tests folder.')
   return files
  }
  const id=()=>{const value=form.elements.project.value;if(!/^[a-z][a-z0-9-]{0,63}$/.test(value))throw Error('Enter a valid project ID.');return value}
