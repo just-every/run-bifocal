@@ -21,7 +21,7 @@ export async function reviewDBT(request:Request,env:Bindings,owner:NonNullable<A
   if(!row)fail('preparation_source_unavailable',404)
   sources.push({...row,table:JSON.parse(row.value_json)})
  }
- const result=executeDBT({projectId:project.id,revision:project.revision,resources:project.value.report.project.resources??[],bindings},sources)
+ const result=executeDBT({projectId:project.id,revision:project.revision,resources:project.value.report.project.resources??[],issues:project.value.report.project.issues,bindings},sources)
  const digest=sha256(canonicalJson({ownerId,project:project.revision,bindings,result}))
  await transact(env.DB,owner,[assertion(projectGuard(project)),...sources.map(source=>assertion(sourceMatch(source)))])
  return json({...result,digest,published:false})

@@ -16,7 +16,10 @@ const bounded=(frame:Frame)=>{if(frame.columns.length>64||frame.rows.length>1000
  * The caller authenticates, supplies exact imported resources and file Sources,
  * and guards the project and source revisions before releasing the review. */
 export function executeDBT(input:DBTInput,sources:Source[]) {
- const bindings=dbtBindings(input.bindings),diagnostics:Diagnostic[]=[],tests:TestResult[]=[],order:string[]=[]
+ // Native execution resolves only the intake placeholders for executable
+ // resources. Structural and unsupported-item diagnostics remain blocking.
+ const pending=new Set(['dbt_project_execution_pending','dbt_resource_execution_pending'])
+ const bindings=dbtBindings(input.bindings),diagnostics:Diagnostic[]=input.issues.filter(issue=>!pending.has(issue.code)).map(issue=>({resource:issue.object,code:issue.code,file:issue.file,message:issue.message})),tests:TestResult[]=[],order:string[]=[]
  const models=new Map<string,Frame>(),frames=new Map<string,Frame>(),resources=new Map(input.resources.map(r=>[r.id,r]))
  const failed=new Set<string>(),active=new Set<string>(),complete=new Set<string>()
  const diagnostic=(resource:string,code:string,message=code)=>{failed.add(resource);diagnostics.push({resource,code,file:resources.get(resource)?.file??'',message})}
