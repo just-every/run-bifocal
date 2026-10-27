@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "145d5b8665f6f592782b11246746d387242d8e7d88f52f55f79fb5ad089f9bc8",
+      "sha256": "9ca062b946363425b69a1d7b3c909b807b1d4887c9e1ae3dfeeb1e92b701f606",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b4a2877f97165fd0a6a87989dba2b177551126d224e5a1612356d4aadadc7c92",
+      "sha256": "02de33c169fda83eecebfec9650fd6a4fd0c2b324fa5574ec9d4ea38d9044000",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1605,7 +1605,7 @@
       "executable": false
     },
     "src/bifocal/charts/page.server.ts": {
-      "sha256": "29d7df9b0d50a4f0259f3f7588e0917a2753064e6f4515aca47083995d77e316",
+      "sha256": "eb1a203a0d23b77655c561ad5c7cfb1c4defc5eae3c4bb5460f68213e4ab0959",
       "executable": false
     },
     "src/bifocal/charts/protocol.ts": {
@@ -1617,7 +1617,7 @@
       "executable": false
     },
     "src/bifocal/charts/store.server.ts": {
-      "sha256": "08371ae19df52a8248236188d85f44dc6698749dc3e3e71e40a7796155c607a8",
+      "sha256": "6577163806ae70f243ed92b7521c85d86ef54dea8b627d1db74a82266b2304cd",
       "executable": false
     },
     "src/bifocal/charts/styles.ts": {
@@ -1637,7 +1637,7 @@
       "executable": false
     },
     "src/bifocal/collaboration/server.ts": {
-      "sha256": "1b0b39e66747a8ace33d5d8bdbb18371e295c26e75e158c3669d732fe5124078",
+      "sha256": "4b2cdc1a20175f5723977702db3f74c7b41647e4233c91feabcaca336d01d124",
       "executable": false
     },
     "src/bifocal/collaboration/subjects.server.ts": {
@@ -2101,7 +2101,7 @@
       "executable": false
     },
     "src/bifocal/metrics/store.server.ts": {
-      "sha256": "2915ba45ce024c35b827ba533070f7ce403dfb05af6959b7c6d12201fef7ec3f",
+      "sha256": "957d9589424d0ebb9dde5be8042255b96de0ad58a4146ea649a69f08aa2ced80",
       "executable": false
     },
     "src/bifocal/metrics/transport.ts": {
@@ -4441,7 +4441,7 @@
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "92d178d47b296925eb2b62753d4f8ccb3ed2214c45ac055a1ab1660bd91dc7fd",
+      "sha256": "ef71c108599a9db5f368be5340bd088d2a44118bce16da82668a16682b5bf19f",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
@@ -4461,7 +4461,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "81cfd2520ac3c9fddbd1c3f165ae9ad4d7189ee780b65fe4263967b42f364edb",
+      "sha256": "ae44c365878786d493f29b61656326df4331da0b41150c938029a05e76a2341b",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
