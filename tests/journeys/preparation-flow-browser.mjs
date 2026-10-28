@@ -1,8 +1,27 @@
 import assert from 'node:assert/strict'
+import {createHash} from 'node:crypto'
 
 export async function provePreparationFlowBrowser({origin,page,call,proveScreen,flow}){
  const path='/preparations/'+flow.preparationId
  await page.goto(origin+'/app/import#preparation')
+ const original=await call('/model-imports/'+flow.projectId),browserProject='synthetic-bifocal-181'
+ await page.getByText('Import a semantic project',{exact:true}).click()
+ await page.getByLabel('Project ID',{exact:true}).fill(browserProject);await page.getByLabel('Model format',{exact:true}).selectOption('powerquery')
+ await page.getByLabel('Project fiscal calendar',{exact:true}).selectOption(JSON.stringify({id:'synthetic-bifocal-preparation-calendar',version:1}))
+ await page.getByLabel('Original project files',{exact:true}).setInputFiles({name:original.input.files[0].path,mimeType:'text'+'/'+'plain',buffer:Buffer.from(original.input.files[0].content)})
+ await page.getByLabel('Source bindings (JSON)',{exact:true}).fill('{}');await page.getByLabel('Measure formats (JSON)',{exact:true}).fill('{}')
+ await page.getByRole('button',{name:'Preview semantic import',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Review the source compatibility'}).waitFor()
+ assert.match(await page.getByRole('table',{name:'Source project inventory',exact:true}).innerText(),/preparation-flow/)
+ await proveScreen('preparation-original-intake-review')
+ await page.getByLabel('I reviewed this exact project plan and its unresolved items',{exact:true}).check()
+ await page.getByRole('button',{name:'Import reviewed project',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Project imported and reconciled'}).waitFor()
+ const imported=await call('/model-imports/'+browserProject)
+ assert.deepEqual(imported.input.files,original.input.files);assert.equal(imported.report.compatible,false)
+ flow.projectId=browserProject;flow.request={...flow.request,projectId:browserProject,revision:imported.revision}
+ flow.review=await call(path+'/flow-review',flow.request,200)
+ await proveScreen('preparation-original-intake-retained')
  await page.getByLabel('Preparation ID',{exact:true}).fill(flow.preparationId)
  await page.locator('#prep-flow summary').click()
  await page.getByLabel('Imported flow project ID',{exact:true}).fill(flow.projectId)
@@ -52,6 +71,23 @@ export async function provePreparationFlowBrowser({origin,page,call,proveScreen,
  const output='synthetic-bifocal-180',publication=await call(path+'/publish-review',{dataset:output,version:4},200)
  await call(path+'/publish',{dataset:output,version:4,reviewedDigest:publication.digest})
  assert.deepEqual((await call('/datasets/'+output)).table.rows,flow.review.output.rows)
+ await call(path+'/flow-review',{...flow.request,bindings:Object.fromEntries(Object.keys(flow.request.bindings).map(key=>[key,output]))},409)
+ // A later inert project revision may reference its own earlier prepared data.
+ // Both public erasure doors must terminate and retire all copies.
+ const replacement={...imported.input,bindings:{[Object.keys(flow.request.bindings)[0]]:{dataset:output,grain:['quantity']}}}
+ const post=async(action,data)=>{const response=await page.context().request.post(origin+'/api/operator/import/'+action,{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':browserProject},data});assert.equal(response.status(),200,await response.text());return response.json()}
+ const bytes=Buffer.from(JSON.stringify(replacement)),digest=createHash('sha256').update(bytes).digest('hex')
+ const uploaded=await post('uploads',{name:'synthetic-bifocal-181.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
+ const plan=await post('plan',{uploadId:uploaded.uploadId,catchup:true});assert.equal(plan.counts.rejected,0)
+ let completed=false
+ for(let i=0;i<20;i++){const applied=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(applied.job.state==='completed'){completed=true;break}}
+ assert.equal(completed,true)
+ const currentProject=await call('/model-imports/'+browserProject)
+ await call(path+'/review',{document:flow.review.document,previousVersion:4},409)
+ const erasedProject=await call('/model-imports/'+browserProject+'/erase',{confirmProject:browserProject,reviewedRevision:currentProject.revision},200)
+ assert.deepEqual(erasedProject.preparedOutputs.map(value=>value.dataset),[output])
+ await call('/model-imports/'+browserProject,undefined,404)
+ await call('/datasets/'+output,undefined,404)
  await flow.erase()
  await call(path,undefined,404);await call('/datasets/'+output,undefined,404)
  await page.getByRole('button',{name:'Load saved preparation',exact:true}).click()

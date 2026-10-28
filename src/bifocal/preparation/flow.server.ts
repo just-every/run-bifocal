@@ -17,6 +17,11 @@ export async function flowReview(env:Bindings,ownerId:string,input:Record<string
  if(input.revision!==project.revision)fail('stale_flow_project_revision',409)
  if(input.flowId!==undefined&&(typeof input.flowId!=='string'||input.flowId.length>240))fail('flow_id_required',400)
  const bindings=flowBindings(input.bindings),sources:Source[]=[]
+ const cycle=await env.DB.prepare(`WITH RECURSIVE parents(id) AS (
+  SELECT value FROM json_each(?) UNION SELECT p.dataset_id FROM bf_preparation_output_sources p JOIN parents a ON p.output_id=a.id
+ ) SELECT 1 FROM parents a JOIN bf_preparation_outputs o ON o.dataset_id=a.id JOIN bf_preparation_revisions r ON r.preparation_id=o.preparation_id AND r.version=o.version
+ WHERE json_extract(r.document_json,'$.imported.projectId')=? LIMIT 1`).bind(canonicalJson(flowDatasets(bindings)),project.id).first()
+ if(cycle)fail('flow_project_dependency_cycle',409)
  for(const dataset of flowDatasets(bindings)){
   const row=await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables WHERE id=?').bind(dataset).first<Omit<Source,'table'>>()
   if(!row)fail('preparation_source_unavailable',404)

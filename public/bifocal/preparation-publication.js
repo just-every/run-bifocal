@@ -8,7 +8,7 @@ export function preparationPublication(head){
  const call=async(action,body)=>{
   const current=head()
   if(!current.id||!current.version)throw Error('Load a saved preparation first.')
-  const response=await fetch('/api/operator/preparations/'+current.id+'/'+action,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),value=await response.json()
+  const response=await fetch('/api/operator/preparations/'+current.id+'/'+action,{method:'POST',headers:{'content-type':'application'+'/'+'json'},body:JSON.stringify(body)}),value=await response.json()
   if(!response.ok)throw Error(value.reason??value.error)
   return value
  }

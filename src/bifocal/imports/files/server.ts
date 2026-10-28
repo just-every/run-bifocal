@@ -34,7 +34,7 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
 
 /** A CSV reader and native adapter on Base's sole import pipeline. Business
  * grants stay closed; no request can turn source data into access or execution. */
-export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
+export async function fileImportResponse(request: Request, original: Bindings, erasingProjects:ReadonlySet<string>=new Set(), erasingDatasets:ReadonlySet<string>=new Set()): Promise<Response | null> {
  const path = new URL(request.url).pathname
  const rdlImport=await rdlImportResponse(request,original)
  if(rdlImport)return rdlImport
@@ -76,13 +76,13 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
    const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset)
    await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${retention.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...retention.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
-   const descendants=await preparationDescendants(env,dataset),derivedReceipts=[]
+   const descendants=await preparationDescendants(env,dataset),derivedReceipts=[],activeDatasets=new Set([...erasingDatasets,dataset])
    // Check every retained descendant before starting any destructive action.
    for(const id of descendants){const policy=retentionAllowsErasure(id);if(!await env.DB.prepare(`SELECT 1 WHERE ${policy.sql}`).bind(...policy.params??[]).first())return json({error:'retention_hold',reason:'A prepared output is protected by retention. Resolve its hold before erasing this source.'},423)}
    for(const id of descendants){
     const output=await fileTargets.read(env.DB,fileDestination(id),'file-table',id)
     if(!output)continue
-    const erasure=await fileImportResponse(new Request(new URL('/api/operator/datasets/'+id+'/erase',env.AUTH_ORIGIN),{method:'POST',headers:{origin:env.AUTH_ORIGIN,cookie:request.headers.get('cookie')??'','content-type':'application/json'},body:JSON.stringify({confirmDataset:id,reviewedRevision:output.revision})}),env)
+    const erasure=await fileImportResponse(new Request(new URL('/api/operator/datasets/'+id+'/erase',env.AUTH_ORIGIN),{method:'POST',headers:{origin:env.AUTH_ORIGIN,cookie:request.headers.get('cookie')??'','content-type':'application'+'/'+'json'},body:JSON.stringify({confirmDataset:id,reviewedRevision:output.revision})}),env,erasingProjects,activeDatasets)
     if(!erasure?.ok)return erasure
     derivedReceipts.push({dataset:id,receipt:await erasure.json()})
    }
@@ -102,7 +102,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const auditId=randomUUID()
    const auditStatements=[sql("INSERT INTO bf_erasure_audit(id,actor_ref,subject_ref,recorded_at,kind) VALUES(?,?,?,?,'source_erasure')",auditId,randomUUID(),randomUUID(),new Date().toISOString()),sql('INSERT INTO bf_erasure_pending(destination,audit_id) VALUES(?,?)',destination,auditId),sql(`INSERT INTO bf_erasure_stores(audit_id,store,rows) SELECT ?,store,rows FROM (${counts.sql})`,auditId,...counts.params??[])]
    const calculationLibraries=await eraseSourceCalculationLibraries(env,owner,dataset,match)
-   const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match,request)
+   const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match,request,erasingProjects,activeDatasets)
    // Derivative erasure can initialize the journal. Bind the source checkpoint
    // to that same installation identity after those guarded retirements.
    const state = await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{ source_identity: string }>()
