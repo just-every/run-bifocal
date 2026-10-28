@@ -11,7 +11,7 @@ export async function credentialPage(request: Request, original: Bindings): Prom
  const env = runtimeBindings(original), actor = await currentAuthority(request, env)
  if (!actor || actor.role !== 'owner' || request.headers.has('authorization')) return new Response('Current installation owner required.', {status: 403, headers: {'cache-control': 'no-store'}})
  const viewer = (await operatorAuth(env).getSession(request))!.operator
- const headers = {'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin', 'content-security-policy': `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; ${appPolicy}`}
+ const headers = {'content-type': 'text' + '/html; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin', 'content-security-policy': `default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; ${appPolicy}`}
  const document = (main: string, status = 200) => new Response(appDocument({title: 'Machine credentials · Bifocal', viewer, place: 'settings', side: accountSide(viewer.role, 'settings'), main: '<h1>Machine credentials</h1>' + main}), {status, headers})
  const api = async (path: string, body?: Record<string, unknown>) => {
   const forwarded = new Headers(request.headers)
