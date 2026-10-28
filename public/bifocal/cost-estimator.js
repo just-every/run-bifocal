@@ -4,8 +4,13 @@ const result = document.querySelector('#quote-result')
 const field = name => form.elements.namedItem(name)
 const sourceNames = () => field('sources').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean)
 let generation = 0
+function clearValidation() {
+ form.querySelectorAll('[aria-invalid]').forEach(input=>{input.removeAttribute('aria-invalid');input.removeAttribute('aria-describedby')})
+ document.querySelector('#cost-field-error')?.remove()
+}
 function clearQuote() {
  generation++
+ clearValidation()
  result.hidden = true
  status.dataset.error = 'false'
  status.textContent = 'Inputs changed. Calculate again to review an updated estimate.'
@@ -63,7 +68,7 @@ form.addEventListener('submit', async event => {
  event.preventDefault()
  const current = ++generation
  result.hidden = true
- form.querySelectorAll('[aria-invalid]').forEach(input=>input.removeAttribute('aria-invalid'))
+ clearValidation()
  try {
   const compute = Object.fromEntries(['provider','size','region'].map(key=>[key,required(key)]))
   const rateDate = required('rateDate'), reference = required('reference')
@@ -89,7 +94,9 @@ form.addEventListener('submit', async event => {
   status.textContent = error.message || 'The estimate could not be calculated. Check your connection and inputs, then calculate again. No work was started.'
   if (error.input) {
    for (let parent=error.input.parentElement; parent; parent=parent.parentElement) if(parent.tagName==='DETAILS')parent.open=true
-   error.input.setAttribute('aria-invalid','true'); error.input.focus()
+   const note = paragraph(error.message); note.id = 'cost-field-error'; note.className = 'field-error'; note.setAttribute('role','alert')
+   error.input.parentElement.after(note)
+   error.input.setAttribute('aria-invalid','true'); error.input.setAttribute('aria-describedby',note.id); error.input.focus()
   }
  }
 })

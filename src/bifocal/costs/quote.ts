@@ -33,7 +33,7 @@ export function referenceQuote(value: unknown) {
   const amount = (numerator + exact.denominator - 1n) / exact.denominator
   return {id,label,unit,quantity:Number(exact.numerator)/Number(exact.denominator),
    quantityExact:{numerator:exact.numerator.toString(),denominator:exact.denominator.toString()},
-   quantityBasis:overridden?'override':input.workload===undefined?'assumed':'workload-derived',derivation:exact.derivation,
+   quantityBasis:'assumed',quantitySource:overridden?'override':input.workload===undefined?'reference-workload':'buyer-workload',derivation:exact.derivation,
    rateBasis:'owner-entered',rateDate,reference:text(rate.reference,'reference',500),microUsdPerUnit:price,
    amountMicroUsd:amount.toString(),amountUsd:usd(amount),roundingMicroUsd:numerator%exact.denominator!==0n}
  })

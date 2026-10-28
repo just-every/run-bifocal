@@ -13,6 +13,7 @@ export async function proveReferenceEstimator(origin,context,page){
    await page.getByRole('heading',{name:'Monthly cost estimator',exact:true}).waitFor()
    const form=page.locator('#cost-estimator'),status=page.locator('#quote-status'),result=page.locator('#quote-result')
    assert.equal(await result.isVisible(),false,'No invented rate or cheap default estimate')
+   if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-empty-'+width+'.png'})}
    for(const [name,value] of Object.entries({provider:'Owner analytical provider',size:'Two core bounded instance',region:'US East',rateDate:'2026-10-28',reference:'https://provider.example.test/rates'}))await form.locator(`[name="${name}"]`).fill(value)
    // Independently frozen prices and totals, never derived from calculator output.
    const prices={product:'0',control:'0.000001',compute:'0.05',scan:'0.005',storage:'0.02',refresh:'0.1',delivery:'0.002',agents:'0.03',portal:'2'}
@@ -23,6 +24,7 @@ export async function proveReferenceEstimator(origin,context,page){
     await calculate.click();await status.filter({hasText:'at most six decimal places'}).waitFor()
     assert.equal(await result.isVisible(),false)
     assert.equal(await form.locator('[name="rate-agents"]').getAttribute('aria-invalid'),'true')
+    await page.getByRole('alert').filter({hasText:'at most six decimal places'}).waitFor()
    }
    await form.locator('[name="rate-agents"]').fill('0.03')
    await calculate.click();await status.filter({hasText:'Estimate calculated'}).waitFor()
@@ -35,6 +37,7 @@ export async function proveReferenceEstimator(origin,context,page){
     assert.equal(await line.getByRole('link',{name:'Open rate provenance'}).getAttribute('href'),'https://provider.example.test/rates')
    }
    assert.equal(await page.locator('#quote-total').textContent(),'79.851100')
+   if(process.env.BIFOCAL_PROOF_DIR)await result.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-reference-result-'+width+'.png'})
    assert.equal(await page.locator('#quote-comparison').isVisible(),false)
    await page.locator('#workload>summary').click()
    assert.equal(await form.locator('[name="sources"]').inputValue(),'finance\nbilling\ncrm\nmarketing\nsupport\ncommerce\ninventory\npeople\nprojects\nfiles')
@@ -56,12 +59,12 @@ export async function proveReferenceEstimator(origin,context,page){
    await calculate.focus();await page.keyboard.press('Enter');await status.filter({hasText:'Estimate calculated'}).waitFor()
    assert.equal(await page.locator('#quote-total').textContent(),'77.595700')
    assert.match(await page.locator('#quote-comparison').textContent(),/USD 277.595701, including USD 200.000001 source licences. Tax excluded/)
-   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-buyer-'+width+'.png',fullPage:true})
+   if(process.env.BIFOCAL_PROOF_DIR)await result.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-buyer-'+width+'.png'})
    await form.locator('[name="rate-storage"]').fill('0.0000001');await calculate.click()
    await status.filter({hasText:'at most six decimal places'}).waitFor()
    assert.equal(await result.isVisible(),false)
    assert.equal(await form.locator('[name="sources"]').inputValue(),'finance\nbilling\ncrm\nmarketing\nsupport')
-   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-refused-'+width+'.png',fullPage:true})
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-refused-'+width+'.png'})
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Estimator reflows without page overflow')
    assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0)
    assert.deepEqual(await page.locator('main :is(p,label,input,button,summary,h1,h2,h3)').evaluateAll(elements=>elements.filter(e=>e.getClientRects().length&&parseFloat(getComputedStyle(e).fontSize)<13).map(e=>e.tagName)),[])
@@ -92,7 +95,15 @@ export async function proveCostControls(origin,context,page){
  assert.equal((await context.request.post(quoteUrl,{data:{compute,rates,quantities:{compute:-1}}})).status(),422)
  const fractional=await context.request.post(quoteUrl,{data:{compute,rates,workload:{sources:['finance'],refreshesPerSourceDaily:1,dailyChangeMBPerSource:1}}})
  assert.equal(fractional.status(),200)
- assert.equal((await fractional.json()).lines.find(line=>line.id==='refresh').amountMicroUsd,'1250')
+ const fractionalQuote=await fractional.json()
+ assert.equal(fractionalQuote.lines.find(line=>line.id==='refresh').amountMicroUsd,'1250')
+ assert.equal(fractionalQuote.lines.every(line=>line.quantityBasis==='assumed'),true)
+ const microRates=Object.fromEntries(Object.entries(rates).map(([id,rate])=>[id,{...rate,microUsdPerUnit:1}]))
+ const rounded=await context.request.post(quoteUrl,{data:{compute,rates:microRates,workload:{sources:['finance'],refreshesPerSourceDaily:1,dailyChangeMBPerSource:1}}})
+ assert.equal(rounded.status(),200)
+ const roundedRefresh=(await rounded.json()).lines.find(line=>line.id==='refresh')
+ assert.equal(roundedRefresh.amountMicroUsd,'1')
+ assert.equal(roundedRefresh.roundingMicroUsd,true)
  for(const invalid of [{workload:{refreshesPerSourceDaily:1.5}},{workload:{sources:['finance','FINANCE']}},{rates:{...rates,storage:{...rates.storage,microUsdPerUnit:0.1}}}])assert.equal((await context.request.post(quoteUrl,{data:{compute,rates,...invalid}})).status(),422)
  const url=origin+'/api/operator/costs'
  const call=async(path,data,method,expected=200)=>{

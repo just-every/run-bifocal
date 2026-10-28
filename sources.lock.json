@@ -897,7 +897,7 @@
       "executable": false
     },
     "public/bifocal/cost-estimator.js": {
-      "sha256": "f6ffc2e8685194f0c76bd0eafb71857ed9e71660c9a4516f49fd9ec498580021",
+      "sha256": "f8076e34c22dc0c9559c9cca1e0f67d65b0e3964b1b689b2636726f9b4a11205",
       "executable": false
     },
     "public/bifocal/dashboard-authoring.css": {
@@ -1881,7 +1881,7 @@
       "executable": false
     },
     "src/bifocal/costs/quote.ts": {
-      "sha256": "3d3ee4c0c7bfee5b5891374916ac60a04de00e180099ec2f4436f98484c47614",
+      "sha256": "d454c364839646aa29c543b440d243de24cd867495a6aec1e9123dc0b203a97c",
       "executable": false
     },
     "src/bifocal/costs/server.ts": {
@@ -4953,7 +4953,7 @@
       "executable": false
     },
     "tests/journeys/cost-controls.mjs": {
-      "sha256": "5b46a13d4ab48d9a2873e72affb329d2e261d00c8c31d33d1dcc3f3b92e691aa",
+      "sha256": "a4ca29c310f0a1b3ade1257bb74132c5e9de59d652d221729c7810162d5cc99e",
       "executable": false
     },
     "tests/journeys/custom-visual-import.mjs": {
