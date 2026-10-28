@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "65cb083ae8a8d67f92a14cfb6252d0b82678f9b2d96c579bed6f0a55ec2eaf16",
+      "sha256": "f3fc607a156295c5028217152294e03f183491cc8822ee7c563ba1c45779a356",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "fc0c10a39ea9a0f8ccd492c3b314d6cbd87e477d386c78843a4124b0700d1035",
+      "sha256": "edaf955470566afc4c2b631732739ec545c7f9a5dcc1956a9e0e9c35991d3625",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -766,6 +766,10 @@
     },
     "migrations/core/0063_collaboration_participants.sql": {
       "sha256": "56cc06fdb4c9bbc439bb2c4b02d4d00dcca75df70a585e510bf307a9d345ab17",
+      "executable": false
+    },
+    "migrations/core/0064_alert_source_retention.sql": {
+      "sha256": "2b08b2863a9168712b034f0a659fe71974b67b07de0b84099bbe4ff5e4405e86",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -4872,8 +4876,12 @@
       "sha256": "f6ae3df05576eb31ef97273f1410ecbe0982d899f37522bb8f0043321b6fece9",
       "executable": false
     },
+    "tests/journeys/alert-data.mjs": {
+      "sha256": "02c582f8995cbd50e317327ea0cb7da0140317c0bf77cdc2420a52657ce0858b",
+      "executable": false
+    },
     "tests/journeys/alerts.mjs": {
-      "sha256": "4f554c822cae191a5d645ea8e96765b9f14c651ffabb129f367c66d4c10d27f1",
+      "sha256": "9023aab82070c0e428781cb650ae1292b138856f51323a69127b093b3e1bc167",
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {

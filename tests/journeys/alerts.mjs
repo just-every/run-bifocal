@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
 import {proveAlertCommitFences} from './alert-boundaries.mjs'
+import {proveAlertTotals,proveHeldAlertUndo} from './alert-data.mjs'
 
 /** One native flow: reviewed source changes, exact observations and episode custody. */
 export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,clock,browser,devKey}) {
@@ -54,6 +55,8 @@ export async function proveAlerts({origin,owner,reader,page,upload,proveScreen,c
   if(!conventions.settings.name)conventions=await call('/company',{previousRevision:conventions.revision,settings:{...conventions.settings,name:'Synthetic Bifocal monitoring'}},200,'PUT')
   await upload(dataset,empty)
   await call('/calendars',{id:calendar,previousVersion:null,definition:{name:'Invoice monitoring year',kind:'fiscal',startMonth:1}})
+  await proveHeldAlertUndo({call,upload,calendar,clock,owner,origin})
+  await proveAlertTotals({call,upload,calendar,page,origin,proveScreen})
   const query={version:1,dataset,joins:[],filters:[{column:'status',op:'eq',value:'overdue'}],groupBy:['invoice','customer'],measures:[{id:'amount',op:'sum',column:'amount',unit:'money',scale:2,sourceCurrency:'USD',empty:'zero'}],context:{modelVersion:'synthetic-bifocal-167',metricVersion:'synthetic-bifocal-168',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
   table=await call('/queries/run',query);scalar=await call('/queries/run',{...query,groupBy:[]})
   assert.deepEqual(table.answer.rows,[]);assert.equal(table.answer.certification,'unavailable')
