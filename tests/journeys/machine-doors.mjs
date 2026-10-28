@@ -131,28 +131,38 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  // Rotate through the native Settings forms, then use every machine transport.
  const rotationReview=async credential=>call('/credentials/'+credential.id+'/rotate/review',{},200)
  const rotate=async(credential,review,status=201)=>call('/credentials/'+credential.id+'/rotate',{reviewedAt:review.reviewedAt,reviewedDigest:review.reviewedDigest},status)
+ const rotationScreen=async label=>{
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   const settings=page.locator('summary[aria-label="Settings"]'),tooltip=page.getByRole('tooltip',{name:'Open settings'})
+   await settings.focus();await tooltip.waitFor({state:'visible'})
+   await page.locator('h1').click();await settings.hover();await tooltip.waitFor({state:'visible'})
+   await proveScreen(label,{widths:[width],resize:false})
+  }
+ }
  const browserKey=await issue({purpose:'Browser rotation review',maxOperations:5})
  const anonymousRotation=await fetch(origin+'/api/operator/credentials/'+browserKey.id+'/rotate/review',{method:'POST',headers:{Origin:origin,'Content-Type':'application'+'/json'},body:'{}'})
  assert.equal(anonymousRotation.status,401);await anonymousRotation.arrayBuffer()
  const anonymousSettings=await fetch(origin+'/app/settings/credentials');assert.equal(anonymousSettings.status,403);await anonymousSettings.arrayBuffer()
  await api('/api/v1/definitions',undefined,200,browserKey.token)
  await page.goto(origin+'/app/settings')
+ await rotationScreen('machine-credentials-settings')
  await page.getByRole('link',{name:'Manage machine credentials'}).click()
- await proveScreen('machine-credentials-list')
+ await rotationScreen('machine-credentials-list')
  const article=page.locator('article').filter({has:page.getByRole('heading',{name:'Browser rotation review',exact:true})})
  const [reviewPage]=await Promise.all([page.waitForResponse(response=>response.url().endsWith('/'+browserKey.id+'/review')),article.getByRole('button',{name:'Review rotation',exact:true}).click()])
  assert.equal(reviewPage.status(),200,await reviewPage.text())
  assert.ok((await page.locator('main').innerText()).includes('1 of 5'))
  const shownScope=JSON.parse(await page.locator('main pre').innerText())
  assert.deepEqual(shownScope,browserKey.scope)
- await proveScreen('machine-rotation-review')
+ await rotationScreen('machine-rotation-review')
  await page.getByRole('checkbox',{name:'I reviewed this exact scope, consumption and expiry'}).check()
  await page.getByRole('button',{name:'Rotate credential',exact:true}).focus()
  await page.keyboard.press('Enter')
  await page.getByRole('status').filter({hasText:'Credential rotated.'}).waitFor()
  const replacementToken=await page.getByLabel('Replacement bearer').inputValue()
  assert.match(replacementToken,/^[a-f0-9]{64}$/);assert.notEqual(replacementToken,browserKey.token)
- await proveScreen('machine-rotation-completed')
+ await rotationScreen('machine-rotation-completed')
  assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0)
  const rotatedState=await call('/credentials'),browserCredentialRow=rotatedState.credentials.find(c=>c.predecessor_id===browserKey.id)
  assert.ok(browserCredentialRow);assert.equal(browserCredentialRow.used_operations,1);assert.deepEqual(JSON.parse(browserCredentialRow.definition_json),browserKey.scope)
@@ -186,6 +196,20 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.deepEqual(winner.scope,concurrentKey.scope)
  await api('/api/v1/definitions',undefined,200,winner.token)
  await rotate(concurrentKey,concurrentReview,409)
+ const memberAddress='synthetic-bifocal-rotation-member'+String.fromCharCode(64)+'example.test'
+ const invitedMember=await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:memberAddress,displayName:'Synthetic rotation member',role:'member'}})
+ assert.equal(invitedMember.status(),202,await invitedMember.text())
+ const member=await page.context().browser().newContext()
+ try{
+  const entered=await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(memberAddress),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0})
+  assert.equal(entered.status(),303,await entered.text())
+  const deniedReview=await member.request.post(origin+'/api/operator/credentials/'+winner.id+'/rotate/review',{headers:{Origin:origin},data:{}})
+  assert.equal(deniedReview.status(),401)
+  const deniedRotation=await member.request.post(origin+'/api/operator/credentials/'+winner.id+'/rotate',{headers:{Origin:origin},data:{reviewedAt:concurrentReview.reviewedAt,reviewedDigest:concurrentReview.reviewedDigest}})
+  assert.equal(deniedRotation.status(),401)
+  assert.equal((await member.request.get(origin+'/app/settings/credentials')).status(),403)
+  assert.equal((await call('/credentials')).credentials.filter(c=>c.predecessor_id===concurrentKey.id).length,1)
+ }finally{await member.close()}
  const staleKey=await issue(),staleRotationReview=await rotationReview(staleKey)
  await api('/api/v1/definitions',undefined,200,staleKey.token)
  await rotate(staleKey,staleRotationReview,409)
@@ -198,7 +222,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  await page.locator('article').filter({has:page.locator('code').filter({hasText:staleKey.id})}).getByRole('button',{name:'Review rotation'}).click()
  await api('/api/v1/definitions',undefined,200,staleKey.token)
  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Rotate credential',exact:true}).click()
- await page.getByRole('alert').waitFor();await proveScreen('machine-rotation-stale-refusal')
+ await page.getByRole('alert').waitFor();await rotationScreen('machine-rotation-stale-refusal')
  // Schedule fresh owner review and rotation after the predecessor reserved a read.
  for(const transport of ['rest','graphql','mcp','definitions']){
   const credential=await issue({maxOperations:2})
@@ -349,6 +373,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(history.history.some(h=>h.credential_id===id&&h.action==='activation-retired'),'Durable attributed retirement for '+id)
  }
  assert.ok(!JSON.stringify(history).includes('Ignore rules'))
+ console.log('Machine rotation: browser exact review, keyboard and tooltip operation at both widths, replacement parity, permanent old-bearer and in-flight withdrawal, one concurrent winner, retained consumption and expiry, stale and expired and revoked and non-owner and mixed-authority refusal passed')
  console.log('Machine doors: native versioned model and content conflicts, certified metric parity, current-owner suspension and reactivation, pre-release withdrawal across all protocols, source policy intersection, lifetime cross-protocol accounting, source Undo and model rollback retirement, fresh review, exact human issuance, REST and GraphQL and three MCP clients, dashboard parity, complete paging, fixed scope, atomic budget, private diagnostics, source fences and immediate revocation passed')
 }
 

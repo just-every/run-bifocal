@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "65cb083ae8a8d67f92a14cfb6252d0b82678f9b2d96c579bed6f0a55ec2eaf16",
+      "sha256": "c2d270d19e316a96f791e1506635ba8de583e226d525ccda52721efc670ceb2e",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "fc0c10a39ea9a0f8ccd492c3b314d6cbd87e477d386c78843a4124b0700d1035",
+      "sha256": "0376bbf902bd7d4e898bd48813d93a736b0f388527fbaf3d150a10320d28842e",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1885,7 +1885,7 @@
       "executable": false
     },
     "src/bifocal/credentials/page.server.ts": {
-      "sha256": "0584dbd8122bf5763f1501dea144a677ccad93284ca14040efa7b2e3e37a4888",
+      "sha256": "6e96ca6b7f63ea2707d6c47173d7f9438798b91e22301e0807b364dfa766a0a8",
       "executable": false
     },
     "src/bifocal/credentials/rotation.server.ts": {
@@ -5033,7 +5033,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "7fdadc3ada403a55a75151852b55ab9a84d1c7d588fba9658cec621a41b9f591",
+      "sha256": "81dd7e6228c34a84f4b55d121886dd8b297dcb38d0f8a768f20e298b8e9dfcb6",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
