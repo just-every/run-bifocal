@@ -1,4 +1,79 @@
 import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+
+/** The installed quote is reachable while signed out, before first-run setup. */
+export async function proveReferenceEstimator(origin,context,page){
+ const requests=[]
+ const collect=request=>requests.push({url:request.url(),method:request.method()})
+ page.on('request',collect)
+ try{
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000})
+   assert.equal((await page.goto(origin+'/cost-estimator')).status(),200)
+   await page.getByRole('heading',{name:'Monthly cost estimator',exact:true}).waitFor()
+   const form=page.locator('#cost-estimator'),status=page.locator('#quote-status'),result=page.locator('#quote-result')
+   assert.equal(await result.isVisible(),false,'No invented rate or cheap default estimate')
+   for(const [name,value] of Object.entries({provider:'Owner analytical provider',size:'Two core bounded instance',region:'US East',rateDate:'2026-10-28',reference:'https://provider.example.test/rates'}))await form.locator(`[name="${name}"]`).fill(value)
+   // Independently frozen prices and totals, never derived from calculator output.
+   const prices={product:'0',control:'0.000001',compute:'0.05',scan:'0.005',storage:'0.02',refresh:'0.1',delivery:'0.002',agents:'0.03',portal:'2'}
+   for(const [id,value]of Object.entries(prices))await form.locator(`[name="rate-${id}"]`).fill(value)
+   const calculate=page.getByRole('button',{name:'Calculate monthly estimate',exact:true})
+   for(const invalid of ['','0.0000001']){
+    await form.locator('[name="rate-agents"]').fill(invalid)
+    await calculate.click();await status.filter({hasText:'at most six decimal places'}).waitFor()
+    assert.equal(await result.isVisible(),false)
+    assert.equal(await form.locator('[name="rate-agents"]').getAttribute('aria-invalid'),'true')
+   }
+   await form.locator('[name="rate-agents"]').fill('0.03')
+   await calculate.click();await status.filter({hasText:'Estimate calculated'}).waitFor()
+   const expected={product:'0.000000',control:'0.251100',compute:'36.500000',scan:'31.500000',storage:'2.000000',refresh:'3.000000',delivery:'1.600000',agents:'3.000000',portal:'2.000000'}
+   for(const [id,amount]of Object.entries(expected)){
+    const line=page.locator(`[data-line="${id}"]`)
+    assert.equal(await line.locator('.quote-amount').textContent(),'USD '+amount)
+    assert.match(await line.innerText(),/Assumed quantity.*owner-entered rate/)
+    assert.match(await line.innerText(),/2026-10-28/)
+    assert.equal(await line.getByRole('link',{name:'Open rate provenance'}).getAttribute('href'),'https://provider.example.test/rates')
+   }
+   assert.equal(await page.locator('#quote-total').textContent(),'79.851100')
+   assert.equal(await page.locator('#quote-comparison').isVisible(),false)
+   await page.locator('#workload>summary').click()
+   assert.equal(await form.locator('[name="sources"]').inputValue(),'finance\nbilling\ncrm\nmarketing\nsupport\ncommerce\ninventory\npeople\nprojects\nfiles')
+   for(const[name,value]of Object.entries({internalReaders:'50',refreshesPerSourceDaily:'24',portalTenants:'1',portalReaders:'10',retainedGB:'100',newGBMonthly:'10',dashboards:'20',tilesPerDashboard:'20',dashboardOpensDaily:'100',peakUsers:'5',dailyChangeMBPerSource:'100',weeklyBurstRuns:'4',burstRecipients:'50',alertEvaluationsDaily:'100',agentRunsMonthly:'100'}))assert.equal(await form.locator(`[name="${name}"]`).inputValue(),value)
+   if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-reference-'+width+'.png',fullPage:true})}
+   await form.locator('[name="sources"]').fill('finance\nbilling\ncrm\nmarketing\nsupport')
+   assert.equal(await result.isVisible(),false,'Editing assumptions invalidates the displayed quote')
+   assert.equal(await page.locator('#source-count').textContent(),'Source count: 5')
+   await form.locator('[name="refreshesPerSourceDaily"]').fill('12')
+   await form.locator('[name="refreshesPerSourceDaily"]').press('Enter')
+   await status.filter({hasText:'Estimate calculated'}).waitFor()
+   assert.equal(await page.locator('[data-line="refresh"] [data-quantity]').getAttribute('data-quantity'),'7.5')
+   assert.equal(await page.locator('[data-line="refresh"] .quote-amount').textContent(),'USD 0.750000')
+   assert.equal(await page.locator('[data-line="control"] .quote-amount').textContent(),'USD 0.245700')
+   assert.equal(await page.locator('#quote-total').textContent(),'77.595700')
+   await page.locator('#licences>summary').click()
+   await form.locator('[name="includeLicences"]').check()
+   await form.locator('[name="licences"]').fill('200.000001')
+   await calculate.focus();await page.keyboard.press('Enter');await status.filter({hasText:'Estimate calculated'}).waitFor()
+   assert.equal(await page.locator('#quote-total').textContent(),'77.595700')
+   assert.match(await page.locator('#quote-comparison').textContent(),/USD 277.595701, including USD 200.000001 source licences. Tax excluded/)
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-buyer-'+width+'.png',fullPage:true})
+   await form.locator('[name="rate-storage"]').fill('0.0000001');await calculate.click()
+   await status.filter({hasText:'at most six decimal places'}).waitFor()
+   assert.equal(await result.isVisible(),false)
+   assert.equal(await form.locator('[name="sources"]').inputValue(),'finance\nbilling\ncrm\nmarketing\nsupport')
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/cost-refused-'+width+'.png',fullPage:true})
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Estimator reflows without page overflow')
+   assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0)
+   assert.deepEqual(await page.locator('main :is(p,label,input,button,summary,h1,h2,h3)').evaluateAll(elements=>elements.filter(e=>e.getClientRects().length&&parseFloat(getComputedStyle(e).fontSize)<13).map(e=>e.tagName)),[])
+  }
+  assert.ok(requests.every(request=>new URL(request.url).origin===origin),'No external provider request')
+  assert.ok(requests.filter(request=>request.method!=='GET').every(request=>request.method==='POST'&&new URL(request.url).pathname==='/api/cost-reference'),'Only quote calculation is requested, never activation or reservation')
+  assert.equal((await context.request.post(origin+'/cost-estimator',{data:{}})).status(),405)
+  assert.equal((await context.request.head(origin+'/cost-estimator')).status(),200)
+ }finally{page.off('request',collect)}
+ console.log('Reference estimator: signed-out pre-setup calculation, independent amounts, sources and cadence, licences, refusals, keyboard and no outbound work at 1440 and 390 passed')
+}
+
 export async function proveCostControls(origin,context,page){
  const quoteUrl=origin+'/api/cost-reference'
  const rates=Object.fromEntries(['product','control','compute','scan','storage','refresh','delivery','agents','portal'].map(id=>[id,{microUsdPerUnit:1000000,rateDate:'2026-10-26',reference:'Owner-entered synthetic provider size and rate'}]))
@@ -15,6 +90,10 @@ export async function proveCostControls(origin,context,page){
  const missing={...rates};delete missing.agents
  assert.equal((await context.request.post(quoteUrl,{data:{compute,rates:missing}})).status(),422)
  assert.equal((await context.request.post(quoteUrl,{data:{compute,rates,quantities:{compute:-1}}})).status(),422)
+ const fractional=await context.request.post(quoteUrl,{data:{compute,rates,workload:{sources:['finance'],refreshesPerSourceDaily:1,dailyChangeMBPerSource:1}}})
+ assert.equal(fractional.status(),200)
+ assert.equal((await fractional.json()).lines.find(line=>line.id==='refresh').amountMicroUsd,'1250')
+ for(const invalid of [{workload:{refreshesPerSourceDaily:1.5}},{workload:{sources:['finance','FINANCE']}},{rates:{...rates,storage:{...rates.storage,microUsdPerUnit:0.1}}}])assert.equal((await context.request.post(quoteUrl,{data:{compute,rates,...invalid}})).status(),422)
  const url=origin+'/api/operator/costs'
  const call=async(path,data,method,expected=200)=>{
   const response=await context.request.fetch(url+path,{method,headers:{Origin:origin},data})
@@ -47,6 +126,9 @@ export async function proveCostControls(origin,context,page){
  }
  if(page)for(const width of [1440,390]){
   await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/settings')
+  await page.getByRole('link',{name:'Monthly cost estimator',exact:true}).click()
+  await page.getByRole('heading',{name:'Monthly cost estimator',exact:true}).waitFor()
+  await page.goto(origin+'/app/settings')
   for(const scope of ['source','job','agent','tenant']){
    const review=page.locator('#budget-review'),save=page.locator('#budget-save')
    await review.getByLabel('Budget scope',{exact:true}).selectOption(scope)

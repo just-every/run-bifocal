@@ -8,6 +8,7 @@ import { proveAnalyticsBoundaries } from './journeys/analytics-boundaries.mjs'
 import { proveFileImports } from './journeys/file-import.mjs'
 import { proveSpreadsheetEdges } from './journeys/spreadsheet-edge.mjs'
 import { proveConventions } from './journeys/conventions.mjs'
+import { proveReferenceEstimator } from './journeys/cost-controls.mjs'
 import { chromium } from '@playwright/test'
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
@@ -114,6 +115,7 @@ try {
         await page.waitForURL(`${origin}/`)
       }
     }
+    await proveReferenceEstimator(origin, context, page)
     // Installed docs: public, same-origin and static before any owner sign-in.
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })

@@ -58,6 +58,7 @@ import { appImportResponse } from './bifocal/apps/import/door.server'
 import { retentionPolicyResponse } from './bifocal/retention/policy.server'
 import { publicApiResponse } from './bifocal/api/server'
 import { costResponse } from './bifocal/costs/server'
+import { costEstimatorPage } from './bifocal/costs/page.server'
 import { erasureReceiptResponse } from './bifocal/retention/server'
 
 const api = new Hono<{ Bindings: Bindings }>()
@@ -88,6 +89,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (publicApi) return publicApi
     const portal = await portalResponse(request, env)
     if (portal) return portal
+    const estimator = costEstimatorPage(request)
+    if (estimator) return estimator
     const costs = await costResponse(request, env)
     if (costs) return costs
     const retentionPolicy = await retentionPolicyResponse(request, env)
