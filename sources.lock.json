@@ -2789,7 +2789,7 @@
       "executable": false
     },
     "src/bifocal/reports/rdl/render.ts": {
-      "sha256": "f59f0078ee2081ba3e19105d3bd810c501b3eb2a3c9f3ffab86041a7ba236f3e",
+      "sha256": "a094d1b67d44491bf779bbd8d411ca0857e7a4b992d0f8a6984808066bd23a61",
       "executable": false
     },
     "src/bifocal/reports/rdl/scopes.ts": {
@@ -4921,7 +4921,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "be0e4f0d2e696970c8290071c06763888f8f50a6c6a4e2cd6a3ac4456214a65f",
+      "sha256": "9a46f6bf0ef13d33806910e990d5c91c5ef48890030127310fca12133ad64110",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -5021,7 +5021,7 @@
       "executable": false
     },
     "tests/journeys/dashboard-snapshots.mjs": {
-      "sha256": "6fa94149160bbe0ba086c55d6c12518da31a81935c0a5082ef0d57b5419258d0",
+      "sha256": "680d18a20cbf0a4c11235874a70afd054883e82fd0820b8464b4bf2c2ff435be",
       "executable": false
     },
     "tests/journeys/dashboard-tv.mjs": {

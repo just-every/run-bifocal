@@ -7,6 +7,7 @@ import { child, children, descendants, text } from './tree'
 import { length, reportLayout, type ReportRow } from './layout'
 import { reportCell } from './values'
 import { sortRdlGroups, sortRdlRows } from './sort'
+import { RdlExecutionError } from './problems'
 
 /** A native readable rendering is a separate reviewed layout, never a source
  * pagination or successful-switch claim. Unknown execution semantics refuse. */
@@ -22,7 +23,7 @@ export function renderRdl(project: RdlProject, tables: Record<string, RdlTable>,
   if (unsupported.has(node.name)) {
    // A single static column hierarchy is the ordinary tablix column scaffold.
    if (node.name === 'TablixColumnHierarchy' && descendants(node, 'Group').length === 0) continue
-   fail('rdl_readable_semantics_unsupported')
+   throw new RdlExecutionError('rdl_readable_semantics_unsupported', [{location: node.location, code: 'rdl_readable_semantics_unsupported', reason: 'The readable renderer cannot preserve this imported feature: ' + node.name + '.', dependency: node.name, resolution: 'Provide a supported native equivalent and reconcile its output against the source before rendering this report.'}])
   }
   if (node.name === 'Language' && node.text !== 'en-US') fail('rdl_readable_language_unsupported')
   if (node.name === 'DataField' && node.text.trim().startsWith('=')) fail('rdl_calculated_dataset_field_unsupported')
