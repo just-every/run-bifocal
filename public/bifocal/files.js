@@ -1,3 +1,4 @@
+import './rdl-import.js'
 import './model-import.js'
 import { element, table, metadata, sourceView } from './file-view.js'
 import { envelope, upload, originalFile, fileLimits } from './file-upload.js'

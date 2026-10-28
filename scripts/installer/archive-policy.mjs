@@ -96,6 +96,7 @@ export default {
     "bf_calculation_models",
     "bf_calculation_runs",
     "bf_model_imports",
+    "bf_rdl_imports",
     "bf_model_revision_imports",
     "bf_model_import_uses",
     "bf_model_import_sources",

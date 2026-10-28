@@ -9,7 +9,7 @@ import {proveCompositionTooling} from './journeys/composition-tooling.mjs'
 import {proveLargeExploration} from './journeys/large-exploration.mjs'
 import {proveDashboardTv} from './journeys/dashboard-tv.mjs'
 import {proveDashboardInteractions} from './journeys/dashboard-interactions.mjs'
-import {proveDashboardSnapshots} from './journeys/dashboard-snapshots.mjs'
+import {proveDashboardSnapshots,proveRdlImports} from './journeys/dashboard-snapshots.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -43,7 +43,7 @@ try {
  const call=async(path,data,expected=data===undefined?200:201,extra={})=>{const r=await context.request.fetch(origin+'/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...extra},...(data===undefined?{}:{data})});assert.equal(r.status(),expected,await r.text());return r.json()}
  assert.equal((await context.request.post(origin+'/auth/bootstrap',{headers,data:{token:setup,displayName:'Synthetic owner',returnTo:'/app'},maxRedirects:0})).status(),303)
  await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup'}).click()])
- const proveScreen=async(label,{widths=[1440,390],resize=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'No icon-only control lacks a tooltip');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}}}
+ const proveScreen=async(label,{widths=[1440,390],resize=true,fullPage=true}={})=>{for(const width of widths){if(resize)await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'No icon-only control lacks a tooltip');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage})}}}
  await page.goto(origin+'/app/queries');await page.getByRole('status').filter({hasText:'Paste a definition'}).waitFor();await proveScreen('answers-exploration-navigation');await page.getByRole('link',{name:'Explore a question',exact:true}).click();await page.getByRole('status').filter({hasText:'No published models yet'}).waitFor()
  await page.goto(origin+'/app/models');await page.getByRole('status').filter({hasText:'No source data yet'}).waitFor();await proveScreen('model-empty')
  await page.goto(origin+'/app/questions');await page.getByRole('status').filter({hasText:'No published models yet'}).waitFor();await proveScreen('explore-no-model');await page.goto(origin+'/app/models')
@@ -61,6 +61,7 @@ try {
  }
  if(process.env.BIFOCAL_CHART_ONLY==='1'){await proveModelLifecycle({origin,context,definition:{views:[],quality:[]},upload});await context.close();return}
  if(process.env.BIFOCAL_PORTAL_BOUNDARY_ONLY==='1'){await provePortalBoundary({origin,context});await context.close();return}
+ if(process.env.BIFOCAL_RDL_ONLY==='1'){await proveRdlImports({origin,context,page,proveScreen,upload});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_MODEL_IMPORT_ONLY==='1'){await proveModelImports({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_DASHBOARD_ONLY==='1'){await proveDashboardInteractions({origin,context,page,upload,proveScreen});await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await context.close();return}
@@ -159,6 +160,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveNativePreparation({imports:true})
  await provePortalBoundary({origin,context})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
+ await proveRdlImports({origin,context,page,proveScreen,upload})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
  assert.equal((await context.request.get(origin+'/api/operator/model-authoring/'+saved.modelId+'/'+saved.branchId+'/document')).status(),404)
