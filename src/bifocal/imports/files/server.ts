@@ -5,6 +5,7 @@ import { migrationImportResponse } from '../migrations/door.server'
 import { preparationOutput, preparationDescendants } from '../../preparation/materialize.server'
 import {collaborationErasureCounts} from '../../collaboration/erasure'
 import { retentionAllowsErasure } from '../../retention/policy.server'
+import { preparationErasureGuard } from '../../preparation/erasure.server'
 import {definitionErasureCounts,eraseDefinitions} from '../../environments/erasure'
 import { eraseSourceCalculationLibraries } from '../../calculations/library/store.server'
 import { modelImportResponse } from '../models/door.server'
@@ -74,11 +75,11 @@ export async function fileImportResponse(request: Request, original: Bindings, e
    const retention=retentionAllowsErasure(dataset)
    const allowed=await env.DB.prepare(`SELECT CASE WHEN (${retention.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...retention.params??[]).first<{allowed:number}>()
    if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
-   const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset)
-   await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${retention.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...retention.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
+   const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset),withdrawal=await preparationErasureGuard(env,'dataset',dataset)
+   // Retention includes project-owned outputs outside this source's direct graph.
+   // Check again in the same batch that establishes the durable withdrawal fence.
+   await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${withdrawal.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...withdrawal.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
    const descendants=await preparationDescendants(env,dataset),derivedReceipts=[],activeDatasets=new Set([...erasingDatasets,dataset])
-   // Check every retained descendant before starting any destructive action.
-   for(const id of descendants){const policy=retentionAllowsErasure(id);if(!await env.DB.prepare(`SELECT 1 WHERE ${policy.sql}`).bind(...policy.params??[]).first())return json({error:'retention_hold',reason:'A prepared output is protected by retention. Resolve its hold before erasing this source.'},423)}
    for(const id of descendants){
     const output=await fileTargets.read(env.DB,fileDestination(id),'file-table',id)
     if(!output)continue

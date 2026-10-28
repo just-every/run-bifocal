@@ -44,7 +44,7 @@ export async function materializePreparation(request:Request,env:Bindings,owner:
  if(input.reviewedDigest!==digest)fail('exact_preparation_output_review_required',409)
  const createdAt=new Date().toISOString(),revision=sha256(canonicalJson({digest,createdAt}))
  const table:Table={columns:result.output.columns,rows:result.output.rows,key:null,source:{filename:'prepared-output.csv',sha256:sha256(canonicalJson(result.output)),delimiter:',',encoding:'utf-8',nullValue:'',formulaTreatment:'literal-text',preparation:{id,version:row.version,digest,lineage:result.output.lineage}},updatedAt:createdAt}
- await transact(env.DB,owner,[...guards,sql('INSERT INTO bf_file_tables(id,value_json,revision) VALUES(?,?,?)',dataset,canonicalJson(table),revision),sql('INSERT INTO bf_preparation_outputs(dataset_id,owner_id,preparation_id,version,digest,lineage_json,created_at) VALUES(?,?,?,?,?,?,?)',dataset,ownerId,id,row.version,digest,canonicalJson(result.output.lineage),createdAt),...pins.map(source=>sql('INSERT INTO bf_preparation_output_sources(output_id,dataset_id,revision) VALUES(?,?,?)',dataset,source.dataset,source.revision))])
+ await transact(env.DB,owner,[...guards,sql('INSERT INTO bf_file_tables(id,value_json,revision) VALUES(?,?,?)',dataset,canonicalJson(table),revision),sql('INSERT INTO bf_preparation_outputs(dataset_id,owner_id,preparation_id,version,digest,lineage_json,created_at,project_id) VALUES(?,?,?,?,?,?,?,?)',dataset,ownerId,id,row.version,digest,canonicalJson(result.output.lineage),createdAt,document.imported?.projectId??null),...pins.map(source=>sql('INSERT INTO bf_preparation_output_sources(output_id,dataset_id,revision) VALUES(?,?,?)',dataset,source.dataset,source.revision))])
  return json({...value,revision,published:true},201)
 }
 

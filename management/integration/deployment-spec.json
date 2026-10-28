@@ -381,9 +381,21 @@
     },
     {
       "binding": "DB",
+      "name": "0059_preparation_outputs.sql",
+      "sha256": "6a60bc5611b4e6ae4417f69358e1c3dc95da49aaccacb135bbea29e5204bbaca",
+      "sql": "-- Bounded native materializations; the columnar analytical job store is separate.\nCREATE TABLE bf_preparation_outputs (\n dataset_id TEXT PRIMARY KEY REFERENCES bf_file_tables(id) ON DELETE CASCADE,\n owner_id TEXT NOT NULL, preparation_id TEXT NOT NULL, version INTEGER NOT NULL,\n digest TEXT NOT NULL, lineage_json TEXT NOT NULL, created_at TEXT NOT NULL\n);\nCREATE TABLE bf_preparation_output_sources (\n output_id TEXT NOT NULL REFERENCES bf_preparation_outputs(dataset_id) ON DELETE CASCADE,\n dataset_id TEXT NOT NULL, revision TEXT NOT NULL,\n PRIMARY KEY(output_id,dataset_id)\n);\nCREATE INDEX bf_preparation_output_parent ON bf_preparation_output_sources(dataset_id);\n-- Durable withdrawal fence survives interruption before descendant cleanup.\nCREATE TABLE bf_preparation_erasing (dataset_id TEXT PRIMARY KEY);\nCREATE TABLE bf_preparation_erasing_projects (project_id TEXT PRIMARY KEY);\n"
+    },
+    {
+      "binding": "DB",
       "name": "0060_alerts.sql",
       "sha256": "76a7f9b235cf7d60871b99b8338c60591cefd78e1e0f4f99068b099c820c6513",
       "sql": "CREATE TABLE bf_alert_rules (\n id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,\n query_id TEXT NOT NULL REFERENCES bf_query_snapshots(id) ON DELETE CASCADE,\n definition_json TEXT NOT NULL,generation INTEGER NOT NULL DEFAULT 0,\n baseline_observation_id TEXT,last_observation_id TEXT,qualifying INTEGER NOT NULL DEFAULT 0 CHECK(qualifying IN (0,1)),created_at TEXT NOT NULL\n);\nCREATE INDEX bf_alert_rules_owner ON bf_alert_rules(owner_id,created_at);\nCREATE TABLE bf_alert_sources (\n rule_id TEXT NOT NULL REFERENCES bf_alert_rules(id) ON DELETE CASCADE,\n dataset_id TEXT NOT NULL REFERENCES bf_file_tables(id) ON DELETE CASCADE,\n PRIMARY KEY(rule_id,dataset_id)\n);\nCREATE TRIGGER bf_alert_source_erasure BEFORE DELETE ON bf_file_tables BEGIN\n DELETE FROM bf_alert_rules WHERE id IN (SELECT rule_id FROM bf_alert_sources WHERE dataset_id=OLD.id);\nEND;\nCREATE TABLE bf_alert_observations (\n id TEXT PRIMARY KEY,rule_id TEXT NOT NULL REFERENCES bf_alert_rules(id) ON DELETE CASCADE,\n request_id TEXT NOT NULL,generation INTEGER NOT NULL,result_hash TEXT NOT NULL,payload_json TEXT NOT NULL,created_at TEXT NOT NULL,\n UNIQUE(rule_id,request_id),UNIQUE(rule_id,generation)\n);\nCREATE TABLE bf_alert_episodes (\n id TEXT PRIMARY KEY,rule_id TEXT NOT NULL REFERENCES bf_alert_rules(id) ON DELETE CASCADE,\n state TEXT NOT NULL CHECK(state IN ('open','closed')),document_json TEXT NOT NULL\n);\nCREATE UNIQUE INDEX bf_alert_one_open_episode ON bf_alert_episodes(rule_id) WHERE state='open';\nCREATE TABLE bf_alert_transitions (\n id TEXT PRIMARY KEY,rule_id TEXT NOT NULL REFERENCES bf_alert_rules(id) ON DELETE CASCADE,\n episode_id TEXT REFERENCES bf_alert_episodes(id) ON DELETE CASCADE,\n observation_id TEXT REFERENCES bf_alert_observations(id) ON DELETE CASCADE,\n document_json TEXT NOT NULL,created_at TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0060_preparation_project_custody.sql",
+      "sha256": "6571612ed97169f7ce6269940a23e330ccbe0d9ce457a7920d23d5c610753885",
+      "sql": "-- Published custody outlives draft revisions and their cascading erasure.\nALTER TABLE bf_preparation_outputs ADD COLUMN project_id TEXT;\nUPDATE bf_preparation_outputs SET project_id=(\n SELECT json_extract(r.document_json,'$.imported.projectId')\n FROM bf_preparation_revisions r\n WHERE r.preparation_id=bf_preparation_outputs.preparation_id\n AND r.version=bf_preparation_outputs.version\n);\nCREATE INDEX bf_preparation_output_project ON bf_preparation_outputs(project_id);\n"
     },
     {
       "binding": "DB",

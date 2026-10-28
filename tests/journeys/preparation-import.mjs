@@ -26,6 +26,67 @@ export async function provePreparationImports({origin,context,call,upload,signIn
   return {project,plan,input}
  }
  const mFile={path:'synthetic-bifocal-1.m',content:'let\n Source = Excel.CurrentWorkbook(){[Name="synthetic-bifocal-1"]}[Content],\n #"Changed Type" = Table.TransformColumnTypes(Source, {{"enabled", type text}, {"quantity", type number}}),\n #"Removed Duplicates" = Table.Distinct(#"Changed Type")\nin #"Removed Duplicates"'}
+ // Exercise custody through native review and save as well as flow-review.
+ const failures=[]
+ const check=async(name,run)=>{try{await run();console.log(name+': PASS')}catch(error){failures.push(name+': '+error.message);console.log(name+': FAIL '+error.message)}}
+ const save=async(path,document,previousVersion=null)=>{const review=await call(path+'/review',{document,previousVersion},200);return call(path+'/save',{document,previousVersion,reviewedDigest:review.digest})}
+ const publish=async(path,dataset,version)=>{const review=await call(path+'/publish-review',{dataset,version},200);return call(path+'/publish',{dataset,version,reviewedDigest:review.digest})}
+ const eraseSource=async(dataset,expected=200)=>{const source=await call('/datasets/'+dataset);return call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},expected)}
+ const protect=async(dataset,legalHold,previousRevision)=>{const response=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedDatasetRevision:(await call('/datasets/'+dataset)).revision,previousRevision,legalHold,minimumRetainUntil:null,releaseHold:true}});assert.equal(response.status(),200,await response.text());return response.json()}
+ const importedDocument=(project,dataset)=>({version:1,dataset,imported:{projectId:project.id,revision:project.revision,flowId:mFile.path,bindings:{[mFile.path+'#Source']:dataset}},steps:[{op:'cast',column:'enabled',type:'text'},{op:'cast',column:'quantity',type:'number'},{op:'dedupe'}]})
+ await check('Published project custody survives removal of shared preparation history',async()=>{
+  const first='synthetic-bifocal-210',second='synthetic-bifocal-211',output='synthetic-bifocal-212',path='/preparations/synthetic-bifocal-213'
+  for(const source of [first,second])await upload(source,sourceCSV,false,{columns:{quantity:'text',enabled:'boolean',region:'text'}})
+  const a=await ingest('synthetic-bifocal-214','powerquery',mFile),b=await ingest('synthetic-bifocal-215','powerquery',mFile)
+  for(const [project,source,version] of [[a.project,first,null],[b.project,second,1]]){
+   const document=importedDocument(project,source)
+   await call(path+'/flow-review',document.imported,200)
+   await save(path,document,version)
+  }
+  await publish(path,output,2)
+  assert.deepEqual((await call('/datasets/'+output)).table.rows,[['1.25','true','West'],['3.5','false','East']])
+  const held=await protect(output,true,null)
+  await call('/model-imports/'+a.project.id+'/erase',{confirmProject:a.project.id,reviewedRevision:a.project.revision},200)
+  await call(path,undefined,404)
+  await call('/datasets/'+output)
+  await call('/model-imports/'+b.project.id+'/erase',{confirmProject:b.project.id,reviewedRevision:b.project.revision},423)
+  assert.equal((await call('/model-imports/'+b.project.id)).revision,b.project.revision)
+  await protect(output,false,held.revision)
+  const replacement='/preparations/synthetic-bifocal-223',replacementOutput='synthetic-bifocal-224'
+  await save(replacement,importedDocument(b.project,second))
+  await publish(replacement,replacementOutput,1)
+  await call('/model-imports/'+b.project.id+'/erase',{confirmProject:b.project.id,reviewedRevision:b.project.revision},200)
+  await call('/datasets/'+output,undefined,404)
+  await call('/datasets/'+replacementOutput,undefined,404)
+  await eraseSource(first);await eraseSource(second)
+ })
+ await check('Native imported preparation save registers original source custody',async()=>{
+  const source='synthetic-bifocal-216',path='/preparations/synthetic-bifocal-217'
+  await upload(source,sourceCSV,false,{columns:{quantity:'text',enabled:'boolean',region:'text'}})
+  const {project,plan}=await ingest('synthetic-bifocal-218','powerquery',mFile)
+  await save(path,importedDocument(project,source))
+  await eraseSource(source)
+  await call('/datasets/'+source,undefined,404);await call(path,undefined,404)
+  await call('/model-imports/'+project.id,undefined,404)
+  const original=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':project.id}})
+  assert.equal(original.status(),200);assert.equal((await original.json()).originals[0].original.status,'unavailable')
+ })
+ await check('Refused retained descendant erasure preserves freshness and later publication',async()=>{
+  const source='synthetic-bifocal-219',output='synthetic-bifocal-220',next='synthetic-bifocal-221',path='/preparations/synthetic-bifocal-222'
+  await upload(source,'quantity\n1\n2\n')
+  await save(path,{version:1,dataset:source,steps:[{op:'dedupe'}]})
+  await publish(path,output,1)
+  const held=await protect(output,true,null)
+  const refused=await eraseSource(source,423);assert.equal(refused.error,'retention_hold')
+  assert.equal((await call('/datasets/'+output)).preparation.current,true)
+  await protect(output,false,held.revision)
+  await publish(path,next,1)
+  assert.equal((await call('/datasets/'+output)).preparation.current,true)
+  assert.deepEqual((await call('/datasets/'+next)).table.rows,[['1'],['2']])
+  await eraseSource(source)
+  for(const dataset of [source,output,next])await call('/datasets/'+dataset,undefined,404)
+ })
+ assert.deepEqual(failures,[],'Preparation custody public doors')
  const imported=await ingest('synthetic-bifocal-171','powerquery',mFile),path='/preparations/synthetic-bifocal-172/flow-review'
  const bindings={[mFile.path+'#Source']:dataset},request={projectId:imported.project.id,revision:imported.project.revision,bindings}
  const translated=await call(path,request,200)
