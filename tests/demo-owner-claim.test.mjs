@@ -203,6 +203,8 @@ test('restored owner definitions survive archives and browser setup refuses a di
   const machineHistory = await restoredMachineHistory.json()
   assert.deepEqual(machineHistory.credentials, [])
   assert.ok(machineHistory.history.some(event => event.credential_id === machineCredential.id && event.actor_kind === 'human' && event.action === 'issued-exact-review'), 'attributed human issuance history survives without authority')
+  assert.ok(machineHistory.history.some(event => event.credential_id === machineCredential.id && event.actor_kind === 'human' && event.action === 'rotated'), 'attributed rotation history survives without predecessor authority')
+  assert.ok(machineHistory.history.some(event => event.credential_id === machineCredential.replacementId && event.actor_kind === 'human' && event.action === 'issued-by-rotation'), 'replacement attribution survives without activation')
   const restoredPolicy = await restoredContext.request.get(origin + '/api/operator/credentials/sources/synthetic-bifocal-restore')
   assert.equal(restoredPolicy.status(), 200)
   assert.deepEqual((await restoredPolicy.json()).definition, { columns: ['invoice', 'region', 'revenue'], filters: [{ column: 'region', op: 'eq', value: 'West' }] }, 'archive preserves the exact source restrictions without machine activation')
