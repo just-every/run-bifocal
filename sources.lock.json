@@ -757,7 +757,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "fc9f589da5453ea979165719b7c934a966643cf9c9bbbcfeb0095a32e61758b8",
+      "sha256": "d5a2478edf58b03b2e22ed6cb950f5814173f2507fee9d409c9736d2378b92b5",
       "executable": false
     },
     "packaging.json": {
@@ -765,7 +765,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "7ef86d3f044f5285eb1b0ab2914bfd68d8c69b6c94f9affec8a3db9ff7efac98",
+      "sha256": "b521f1889d26ee1c891185997b3100fc177431e31c4581840b183375c6c20f2e",
       "executable": false
     },
     "public/app-theme.css": {
