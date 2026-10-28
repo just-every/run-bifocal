@@ -10,7 +10,7 @@ import {proveCompositionTooling} from './journeys/composition-tooling.mjs'
 import {proveLargeExploration} from './journeys/large-exploration.mjs'
 import {proveDashboardTv} from './journeys/dashboard-tv.mjs'
 import {proveDashboardInteractions} from './journeys/dashboard-interactions.mjs'
-import {proveDashboardSnapshots} from './journeys/dashboard-snapshots.mjs'
+import {proveDashboardSnapshots,proveRdlImports} from './journeys/dashboard-snapshots.mjs'
 import {createHash} from 'node:crypto'
 import {execFileSync,spawn} from 'node:child_process'
 import {createServer} from 'node:net'
@@ -63,6 +63,7 @@ try {
  if(process.env.BIFOCAL_CHART_ONLY==='1'){await proveModelLifecycle({origin,context,definition:{views:[],quality:[]},upload});await context.close();return}
  if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call});await context.close();return}
  if(process.env.BIFOCAL_PORTAL_BOUNDARY_ONLY==='1'){await provePortalBoundary({origin,context});await context.close();return}
+ if(process.env.BIFOCAL_RDL_ONLY==='1'){await proveRdlImports({origin,context,page,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_DASHBOARD_ONLY==='1'){await proveDashboardInteractions({origin,context,page,upload,proveScreen});await proveDashboardSnapshots({origin,context,page,upload,proveScreen,directory:process.env.BIFOCAL_PROOF_DIR});await context.close();return}
  if(process.env.BIFOCAL_TV_ONLY==='1'){await proveDashboardTv({origin,context,page,call,upload,proveScreen});await context.close();return}
