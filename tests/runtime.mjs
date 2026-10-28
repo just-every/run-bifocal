@@ -44,7 +44,7 @@ async function restartWorker() {
  throw new Error('Restart did not become ready')
 }
 try {
-  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
+  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', maxBuffer:16*1024*1024, env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
   worker = startWorker()
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {

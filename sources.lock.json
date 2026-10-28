@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c2d270d19e316a96f791e1506635ba8de583e226d525ccda52721efc670ceb2e",
+      "sha256": "44ea7b8fb845a075e3283ecff12e64570f479255fefc95e5d6727d5590d9c8c7",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0376bbf902bd7d4e898bd48813d93a736b0f388527fbaf3d150a10320d28842e",
+      "sha256": "007e34fbdbceebed0794479cb73ff9970cce9bc9c9ca1a77d92780eda9712434",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -5545,15 +5545,15 @@
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
-      "sha256": "f8a5b18e431f0643169f7927f62d84baa81cdbc30633f377f2b37af5e3348ee5",
+      "sha256": "26a5bb5fbc2dda83af4fd46f262b9f2ebbb221e0adef7021eab5ed65d30c0f5d",
       "executable": false
     },
     "tests/bifocal-charts.mjs": {
-      "sha256": "0a13a7848718dc78651a6d40c9c9a09ccc4774186efd0fbdd4fdb150f49206e0",
+      "sha256": "dde2c4bb69afbc84833887cab8cdcbf6097c6ab003dd96b1f0f55cc9664cfceb",
       "executable": false
     },
     "tests/bifocal-exploration.mjs": {
-      "sha256": "cf54055598cb96dbced6977711f9b37af452372543c6127584d33ff92398228a",
+      "sha256": "109d501928ebbfcde488fffe53150fad88cbf5ca12e73dd210df8fa1d1d45676",
       "executable": false
     },
     "tests/bifocal-quality-lineage.mjs": {
@@ -5569,11 +5569,11 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "9a46f6bf0ef13d33806910e990d5c91c5ef48890030127310fca12133ad64110",
+      "sha256": "dcd9b7ffea234fb4fa8467cf10ea608674920cc7d0083f4a675d0539a1149e15",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "a44d3afe73aed23dcf5edf1b8940b52f97efc66f3c965bdb4a48498757e8aeab",
+      "sha256": "515e81556dd157e39d156b1ac0f8944bc5c85a148da20912a15ecc1e113a367b",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -5597,7 +5597,7 @@
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "f46a15e30e661c55ab6ebd2e89457a929a4eff17f395672266817badfb7f180c",
+      "sha256": "79af15fc8e03c89a4e00ee3f20d5dd05ba0bd341e7a2c614ff9ad6dc9c036ed7",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
@@ -5645,7 +5645,7 @@
       "executable": false
     },
     "tests/journeys/content-governance.mjs": {
-      "sha256": "e9cd52c87933382ec6137ac7697875ca306b30c65eb337ef912fad3788e0dd8c",
+      "sha256": "c0b340c13a60f105a16b7d017d10717e99a17ae55d3eb7d9aef6bf50cd1bfcb2",
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
@@ -5705,7 +5705,7 @@
       "executable": false
     },
     "tests/journeys/exact-queries.mjs": {
-      "sha256": "3b5eff397ce944ce9f0b374838b8852624e5892c73907a022f79c34b151310eb",
+      "sha256": "cae3a7b53f29356660c2830825983cd95d23b50a7b088d7e53b845aff8b69f90",
       "executable": false
     },
     "tests/journeys/export-policy.mjs": {
@@ -5745,7 +5745,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "4852bf357ad0992c59dba0fb4fd3e02d4b22af7e2dcb52dae94475a00f1cfa68",
+      "sha256": "9720437f29173b32660169c6e24f574e2e4d07d9ae957f633ad837b6c97f26e9",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
@@ -5789,7 +5789,7 @@
       "executable": false
     },
     "tests/journeys/question-runtime.mjs": {
-      "sha256": "17ba68312ef0cc1e2f52e9e0a62d55457e95002732ac3e9d70ef40c0d7285645",
+      "sha256": "f9d3cc7c761cd5f015421fd7f79c8c92cb0f012151cba22ca5fe8624b54f2134",
       "executable": false
     },
     "tests/journeys/recurring-tooling.mjs": {
@@ -5801,7 +5801,7 @@
       "executable": false
     },
     "tests/journeys/report-edge.mjs": {
-      "sha256": "838b2ca1d82f2dc6c98f1313e3ec2a0625212c95d92e746c4f08c4f29cde4e9e",
+      "sha256": "a759f121a3d0b228c07bc7c244461994e575a589220de6746b701b8d2ec4d3f2",
       "executable": false
     },
     "tests/journeys/report-reviewers.mjs": {
@@ -5825,7 +5825,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "0cc8268769571c7090430baa941e43d65206f649365a454c429b99ad0d730788",
+      "sha256": "e623c01b4431c592a8d1692fcf340eb64ca1e8b2120fd41c4234182760f67957",
       "executable": false
     },
     "tests/site/site.test.mjs": {
