@@ -92,6 +92,9 @@ export async function provePreparationFlowBrowser({origin,page,call,proveScreen,
  await call(path,undefined,404);await call('/datasets/'+output,undefined,404)
  await page.getByRole('button',{name:'Load saved preparation',exact:true}).click()
  await page.locator('#prep-status').filter({hasText:'No saved preparation with this ID'}).waitFor()
+ assert.equal(await page.getByRole('table',{name:'Original preparation step mappings',exact:true}).count(),0)
+ assert.equal(await page.getByLabel('Step 1: Column',{exact:true}).count(),0)
+ assert.equal(await page.getByRole('button',{name:'Save reviewed draft',exact:true}).isDisabled(),true)
  await proveScreen('preparation-original-erased')
  console.log('Original preparation intake: complete step inventory, supported native edit and API revisions, restored lineage and source erasure passed; original-runtime parity remains unverified')
 }

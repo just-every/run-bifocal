@@ -993,7 +993,7 @@
       "executable": false
     },
     "public/bifocal/preparation.js": {
-      "sha256": "516d833e5e1132aa632d32652e6caa8b584c0b4899e1a16b39838a865e5f111f",
+      "sha256": "19a8a56d72b8ff77ea1075d515c69bd3161be88842fdafa3a8223b6509766e1b",
       "executable": false
     },
     "public/bifocal/protection-settings.js": {
@@ -5041,7 +5041,7 @@
       "executable": false
     },
     "tests/journeys/preparation-flow-browser.mjs": {
-      "sha256": "e63a696794070d78c8324418b57c3cabb43614c151f2fd5309e72cfcfe9520b7",
+      "sha256": "5174075bf246d028e224f13e276808d2979056ecdfa38ae9cf02eb0ea03b4f67",
       "executable": false
     },
     "tests/journeys/preparation-import.mjs": {
