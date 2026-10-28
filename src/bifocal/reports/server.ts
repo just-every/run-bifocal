@@ -1,3 +1,4 @@
+import {nativeReportResponse} from './authoring/server'
 import { randomUUID } from 'node:crypto'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -17,6 +18,8 @@ import { reportGrantResponse, reviewerDetails } from './grants.server'
 import { fencePending, pendingRecipients, recipientDefinitions, recipientMember } from './recipients.server'
 
 export async function reportCustodyResponse(request:Request,original:Bindings):Promise<Response|null>{
+ const native=await nativeReportResponse(request,original)
+ if(native)return native
  const url=new URL(request.url),prefix='/api/operator/report-runs'
  if(url.pathname!==prefix&&!url.pathname.startsWith(prefix+'/'))return null
  const env=runtimeBindings(original),path=url.pathname.slice(prefix.length)

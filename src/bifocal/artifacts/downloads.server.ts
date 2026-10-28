@@ -37,3 +37,16 @@ export async function downloadReport(env:Bindings,actor:Authority,run:Run,token:
  await transact(env.DB,actor,[...guards.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_report_runs WHERE id=? AND owner_id=? AND version=? AND artifact_digest=? AND artifact_json=?)',run.id,run.owner_id,run.version,run.artifact_digest,run.artifact_json)),...grantAudit(actor,run,'artifact-downloaded',actor.id,grantId)])
  return new Response(run.artifact_json,{headers:{'content-type':'application/json; charset=utf-8','content-disposition':`attachment; filename="bifocal-report-${run.id}.json"`,'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}})
 }
+
+/** Native printable artifacts retain their exact bytes; a URL never grants access. */
+export async function downloadNativeReport(env:Bindings,actor:Authority,run:import('../reports/authoring/store.server').NativeRun,guards:import('../../modules/import-kit/src/d1/types.ts').D1Sql[],format:'pdf'|'xlsx'|'csv'){
+ if(actor.role!=='owner'||actor.id!==run.owner_id)fail('owner_required',403)
+ const artifact=await env.DB.prepare('SELECT content,digest FROM bf_native_report_artifacts WHERE run_id=? AND format=?').bind(run.id,format).first<{content:ArrayBuffer;digest:string}>()
+ if(!artifact)fail('report_artifact_withdrawn',410)
+ const bytes=new Uint8Array(artifact.content)
+ if(sha256(bytes)!==artifact.digest||JSON.parse(run.manifest_json).artifacts[format]!==artifact.digest)fail('report_artifact_integrity_failed',409)
+ guards.push(sql('EXISTS(SELECT 1 FROM bf_native_report_artifacts WHERE run_id=? AND format=? AND digest=?)',run.id,format,artifact.digest))
+ await transact(env.DB,actor,[...guards.map(assertion),sql('INSERT INTO bf_native_report_audit(id,run_id,actor_id,action,recorded_at) VALUES(?,?,?,?,?)',crypto.randomUUID(),run.id,actor.id,'download-'+format,new Date().toISOString())])
+ const media={pdf:'application/pdf',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',csv:'text/csv; charset=utf-8'}
+ return new Response(bytes,{headers:{'content-type':media[format],'content-disposition':`attachment; filename="bifocal-report-${run.id}.${format}"`,'cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"default-src 'none'; sandbox"}})
+}

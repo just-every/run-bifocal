@@ -1,3 +1,4 @@
+import {nativeReportErasureCounts,eraseNativeReports,nativeReportRetentionGuard} from '../../reports/authoring/erasure'
 import { alertErasure, alertErasureCounts } from '../../alerts/erasure'
 import { rdlImportResponse } from '../../reports/rdl/door.server'
 import { preparationResponse } from '../../preparation/server'
@@ -72,9 +73,10 @@ export async function fileImportResponse(request: Request, original: Bindings, e
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
    const raw = await boundedBody(request)
    if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || raw.reviewedRevision !== (current?.revision ?? null)) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the dataset state and explicitly confirm its id and current revision, or null when no table is published, before erasing.' }, 409)
-   const retention=retentionAllowsErasure(dataset)
+   const sourceRetention=retentionAllowsErasure(dataset),reportRetention=nativeReportRetentionGuard(dataset)
+   const retention=sql(`(${sourceRetention.sql}) AND (${reportRetention.sql})`,...sourceRetention.params??[],...reportRetention.params??[])
    const allowed=await env.DB.prepare(`SELECT CASE WHEN (${retention.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...retention.params??[]).first<{allowed:number}>()
-   if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
+   if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source or its retained report history is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
    const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset),withdrawal=await preparationErasureGuard(env,'dataset',dataset)
    // Retention includes project-owned outputs outside this source's direct graph.
    // Check again in the same batch that establishes the durable withdrawal fence.
@@ -91,7 +93,7 @@ export async function fileImportResponse(request: Request, original: Bindings, e
    const match=sql(`(${sourceMatch.sql}) AND (${retention.sql})`,...sourceMatch.params??[],...retention.params??[])
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
    const inputCounts=[{store:'bf_input_tables',query:sql('SELECT count(*) FROM bf_input_tables WHERE dataset_id=?',dataset)},...['bf_input_rows','bf_input_history','bf_input_schemas'].map(store=>({store,query:sql(`SELECT count(*) FROM ${store} WHERE table_id IN (SELECT id FROM bf_input_tables WHERE dataset_id=?)`,dataset)}))]
-   const extraCounts=[...alertErasureCounts(dataset),...inputCounts,...['bf_preparations','bf_preparation_revisions','bf_preparation_sources'].map(store=>({store,query:sql(`SELECT count(*) FROM ${store} WHERE ${store==='bf_preparations'?'id':'preparation_id'} IN (SELECT preparation_id FROM bf_preparation_sources WHERE dataset_id=?)`,dataset)})),...collaborationErasureCounts(dataset),...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
+   const extraCounts=[...nativeReportErasureCounts(dataset),...alertErasureCounts(dataset),...inputCounts,...['bf_preparations','bf_preparation_revisions','bf_preparation_sources'].map(store=>({store,query:sql(`SELECT count(*) FROM ${store} WHERE ${store==='bf_preparations'?'id':'preparation_id'} IN (SELECT preparation_id FROM bf_preparation_sources WHERE dataset_id=?)`,dataset)})),...collaborationErasureCounts(dataset),...definitionErasureCounts(dataset),...semanticErasureCounts(dataset),...catalogErasureCounts(dataset),...reportErasureCounts(dataset),{store:'bf_metrics',query:sql('SELECT count(*) FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset)},...goalErasureCounts(dataset),{store:'bf_quality_rules',query:sql('SELECT count(*) FROM bf_quality_rules WHERE dataset_id=?',dataset)}]
    const counts = sql(`SELECT json_extract(value,'$.store') AS store,json_extract(value,'$.rows') AS rows FROM json_each(json_array(
     json_object('store','bf_file_tables','rows',(SELECT count(*) FROM bf_file_tables WHERE id=?)),
     json_object('store','bf_file_reviews','rows',(SELECT count(*) FROM bf_file_reviews WHERE dataset_id=?)),
@@ -115,7 +117,7 @@ export async function fileImportResponse(request: Request, original: Bindings, e
     sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),
     sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
    const receipt = await retireD1ImportCustody({ target: { kind: 'file-table', id: dataset } }, [
-    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, ...auditStatements, ...alertErasure(dataset), ...eraseDefinitions(dataset), semanticErasure(dataset),catalogErasure(dataset),sql('DELETE FROM bf_questions WHERE id IN (SELECT question_id FROM bf_question_sources WHERE dataset_id=?)',dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
+    sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${match.sql}) THEN 1 ELSE 0 END`, ...match.params ?? []), counts, ...auditStatements, ...alertErasure(dataset), eraseNativeReports(dataset), ...eraseDefinitions(dataset), semanticErasure(dataset),catalogErasure(dataset),sql('DELETE FROM bf_questions WHERE id IN (SELECT question_id FROM bf_question_sources WHERE dataset_id=?)',dataset),sql(`DELETE FROM bf_query_snapshots WHERE id IN (${derived})`, dataset),
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset),sql('DELETE FROM bf_source_retention WHERE dataset_id=?',dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)

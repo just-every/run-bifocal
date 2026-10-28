@@ -1,3 +1,4 @@
+import {nativeReportPage} from './authoring/page.server'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
 import { appDocument, appPolicy, escapeHtml } from '../../app/shell'
 import { displayZone } from '../company/display-zone'
@@ -15,6 +16,7 @@ const content = `<h1 id="report-title">Report artifact</h1><p id="report-status"
 </div>`
 
 export async function reportRunPage(request: Request, original: Bindings): Promise<Response | null> {
+ const native=await nativeReportPage(request,original);if(native)return native
  const path = new URL(request.url).pathname, match = /^\/app\/report-runs\/([a-f0-9-]{36})$/.exec(path)
  if (!match) return null
  const env = runtimeBindings(original), session = await operatorAuth(env).getSession(request)

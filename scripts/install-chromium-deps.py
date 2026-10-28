@@ -40,7 +40,7 @@ def stop_group(leader):
 
 def attempt(env):
     child = subprocess.Popen(
-        ['bash', '-ec', 'dpkg --configure -a; pnpm exec playwright install-deps chromium'],
+        ['bash', '-ec', 'dpkg --configure -a; pnpm exec playwright install-deps chromium && apt-get install --yes poppler-utils'],
         env=env, start_new_session=True)  # setsid: every launcher/apt child is owned.
     try:
         deadline = time.monotonic() + 120
