@@ -187,3 +187,17 @@ Use the exact published @runeditrun/rer 0.2.80 package. Run source:lock after in
 The installed `/docs` guide is static edition documentation available signed out, without visiting the separate Run site. People (`/app/people`) delegates invitation cancellation and eligible account deactivation/reactivation to the native handlers; it does not offer owner changes. Your settings (`/app/settings`) lists your active sessions and can revoke one, including the current session. Native API clients retain their JSON/204 responses; browser forms return useful pages. Role and status changes invalidate old sessions, and reactivation does not restore them.
 
 The selected Base runtime is adopted at `11f94fec479228d71ba6d7dd6ea7796c0d42c544`. Setup manages `INSTALLATION_KEY` for dependency signing-key encryption; the seed passes current/previous custody bindings to native auth and dependency handlers. Preserve the historical migrations; new custody metadata is added only by migration 0023. The supported browser installer and CLI refuse changed-owner setup after restore; see the explicit optional journey in tests/demo-owner-claim.test.mjs. Inactive-grant restore, placeholder-mail, Lobby/persona/settings and CLI recovery gaps remain upstream after this adoption. Migration 0024 makes untouched built-in company defaults deterministic for exact migration replay; owner-saved revisions/timestamps remain unchanged, and the API reports no owner save time for those defaults.
+
+## Lander-Regenerate
+
+After resolving CONTRACT.md, regenerate selected clause views and counts with
+`node scripts/contract-docs.mjs write BIF-011` and check with
+`node scripts/contract-docs.mjs check BIF-011`; replace the example clause ID
+with all touched clause IDs. Preserve unrelated entries in ACCEPTANCE.md.
+The homepage CLAIMS.md is a separately maintained claim map.
+
+Lander-Regenerate: `node scripts/edition-authoring/cli.mjs lock`
+
+Run that source lock regeneration last, after staging new selected source files.
+Check edition source lock freshness with
+`node scripts/edition-authoring/cli.mjs check`. Keep the current Base pin.
