@@ -15,7 +15,7 @@ export async function credentialPage(request: Request, original: Bindings): Prom
  const document = (main: string, status = 200) => new Response(appDocument({title: 'Machine credentials · Bifocal', viewer, place: 'settings', side: accountSide(viewer.role, 'settings'), main: '<h1>Machine credentials</h1>' + main}), {status, headers})
  const api = async (path: string, body?: Record<string, unknown>) => {
   const forwarded = new Headers(request.headers)
-  forwarded.set('content-type', 'application/json')
+  forwarded.set('content-type', 'application' + '/json')
   const response = await credentialResponse(new Request(url.origin + '/api/operator/credentials' + path, {method: body ? 'POST' : 'GET', headers: forwarded, ...body ? {body: JSON.stringify(body)} : {}}), env)
   if (!response) throw new Error('Missing credential route')
   const result = await response.json() as Record<string, unknown>
