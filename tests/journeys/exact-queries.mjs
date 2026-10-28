@@ -11,7 +11,25 @@ export async function proveExactQueries(origin, context, files, page) {
  const headers = { Origin: origin }
  const call = async (path, data, expected = data === undefined ? 200 : 201) => {
   const response = await context.request.fetch(origin + '/api/operator' + path, { method: data === undefined ? 'GET' : 'POST', headers, ...(data === undefined ? {} : { data }) })
+  assert.equal(response.headers()['cache-control'],'no-store')
   assert.equal(response.status(), expected, await response.text()); return response.json()
+ }
+ const principal=(await(await context.request.get(origin+'/auth/session')).json()).operator
+ const receipt=(snapshot,status)=>{
+  assert.equal(snapshot.cache.status,status)
+  assert.match(snapshot.cache.key,/^[a-f0-9]{64}$/)
+  assert.ok(Number.isFinite(Date.parse(snapshot.cache.createdAt)))
+  assert.ok(Number.isSafeInteger(snapshot.cache.ageMs)&&snapshot.cache.ageMs>=0)
+  assert.equal(snapshot.cache.principalId,principal.id)
+  assert.equal(snapshot.cache.principalVersion,principal.version)
+ }
+ const repeat=async(definition,first)=>{
+  const next=await call('/queries/run',definition)
+  receipt(next,'hit');assert.equal(next.cache.key,first.cache.key)
+  assert.equal(next.cache.createdAt,first.cache.createdAt)
+  assert.notEqual(next.snapshotId,first.snapshotId);assert.notEqual(next.queryId,first.queryId)
+  assert.deepEqual(next.answer,first.answer)
+  return next
  }
  const dataset = 'synthetic-bifocal-query', dimension = 'synthetic-bifocal-customers'
  const data = 'id,date,region,customer,revenue,profit,score,weight\n1,01/15/2026,West,c1,$100.10,$30.03,10,1\n2,01/16/2026,West,c1,-$20.02,-$6.01,20,3\n3,01/17/2026,West,c3,,,,2\n4,01/18/2026,West,c4,-$0.01,-$0.01,0,1\n5,01/16/2026,East,c2,$0.00,$0.00,99,1\n6,01/16/2026,East,c1,$0.00,$0.00,1,1\n7,12/31/2025,West,c9,$9000.00,$1000.00,99,1\n8,02/01/2026,West,c9,$8888.00,$500.00,99,1\n'
@@ -28,11 +46,12 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.equal((await context.request.get(origin + '/api/operator/queries',{headers:{Cookie:''}})).status(), 401)
  const conventions = await call('/company'), calendar = await call('/calendars/synthetic-bifocal-july/1')
  const snapshot = await call('/queries/run', query)
+ receipt(snapshot,'miss');await repeat(query,snapshot)
  assert.deepEqual(snapshot.definition,query)
  assert.deepEqual(snapshot.context.company,{revision:conventions.revision,settings:conventions.settings})
  assert.deepEqual(snapshot.context.calendar,{...query.context.calendar,definition:calendar.definition})
  assert.equal(snapshot.context.timezone,conventions.settings.timezone);assert.equal(snapshot.context.currency,conventions.settings.currency)
- assert.equal(snapshot.context.securityScope.ownerId,(await(await context.request.get(origin+'/auth/session')).json()).operator.id)
+ assert.equal(snapshot.context.securityScope.ownerId,principal.id)
  assert.equal(snapshot.context.definitionVersions.model.label,query.context.modelVersion)
  assert.equal(snapshot.context.definitionVersions.metrics.label,query.context.metricVersion)
  const wrongType = await call('/queries/run',{...query,filters:[{column:'region',op:'eq',value:true}]},422)
@@ -51,6 +70,12 @@ export async function proveExactQueries(origin, context, files, page) {
  assert.deepEqual(snapshot.answer.totals.margin.exact, {numerator:'240100',denominator:'8007'})
  assert.equal(snapshot.answer.rows.find(row => row.dimensions[0] === 'c3').values.revenue.state, 'null')
  reference.close()
+ for(const field of ['modelVersion','metricVersion']){
+  const relabeled={...query,context:{...query.context,[field]:'synthetic-bifocal-v2'}}
+  const revised=await call('/queries/run',relabeled);receipt(revised,'miss')
+  assert.notEqual(revised.cache.key,snapshot.cache.key);assert.deepEqual(revised.answer.totals,snapshot.answer.totals)
+  await repeat(relabeled,revised)
+ }
  const subtotals=await call('/queries/run',{...query,filters:query.filters.slice(1),groupBy:['region']})
  assert.equal(subtotals.answer.totals.customers.value,'4')
  assert.equal(subtotals.answer.rows.reduce((sum,row)=>sum+Number(row.values.customers.value),0),5)
@@ -60,6 +85,7 @@ export async function proveExactQueries(origin, context, files, page) {
  const refused = await call('/queries/run', fanout, 409); assert.equal(refused.error,'join_fanout_refused')
  const joinedQuery={...fanout,joins:[{...fanout.joins[0],duplicates:'identical'}]}
  const joined = await call('/queries/run', joinedQuery)
+ receipt(joined,'miss');assert.notEqual(joined.cache.key,snapshot.cache.key);await repeat(joinedQuery,joined)
  assert.deepEqual(joined.answer.totals,snapshot.answer.totals)
  assert.equal(joined.answer.commonSnapshot,'unavailable'); assert.equal(joined.answer.certification,'unavailable')
  assert.equal(joined.answer.joinDiagnostics[0].duplicateRowsRemoved,1)
@@ -72,17 +98,24 @@ export async function proveExactQueries(origin, context, files, page) {
  await proveExactBrowser(origin,page,joinedQuery,'create')
  const replacement = await files.plan({...file,data:'id,date,region,customer,revenue,profit,score,weight\n6,01/20/2026,West,c9,$999.99,$0.00,3,1\n'},true,dataset)
  await files.apply(replacement,dataset)
+ const sourceChanged=await call('/queries/run',query);receipt(sourceChanged,'miss')
+ assert.notEqual(sourceChanged.cache.key,snapshot.cache.key)
+ assert.equal(sourceChanged.answer.totals.revenue.value,'999.99');await repeat(query,sourceChanged)
+ assert.deepEqual((await call(`/queries/${snapshot.queryId}`)).answer,snapshot.answer)
  const changedConventions=await context.request.put(origin+'/api/operator/company',{headers,data:{previousRevision:conventions.revision,settings:{...conventions.settings,timezone:'America/Chicago',reportCutoff:'03:00'}}})
  assert.equal(changedConventions.status(),200,await changedConventions.text())
+ const changed=await call('/queries/run',query);receipt(changed,'miss')
+ assert.notEqual(changed.cache.key,sourceChanged.cache.key)
+ assert.deepEqual(changed.answer,sourceChanged.answer);await repeat(query,changed)
+ assert.deepEqual((await call(`/queries/${sourceChanged.queryId}`)).answer,sourceChanged.answer)
  const rerun = await call(`/queries/${snapshot.queryId}/rerun`,{},200)
  assert.equal(rerun.reproduced,true); assert.deepEqual(rerun.answer,snapshot.answer)
- assert.deepEqual(rerun.context,snapshot.context)
+ assert.deepEqual(rerun.context,snapshot.context);assert.deepEqual(rerun.cache,snapshot.cache)
  assert.deepEqual((await call(`/queries/${joined.queryId}/rerun`,{},200)).answer,joined.answer)
  await proveExactBrowser(origin,page,query,'changed',report.id)
  for (const [kind,id] of [['dashboards',dashboard.id],['reports',report.id]]) assert.deepEqual((await call(`/${kind}/${id}`)).answer,joined.answer)
  const broader = await call(`/queries/${snapshot.queryId}/rerun`,{securityScope:'all',filters:[{column:'date',op:'gte',value:'2025-01-01'}]},403)
  assert.equal(broader.error,'snapshot_scope_immutable')
- const changed = await call('/queries/run',query)
  assert.equal(changed.answer.totals.revenue.value,'999.99')
  const comparison = await call('/reconciliations',{leftQueryId:snapshot.queryId,rightQueryId:changed.queryId},200)
  assert.equal(comparison.status,'unresolved_difference'); assert.equal(comparison.officialCertificationAllowed,false)
@@ -96,10 +129,20 @@ export async function proveExactQueries(origin, context, files, page) {
  const fx={...file,columns:{id:'number',amount:'money',currency:'text',date:'date'},datasetId:'synthetic-bifocal-fx',data:'id,amount,currency,date\n1,100.00,EUR,06/19/2026\n2,100.00,USD,06/19/2026\n3,-20.00,EUR,06/19/2026\n'}
  const fxPlan=await files.plan(fx,false,fx.datasetId);await files.apply(fxPlan,fx.datasetId)
  const fxQuery={...query,dataset:fx.datasetId,filters:[],groupBy:['currency'],measures:[{id:'usd',op:'sum',column:'amount',currencyColumn:'currency',rateDateColumn:'date',unit:'money',scale:2}],context:{...query.context,rateSource:{id:'synthetic-bifocal-rates',version:1}}}
- const converted=await call('/queries/run',fxQuery)
+ const converted=await call('/queries/run',fxQuery);receipt(converted,'miss');await repeat(fxQuery,converted)
  assert.equal(converted.answer.totals.usd.value,'200.00')
  assert.equal(converted.context.rateSource.definition.rates[0].rate,'0.8')
  assert.deepEqual(converted.context.rateSource.definition,(await call('/rates/synthetic-bifocal-rates/1')).definition)
+ const rateVersions=await call('/rates/'+fxQuery.context.rateSource.id)
+ const rateDefinition=converted.context.rateSource.definition
+ const nextRate=await call('/rates',{id:fxQuery.context.rateSource.id,previousVersion:rateVersions.versions[0].version,definition:{...rateDefinition,rates:rateDefinition.rates.map(rate=>({...rate,rate:'0.5'}))}})
+ const nextFXQuery={...fxQuery,context:{...fxQuery.context,rateSource:{id:nextRate.id,version:nextRate.version}}}
+ const nextConverted=await call('/queries/run',nextFXQuery);receipt(nextConverted,'miss')
+ assert.notEqual(nextConverted.cache.key,converted.cache.key)
+ assert.equal(nextConverted.answer.totals.usd.value,'260.00');await repeat(nextFXQuery,nextConverted)
+ assert.deepEqual((await call(`/queries/${converted.queryId}`)).answer,converted.answer)
+ const retainedFX=await call(`/queries/${converted.queryId}/rerun`,{},200)
+ assert.deepEqual(retainedFX.answer,converted.answer);assert.deepEqual(retainedFX.cache,converted.cache)
  const fxReport=await call('/reports',{queryId:converted.queryId,title:'USD report including EUR transactions'})
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/reports/'+fxReport.id);await page.getByRole('status').filter({hasText:'Answer loaded'}).waitFor();assert.match(await page.locator('#totals').innerText(),/200\.00/);assert.match(await page.locator('#totals').innerText(),/USD/);assert.match(await page.locator('#groups').innerText(),/EUR/);if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/answers-currency-report-${width}.png`,fullPage:true})}
 
@@ -120,12 +163,15 @@ export async function proveExactQueries(origin, context, files, page) {
  const revision = (await files.read(dataset)).revision
  const erasure = await context.request.post(`${origin}/api/operator/datasets/${dataset}/erase`,{headers,data:{confirmDataset:dataset,reviewedRevision:revision}})
  assert.equal(erasure.status(),200,await erasure.text())
+ const erased=await erasure.json()
+ for(const store of ['bf_query_cache','bf_query_cache_sources'])assert.ok(erased.stores.some(entry=>entry.store===store&&entry.rows>0))
+ await repeat(nextFXQuery,nextConverted)
  if(context.semanticModelId)assert.equal((await context.request.get(origin+'/api/operator/models/'+context.semanticModelId)).status(),404)
  await call(`/queries/${snapshot.queryId}`,undefined,404)
  await call(`/queries/${snapshot.queryId}/rerun`,{},404)
  await call(`/dashboards/${dashboard.id}`,undefined,404); await call(`/reports/${report.id}`,undefined,404)
  await proveExactBrowser(origin,page,query,'erased',report.id)
- console.log('Exact answers: integer-cents SQL parity, distinct/weighted/subtotals, fanout refusal, immutable cross-door replay, scope denial and source erasure passed')
+ console.log('Exact answers: integer-cents SQL parity, scoped cache misses and hits, source and company and definition and rate changes, distinct and weighted totals and subtotals, fanout refusal, immutable cross-door replay, scope denial and source and cache erasure passed')
 }
 
 /** Semantic promotion: CLI/API impact, exact review and coherent rollback. */

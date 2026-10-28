@@ -2,6 +2,7 @@ import {renderBoard,boardChoices} from './board.js'
 import { element, table } from './file-view.js'
 import { figure, label, stamp, when } from './format.js'
 import { retainedExport } from './retained-export.js'
+import { cacheNote } from './cache-view.js'
 const $ = id => document.getElementById(id), zone = document.body.dataset.zone
 let snapshot, pending=false
 // Once an answer is on screen its title leads: routine messages stay in the live region, for screen readers only.
@@ -34,6 +35,7 @@ function render(result) {
  snapshot=result;$('answer').hidden=false;document.body.dataset.answer='shown';const name=result.title?.replaceAll(' · ',' ·\u00a0') ?? answerName(result.definition.dataset,result.definition.measures.map(m=>m.id));$('answer-title').textContent=name;document.title=name+' · Bifocal'
  const currency=result.context.currency, measures=Object.keys(result.answer.totals), columns=[...result.definition.groupBy,...measures]
  $('snapshot-note').replaceChildren(...dotted(['Immutable snapshot',stamp(result.createdAt,zone),result.answer.sourceWatermarks.map(source=>source.dataset).join(' + '),result.answer.certification==='unavailable'?'not certified':'',result.reproduced?'reproduced exactly':''].filter(Boolean),1))
+ $('cache-note').textContent=cacheNote(result)
  // A cell is its figure over its name; money adds only its currency, never the measure id again.
  $('totals').replaceChildren(...measures.map(id=>{const total=result.answer.totals[id],tile=element('div',undefined,'kpi'),name=element('span',label(id),'kpi-label');if(total.unit==='money')name.append(' ',element('span',currency,'kpi-unit'));const text=shown(total,currency);tile.append(name,element('strong',text,text.length>10?'kpi-value long':'kpi-value'));return tile}))
  $('groups').replaceChildren(table('Grouped results',columns.map(label),result.answer.rows.map(row=>[...row.dimensions,...measures.map(id=>shown(row.values[id],currency))]),columns.map((_,i)=>i>=result.definition.groupBy.length)))

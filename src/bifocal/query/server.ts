@@ -9,6 +9,7 @@ import { ownerIdentity, readQuery, readSources, saveQuery } from '../data/snapsh
 import { compareSnapshots } from '../reconciliation/compare'
 import { queryInput } from './validate'
 import { queryContext } from './context'
+import {saveCachedQuery} from './cache/store.server'
 import { execute } from './execute'
 import { fail, QueryError } from './types'
 import { retainedExportResponse } from './exports.server'
@@ -52,8 +53,9 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if(exported)return exported
   if (path==='/api/operator/queries/run') {
    if (request.method!=='POST') return json({error:'method_not_allowed'},405)
+   if(request.headers.has('authorization'))fail('native_session_required',403)
    const definition=queryInput(await body(request)), context=await queryContext(env,definition,ownerId), sources=await readSources(env,definition)
-   return json(await saveQuery(env,authority,definition,context,sources),201)
+   return await saveCachedQuery(env,authority,definition,context,sources)
   }
   if (path==='/api/operator/queries') {
    if (request.method!=='GET') return json({error:'method_not_allowed'},405)
