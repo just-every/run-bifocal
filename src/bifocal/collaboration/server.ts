@@ -9,6 +9,7 @@ import {subject,permittedMembers,subjectChanges} from './subjects.server'
 import {prepareLink,readLink,audit} from './links.server'
 import {collaborationPage,collaborationUnavailable} from './page.server'
 import {metricAnnotations} from './annotations.server'
+import {participantResponse} from './participants.server'
 const base='/api/operator/collaboration'
 export async function collaborationResponse(request:Request,original:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname
@@ -46,6 +47,7 @@ export async function collaborationResponse(request:Request,original:Bindings):P
   }
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request)
+  if([base+'/participants',base+'/participants/review',base+'/participants/revoke'].includes(path))return await participantResponse(env,actor,path,input)
   if(path===base+'/annotations'){
    exactKeys(input,['metricId','revision','body','point'])
    if(actor.role!=='owner')fail('owner_required',403)

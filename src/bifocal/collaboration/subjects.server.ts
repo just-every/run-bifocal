@@ -8,12 +8,27 @@ import {readGrant} from '../explore/access.server'
 import {modelGuard,readModel} from '../models/validation/store.server'
 import {metric,revision,metricGuard,metricValue} from '../metrics/store.server'
 import {publishedDashboard} from '../dashboards/interactions.run.server'
+import {participantAccess} from './participants.server'
 import {fail,QueryError} from '../query/types'
 import {answerName} from '../query/name'
 export type SubjectKind='answer'|'dashboard'|'chart'|'authored-dashboard'|'metric'
 export type Subject={kind:SubjectKind;id:string;key:string;ownerId:string;title:string;href:string;fingerprint:string;guards:D1Sql[];datasets:string[];snapshots:Snapshot[];delegateId:string|null;metricRef:{id:string;revision:number;digest:string}|null}
 export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unknown):Promise<Subject>{
  if(!['answer','dashboard','chart','authored-dashboard','metric'].includes(String(kind))||typeof id!=='string'||!(/^[a-f0-9-]{36}$/.test(id)||kind==='metric'&&/^[a-z][a-z0-9-]{0,63}$/.test(id)))fail('collaboration_subject_not_found',404)
+ // Explicit reviewed content participation is checked against the recipient's own live grant.
+ if(actor.role!=='owner'){
+  const row=await env.DB.prepare('SELECT p.*,s.owner_id FROM bf_collaboration_participants p JOIN bf_collaboration_subjects s ON s.key=p.subject_key WHERE s.kind=? AND s.target_id=? AND s.active=1 AND p.operator_id=?').bind(kind,id,actor.id).first<{subject_key:string;owner_id:string;grant_id:string;owner_version:number;operator_version:number}>()
+  if(row){
+   const owner=await member(env,row.owner_id),person=await member(env,actor.id)
+   if(owner.role!=='owner'||owner.version!==row.owner_version||person.version!==row.operator_version)fail('collaboration_subject_changed',409)
+   const target=await subject(env,{...actor,id:owner.id,role:owner.role},kind,id)
+   if(target.key!==row.subject_key)fail('collaboration_subject_changed',409)
+   const guards=await participantAccess(env,actor,target,row.grant_id)
+   target.guards.push(...guards,owner.guard,person.guard,sql('EXISTS(SELECT 1 FROM bf_collaboration_participants WHERE subject_key=? AND operator_id=? AND grant_id=? AND owner_version=? AND operator_version=?)',row.subject_key,actor.id,row.grant_id,owner.version,person.version))
+   target.href=target.kind==='chart'?'/app/charts/'+target.id:'/app/collaboration/'+target.kind+'/'+target.id
+   return target
+  }
+ }
  const snapshots:Snapshot[]=[],guards:D1Sql[]=[],datasets=new Set<string>();let title='',href='',ownerId=actor.id,delegateId:string|null=null,metricRef:Subject['metricRef']=null,suffix=''
  const addSnapshot=async(snapshotId:string,owner:string)=>{
   const retained=await readQuery(env,actor,owner,snapshotId),snapshot=retained.snapshot
@@ -26,7 +41,7 @@ export async function subject(env:Bindings,actor:Authority,kind:unknown,id:unkno
     try{
      const person=await member(env,exploration.operatorId),access=await readGrant(env,{...actor,id:person.id},exploration.grantId)
      if((exploration.entitlementRevision??null)!==access.entitlements.revision||(exploration.entitlementDay??null)!==access.entitlements.day)fail('entitlement_snapshot_changed',409)
-     guards.push(...access.guards,person.guard);delegateId=person.id
+     if(actor.id!==owner)guards.push(...access.guards,person.guard);delegateId=person.id
     }catch(error){if(actor.id!==owner||!(error instanceof QueryError))throw error}
    }
   }
@@ -80,7 +95,26 @@ export async function permittedMembers(env:Bindings,actor:Authority,target:Subje
  const members=[]
  for(const id of new Set([target.ownerId,...target.delegateId?[target.delegateId]:[]])){
   const person=await member(env,id);if(id===target.ownerId&&person.role!=='owner')fail('collaboration_subject_changed',409)
+  if(id===target.delegateId){
+   const ref=target.snapshots.find(snapshot=>snapshot.context.exploration?.operatorId===id)?.context.exploration
+   if(!ref)fail('collaboration_subject_changed',409)
+   const access=await readGrant(env,{...actor,id},ref.grantId)
+   const checks=[person.guard,...access.guards]
+   person.guard=sql(checks.map(check=>'('+check.sql+')').join(' AND '),...checks.flatMap(check=>check.params??[]))
+  }
   members.push(person)
+ }
+ const participants=(await env.DB.prepare('SELECT operator_id,grant_id,owner_version,operator_version FROM bf_collaboration_participants WHERE subject_key=?').bind(target.key).all<{operator_id:string;grant_id:string;owner_version:number;operator_version:number}>()).results
+ for(const row of participants){
+  if(members.some(person=>person.id===row.operator_id))continue
+  try{
+   const person=await member(env,row.operator_id),owner=await member(env,target.ownerId)
+   if(owner.version!==row.owner_version||person.version!==row.operator_version)continue
+   const checks=[person.guard,owner.guard,...await participantAccess(env,{...actor,id:person.id,role:person.role},target,row.grant_id),
+    sql('EXISTS(SELECT 1 FROM bf_collaboration_participants WHERE subject_key=? AND operator_id=? AND grant_id=? AND owner_version=? AND operator_version=?)',target.key,person.id,row.grant_id,owner.version,person.version)]
+   person.guard=sql(checks.map(check=>'('+check.sql+')').join(' AND '),...checks.flatMap(check=>check.params??[]))
+   members.push(person)
+  }catch(error){if(!(error instanceof QueryError))throw error}
  }
  await transact(env.DB,actor,[...target.guards.map(assertion),...members.map(m=>assertion(m.guard))]);return members
 }

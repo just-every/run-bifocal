@@ -396,6 +396,12 @@
       "name": "0062_rdl_imports.sql",
       "sha256": "e6bcd21677ff5bb4be56b0e6d640b66ed352ba3884bd4d1bb3f149409ced9750",
       "sql": "CREATE TABLE bf_rdl_imports (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n value_json TEXT NOT NULL,\n revision TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0063_collaboration_participants.sql",
+      "sha256": "56cc06fdb4c9bbc439bb2c4b02d4d00dcca75df70a585e510bf307a9d345ab17",
+      "sql": "CREATE TABLE bf_collaboration_participants (\n subject_key TEXT NOT NULL REFERENCES bf_collaboration_subjects(key) ON DELETE CASCADE,\n operator_id TEXT NOT NULL, grant_id TEXT NOT NULL REFERENCES bf_explore_grants(id) ON DELETE CASCADE,\n owner_version INTEGER NOT NULL, operator_version INTEGER NOT NULL,\n PRIMARY KEY(subject_key,operator_id)\n);\nCREATE TRIGGER bf_collaboration_participant_membership AFTER UPDATE ON oa_operators\nWHEN NEW.version<>OLD.version OR NEW.status<>OLD.status OR NEW.role<>OLD.role BEGIN\n DELETE FROM bf_collaboration_participants WHERE operator_id=NEW.id\n OR subject_key IN (SELECT key FROM bf_collaboration_subjects WHERE owner_id=NEW.id);\nEND;\nCREATE TRIGGER bf_collaboration_participant_grant_retired AFTER DELETE ON bf_explore_activation BEGIN\n UPDATE bf_collaboration_links SET revoked=1 WHERE subject_key IN\n (SELECT subject_key FROM bf_collaboration_participants WHERE grant_id=OLD.grant_id);\n DELETE FROM bf_collaboration_participants WHERE grant_id=OLD.grant_id;\nEND;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
