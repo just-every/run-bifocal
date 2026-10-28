@@ -5041,7 +5041,7 @@
       "executable": false
     },
     "tests/journeys/preparation-flow-browser.mjs": {
-      "sha256": "5174075bf246d028e224f13e276808d2979056ecdfa38ae9cf02eb0ea03b4f67",
+      "sha256": "9d9dc8dc38af12fa3c50ea3684d5d1e00bb4ffa031e12fa11576a57b93d72b2d",
       "executable": false
     },
     "tests/journeys/preparation-import.mjs": {
