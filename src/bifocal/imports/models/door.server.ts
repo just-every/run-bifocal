@@ -44,7 +44,7 @@ async function handleModelImport(request:Request,original:Bindings):Promise<Resp
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['confirmProject','reviewedRevision'])
    if(input.confirmProject!==id||input.reviewedRevision!==(current?.revision??null))fail('exact_project_erasure_confirmation_required',409)
-   return json(await eraseImportedProject(env,owner,id,current?[projectGuard(current)]:[]))
+   return json(await eraseImportedProject(env,owner,id,current?[projectGuard(current)]:[],request))
   }
   if(request.method!=='GET')fail('method_not_allowed',405)
   await transact(env.DB,owner,[assertion(projectGuard(current!))])
@@ -85,6 +85,6 @@ async function handleModelImport(request:Request,original:Bindings):Promise<Resp
 }
 export async function modelImportResponse(request:Request,env:Bindings):Promise<Response|null>{
  let response
- try{response=await handleModelImport(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code},error.status):json({error:'model_import_conflict',reason:'Reload the current project and source records, then review again.'},409)}
+ try{response=await handleModelImport(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code,...error instanceof DoorError&&error.details?{details:error.details}:{}},error.status):json({error:'model_import_conflict',reason:'Reload the current project and source records, then review again.'},409)}
  return response?rejectedUpload(request,response):null
 }

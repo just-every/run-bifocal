@@ -1,7 +1,9 @@
 import { alertErasure, alertErasureCounts } from '../../alerts/erasure'
 import { preparationResponse } from '../../preparation/server'
+import { preparationOutput, preparationDescendants } from '../../preparation/materialize.server'
 import {collaborationErasureCounts} from '../../collaboration/erasure'
 import { retentionAllowsErasure } from '../../retention/policy.server'
+import { preparationErasureGuard } from '../../preparation/erasure.server'
 import {definitionErasureCounts,eraseDefinitions} from '../../environments/erasure'
 import { eraseSourceCalculationLibraries } from '../../calculations/library/store.server'
 import { modelImportResponse } from '../models/door.server'
@@ -31,7 +33,7 @@ const idPattern = /^[a-z][a-z0-9-]{0,63}$/
 
 /** A CSV reader and native adapter on Base's sole import pipeline. Business
  * grants stay closed; no request can turn source data into access or execution. */
-export async function fileImportResponse(request: Request, original: Bindings): Promise<Response | null> {
+export async function fileImportResponse(request: Request, original: Bindings, erasingProjects:ReadonlySet<string>=new Set(), erasingDatasets:ReadonlySet<string>=new Set()): Promise<Response | null> {
  const path = new URL(request.url).pathname
  const preparation=await preparationResponse(request,original)
  if(preparation)return preparation
@@ -57,7 +59,8 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
    // Admission alone is insufficient: fence the exact returned bytes and session.
    await transact(env.DB, owner, [sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${fileTargets.matches(current ?? null, destination, 'file-table', dataset).sql}) THEN 1 ELSE 0 END`, ...fileTargets.matches(current ?? null, destination, 'file-table', dataset).params ?? [])])
-   return current ? json({ dataset, revision: current.revision, table: current.value }) : json({ error: 'dataset_not_found' }, 404)
+   const preparation=await preparationOutput(env,dataset)
+   return current ? json({ dataset, revision: current.revision, table: current.value,...preparation?{preparation}:{} }) : json({ error: 'dataset_not_found' }, 404)
   }
   if (path === `/api/operator/datasets/${dataset}/erase`) {
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
@@ -66,6 +69,18 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const retention=retentionAllowsErasure(dataset)
    const allowed=await env.DB.prepare(`SELECT CASE WHEN (${retention.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...retention.params??[]).first<{allowed:number}>()
    if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
+   const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset),withdrawal=await preparationErasureGuard(env,'dataset',dataset)
+   // Retention includes project-owned outputs outside this source's direct graph.
+   // Check again in the same batch that establishes the durable withdrawal fence.
+   await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${withdrawal.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...withdrawal.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
+   const descendants=await preparationDescendants(env,dataset),derivedReceipts=[],activeDatasets=new Set([...erasingDatasets,dataset])
+   for(const id of descendants){
+    const output=await fileTargets.read(env.DB,fileDestination(id),'file-table',id)
+    if(!output)continue
+    const erasure=await fileImportResponse(new Request(new URL('/api/operator/datasets/'+id+'/erase',env.AUTH_ORIGIN),{method:'POST',headers:{origin:env.AUTH_ORIGIN,cookie:request.headers.get('cookie')??'','content-type':'application'+'/'+'json'},body:JSON.stringify({confirmDataset:id,reviewedRevision:output.revision})}),env,erasingProjects,activeDatasets)
+    if(!erasure?.ok)return erasure
+    derivedReceipts.push({dataset:id,receipt:await erasure.json()})
+   }
    const sourceMatch = fileTargets.matches(current ?? null, destination, 'file-table', dataset)
    const match=sql(`(${sourceMatch.sql}) AND (${retention.sql})`,...sourceMatch.params??[],...retention.params??[])
    const derived = 'SELECT snapshot_id FROM bf_query_sources WHERE dataset_id=?'
@@ -82,7 +97,7 @@ export async function fileImportResponse(request: Request, original: Bindings): 
    const auditId=randomUUID()
    const auditStatements=[sql("INSERT INTO bf_erasure_audit(id,actor_ref,subject_ref,recorded_at,kind) VALUES(?,?,?,?,'source_erasure')",auditId,randomUUID(),randomUUID(),new Date().toISOString()),sql('INSERT INTO bf_erasure_pending(destination,audit_id) VALUES(?,?)',destination,auditId),sql(`INSERT INTO bf_erasure_stores(audit_id,store,rows) SELECT ?,store,rows FROM (${counts.sql})`,auditId,...counts.params??[])]
    const calculationLibraries=await eraseSourceCalculationLibraries(env,owner,dataset,match)
-   const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match)
+   const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match,request,erasingProjects,activeDatasets)
    // Derivative erasure can initialize the journal. Bind the source checkpoint
    // to that same installation identity after those guarded retirements.
    const state = await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{ source_identity: string }>()
@@ -98,8 +113,9 @@ export async function fileImportResponse(request: Request, original: Bindings): 
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset),sql('DELETE FROM bf_source_retention WHERE dataset_id=?',dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, auditId, modelProjects, calculationLibraries, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, auditId, modelProjects, calculationLibraries, derivedReceipts, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
+  if(request.method==='POST'&&path.startsWith('/api/operator/import/')&&await preparationOutput(env,dataset))return json({error:'preparation_output_immutable',reason:'Prepared outputs are immutable. Publish a reviewed preparation to a new dataset id.'},409)
   if (path === '/api/operator/import/history') {
    if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405)
    const history = await readImportDoorHistory(env.DB, DOOR_KEY, owner)

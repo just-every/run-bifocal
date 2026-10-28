@@ -8,6 +8,8 @@ import { exactKeys, json, jsonBody } from '../models/validation/transport'
 import { fail, QueryError, type Source } from '../query/types'
 import { preparationSQL, preparationFromSQL } from './sql'
 import { reviewDBT } from './dbt.server'
+import { materializePreparation } from './materialize.server'
+import { reviewImportedFlow, preparationOrigin } from './flow.server'
 import { preparationImpact } from './impact.server'
 import { preparationCheckStatements } from './checks.server'
 import { preparationInput, preparationDatasets, executePreparation } from './execute'
@@ -15,9 +17,9 @@ import { preparationInput, preparationDatasets, executePreparation } from './exe
 type Head={id:string;owner_id:string;version:number}
 type Revision={version:number;document_json:string;sources_json:string;digest:string;lineage_json:string;created_at:string}
 /** Owner-only synchronous draft execution. No source write, publication,
- * certification, provider execution or background dispatch is available. */
+ * certification, provider execution or background dispatch is available here. */
 async function handlePreparation(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),match=/^\/api\/operator\/preparations(?:\/([a-z][a-z0-9-]{0,63})(?:\/(review|save|restore|dbt-review))?)?$/.exec(url.pathname)
+ const url=new URL(request.url),match=/^\/api\/operator\/preparations(?:\/([a-z][a-z0-9-]{0,63})(?:\/(review|save|restore|dbt-review|flow-review|publish-review|publish))?)?$/.exec(url.pathname)
  if(!url.pathname.startsWith('/api/operator/preparations'))return null
  try{
   const env=runtimeBindings(original),owner=await fileOwner(request,env);if(!owner)return json({error:'owner_required'},401)
@@ -25,6 +27,8 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
   const ownerId=await ownerIdentity(env,owner),id=match[1],action=match[2]
   if(!id)fail('preparation_id_required',400)
   if(action==='dbt-review')return await reviewDBT(request,env,owner,ownerId)
+  if(action==='flow-review')return await reviewImportedFlow(request,env,owner,ownerId)
+  if(action==='publish-review'||action==='publish')return await materializePreparation(request,env,owner,ownerId,id,action)
   const head=await env.DB.prepare('SELECT * FROM bf_preparations WHERE id=? AND owner_id=?').bind(id,ownerId).first<Head>()
   const headGuard=head?sql('EXISTS(SELECT 1 FROM bf_preparations WHERE id=? AND owner_id=? AND version=?)',id,ownerId,head.version):sql('NOT EXISTS(SELECT 1 FROM bf_preparations WHERE id=?)',id)
   if(!action){
@@ -35,10 +39,11 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
    return json({id,version:head.version,revisions:revisions.map(r=>({version:r.version,document:JSON.parse(r.document_json),sources:JSON.parse(r.sources_json),digest:r.digest,lineage:JSON.parse(r.lineage_json),createdAt:r.created_at})),published:false})
   }
   if(request.method!=='POST')fail('method_not_allowed',405)
-  const input=await jsonBody(request);exactKeys(input,['document','dataset','sql','previousVersion','reviewedDigest','restoreVersion'])
+  const input=await jsonBody(request);exactKeys(input,['document','dataset','sql','imported','previousVersion','reviewedDigest','restoreVersion'])
   if(input.previousVersion!==(head?.version??null))fail('stale_preparation_version',409)
-  if(input.sql!==undefined){if(input.document!==undefined||action==='restore')fail('one_preparation_form_required',400);input.document=preparationFromSQL(input.dataset,input.sql)}
+  if(input.sql!==undefined){if(input.document!==undefined||action==='restore')fail('one_preparation_form_required',400);input.document={...preparationFromSQL(input.dataset,input.sql),...input.imported?{imported:input.imported}:{}}}
   else if(input.dataset!==undefined)fail('preparation_sql_required',400)
+  else if(input.imported!==undefined)fail('preparation_sql_required',400)
   if((action==='restore')!==(input.restoreVersion!==undefined)||action!=='restore'&&input.document===undefined||action==='restore'&&input.document!==undefined)fail('preparation_document_required',400)
   const restoring=action==='restore'?await env.DB.prepare('SELECT * FROM bf_preparation_revisions WHERE preparation_id=? AND version=?').bind(id,input.restoreVersion).first<Revision>():null
   if(action==='restore'&&!restoring)fail('preparation_revision_not_found',404)
@@ -50,7 +55,7 @@ async function handlePreparation(request:Request,original:Bindings):Promise<Resp
   }
   const sqlForm=preparationSQL(document)
   const pins=sources.map(s=>({dataset:s.id,revision:s.revision})),result=executePreparation(document,sources),digest=sha256(canonicalJson({id,ownerId,version:head?.version??null,document,pins,result}))
-  const guards=[assertion(headGuard),...sources.map(s=>assertion(sourceMatch(s)))]
+  const guards=[assertion(headGuard),...sources.map(s=>assertion(sourceMatch(s))),...await preparationOrigin(env,ownerId,document)]
   if(action==='review'){
    const {impact,guards:impactGuards}=await preparationImpact(env,ownerId,document,sources,result)
    await transact(env.DB,owner,[...guards,...impactGuards.map(assertion),...await preparationCheckStatements(env,ownerId,id,sources,result)])

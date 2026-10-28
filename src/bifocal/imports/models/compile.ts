@@ -18,6 +18,10 @@ export function compileProject(value:unknown,id:string,ownerId:string,sources:So
  // Even an unresolved source definition owes custody to every explicitly bound
  // dataset. Erasure must reach its originals before it can ever be executable.
  for(const binding of Object.values(input.bindings))if(object(binding)&&typeof binding.dataset==='string'){const source=sources.find(s=>s.id===binding.dataset);if(source)used.set(source.id,source.revision)}
+ if(input.format==='powerquery'||input.format==='tableau-prep'){
+  issues.push({file:'',object:'project',code:'flow_preparation_review_required',message:'Import retains the original flow. Review exact source bindings and every translated preparation step before saving or publishing a native preparation.',sourceExpression:''})
+  return {ownerId,input,digest:sha256(canonicalJson(input)),report:{project,issues,translations:[],compatible:false},definition:null,sources:[...used].map(([id,revision])=>({id,revision}))}
+ }
  const problem=(object:string,code:string,message:string,sourceExpression='')=>issues.push({file:'',object,code,message,sourceExpression})
  if(Object.keys(input.bindings).some(name=>!project.tables.some(t=>t.name===name)))problem('bindings','unknown_table_binding','Every binding must identify a source model table.')
  const bind=(tableName:string)=>{

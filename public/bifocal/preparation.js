@@ -3,16 +3,19 @@ import {when} from './format.js'
 import {newStep,renderGraph,graphSQL} from './preparation-graph.js'
 import {showPreparationReview} from './preparation-review.js'
 import {idSentence,requestProblem,stepProblem} from './preparation-errors.js'
+import {preparationPublication} from './preparation-publication.js'
+import {preparationFlow} from './preparation-flow.js'
 
 const $=id=>document.getElementById(id),form=$('preparation-form'),zone=document.body.dataset.zone
 // A refusal keeps its code as data and names the field it concerns; the page only ever shows its plain sentence.
 class Refused extends Error{constructor(code,status,field=null,sentence=''){super(code);this.code=code;this.status=status;this.field=field;this.sentence=sentence}}
 if(form){
  const section=$('preparation'),mode=$('prep-mode'),dataset=$('prep-dataset'),sql=$('prep-sql')
- let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual'
+ let steps=[],headId=null,version=null,revisions=[],reviewed=null,busy=false,activeMode='visual',imported=null
  const status=(message,error=false)=>{$('prep-status').textContent=message;$('prep-status').dataset.error=String(error);$('prep-status').setAttribute('role',error?'alert':'status')}
  const validId=(value,field)=>{if(!/^[a-z][a-z0-9-]{0,63}$/.test(value))throw new Refused('invalid_id',400,field,idSentence);return value}
  const id=()=>validId($('prep-id').value,'prep-id')
+ const publication=preparationPublication(()=>({id:headId,version}))
  function controls(){
   $('prep-save').disabled=busy||!reviewed?.compatible||!$('prep-confirm').checked
   $('prep-add').disabled=busy||steps.length>=32
@@ -72,9 +75,10 @@ if(form){
  async function loadHead(preparation){
   let current
   try{current=await call(preparation)}catch(error){if(error.status!==404)throw error;current={version:null,revisions:[]}}
-  headId=preparation;version=current.version;revisions=current.revisions;history();return current
+  headId=preparation;version=current.version;revisions=current.revisions;publication.reset();history();return current
  }
- function useDocument(document){dataset.value=document.dataset;steps=structuredClone(document.steps);sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
+ function useDocument(document){dataset.value=document.dataset;steps=structuredClone(document.steps);imported=document.imported??null;sql.value=graphSQL(steps);$('prep-source').replaceChildren();invalidate();graph()}
+ preparationFlow(id,document=>{useDocument(document);editingMode('visual');status('Original flow translated into an editable native draft. Review its exact output before saving. Original output equivalence remains unverified.')})
  function selectedRevision(){
   if(headId!==id())throw new Refused('preparation_not_loaded',400,'prep-id','Load this preparation first, then choose one of its revisions.')
   const revision=revisions.find(item=>item.version===Number($('prep-revision').value))
@@ -84,17 +88,17 @@ if(form){
  async function review(restoreRevision){
   const preparation=id();validId(dataset.value,'prep-dataset')
   invalidate();if(headId!==preparation)await loadHead(preparation)
-  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,previousVersion:version}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps)},previousVersion:version}
+  const payload=restoreRevision?{document:structuredClone(restoreRevision.document),previousVersion:version}:activeMode==='sql'?{dataset:dataset.value,sql:sql.value,...imported?{imported}:{},previousVersion:version}:{document:{version:1,dataset:dataset.value,steps:structuredClone(steps),...imported?{imported}:{}},previousVersion:version}
   const value=await call(preparation,'review',payload)
-  steps=structuredClone(value.document.steps);dataset.value=value.document.dataset;sql.value=value.sql;graph()
+  steps=structuredClone(value.document.steps);imported=value.document.imported??null;dataset.value=value.document.dataset;sql.value=value.sql;graph()
   reviewed={id:preparation,payload,digest:value.digest,version,compatible:value.compatible,restoreVersion:restoreRevision?.version}
   $('prep-save').textContent=restoreRevision?'Restore reviewed draft revision':'Save reviewed draft'
   showPreparationReview($('prep-review-report'),value,version,restoreRevision?.version);$('prep-review').hidden=false
   if(value.compatible)status(restoreRevision?'Prior revision reviewed against current sources. Confirm the exact output before restoring.':'Draft reviewed. Inspect output, source revisions and lineage before saving.')
   return value
  }
- $('prep-id').addEventListener('input',()=>{headId=null;version=null;revisions=[];invalidate();history()})
- dataset.addEventListener('input',()=>{$('prep-source').replaceChildren();changed();$('prep-graph-source').textContent=(dataset.value||'Source dataset')+' → '+steps.length+' ordered steps → draft output'})
+ $('prep-id').addEventListener('input',()=>{headId=null;version=null;revisions=[];publication.reset();invalidate();history()})
+ dataset.addEventListener('input',()=>{imported=null;$('prep-source').replaceChildren();changed();$('prep-graph-source').textContent=(dataset.value||'Source dataset')+' → '+steps.length+' ordered steps → draft output'})
  sql.addEventListener('input',invalidate)
  $('prep-confirm').addEventListener('change',controls)
  $('prep-revision').addEventListener('change',invalidate)
@@ -110,7 +114,7 @@ if(form){
  $('prep-load').addEventListener('click',()=>perform(async()=>{
   invalidate();const current=await loadHead(id()),revision=current.revisions.find(item=>item.version===current.version)
   if(revision){useDocument(revision.document);editingMode('visual');status('Current saved draft loaded. Review again before saving any change.')}
-  else status('No saved preparation with this ID. Build and review a new draft.')
+  else{useDocument({version:1,dataset:dataset.value,steps:[]});editingMode('visual');$('prep-flow-report').replaceChildren();$('prep-flow-status').textContent='';status('No saved preparation with this ID. Build and review a new draft.')}
  }))
  $('prep-source-load').addEventListener('click',()=>perform(async()=>{
   const source=validId(dataset.value,'prep-dataset'),response=await fetch('/api/operator/datasets/'+source),value=await response.json().catch(()=>({}))
