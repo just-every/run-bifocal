@@ -1,3 +1,4 @@
+import { retainedChartResponse } from './retained.server'
 import { randomUUID } from 'node:crypto'
 import { operatorAuth, runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -16,6 +17,8 @@ import { chartStyles } from './styles'
 import { chartView, type Selection } from './view'
 
 export async function chartResponse(request:Request,original:Bindings):Promise<Response|null> {
+ const retained=await retainedChartResponse(request,original)
+ if(retained)return retained
  const url=new URL(request.url),path=url.pathname
  if(path==='/bifocal/charts.css')return ['GET','HEAD'].includes(request.method)?new Response(request.method==='HEAD'?null:chartStyles,{headers:{'content-type':'text/css; charset=utf-8','x-content-type-options':'nosniff'}}):new Response(null,{status:405})
  const definition=/^\/api\/operator\/chart-definitions\/(review|create)$/.exec(path),saved=/^\/(api\/operator|app)\/charts\/([a-f0-9-]{36})$/.exec(path)

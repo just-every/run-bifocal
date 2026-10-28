@@ -38,7 +38,8 @@
       "commands": [
         "pnpm run build",
         "node scripts/prepare-model-tools.mjs",
-        "node tests/bifocal-semantic-model.mjs"
+        "node tests/bifocal-semantic-model.mjs",
+        "node --test tests/bifocal-charts.mjs"
       ]
     }
   ],
