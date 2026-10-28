@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import {join} from 'node:path'
 
 /** Native imported answers retain their original audience throughout collaboration. */
-export async function proveCollaboration({origin,owner,reader,readerId,page,upload,proveScreen}) {
+export async function proveCollaboration({origin,owner,reader,readerId,page,upload,proveScreen: assertScreen,devKey}) {
+ const proveScreen=async(label)=>{await assertScreen(label,{widths:[1440]});if(process.env.BIFOCAL_PROOF_DIR){await page.setViewportSize({width:390,height:1000});await page.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-390.png'),fullPage:true});await page.setViewportSize({width:1440,height:1000})}}
  const headers={Origin:origin},api='/api/operator'
  const call=async(context,path,data,expected=data===undefined?200:201)=>{
   const response=await context.request.fetch(origin+api+path,{method:data===undefined?'GET':'POST',headers,...data===undefined?{}:{data}})
@@ -34,17 +35,16 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.ok(original.members.some(member=>member.id===readerId))
  assert.equal((await resolve(owner,subject)).subject.id,subject.id)
  const openQuestionThread=async(target,label)=>{
-  for(const width of [1440,390]){
-   await target.setViewportSize({width,height:1000})
-   await target.goto(origin+(target===page?'/app/queries/':'/app/questions/')+subject.id)
-   await target.getByRole('status').filter({hasText:target===page?'Answer loaded':'Saved question reopened'}).waitFor()
-   assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-   if(target===page)await proveScreen(label,{widths:[width],resize:false})
-   else if(process.env.BIFOCAL_PROOF_DIR)await target.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})
-   await target.getByRole('link',{name:'Comments and sharing',exact:true}).click()
-   await target.getByLabel('Comment',{exact:true}).waitFor()
-   assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
-  }
+  await target.setViewportSize({width:1440,height:1000})
+  await target.goto(origin+(target===page?'/app/queries/':'/app/questions/')+subject.id)
+  await target.getByRole('status').filter({hasText:target===page?'Answer loaded':'Saved question reopened'}).waitFor()
+  assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  if(target===page)await proveScreen(label)
+  else if(process.env.BIFOCAL_PROOF_DIR)for(const width of [1440,390]){await target.setViewportSize({width,height:1000});await target.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png'),fullPage:true})}
+  await target.setViewportSize({width:1440,height:1000})
+  await target.getByRole('link',{name:'Comments and sharing',exact:true}).click()
+  await target.getByLabel('Comment',{exact:true}).waitFor()
+  assert.ok(await target.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
  }
  await openQuestionThread(page,'collaboration-owner-saved-analysis')
  const readerPage=await reader.newPage()
@@ -88,6 +88,122 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   await page.locator('#collaboration-comments').getByText('Review the regional revenue split.',{exact:true}).waitFor()
   await proveScreen('collaboration-'+kind+'-thread')
  }
+ const readerComment=await call(reader,'/collaboration/comments',{...subject,body:'West renewals confirmed by the scoped reader.',point:0,mentions:[]})
+ assert.deepEqual((await resolve(owner,subject)).comments.filter(item=>item.id===readerComment.id).map(item=>[item.body,item.point,item.authorId]),[['West renewals confirmed by the scoped reader.',0,readerId]])
+ for(const point of [-1,1,0.5,'0'])await call(reader,'/collaboration/comments',{...subject,body:'synthetic-bifocal-2840',point,mentions:[]},400)
+ const sharedDashboard=await call(owner,'/dashboards',{queryId:subject.id,title:'West renewal review'})
+ const sharedSubject={kind:'dashboard',id:sharedDashboard.id}
+ // An invited colleague has independent data authority; the discussion approval adds no data authority.
+ const colleague=await reader.browser().newContext()
+ try{
+  assert.equal((await colleague.request.post(origin+'/__dev/key',{headers,data:{key:devKey}})).status(),204)
+  const invitation=await owner.request.post(origin+'/auth/invite',{headers,data:{email:'synthetic-bifocal-2841@example.test',displayName:'Synthetic colleague',role:'member'}})
+  assert.equal(invitation.status(),202)
+  const people=await(await owner.request.get(origin+'/auth/operators')).json(),person=people.find(item=>item.email==='synthetic-bifocal-2841@example.test')
+  assert.ok(person?.signInUrl)
+  await colleague.request.get(new URL(person.signInUrl,origin).href)
+  const ownGrantInput={...grantInput,operatorId:person.id,operatorVersion:(await(await colleague.request.get(origin+'/auth/session')).json()).operator.version}
+  const issue=async(input)=>{const review=await call(owner,'/explore/access/review',input,200);return call(owner,'/explore/access',{...input,reviewedDigest:review.digest})}
+  const colleagueGrant=await issue(ownGrantInput)
+  const participant={...sharedSubject,operatorId:person.id,grantId:colleagueGrant.id}
+  await resolve(colleague,sharedSubject,404)
+  await call(colleague,'/collaboration/participants/review',participant,403)
+  await call(owner,'/collaboration/participants',participant,409)
+  const eastGrant=await issue({...ownGrantInput,filters:[{column:'region',op:'eq',value:east}]})
+  await call(owner,'/collaboration/participants/review',{...participant,grantId:eastGrant.id},403)
+  const broadGrant=await issue({...ownGrantInput,filters:[]})
+  await call(owner,'/collaboration/participants/review',{...participant,grantId:broadGrant.id},403)
+  const narrowGrant=await issue({...ownGrantInput,filters:[...ownGrantInput.filters,{column:'date',op:'eq',value:'2026-10-01'}]})
+  await call(owner,'/collaboration/participants/review',{...participant,grantId:narrowGrant.id},403)
+  const maskedGrant=await issue({...ownGrantInput,dimensions:['region'],underlying:false,underlyingExport:false})
+  await call(owner,'/collaboration/participants/review',{...participant,grantId:maskedGrant.id},403)
+  const foreign=await owner.request.post(origin+api+'/collaboration/participants/review',{headers:{Origin:'https://example.test'},data:participant})
+  assert.equal(foreign.status(),401)
+  const anonymous=await fetch(origin+api+'/collaboration/participants/review',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(participant)})
+  assert.equal(anonymous.status,401)
+  const approval=await call(owner,'/collaboration/participants/review',participant,200)
+  await call(owner,'/collaboration/participants',{...participant,grantId:eastGrant.id,reviewedDigest:approval.digest},403)
+  await call(owner,'/collaboration/participants',{...participant,reviewedDigest:approval.digest})
+  const originalParticipant={...sharedSubject,operatorId:readerId,grantId:grant.id}
+  const originalReview=await call(owner,'/collaboration/participants/review',originalParticipant,200)
+  await call(owner,'/collaboration/participants',{...originalParticipant,reviewedDigest:originalReview.digest})
+  const scopedChartDocument={...chartDocument,title:'Shared West revenue',definition:{...query,filters:grantInput.filters,context:{...query.context,modelVersion:model.revision}}}
+  const scopedChartReview=await call(owner,'/chart-definitions/review',{document:scopedChartDocument},200)
+  const scopedChart=await call(owner,'/chart-definitions/create',{document:scopedChartDocument,reviewedDigest:scopedChartReview.digest})
+  const chartSubject={kind:'chart',id:scopedChart.id},chartParticipant={...chartSubject,operatorId:person.id,grantId:colleagueGrant.id}
+  await call(owner,'/collaboration/participants/review',{kind:'chart',id:chart.id,operatorId:person.id,grantId:colleagueGrant.id},403)
+  assert.equal((await colleague.request.get(origin+'/api/operator/charts/'+scopedChart.id)).status(),401)
+  const chartContentReview=await call(owner,'/collaboration/participants/review',chartParticipant,200)
+  await call(owner,'/collaboration/participants',{...chartParticipant,reviewedDigest:chartContentReview.digest})
+  const permittedChart=await call(colleague,'/charts/'+scopedChart.id)
+  assert.deepEqual(permittedChart.answer.rows.map(row=>[row.dimensions[0],row.values.revenue.value]),[['West','550.00']])
+  assert.equal(permittedChart.answer.totals.revenue.value,'550.00')
+  assert.equal(permittedChart.answer.inputRows,2)
+  assert.deepEqual(permittedChart.answer.joinDiagnostics,[])
+  for(const scope of ['summary','underlying'])await call(colleague,'/queries/'+scopedChart.snapshotId+'/export',{scope,format:'csv'},401)
+  const chartComment=await call(colleague,'/collaboration/comments',{...chartSubject,body:'West chart verified under my own current analytical authority.',point:0,mentions:[]})
+  assert.deepEqual((await resolve(owner,chartSubject)).comments.map(item=>[item.id,item.authorId,item.point]),[[chartComment.id,person.id,0]])
+  const chartPage=await colleague.newPage()
+  await chartPage.setViewportSize({width:1440,height:1000})
+  await chartPage.goto(origin+'/app/charts/'+scopedChart.id)
+  assert.equal(await chartPage.locator('.native-chart li').innerText(),'West · USD 550.00')
+  assert.equal(await chartPage.getByRole('button',{name:'Export summary CSV',exact:true}).count(),0)
+  assert.equal(await chartPage.getByRole('link',{name:'Open the retained exact answer',exact:true}).count(),0)
+  await chartPage.getByRole('link',{name:'Comments and sharing',exact:true}).waitFor()
+  for(const width of [1440,390]){await chartPage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await chartPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await chartPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-colleague-chart-'+width+'.png'),fullPage:true})}
+  await chartPage.close()
+  const thread=await resolve(colleague,sharedSubject)
+  const ownerId=(await(await owner.request.get(origin+'/auth/session')).json()).operator.id
+  assert.deepEqual(thread.members.map(item=>item.id).sort(),[ownerId,readerId,person.id].sort())
+  const colleagueComment=await call(colleague,'/collaboration/comments',{...sharedSubject,body:'The West-only dashboard agrees with my current grant.',point:0,mentions:[readerId]})
+  assert.deepEqual((await resolve(reader,sharedSubject)).comments.map(item=>[item.id,item.authorId,item.body,item.point]),[[colleagueComment.id,person.id,'The West-only dashboard agrees with my current grant.',0]])
+  assert.equal((await colleague.request.get(origin+'/api/operator/datasets/'+dataset)).status(),401)
+  assert.equal((await colleague.request.get(origin+'/api/operator/dashboards/'+sharedDashboard.id)).status(),401)
+  const shared=await call(colleague,'/collaboration/links',{...sharedSubject,recipientId:readerId,expiresAt:new Date(Date.now()+60000).toISOString(),public:false})
+  await call(reader,'/collaboration/links/'+shared.id)
+  const colleaguePage=await colleague.newPage()
+  await colleaguePage.goto(origin+'/app/collaboration/dashboard/'+sharedDashboard.id)
+  await colleaguePage.locator('#collaboration-comments').getByText('The West-only dashboard agrees with my current grant.',{exact:true}).waitFor()
+  assert.equal(await colleaguePage.getByRole('link',{name:'Open original',exact:true}).count(),0)
+  for(const width of [1440,390]){await colleaguePage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await colleaguePage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await colleaguePage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-colleague-dashboard-'+width+'.png'),fullPage:true})}
+  await colleaguePage.close()
+  await call(colleague,'/collaboration/participants/revoke',{...sharedSubject,operatorId:person.id},403)
+  await call(owner,'/collaboration/participants/revoke',{...sharedSubject,operatorId:person.id},200)
+  await resolve(colleague,sharedSubject,404)
+  const independent=await call(colleague,'/explore/run',{...parameters,grantId:colleagueGrant.id})
+  assert.equal(independent.answer.totals.revenue.value,'550.00')
+  await call(reader,'/collaboration/links/'+shared.id,undefined,403)
+  await call(owner,'/collaboration/participants',{...participant,reviewedDigest:approval.digest})
+  await call(reader,'/collaboration/links/'+shared.id,undefined,403)
+  // Retiring the issuer's own data grant also retires links it issued.
+  const dataBoundLink=await call(colleague,'/collaboration/links',{...sharedSubject,recipientId:readerId,expiresAt:new Date(Date.now()+60000).toISOString(),public:false})
+  await call(reader,'/collaboration/links/'+dataBoundLink.id)
+  await call(owner,'/explore/access/'+colleagueGrant.id+'/revoke',{},200)
+  await resolve(colleague,sharedSubject,404)
+  assert.equal((await colleague.request.get(origin+'/api/operator/charts/'+scopedChart.id)).status(),401)
+  await call(reader,'/collaboration/links/'+shared.id,undefined,403)
+  await call(reader,'/collaboration/links/'+dataBoundLink.id,undefined,403)
+  const freshGrant=await issue(ownGrantInput),freshInput={...participant,grantId:freshGrant.id}
+  const freshReview=await call(owner,'/collaboration/participants/review',freshInput,200)
+  await call(owner,'/collaboration/participants',{...freshInput,reviewedDigest:freshReview.digest})
+  assert.ok((await resolve(colleague,sharedSubject)).comments.some(item=>item.id===colleagueComment.id))
+  await call(reader,'/collaboration/links/'+shared.id,undefined,403)
+  const recipientLink=await call(owner,'/collaboration/links',{...sharedSubject,recipientId:person.id,expiresAt:new Date(Date.now()+60000).toISOString(),public:false})
+  await call(colleague,'/collaboration/links/'+recipientLink.id)
+  // Membership retirement is independent of analytical grant revocation.
+  const memberLink=await call(colleague,'/collaboration/links',{...sharedSubject,recipientId:readerId,expiresAt:new Date(Date.now()+60000).toISOString(),public:false})
+  await call(reader,'/collaboration/links/'+memberLink.id)
+  await page.goto(origin+'/app/people')
+  await Promise.all([page.waitForURL(/updated=1/),page.getByRole('button',{name:'Deactivate Synthetic colleague',exact:true}).click()])
+  await call(reader,'/collaboration/links/'+memberLink.id,undefined,403)
+  await page.reload()
+  await Promise.all([page.waitForURL(/updated=1/),page.getByRole('button',{name:'Reactivate Synthetic colleague',exact:true}).click()])
+  const reactivated=(await(await owner.request.get(origin+'/auth/operators')).json()).find(item=>item.id===person.id)
+  await colleague.request.get(new URL(reactivated.signInUrl,origin).href)
+  await resolve(colleague,sharedSubject,404)
+  await call(reader,'/collaboration/links/'+memberLink.id,undefined,403)
+  await call(colleague,'/collaboration/links/'+recipientLink.id,undefined,403)
+ }finally{await colleague.close()}
  const notificationsBefore=await call(reader,'/collaboration/notifications')
  const pointComment=await call(owner,'/collaboration/comments',{...subject,body:'Review the two West renewals on October 2.',point:0,mentions:[]})
  const point= (await resolve(reader,subject)).comments.find(comment=>comment.id===pointComment.id)
@@ -126,14 +242,13 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  await call(reader,'/collaboration/links/'+linkId)
  await call(owner,'/collaboration/links/'+linkId,undefined,403)
  assert.equal((await owner.request.get(origin+href)).status(),403)
- assert.equal((await owner.request.get(origin+href)).status(),403)
  const sharedPage=await reader.newPage()
  await sharedPage.goto(origin+href)
  await sharedPage.locator('#collaboration-comments').getByText('Please confirm the regional renewal timing.',{exact:true}).waitFor()
- for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-shared-'+width+'.png'),fullPage:true})}
+ for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-shared-'+width+'.png'),fullPage:true})}
  await sharedPage.goto(origin+'/app/collaboration/notifications')
  await sharedPage.getByRole('link',{name:'Open permitted mention',exact:true}).first().waitFor()
- for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-notifications-'+width+'.png'),fullPage:true})}
+ for(const width of [1440,390]){await sharedPage.setViewportSize({width,height:1000});if(width===1440)assert.ok(await sharedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.BIFOCAL_PROOF_DIR)await sharedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-recipient-notifications-'+width+'.png'),fullPage:true})}
  await sharedPage.close()
  const permittedUnfurl=await call(reader,'/collaboration/links/'+linkId+'/unfurl')
  assert.equal(permittedUnfurl.title,original.subject.title)
@@ -152,12 +267,13 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  const deniedPage=await reader.newPage()
  const denied=await deniedPage.goto(origin+href);assert.equal(denied.status(),403)
  await deniedPage.getByRole('heading',{name:'Collaboration access unavailable',exact:true}).waitFor()
- for(const width of [1440,390]){await deniedPage.setViewportSize({width,height:1000});assert.ok(await deniedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(!(await deniedPage.locator('main').innerText()).includes('Please confirm'));if(process.env.BIFOCAL_PROOF_DIR)await deniedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-revoked-'+width+'.png'),fullPage:true})}
+ for(const width of [1440,390]){await deniedPage.setViewportSize({width,height:1000});if(width===1440){assert.ok(await deniedPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(!(await deniedPage.locator('main').innerText()).includes('Please confirm'));}if(process.env.BIFOCAL_PROOF_DIR)await deniedPage.screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,'collaboration-revoked-'+width+'.png'),fullPage:true})}
  await deniedPage.close()
  assert.deepEqual(await call(reader,'/collaboration/links/'+linkId+'/unfurl'),generic)
  // Revoking a link leaves the recipient's independent, active answer authority intact.
  assert.ok((await resolve(reader,subject)).comments.some(comment=>comment.id===mentioned.id))
 
+ await call(owner,'/collaboration/links',{...subject,recipientId:readerId,expiresAt:new Date(Date.now()+8*86400000).toISOString(),public:false},400)
  const expiring=await call(owner,'/collaboration/links',{...subject,recipientId:readerId,expiresAt:new Date(Date.now()+2500).toISOString(),public:false})
  await call(reader,'/collaboration/links/'+expiring.id)
  await new Promise(done=>setTimeout(done,Math.max(0,Date.parse(expiring.expiresAt)-Date.now()+100)))
@@ -180,6 +296,25 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  assert.ok((await call(reader,'/collaboration/notifications')).notifications.every(notification=>!removed.has(notification.id)))
  assert.ok((await resolve(owner,subject)).comments.some(comment=>comment.id===pointComment.id),'Owner retains the discussion after delegated authority is withdrawn')
 
+ // The original runner's withdrawal is not permanent eligibility for another reviewed colleague.
+ const independentColleague=await reader.browser().newContext()
+ try{
+  assert.equal((await independentColleague.request.post(origin+'/__dev/key',{headers,data:{key:devKey}})).status(),204)
+  const person=(await(await owner.request.get(origin+'/auth/operators')).json()).find(item=>item.email==='synthetic-bifocal-2841@example.test')
+  await independentColleague.request.get(new URL(person.signInUrl,origin).href)
+  const current=(await(await independentColleague.request.get(origin+'/auth/session')).json()).operator
+  const input={...grantInput,operatorId:current.id,operatorVersion:current.version}
+  const review=await call(owner,'/explore/access/review',input,200)
+  const ownGrant=await call(owner,'/explore/access',{...input,reviewedDigest:review.digest})
+  const participant={...sharedSubject,operatorId:current.id,grantId:ownGrant.id}
+  const contentReview=await call(owner,'/collaboration/participants/review',participant,200)
+  await call(owner,'/collaboration/participants',{...participant,reviewedDigest:contentReview.digest})
+  const discussion=await resolve(independentColleague,sharedSubject)
+  assert.ok(!discussion.members.some(item=>item.id===readerId))
+  assert.ok(discussion.comments.some(item=>item.body==='The West-only dashboard agrees with my current grant.'))
+  const post=await call(independentColleague,'/collaboration/comments',{...sharedSubject,body:'Current independent authority still permits this exact West discussion.',point:0,mentions:[]})
+  assert.ok((await resolve(owner,sharedSubject)).comments.some(item=>item.id===post.id))
+ }finally{await independentColleague.close()}
  const metricCharts=await proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,upload,timezone:owned.context.timezone})
  const source=await call(owner,'/datasets/'+dataset)
  const erased=await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
@@ -188,7 +323,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
  await resolve(owner,ownerSubject,404)
  for(const id of metricCharts){await call(owner,'/charts/'+id,undefined,404);assert.equal((await owner.request.get(origin+'/app/charts/'+id)).status(),404)}
  assert.deepEqual(await call(reader,'/collaboration/links/'+retained.id+'/unfurl'),generic)
- console.log('Collaboration: native scoped answers, data-point comments, permitted mentions, private notification links, dashboard threads, recipient binding, expiry, revocation and metric revision annotations passed at 1440 and 390')
+ console.log('Collaboration: native scoped answers, data-point comments, permitted mentions, private notification links, dashboard threads, recipient binding, expiry, revocation and metric revision annotations passed at 1440 with browser proof at both widths')
 }
 
 async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call,resolve,query,upload,timezone}) {
@@ -271,6 +406,8 @@ async function proveMetricAnnotations({origin,owner,reader,page,proveScreen,call
  const refreshed=await call(owner,seriesPath+'create',{...nextInput,reviewedDigest:refreshedReview.digest})
  assert.equal(refreshed.answer.totals.revenue.value,'9600.00')
  assert.deepEqual((await call(owner,'/charts/'+refreshed.id)).annotations.map(item=>item.id),[corrected.id])
+ await upload(query.dataset,'invoice,date,region,revenue\nsynthetic-bifocal-2805,10/01/2026,West,$100.00\nsynthetic-bifocal-2806,10/02/2026,West,$450.00\nsynthetic-bifocal-2807,10/02/2026,East,$9000.00\n',true)
+ await call(owner,'/collaboration/links/'+sourceLink.id,undefined,403)
  const historical=await call(owner,'/charts/'+firstChartId)
  assert.equal(historical.answer.totals.revenue.value,'9550.00')
  assert.deepEqual(historical.annotations.map(item=>item.id),[annotation.id])

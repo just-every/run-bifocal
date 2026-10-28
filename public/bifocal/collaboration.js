@@ -26,7 +26,7 @@ function shareLink(item){
 async function load(){
  if(shared)await call('/links/'+shared)
  if(kind){
-  current=await call('/resolve',{kind,id});byId('collaboration-title').textContent=current.subject.title.replaceAll(' · ',' · ');byId('collaboration-source').href=current.subject.href
+  current=await call('/resolve',{kind,id});byId('collaboration-title').textContent=current.subject.title.replaceAll(' · ',' · ');byId('collaboration-source').href=current.subject.href;byId('collaboration-source').hidden=current.subject.href.startsWith('/app/collaboration/')
   for(const [selector,blank] of [['#collaboration-comment select',true],['#collaboration-link select',false]]){const select=document.querySelector(selector),chosen=select.value;select.replaceChildren();if(blank){const option=element('option','No mention');option.value='';select.append(option)}for(const member of current.members){const option=element('option',member.displayName);option.value=member.id;select.append(option)}if([...select.options].some(option=>option.value===chosen))select.value=chosen}
   // A saved dashboard holds one retained answer: its rows are named as the dashboard's own.
   const holder=kind==='dashboard'?'this dashboard':'this answer'
