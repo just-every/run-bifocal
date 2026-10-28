@@ -168,6 +168,7 @@ test('restored owner definitions survive archives and browser setup refuses a di
   assert.ok(!manifest.tables.some(table => table.name.startsWith('bf_catalog_search')), 'derived search and shadow tables never travel')
   for (const name of ['oa_sessions', 'oa_provider_sessions', 'rer_dependency_keys', 'bf_machine_credentials', 'bf_portal_activation', 'bf_portal_tokens', 'bf_portal_cache', 'bf_portal_jobs']) assert.ok(!manifest.tables.some(table => table.name === name), `${name} does not travel`)
   assert.ok(!archive.includes(machineCredential.token), 'machine bearer never travels')
+  assert.ok(!archive.includes(machineCredential.predecessorToken), 'retired rotation bearer never travels')
   assert.ok(!archive.includes(portal.issued.token), 'portal bearer never travels')
   assert.ok(!archive.includes(syntheticSecret) && !archive.includes(syntheticSetup) && !archive.includes(syntheticInstallationKey), 'private settings do not travel')
   await rm(join(scratch, '.wrangler'), { recursive: true, force: true })
@@ -192,9 +193,11 @@ test('restored owner definitions survive archives and browser setup refuses a di
    await restoredPage.getByRole('checkbox').check()
    await Promise.all([restoredPage.waitForURL(origin + '/app'), restoredPage.getByRole('button', { name: 'Finish setup', exact: true }).click()])
   }
-  const restoredCredential = await fetch(origin + '/api/v1/definitions', { headers: { Authorization: 'Bearer ' + machineCredential.token } })
-  assert.equal(restoredCredential.status, 401, 'supported CLI restore cannot revive an issued machine credential')
-  await restoredCredential.arrayBuffer()
+  for (const token of [machineCredential.token, machineCredential.predecessorToken]) {
+   const restoredCredential = await fetch(origin + '/api/v1/definitions', { headers: { Authorization: 'Bearer ' + token } })
+   assert.equal(restoredCredential.status, 401, 'supported CLI restore cannot revive a rotated machine credential')
+   await restoredCredential.arrayBuffer()
+  }
   const restoredMachineHistory = await restoredContext.request.get(origin + '/api/operator/credentials')
   assert.equal(restoredMachineHistory.status(), 200)
   const machineHistory = await restoredMachineHistory.json()
