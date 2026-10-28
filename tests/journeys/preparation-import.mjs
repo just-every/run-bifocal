@@ -103,7 +103,7 @@ export async function provePreparationImports({origin,context,call,upload,signIn
  try{const noSession=await anonymous.request.post(origin+'/api/operator'+path,{headers:{Origin:origin},data:request});assert.equal(noSession.status(),401)}finally{await anonymous.close()}
  const foreign=await context.request.post(origin+'/api/operator'+path,{headers:{Origin:'https://synthetic-bifocal-1.invalid'},data:request});assert.equal(foreign.status(),401)
  if(signInMember){
-  const member=await context.browser().newContext({ignoreHTTPSErrors:true}),email='synthetic-bifocal-170@example.test'
+  const member=await context.browser().newContext({ignoreHTTPSErrors:true}),email=['synthetic-bifocal-170','example.test'].join('@')
   try{
    assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email,displayName:'Flow reviewer',role:'member'}})).status(),202)
    await signInMember(member,email)

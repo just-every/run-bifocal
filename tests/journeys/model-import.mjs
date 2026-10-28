@@ -735,7 +735,7 @@ export async function provePreparation({origin,context,page,call,upload,signInMe
  const materializedFailure=await call('/charts/'+publishedChart.id)
  assert.deepEqual(materializedFailure.preparationErrors,[{preparationId:id,step:1,operation:'cast',code:'preparation_type_conversion_failed',publishedChanged:false}])
  assert.equal(materializedFailure.answer.totals.quantity.value,'9')
- await page.goto(origin+'/app/charts/'+publishedChart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*preparation_type_conversion_failed/);await proveScreen('preparation-published-chart-failed-draft')
+ await page.goto(origin+'/app/charts/'+publishedChart.id);assert.match(await page.getByRole('alert').innerText(),/step 1.*Repair column type/);assert.equal(await page.getByRole('alert').getAttribute('data-code'),'preparation_type_conversion_failed');await proveScreen('preparation-published-chart-failed-draft')
  await upload(dataset,csv.replace('2,0.10','2,0.11'),true);assert.deepEqual((await call('/charts/'+chart.id)).preparationErrors,[],'Obsolete draft warnings disappear when a pinned source changes')
  assert.deepEqual((await call('/charts/'+publishedChart.id)).preparationErrors,[])
  assert.equal((await call('/datasets/'+outputID)).preparation.current,false)
@@ -792,9 +792,12 @@ export async function proveNativePreparation({imports=false}={}){
   const proveScreen=async(label)=>{
    for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),label+' overflow at '+width);assert.equal(await page.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0,'All controls have visible text');if(process.env.BIFOCAL_PROOF_DIR){await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});const subject=label.includes('original-intake-review')?'#model-import-review':label.includes('original-intake-retained')?'#model-import-current':label.includes('original-mapping')?'#prep-flow-report':label.includes('publication-review')?'#prep-publish-result':label.includes('publication')||label==='preparation-published-dataset'?'#prep-publication':label.includes('dataset-')?'#current':null;await (subject?page.locator(subject):page).screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.jpg'),type:'jpeg',quality:65,...subject?{}:{fullPage:false}});if(await page.locator('#prep-review').isVisible())await page.locator('#prep-review').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-detail-'+width+'.jpg'),type:'jpeg',quality:75})}}
   }
-  if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY!=='1'){await provePreparation({origin,context,page,call,upload,signInMember,proveScreen});await proveDBTExecution({origin,context,call,upload,signInMember})
+  if(process.env.BIFOCAL_CUSTOM_VISUAL_ONLY!=='1'){
+  await provePreparation({origin,context,page,call,upload,signInMember,proveScreen})
+  await proveDBTExecution({origin,context,call,upload,signInMember})
   const flow=await provePreparationImports({origin,context,call,upload,signInMember,calendar:'synthetic-bifocal-preparation-calendar'})
-  await provePreparationFlowBrowser({origin,page,call,proveScreen,flow})}
+  await provePreparationFlowBrowser({origin,page,call,proveScreen,flow})
+  }
   if(imports){await call('/calendars',{id:'synthetic-bifocal-july',previousVersion:null,definition:{name:'July fiscal year',kind:'fiscal',startMonth:7}});await proveModelImports({origin,context,page,call,upload,proveScreen,signInMember})}
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}
