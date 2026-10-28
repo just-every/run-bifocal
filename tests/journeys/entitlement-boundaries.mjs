@@ -44,6 +44,7 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
  await clock.set('2026-10-28T00:00:00.000Z')
  const after=await run(rep,['one'])
  assert.equal(after.context.exploration.entitlementDay,'2026-10-28')
+ assert.notEqual(after.cache.key,before.cache.key)
  assert.equal((await fixture('clock')).utc,'2026-10-28T00:00:00.000Z')
  assert.equal((await call(rep.context,'/explore/'+before.snapshotId,undefined,409)).error,'entitlement_snapshot_changed')
  assert.ok(!(await call(rep.context,'/explore')).questions.some(q=>q.id===before.snapshotId))
@@ -82,6 +83,26 @@ export async function proveEntitlementBoundaries({origin,owner,rep,next,actors,d
  await arm('/explore/'+responseAuthority.snapshotId+'/export','INSERT INTO bf_explore_audit',{path:'/api/operator/explore/access/'+next.grant.id+'/revoke',body:{}})
  await call(next.context,'/explore/'+responseAuthority.snapshotId+'/export',{scope:'underlying',format:'csv'},409)
  next.grant=await grant(next.person)
+ // The initial guarded batch commits before this native revocation. The final
+ // response fence must still refuse the already serialized warm-cache values.
+ const warmResponse=await run(next,['one'])
+ assert.equal(warmResponse.cache.status,'hit')
+ await arm('/explore/run','INSERT INTO bf_query_snapshots',{after:true,path:'/api/operator/explore/access/'+next.grant.id+'/revoke',body:{}})
+ const refusedHit=await call(next.context,'/explore/run',request(next),409)
+ for(const field of ['answer','context','cache','snapshotId'])assert.equal(field in refusedHit,false)
+ assert.equal((await call(next.context,'/explore/'+warmResponse.snapshotId,undefined,403)).error,'exploration_access_required')
+ next.grant=await grant(next.person)
+ // A new grouping and filter has no cached result. Revoke this separate native
+ // session after its snapshot commits and before the response fence returns.
+ await extraOwner.request.get(new URL(ownerPerson.signInUrl,origin).href)
+ const responseSession=await(await extraOwner.request.get(origin+'/auth/session')).json()
+ const coldInput={...parameters,groupBy:['id'],filters:[{column:'account',op:'eq',value:'A'}]}
+ await arm('/explore/run','INSERT INTO bf_query_snapshots',{after:true,path:'/auth/session/revoke',body:{sessionId:responseSession.id}})
+ const refusedMiss=await call(extraOwner,'/explore/run',coldInput,409)
+ for(const field of ['answer','context','cache','snapshotId'])assert.equal(field in refusedMiss,false)
+ assert.equal((await extraOwner.request.get(origin+'/auth/session')).status(),401)
+ const safeHistorical=await call(owner,'/explore/run',parameters)
+ assert.equal(safeHistorical.answer.filteredRows,5)
  const result=await run(next,['one']),pending=await review()
  // The reviewed source must still be current at publication. Already saved
  // answers, their labels and export plans must recheck current authority.

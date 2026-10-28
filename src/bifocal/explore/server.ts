@@ -13,6 +13,7 @@ import { discardBody, exactKeys, json, jsonBody, privateHeaders } from '../model
 import { queryInput } from '../query/validate'
 import { queryContext } from '../query/context'
 import { execute } from '../query/execute'
+import {saveCachedQuery} from '../query/cache/store.server'
 import { fail, QueryError, type Cell } from '../query/types'
 import { exportTable, type ExportColumn } from './table-export'
 import {pivotTable} from './pivot'
@@ -70,6 +71,7 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
   }
   if(path==='/api/operator/explore/run') {
    if(request.method!=='POST')fail('method_not_allowed',405)
+   if(request.headers.has('authorization'))fail('native_session_required',403)
    const input=await jsonBody(request);exactKeys(input,['modelId','revision','viewId','groupBy','filters','fiscal','compareAsOf','grantId','pivot'])
    const access=isOwner?null:await readGrant(env,actor,input.grantId),grant=access?.grant,ownerId=grant?.owner_id??actor.id
    if(grant&&(grant.definition.modelId!==input.modelId||grant.definition.viewId!==input.viewId||grant.definition.revision!==input.revision))fail('exploration_access_required',403)
@@ -86,15 +88,12 @@ export async function explorationResponse(request:Request,original:Bindings):Pro
    context.guards=[...context.guards??[],modelGuard(model),...(access?.guards??[])]
    if(grant)context.securityScope={kind:'delegated-view',ownerId,operatorId:actor.id,grantId:grant.id}
    context.exploration={...(grant?{grantId:grant.id,operatorId:actor.id,entitlementRevision:access!.entitlements.revision,entitlementDay:access!.entitlements.day}:{}),modelId:model.id,viewId:view.id,revision:model.production,parameters:input}
+   let comparison
    if(input.compareAsOf!==undefined){
     if(!query.fiscal)fail('fiscal_comparison_required',400)
-    const comparison=queryInput({...query,fiscal:{...query.fiscal,asOf:input.compareAsOf}}),answer=execute(comparison,sources,context)
-    if(grant){answer.inputRows=answer.filteredRows;answer.joinDiagnostics=[]}
-    context.exploration.comparison={definition:comparison,answer}
+    comparison=queryInput({...query,fiscal:{...query.fiscal,asOf:input.compareAsOf}})
    }
-   const snapshot=await saveQuery(env,actor,query,context,sources)
-   if(grant)await transact(env.DB,actor,[...access!.guards.map(assertion),audit(actor,grant,'question-run')])
-   return json(snapshot,201)
+   return await saveCachedQuery(env,actor,query,context,sources,{comparison,grant,dependencies:access?.entitlements.sources,changes:grant?[audit(actor,grant,'question-run')]:[]})
   }
   const match=/^\/api\/operator\/explore\/([a-f0-9-]{36})(?:\/(page|export|export-plan|full-export))?$/.exec(path)
   if(!match)fail('not_found',404)
