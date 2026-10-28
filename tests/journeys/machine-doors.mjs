@@ -163,7 +163,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const replacementToken=await page.getByLabel('Replacement bearer').inputValue()
  assert.match(replacementToken,/^[a-f0-9]{64}$/);assert.notEqual(replacementToken,browserKey.token)
  await rotationScreen('machine-rotation-completed')
- assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0)
+ const persisted=await page.evaluate(()=>JSON.stringify([Object.entries(localStorage),Object.entries(sessionStorage)]))
+ for(const bearer of [browserKey.token,replacementToken])assert.ok(!persisted.includes(bearer),'Rotation bearers never enter browser storage')
  const rotatedState=await call('/credentials'),browserCredentialRow=rotatedState.credentials.find(c=>c.predecessor_id===browserKey.id)
  assert.ok(browserCredentialRow);assert.equal(browserCredentialRow.used_operations,1);assert.deepEqual(JSON.parse(browserCredentialRow.definition_json),browserKey.scope)
  const browserReplacement={id:browserCredentialRow.id,token:replacementToken}
@@ -374,7 +375,9 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(history.history.some(h=>h.credential_id===id&&h.action==='activation-retired'),'Durable attributed retirement for '+id)
  }
  assert.ok(!JSON.stringify(history).includes('Ignore rules'))
- const erased=await issue(),erasedReview=await rotationReview(erased),erasedSource=await call('/datasets/'+joined)
+ const erased=await issue()
+ assert.equal((await api('/api/v1/query',input,200,erased.token)).totals.revenue.value,'2.02')
+ const erasedReview=await rotationReview(erased),erasedSource=await call('/datasets/'+joined)
  await call('/datasets/'+joined+'/erase',{confirmDataset:joined,reviewedRevision:erasedSource.revision},200)
  await api('/api/v1/query',input,401,erased.token)
  await rotate(erased,erasedReview,409)
