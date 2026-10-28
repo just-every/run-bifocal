@@ -4,7 +4,8 @@ import { dbtBindings } from './bindings'
 import { dbtConfiguration } from './configuration'
 import { dbtSelect } from './parser'
 import { projectDBT } from './expressions'
-import { runDBTTest } from './tests'
+import { relationDBT } from './relations'
+import { dbtTestDependencies, runDBTTest } from './tests'
 import type { DBTInput, Diagnostic, Frame, TestResult } from './types'
 
 const ordered=(values:string[])=>[...values].sort((a,b)=>a<b?-1:a>b?1:0)
@@ -18,6 +19,11 @@ const bounded=(frame:Frame)=>{if(frame.columns.length>64||frame.rows.length>1000
 export function executeDBT(input:DBTInput,sources:Source[]) {
  const bindings=dbtBindings(input.bindings),diagnostics:Diagnostic[]=[],tests:TestResult[]=[],order:string[]=[]
  const models=new Map<string,Frame>(),frames=new Map<string,Frame>(),resources=new Map(input.resources.map(r=>[r.id,r]))
+ const dependencies=new Map(input.resources.map(resource=>{
+  let values=resource.dependencies
+  if(resource.kind==='test')try{values=dbtTestDependencies(resource)}catch{/* The test runner reports malformed declarations after model evaluation. */}
+  return [resource.id,values] as const
+ }))
  const failed=new Set<string>(),active=new Set<string>(),complete=new Set<string>()
  const diagnostic=(resource:string,code:string,message=code)=>{failed.add(resource);diagnostics.push({resource,code,file:resources.get(resource)?.file??'',message})}
  if(input.resources.length>512||resources.size!==input.resources.length)diagnostic('project','bounded_unique_dbt_resources_required')
@@ -29,7 +35,7 @@ export function executeDBT(input:DBTInput,sources:Source[]) {
   const resource=resources.get(id)
   if(!resource){diagnostic(id,'missing_dbt_dependency');complete.add(id);return}
   active.add(id)
-  for(const dependency of ordered(resource.dependencies))visit(dependency)
+  for(const dependency of ordered(dependencies.get(id)??[]))visit(dependency)
   active.delete(id);complete.add(id);order.push(id)
  }
  if(input.resources.length<=512)for(const id of ordered([...resources.keys()]))visit(id)
@@ -43,7 +49,7 @@ export function executeDBT(input:DBTInput,sources:Source[]) {
   if(failed.has(id)||resource.kind==='project')continue
   try{
    if(projectBlocked)fail('dbt_project_configuration_blocked')
-   if(resource.dependencies.some(d=>failed.has(d)))fail('dbt_dependency_failed')
+   if(dependencies.get(id)?.some(d=>failed.has(d)))fail('dbt_dependency_failed')
    dbtConfiguration(resource)
    if(resource.kind==='source'){
     const source=sources.find(s=>s.id===bindings[id])
@@ -52,14 +58,13 @@ export function executeDBT(input:DBTInput,sources:Source[]) {
     frames.set(id,bounded(frame))
    }else if(resource.kind==='model'){
     const select=dbtSelect(resource.definition.sql)
-    if(resource.dependencies.length!==1||resource.dependencies[0]!==select.relation)fail('dbt_dependency_sql_mismatch')
-    const source=frames.get(select.relation)
-    if(!source)fail('dbt_dependency_failed')
-    const frame=bounded(projectDBT(select,source));outputBytes+=bytes(frame)
+    const relations=[...new Set([select.relation,...select.join?[select.join.relation]:[]])]
+    if(canonicalJson(ordered(resource.dependencies))!==canonicalJson(ordered(relations)))fail('dbt_dependency_sql_mismatch')
+    const frame=bounded(projectDBT(select,relationDBT(select,frames)));outputBytes+=bytes(frame)
     if(outputBytes>1500000)fail('dbt_project_result_limit')
     frames.set(id,frame);models.set(id,frame)
    }else if(resource.kind==='test'){
-    const result=runDBTTest(resource,models);tests.push(result)
+    const result=runDBTTest(resource,frames);tests.push(result)
     if(result.status==='failed')diagnostic(id,'dbt_test_failed',`${result.test} found ${result.failures} failing rows in ${result.model}.${result.column}.`)
    }else fail('unsupported_dbt_resource')
   }catch(error){diagnostic(id,error instanceof QueryError?error.code:'dbt_execution_failed')}

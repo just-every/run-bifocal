@@ -1,6 +1,6 @@
 import type { Filter, Measure } from '../../../query/types'
 
-export type ProjectFormat = 'lookml' | 'dbt' | 'metricflow' | 'tmdl' | 'pbip' | 'cube' | 'metabase' | 'tableau'
+export type ProjectFormat = 'lookml' | 'dbt' | 'metricflow' | 'tmdl' | 'pbip' | 'cube' | 'metabase' | 'tableau' | 'powerquery' | 'tableau-prep'
 export type ProjectFile = { path: string; content: string }
 export type Provenance = { file: string; sourceExpression: string }
 export type Dimension = Provenance & {

@@ -31,8 +31,8 @@ if(form){
    if(directory&&(!relative||!relative.includes('/')))throw Error('This browser did not retain folder paths. Choose a project folder in a supported browser.')
    const path=directory?relative.slice(relative.indexOf('/')+1):file.name
    if(file.size>262144)throw Error('Each source file is limited to 256 KiB.')
-   const archive=/\.twbx$/i.test(file.name)
-   if(archive&&file.size>196608)throw Error('Each TWBX archive is limited to 192 KiB before base64 encoding.')
+   const archive=/\.(twbx|tfl|tflx)$/i.test(file.name)
+   if(archive&&file.size>196608)throw Error('Each project archive is limited to 192 KiB before base64 encoding.')
    files.push({path,content:archive?btoa(Array.from(new Uint8Array(await file.arrayBuffer()),byte=>String.fromCharCode(byte)).join('')):await file.text()})
   }
   if(form.elements.format.value==='dbt'&&files.some(f=>/\.sql$/i.test(f.path))&&!files.some(f=>/^dbt_project\.ya?ml$/i.test(f.path)||/(?:^|\/)manifest\.json$/i.test(f.path)))throw Error('Choose the dbt project root containing dbt_project.yml or a manifest.json artifact, not an individual models or tests folder.')

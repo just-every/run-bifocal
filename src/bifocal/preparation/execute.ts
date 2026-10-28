@@ -7,20 +7,23 @@ import type { Column } from '../imports/files/csv'
 
 type Ref = { dataset:string; revision:string; column:string }
 type Frame = { columns:Column[]; rows:Cell[][]; lineage:Record<string,Ref[]> }
-export type Preparation = { version:1; dataset:string; steps:Record<string,unknown>[] }
+export type Preparation = { version:1; dataset:string; steps:Record<string,unknown>[]; imported?:{projectId:string;revision:string;flowId:string;bindings:Record<string,string>} }
 const object=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v)
 const keys=(v:Record<string,unknown>,allowed:string[])=>{if(Object.keys(v).some(k=>!allowed.includes(k)))fail('unsupported_preparation_input',400)}
 const name=(v:unknown):string=>{if(typeof v!=='string'||!v||v.length>128||/[\u0000-\u001f]/.test(v))fail('preparation_name_required',400);return v}
 const names=(v:unknown):string[]=>{if(!Array.isArray(v)||!v.length||v.length>64)fail('preparation_columns_required',400);const result=v.map(name);if(new Set(result).size!==result.length)fail('duplicate_preparation_column',400);return result}
 export function preparationInput(v:unknown):Preparation {
  if(!object(v))fail('preparation_document_required',400)
- keys(v,['version','dataset','steps'])
+ keys(v,['version','dataset','steps','imported'])
+ if(v.imported!==undefined){
+  if(!object(v.imported)||Object.keys(v.imported).some(k=>!['projectId','revision','flowId','bindings'].includes(k))||typeof v.imported.projectId!=='string'||!/^[a-z][a-z0-9-]{0,63}$/.test(v.imported.projectId)||typeof v.imported.revision!=='string'||v.imported.revision.length>128||typeof v.imported.flowId!=='string'||v.imported.flowId.length>240||!object(v.imported.bindings)||Object.keys(v.imported.bindings).length>64||Object.values(v.imported.bindings).some(value=>typeof value!=='string'))fail('preparation_flow_origin_required',400)
+ }
  if(v.version!==1||typeof v.dataset!=='string'||!Array.isArray(v.steps)||v.steps.length>32||!v.steps.every(object))fail('bounded_preparation_document_required',400)
  const document=v as Preparation
  for(const id of preparationDatasets(document))if(!/^[a-z][a-z0-9-]{0,63}$/.test(id))fail('preparation_dataset_required',400)
  return document
 }
-export function preparationDatasets(v:Preparation):string[]{return [...new Set([v.dataset,...v.steps.filter(s=>['join','lookup','union'].includes(String(s.op))).map(s=>String(s.dataset))])]}
+export function preparationDatasets(v:Preparation):string[]{return [...new Set([v.dataset,...v.steps.filter(s=>['join','lookup','union'].includes(String(s.op))).map(s=>String(s.dataset)),...Object.values(v.imported?.bindings??{})])]}
 const column=(f:Frame,v:unknown)=>{const n=name(v),i=f.columns.findIndex(c=>c.name===n);if(i<0)fail('preparation_column_not_found');return i}
 const bounds=(f:Frame)=>{if(f.columns.length>64||f.rows.length>10000||new TextEncoder().encode(canonicalJson(f)).length>1500000)fail('preparation_result_limit',413);return f}
 const refs=(...groups:Ref[][])=>[...new Map(groups.flat().map(r=>[canonicalJson(r),r])).values()]
@@ -35,7 +38,7 @@ function convert(value:Cell,type:Column['type']):Cell {
  fail('preparation_type_conversion_failed')
 }
 export function executePreparation(document:Preparation,sources:Source[]) {
- const source=(id:string):Frame=>{const s=sources.find(s=>s.id===id);if(!s)fail('preparation_source_unavailable',404);return bounds({columns:structuredClone(s.table.columns),rows:structuredClone(s.table.rows) as Cell[][],lineage:Object.fromEntries(s.table.columns.map(c=>[c.name,[{dataset:s.id,revision:s.revision,column:c.name}]]))})}
+ const source=(id:string):Frame=>{const s=sources.find(s=>s.id===id);if(!s)fail('preparation_source_unavailable',404);return bounds({columns:structuredClone(s.table.columns),rows:structuredClone(s.table.rows) as Cell[][],lineage:Object.fromEntries(s.table.columns.map(c=>[c.name,structuredClone(s.table.source.preparation?.lineage[c.name]??[{dataset:s.id,revision:s.revision,column:c.name}])]))})}
  let frame=source(document.dataset)
  const diagnostics:{step:number;operation:string;inputRows:number;outputRows:number}[]=[]
  for(const [index,s] of document.steps.entries()){
