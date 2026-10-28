@@ -390,6 +390,12 @@
       "name": "0061_migration_projects.sql",
       "sha256": "4afef077b8416c3127d46760052787836ae94022e7e251fed28b286504c5fd80",
       "sql": "CREATE TABLE bf_migration_projects (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n value_json TEXT NOT NULL,\n revision TEXT NOT NULL\n);\nCREATE TABLE bf_migration_project_edits (\n project_id TEXT NOT NULL REFERENCES bf_migration_projects(id) ON DELETE CASCADE,\n revision TEXT NOT NULL,\n action TEXT NOT NULL,\n value_json TEXT NOT NULL,\n PRIMARY KEY(project_id,revision)\n);\nCREATE TABLE bf_migration_workspaces (\n id TEXT PRIMARY KEY REFERENCES bf_migration_projects(id) ON DELETE CASCADE,\n owner_id TEXT NOT NULL,\n revision TEXT NOT NULL,\n value_json TEXT NOT NULL\n);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0062_rdl_imports.sql",
+      "sha256": "e6bcd21677ff5bb4be56b0e6d640b66ed352ba3884bd4d1bb3f149409ced9750",
+      "sql": "CREATE TABLE bf_rdl_imports (\n id TEXT PRIMARY KEY,\n owner_id TEXT NOT NULL,\n value_json TEXT NOT NULL,\n revision TEXT NOT NULL\n);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
