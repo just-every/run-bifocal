@@ -1,0 +1,11 @@
+#quote-status{margin-top:24px}
+#quote-result{scroll-margin-top:24px}
+.quote-total{margin:20px 0;font:700 24px/1.4 var(--font-sans);font-variant-numeric:tabular-nums}
+.quote-amount{font:650 20px/1.5 var(--font-sans);font-variant-numeric:tabular-nums}
+.quote-line h3{margin-bottom:8px;text-transform:none}
+.quote-line p:last-child{margin-bottom:0}
+#cost-estimator details.panel>label,#cost-estimator details.panel>.fields{margin-top:18px}
+#cost-estimator fieldset{margin-top:20px}
+#cost-estimator fieldset details{border:0}
+#cost-estimator fieldset summary{padding-top:10px;padding-bottom:10px}
+@media(max-width:760px){.quote-total{font-size:22px}}
