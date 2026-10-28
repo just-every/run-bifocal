@@ -21,6 +21,7 @@ export function preparationPublication(head){
   if(!/^[a-z][a-z0-9-]{0,63}$/.test(dataset))throw Error('Enter a new prepared dataset ID.')
   const value=await call('publish-review',{dataset,version:head().version}),box=$('prep-publish-report')
   box.replaceChildren(metadata([['New dataset',value.dataset],['Saved preparation version',value.version],['Reviewed digest',value.digest],['Execution','Explicit bounded native action'],['Existing certified definitions','Unchanged']]),table('Publication source revisions',['Dataset','Revision'],value.sources.map(source=>[source.dataset,source.revision])),table('Publication column lineage',['Column','Type','Source dataset','Source revision','Source column'],value.output.columns.flatMap(column=>value.output.lineage[column.name].map(ref=>[column.name,column.type,ref.dataset,ref.revision,ref.column]))))
+  box.querySelectorAll('.tablewrap').forEach(wrap=>wrap.classList.add('preparation-impact'))
   const output=element('div'),count=element('p'),actions=element('div',undefined,'actions'),previous=element('button','Previous publication rows'),next=element('button','Next publication rows')
   let page=0
   previous.type=next.type='button'

@@ -973,7 +973,7 @@
       "executable": false
     },
     "public/bifocal/preparation-flow.js": {
-      "sha256": "ed55feabf12d3c1413b1c58682e371ac9bc24a7692bf4fcf13c9b68cf074c1bb",
+      "sha256": "c1a54d432a1f457a8d6be04297e436888e3d139bb62e7844bf09f8b716ded936",
       "executable": false
     },
     "public/bifocal/preparation-graph.js": {
@@ -981,7 +981,7 @@
       "executable": false
     },
     "public/bifocal/preparation-publication.js": {
-      "sha256": "f51e27d50f10caa1a1d224fb344bbc12b44a4602e7353fa645a1a38eae0dfbae",
+      "sha256": "36a9f72ef7e52d14653050438a10ecf86b5b0a9ccfd70efde9f25404e09f33f8",
       "executable": false
     },
     "public/bifocal/preparation-review.js": {
@@ -5021,7 +5021,7 @@
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
-      "sha256": "4eef486b56fb8d19e69ead9e1d1198985e321806f81765b3bfc93cabbaedd44d",
+      "sha256": "68159053a08312d796cf420d495aac86e7d6e8c60cec9ae9d256999b003a8ac2",
       "executable": false
     },
     "tests/journeys/model-project-fixtures.mjs": {
