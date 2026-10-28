@@ -11,6 +11,7 @@ export async function proveExactQueries(origin, context, files, page) {
  const headers = { Origin: origin }
  const call = async (path, data, expected = data === undefined ? 200 : 201) => {
   const response = await context.request.fetch(origin + '/api/operator' + path, { method: data === undefined ? 'GET' : 'POST', headers, ...(data === undefined ? {} : { data }) })
+  assert.equal(response.headers()['cache-control'],'no-store')
   assert.equal(response.status(), expected, await response.text()); return response.json()
  }
  const principal=(await(await context.request.get(origin+'/auth/session')).json()).operator

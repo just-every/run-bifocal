@@ -43,7 +43,9 @@ c=sqlite3.connect(':memory:')
 c.execute('CREATE TABLE invoice(id TEXT,region TEXT,cents INTEGER,day TEXT)')
 c.executemany('INSERT INTO invoice VALUES(?,?,?,?)',[(f'synthetic-bifocal-{i+1}','East' if i%2 else 'West',101+i,'2026-06-30' if i<10 else '2026-07-02') for i in range(61)])
 print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE day>=?",(start,)).fetchone()) for start in ['2026-07-01','2025-07-01']]))`],{encoding:'utf8'}))
- const run=await call('/explore/run',input);cacheReceipt(run,'miss')
+ const noStore=await context.request.post(origin+'/api/operator/explore/run',{headers:{Origin:origin},data:input})
+ assert.equal(noStore.status(),201,await noStore.text());assert.equal(noStore.headers()['cache-control'],'no-store')
+ const run=await noStore.json();cacheReceipt(run,'miss')
  const cachedRun=await call('/explore/run',input);cacheHit(run,cachedRun)
  await page.goto(origin+'/app/questions/'+run.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
  assert.match(await page.locator('#cache-note').innerText(),/cache miss.*age/);await proveScreen('explore-cache-miss')
@@ -311,6 +313,9 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  const actors=[{context:reader,person:managerVersion},rep,next,nextManager,guest]
  for(const actor of actors)actor.grant=await grant(actor.person)
  const warm=await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id});assert.equal(warm.answer.filteredRows,4)
+ await clock.set(new Date(clock.now()+5000).toISOString())
+ const aged=await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id});cacheHit(warm,aged)
+ assert.equal(aged.cache.ageMs,clock.now()-Date.parse(warm.cache.createdAt),'The pinned elapsed interval is reported as cache age at this run')
  assert.equal((await call(owner,'/explore/run',parameters)).answer.filteredRows,5,'Owner cache is broader than the delegated result')
  const definition={modelId:model.modelId,viewId:'accounts',column:'account',mapping,hierarchy,normalization:'ascii-lowercase',maxAgeSeconds:3600}
  let revision=null
