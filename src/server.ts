@@ -57,6 +57,7 @@ import { appImportResponse } from './bifocal/apps/import/door.server'
 
 import { retentionPolicyResponse } from './bifocal/retention/policy.server'
 import { publicApiResponse } from './bifocal/api/server'
+import { credentialPage } from './bifocal/credentials/page.server'
 import { costResponse } from './bifocal/costs/server'
 import { costEstimatorPage } from './bifocal/costs/page.server'
 import { erasureReceiptResponse } from './bifocal/retention/server'
@@ -87,6 +88,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (collaboration) return collaboration
     const publicApi = await publicApiResponse(request, env)
     if (publicApi) return publicApi
+    const credentials = await credentialPage(request, env)
+    if (credentials) return credentials
     const portal = await portalResponse(request, env)
     if (portal) return portal
     const estimator = costEstimatorPage(request)

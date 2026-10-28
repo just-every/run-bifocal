@@ -2,12 +2,10 @@ import { nativeApiResponse } from './native.server'
 import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
-import { sha256, canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
 import { credentialResponse, machineAuthority, machineAudit, recordMachineRefusal } from '../credentials/store.server'
-import { readModel, readDefinition, modelGuard } from '../models/validation/store.server'
+import { credentialBindings } from '../credentials/bindings.server'
 import { scopedQuery } from '../models/validation/protocol'
-import { sourceRules, intersectSources } from '../credentials/sources.server'
-import { readSources, sourceMatch } from '../data/snapshots/store'
+import { intersectSources } from '../credentials/sources.server'
 import { queryContext } from '../query/context'
 import { queryInput } from '../query/validate'
 import { execute } from '../query/execute'
@@ -22,13 +20,7 @@ const tool={name:'query',description:'Read one explicitly permitted published se
 async function machineOperation(request:Request,env:Bindings,name:string,input:Record<string,unknown>={}){
  const {credential:c,authority}=await machineAuthority(request,env),scope=c.scope
  if(!scope.tools.includes(name))fail('tool_not_permitted',403)
- const model=await readModel(env,c.owner_id,scope.modelId)
- if(model.production!==scope.revision)fail('credential_scope_changed',409)
- const view=(await readDefinition(env,scope.revision)).views.find(v=>v.id===scope.viewId)
- if(!view?.query.semantic)fail('credential_scope_changed',409)
- const sources=await readSources(env,view.query),rules=await sourceRules(env,sources)
- if(canonicalJson(rules.map(r=>({id:r.source.id,revision:r.source.revision,digest:sha256(r.source.value_json),...r.digest?{policyDigest:r.digest,policyVersion:r.version}:{}})))!==canonicalJson(scope.sources))fail('credential_scope_changed',409)
- const fences=[modelGuard(model),...sources.map(sourceMatch),...rules.map(r=>r.guard)]
+ const {model,view,sources,rules,fences}=await credentialBindings(env,c)
  const reserve=()=>transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine','read-reserved')])
  let result:unknown
  if(name==='definitions'){

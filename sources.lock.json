@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "15c4df60e0b09c51208f16748819bffe2b4f68c8dd98e1f3c46b22c3399ce95a",
+      "sha256": "27fbfad9fc484dd9e88e7a684ffcf2acaad2872233919dbb4274586d30efb372",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a5978ab68a23218befc5fe41d9537c5f0464c67b244f87c72ae3424fdba2d209",
+      "sha256": "2c265cbe2362b476866360588933a890fa26749859efd7132d9bd2f72db43fb6",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -766,6 +766,10 @@
     },
     "migrations/core/0063_collaboration_participants.sql": {
       "sha256": "56cc06fdb4c9bbc439bb2c4b02d4d00dcca75df70a585e510bf307a9d345ab17",
+      "executable": false
+    },
+    "migrations/core/0064_machine_rotation.sql": {
+      "sha256": "1adac88bdaee70ba0aba8825467fc96cb25fdd0dbcb1da0fcf2657622fd47bd8",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1405,7 +1409,7 @@
       "executable": false
     },
     "src/app/protection-settings.ts": {
-      "sha256": "1ad81beb2e9f7593b6bb3187e8a3a67baf4f380c2c6eb916404de7de289d2f90",
+      "sha256": "23ef690870177421567503b835cd3dcc66921cf64d8bcff5a0201758350db531",
       "executable": false
     },
     "src/app/settings.ts": {
@@ -1561,7 +1565,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "73c613f418a73e7ee1b6ce9b2cdef2b03ba0e55eb6e7933d022009a6db1fa49d",
+      "sha256": "a5121b26552cdb0b85ecff16ac86b4d5f314e0f6f105a5f3abae37d33a4d865c",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -1904,12 +1908,24 @@
       "sha256": "6bdb2cd247844f2e09bc1c6cad375a5b133f2ef5d4fd8892425c140e9627a11b",
       "executable": false
     },
+    "src/bifocal/credentials/bindings.server.ts": {
+      "sha256": "66e232253104bd087641f2482772bcbfa9f4c80abb94f0cc96f2592bfac77633",
+      "executable": false
+    },
+    "src/bifocal/credentials/page.server.ts": {
+      "sha256": "2ecff32ff3389b30d6164e962b7c27c69ef4f659affe288e70a67ebdea87ad83",
+      "executable": false
+    },
+    "src/bifocal/credentials/rotation.server.ts": {
+      "sha256": "bced9a24a55415f6edaf796b5b76c5a0408b52dc6a7903d5965b12734d7887c5",
+      "executable": false
+    },
     "src/bifocal/credentials/sources.server.ts": {
       "sha256": "ceaf2fa0b7e659a75dcf295a843389382f0f80d4c4baa7c0f729c7e2c54026b1",
       "executable": false
     },
     "src/bifocal/credentials/store.server.ts": {
-      "sha256": "8390a4efe9f7fe5f3b4235d0b9ff6173cac2adec75b4d7cdea9a513ac6f86af2",
+      "sha256": "3da6e11759ff0fdbe3bbd8379647e71ba4b0d99c5803ba119fb0c9670b62232b",
       "executable": false
     },
     "src/bifocal/currency/convert.ts": {
@@ -4725,7 +4741,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "e0dde2e47ecde959600b99fa5ab81f97b0492cce3e5bee958f7bd7b9874b5876",
+      "sha256": "0e5e786177e9cbe87ecb0be1208cbc6e2e6bfe35d9035256eef060226bd3933d",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -4941,7 +4957,7 @@
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
-      "sha256": "2a8f6c5a4870b759e11304bdec6a0509c11110c0c08cfc968da67da82acc4c3f",
+      "sha256": "a44d3afe73aed23dcf5edf1b8940b52f97efc66f3c965bdb4a48498757e8aeab",
       "executable": false
     },
     "tests/hosted-mail.test.mjs": {
@@ -5097,11 +5113,11 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "5ca86dce536870c9788666d607d21f292d2771e40935c686c3a46cff15afdea7",
+      "sha256": "30dc9287d72965845346504ae9a45d31372a1c5d81c8b511ad7ba880b0d1d323",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "4157d64637f5b318a99d1113342d6ed88cec294675d115f616a21824e85bbbe0",
+      "sha256": "e6f53063be7329d5033220992b23dae8404783384e9e8267e94f708940cbbc33",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
@@ -5265,7 +5281,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "2145e551fde89c8733d5e85d4d8d712f7d1a40a081d70990acbc569f66a37483",
+      "sha256": "467be3bda000078ed6d23f830c57d3b05b05a47f83872fc2b2dc42a5c9c2fab1",
       "executable": false
     }
   }
