@@ -35,13 +35,16 @@ export default {
    if(key==='prepare')return query=>wrap(target.prepare(query),query)
    if(key==='batch')return async queries=>{
     const metadata=queries.map(query=>statements.get(query))
+    const batch=()=>target.batch(metadata.map((value,i)=>value?.statement??queries[i]))
     if(pending&&url.pathname===pending.at&&metadata.some(q=>q?.query.startsWith(pending.before))){
      const mutation=pending;pending=null
+     const results=mutation.after?await batch():null
      const response=await fetch(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json',...mutation.headers},body:JSON.stringify(mutation.body)})
      if(![200,204].includes(response.status))throw Error('Entitlement boundary public mutation refused: '+response.status)
      await response.arrayBuffer()
+     if(mutation.after)return results
     }
-    return target.batch(metadata.map((value,i)=>value?.statement??queries[i]))
+    return batch()
    }
    const value=target[key];return typeof value==='function'?value.bind(target):value
   }})
