@@ -13,12 +13,15 @@ import { rejectedUpload } from '../../http/rejected'
 import { exactKeys, json, jsonBody } from '../../models/validation/transport'
 import { fail, QueryError } from '../../query/types'
 import { compileRdl } from './parse'
+import { rdlPreviewResponse } from './preview.server'
+import { RdlExecutionError } from './problems'
 import { retainRdl, readRdl, type StoredRdlProject } from './custody'
 import { rdlDestination, rdlImportTargets, type RdlRow } from './targets'
 
 async function handle(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/rdl-imports\/([a-z][a-z0-9-]{0,63})(?:\/(erase|accept))?$/.exec(path)
+ const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/rdl-imports\/([a-z][a-z0-9-]{0,63})(?:\/(erase|accept|preview|download))?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='rdl'))return null
+ if(request.headers.has('authorization'))return json({error:'human_session_required'},403)
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),id=resource?.[1]??request.headers.get('X-Import-Dataset')??''
@@ -37,6 +40,7 @@ async function handle(request:Request,original:Bindings):Promise<Response|null>{
   }
   if(!row||!project)fail('rdl_project_not_found',404)
   await transact(env.DB,owner,[assertion(sql('EXISTS(SELECT 1 FROM bf_rdl_imports WHERE id=? AND owner_id=? AND revision=?)',id,ownerId,row.revision))])
+  if(resource[2]==='preview'||resource[2]==='download')return rdlPreviewResponse(request,env,owner,ownerId,project,row.revision,sql('EXISTS(SELECT 1 FROM bf_rdl_imports WHERE id=? AND owner_id=? AND revision=? AND value_json=?)',id,ownerId,row.revision,row.value_json),resource[2])
   if(resource[2]==='accept'){
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['reviewedRevision'])
@@ -48,6 +52,7 @@ async function handle(request:Request,original:Bindings):Promise<Response|null>{
  }
  if(['uploads','plan','apply','undo'].some(action=>path==='/api/operator/import/'+action)&&await env.DB.prepare('SELECT 1 FROM ik_d1_erased_targets WHERE destination=? AND identity=?').bind(destination,sha256(canonicalJson([destination,'rdl-project',id]))).first())fail('rdl_project_erased',410)
  const current=await rdlImportTargets.read(env.DB,destination,'rdl-project',id)
+ if(path==='/api/operator/import/plan'&&request.headers.has('X-Rdl-Base-Revision')&&current?.revision!==request.headers.get('X-Rdl-Base-Revision'))fail('current_rdl_revision_required',409)
  const source:ImportDoorSource={parse(value){try{return {kind:'rdl-project',sourceId:id,payload:retainRdl(compileRdl(value,id,ownerId)) as unknown as Json}}catch(error){return {kind:'rdl-invalid',sourceId:id,payload:{reason:error instanceof Error?error.message:'RDL_SCHEMA'}}}},mapping:{version:'rdl-project-v1',map(record){if(record.kind!=='rdl-project')return {effects:[],rejection:String((record.payload as {reason:string}).reason)};return {effects:[{targetKind:'rdl-project',targetId:id,value:record.payload,...current?{expectedRevision:current.revision}:{}}]}}}}
  const options={...source,database:env.DB,targets:rdlImportTargets,destination,format:'json' as const,ownerPrincipalId:'role:owner',installationId:'bifocal:files:v1',appOrigin:env.AUTH_ORIGIN,ownerEmail:owner.email,namespace,limits:{maxBytes:1048576,maxRecords:1,maxRecordBytes:1048576},authorize:(r:Request)=>fileOwner(r,env)}
  const rowForPlan=(planId:string)=>env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(planId,options.installationId,namespace).first<DoorPlanRow>()
@@ -78,6 +83,6 @@ async function handle(request:Request,original:Bindings):Promise<Response|null>{
 }
 export async function rdlImportResponse(request:Request,env:Bindings):Promise<Response|null>{
  let response
- try{response=await handle(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code},error.status):json({error:'rdl_import_conflict',reason:'Reload the report draft and review its exact plan again.'},409)}
+ try{response=await handle(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code,...error instanceof RdlExecutionError?{issues:error.issues}:{}},error.status):json({error:'rdl_import_conflict',reason:'Reload the report draft and review its exact plan again.'},409)}
  return response?rejectedUpload(request,response):null
 }

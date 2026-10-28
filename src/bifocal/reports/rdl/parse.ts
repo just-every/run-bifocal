@@ -1,13 +1,14 @@
 import { Buffer } from 'node:buffer'
+import { reportScopes } from './scopes'
 import { DOMParser, type Element } from '@xmldom/xmldom'
-import { translateFormula } from '../../imports/calculations'
+import { translateRdlExpression } from './expressions'
 import type { CalculationExpr } from '../../calculations/core'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 
 type File = { path: string; content: string; originalBase64?: string }
-export type RdlNode = { location: string; name: string; namespace: string; attributes: Record<string,string>; text: string; children: RdlNode[]; expression?: CalculationExpr }
+export type RdlNode = { location: string; name: string; namespace: string; attributes: Record<string,string>; text: string; children: RdlNode[]; expression?: CalculationExpr; dataset?: string }
 type Issue = { location: string; code: string; reason: string; dependency: string; resolution: string }
-type Entry = { location: string; name: string; disposition: 'retained'|'translated'|'unsupported'; expression?: CalculationExpr }
+type Entry = { location: string; name: string; disposition: 'retained'|'translated'|'unsupported'; expression?: CalculationExpr; dataset?: string }
 type Subscription = { id: string; destinationReference: string; parameters: Record<string,string>; schedule: string; securityScope: string; active: false }
 export type RdlProject = { ownerId: string; input: { version: 1; reportId: string; root: string; files: File[]; subscriptions: Omit<Subscription,'active'>[] }; digest: string; definition: { version: 1; kind: 'paginated-draft'; root: string; reports: { file: string; tree: RdlNode }[]; subscriptions: Subscription[]; active: false }; report: { elements: Entry[]; issues: Issue[]; switchReady: false; execution: 'unavailable'; pageReconciliation: 'pending' } }
 const namespaces = new Set(['http://schemas.microsoft.com/sqlserver/reporting/2008/01/reportdefinition','http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition','http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition'])
@@ -47,8 +48,7 @@ export function compileRdl(value:unknown,id:string,ownerId:string):RdlProject {
   const reportNamespace=root.namespaceURI
   const stack=[{node:root,depth:0}];let count=0
   while(stack.length){const {node,depth}=stack.pop()!;if(++count>10000||depth>64)throw Error('RDL_XML_LIMIT: Too many nodes or excessive nesting.');for(const child of Array.from(node.childNodes))if(child.nodeType===1)stack.push({node:child as Element,depth:depth+1})}
-  const fields:Record<string,string>=Object.fromEntries(Array.from(root.getElementsByTagNameNS(root.namespaceURI!,'Field')).map(f=>[f.getAttribute('Name')??'',f.getAttribute('Name')??'']).filter(([name])=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)))
-  const parameters=new Set(Array.from(root.getElementsByTagNameNS(root.namespaceURI!,'ReportParameter')).map(p=>p.getAttribute('Name')))
+  const scopes=reportScopes(root),parameters=scopes.parameters
   function visit(el:Element,location:string):RdlNode {
    const name=el.localName??el.tagName,namespace=el.namespaceURI??'',attributes=Object.fromEntries(Array.from(el.attributes).map(a=>[a.name,a.value])),children=Array.from(el.childNodes).filter((n):n is Element=>n.nodeType===1),text=Array.from(el.childNodes).filter(n=>n.nodeType===3||n.nodeType===4).map(n=>n.nodeValue??'').join('')
    const node:RdlNode={location,name,namespace,attributes,text,children:[]},entry:Entry={location,name,disposition:'retained'};elements.push(entry)
@@ -61,15 +61,12 @@ export function compileRdl(value:unknown,id:string,ownerId:string):RdlProject {
     references.push({from:file.path,to:path,location})
     if(!safePath(path)||!files.some(f=>f.path===path)){entry.disposition='unsupported';issue(location,'external_subreport','The referenced subreport is not supplied in this project and is never fetched.',target,'Supply the authorized relative subreport file and reconcile its parameter mapping.')}
    }
+   if(name==='DataSetName'&&!scopes.datasets.has(text.trim())){entry.disposition='unsupported';issue(location,'unresolved_dataset','The source dataset is missing or ambiguous.',text,'Supply one uniquely named dataset and reconcile its binding.')}
+   if(['ValueField','LabelField'].includes(name)&&el.parentNode?.nodeType===1){const parent=el.parentNode as Element,dataset=Array.from(parent.childNodes).find(n=>n.nodeType===1&&(n as Element).localName==='DataSetName')?.textContent?.trim()??'';if(!Object.hasOwn(scopes.fields(dataset),text.trim())){entry.disposition='unsupported';issue(location,'unresolved_parameter_field','The parameter lookup field is missing or ambiguous in its dataset.',dataset+':'+text,'Bind an existing field in the parameter lookup dataset.')}}
    if(text.trim().startsWith('=')&&!children.length&&!['CommandText','ConnectString','Code'].includes(name)){
-    const original=text.trim(),expression=original.slice(1),parameter=/^Parameters!([A-Za-z_][A-Za-z0-9_]*)\.Value$/.exec(expression)
-    let target:CalculationExpr|null=null
-    if(parameter&&parameters.has(parameter[1]))target={kind:'parameter',name:parameter[1]}
-    else if(/^(?:Fields![A-Za-z_][A-Za-z0-9_]*\.Value|(?:Sum|Min|Max)\(Fields![A-Za-z_][A-Za-z0-9_]*\.Value\)|-?\d+(?:\.\d+)?)$/i.test(expression)){
-     const translated=translateFormula('dax',expression.replace(/Fields!([A-Za-z_][A-Za-z0-9_]*)\.Value/g,(_,field)=>'['+field+']'),{fields})
-     target=translated.targetExpression
-    }
-    if(target){node.expression=target;entry.expression=target;if(entry.disposition!=='unsupported')entry.disposition='translated'}
+    const {fields,dataset}=scopes.expressionScope(el)
+    const original=text.trim(),expression=original.slice(1),target=translateRdlExpression(original,fields,new Set(parameters.keys()))
+    if(target){node.expression=target;entry.expression=target;if(/Fields!/i.test(expression)&&dataset){node.dataset=dataset;entry.dataset=dataset;}if(entry.disposition!=='unsupported')entry.disposition='translated'}
     else{entry.disposition='unsupported';issue(location,'unsupported_expression','The expression has no proven exact native translation and remains inert.',original,'Implement its source semantics and assert the result before accepting the switch.')}
    }
    const ordinals=new Map<string,number>()

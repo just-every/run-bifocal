@@ -1,0 +1,5 @@
+.rdl-gaps{margin:12px 0 16px;max-width:100%}
+.rdl-gaps table{min-width:760px}
+#rdl-current pre,#rdl-report pre{max-height:520px;overflow:auto}
+.rdl-readable-table table{table-layout:fixed;width:100%;min-width:0}
+.rdl-readable-table th:first-child{width:60%}
