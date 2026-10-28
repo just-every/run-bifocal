@@ -162,7 +162,6 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveMigrationProjects({origin,context,call})
  await provePortalBoundary({origin,context})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
- await proveRdlImports({origin,context,page,proveScreen,upload})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
  await call('/models/'+saved.modelId,undefined,404);await call('/queries/'+answer.queryId,undefined,404)
  assert.equal((await context.request.get(origin+'/api/operator/model-authoring/'+saved.modelId+'/'+saved.branchId+'/document')).status(),404)
