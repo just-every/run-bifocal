@@ -146,7 +146,7 @@ export async function proveCollaboration({origin,owner,reader,readerId,page,uplo
   const chartPage=await colleague.newPage()
   await chartPage.setViewportSize({width:1440,height:1000})
   await chartPage.goto(origin+'/app/charts/'+scopedChart.id)
-  assert.equal(await chartPage.locator('.native-chart li').innerText(),'West · USD 550.00')
+  assert.equal(await chartPage.locator('.native-chart li').innerText(),'West · $550.00')
   assert.equal(await chartPage.getByRole('button',{name:'Export summary CSV',exact:true}).count(),0)
   assert.equal(await chartPage.getByRole('link',{name:'Open the retained exact answer',exact:true}).count(),0)
   await chartPage.getByRole('link',{name:'Comments and sharing',exact:true}).waitFor()

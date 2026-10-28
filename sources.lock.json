@@ -341,7 +341,7 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "fe981ad0472b37f4d03d104a286ea0cfb8d77eac915f1839f8310369ba7986a3",
+      "sha256": "2c9def36315bbb8e2cb123d2e89e7c734e846e465887a42989fc62a53670709c",
       "executable": false
     },
     "base-copies.json": {
@@ -349,7 +349,7 @@
       "executable": false
     },
     "CLAIMS.md": {
-      "sha256": "2576259cdd490f92ff55ded6d7ea78e7f4a17d8fd672481cc6960fdfe963ac84",
+      "sha256": "3519044e3950d09020bd3ab3375bd60995ccf18211e6b86347fe44b8a82366eb",
       "executable": false
     },
     "composition.lock.json": {
@@ -4849,7 +4849,7 @@
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
-      "sha256": "7625ce9538c995143eb7abe86508fe957a4194bb434769e00fbd4df59dd11798",
+      "sha256": "65114bcc2735a79e755884f582065a7cb7b1fb5a92f23a60c3d77c88cefe52ff",
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
