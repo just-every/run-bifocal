@@ -196,7 +196,7 @@ After resolving CONTRACT.md, regenerate selected clause views and counts with
 with all touched clause IDs. Preserve unrelated entries in ACCEPTANCE.md.
 The homepage CLAIMS.md is a separately maintained claim map.
 
-Lander-Regenerate: `node scripts/edition-authoring/cli.mjs lock`
+Lander-Regenerate: sources.lock.json: `node scripts/edition-authoring/cli.mjs lock`
 
 Run that source lock regeneration last, after staging new selected source files.
 Check edition source lock freshness with
