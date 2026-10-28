@@ -309,13 +309,14 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const body={...definition,previousVersion},review=await call('/credentials/sources/'+id+'/review',body,200)
   return call('/credentials/sources/'+id,{...body,reviewedDigest:review.reviewedDigest},200)
  }
- const stale=await call('/credentials/review',scope,200)
+ const stale=await call('/credentials/review',scope,200),sourceChangedReview=await rotationReview(renewed)
  await call('/credentials/sources/'+dataset+'/review',{previousVersion:0,columns:['invoice'],filters:[{column:'invoice',op:'lte',value:'synthetic-bifocal-invalid'}]},400)
  const policy={columns:['invoice','date','region','stage','revenue'],filters:[{column:'invoice',op:'lte',value:'3'}]}
  await sourcePolicy(dataset,policy)
  await call('/credentials',{...scope,reviewedDigest:stale.digest},409)
  await api('/api/v1/query',input,401,renewed.token)
  await call('/credentials/'+renewed.id+'/rotate/review',{},409)
+ await rotate(renewed,sourceChangedReview,409)
  await call('/credentials/review',{...scope,dimensions:['note']},403)
  await sourcePolicy(joined,{columns:['invoice','visibility'],filters:[{column:'visibility',op:'eq',value:'Allowed'}]})
  const bounded=await issue()
@@ -373,6 +374,11 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(history.history.some(h=>h.credential_id===id&&h.action==='activation-retired'),'Durable attributed retirement for '+id)
  }
  assert.ok(!JSON.stringify(history).includes('Ignore rules'))
+ const erased=await issue(),erasedReview=await rotationReview(erased),erasedSource=await call('/datasets/'+joined)
+ await call('/datasets/'+joined+'/erase',{confirmDataset:joined,reviewedRevision:erasedSource.revision},200)
+ await api('/api/v1/query',input,401,erased.token)
+ await rotate(erased,erasedReview,409)
+ await call('/credentials/'+erased.id+'/rotate/review',{},409)
  console.log('Machine rotation: browser exact review, keyboard and tooltip operation at both widths, replacement parity, permanent old-bearer and in-flight withdrawal, one concurrent winner, retained consumption and expiry, stale and expired and revoked and non-owner and mixed-authority refusal passed')
  console.log('Machine doors: native versioned model and content conflicts, certified metric parity, current-owner suspension and reactivation, pre-release withdrawal across all protocols, source policy intersection, lifetime cross-protocol accounting, source Undo and model rollback retirement, fresh review, exact human issuance, REST and GraphQL and three MCP clients, dashboard parity, complete paging, fixed scope, atomic budget, private diagnostics, source fences and immediate revocation passed')
 }
