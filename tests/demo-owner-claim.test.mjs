@@ -28,7 +28,7 @@ test('signed owner claims require both demo mode and trusted runtime keys', asyn
  const env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
  const wrangler = ['node_modules/wrangler/bin/wrangler.js']
  try {
-  execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, ...config], { env, stdio: 'pipe' })
+  execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, ...config], { env, stdio: 'pipe', maxBuffer: 8 * 1024 * 1024 })
   for (const mode of [{ RER_OWNER_CLAIM_PUBLIC_KEYS: keys }, { RER_DEMO: '1' }, { RER_DEMO: '1', RER_OWNER_CLAIM_PUBLIC_KEYS: keys }]) {
    const trustedDemo = mode.RER_DEMO === '1' && Boolean(mode.RER_OWNER_CLAIM_PUBLIC_KEYS)
    let output = ''

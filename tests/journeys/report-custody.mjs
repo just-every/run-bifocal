@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {proveReportReviewers} from './report-reviewers.mjs'
-import { createHash } from 'node:crypto'
+import { createHash,createHmac } from 'node:crypto'
 export async function proveReportCustody(origin,owner,reader,fixtures,page,expectedOutcome='development',edgeState=null){
  const call=async(path,data,expected=data===undefined?200:201,method=data===undefined?'GET':'POST')=>{
   const response=await owner.request.fetch(origin+'/api/operator'+path,{method,headers:{Origin:origin},...data===undefined?{}:{data}})
@@ -85,7 +85,7 @@ export async function proveReportCustody(origin,owner,reader,fixtures,page,expec
 }
 
 /** Actual native authoring, immutable files and withdrawal through public doors. */
-export async function proveNativeReportAuthoring({origin,context,page,upload,proveScreen,reader=null,directory,devKey=null}){
+export async function proveNativeReportAuthoring({origin,context,page,upload,proveScreen,reader=null,directory,nativeSessionProof=false}){
  const {unzipSync,strFromU8}=await import('fflate'),{DOMParser}=await import('@xmldom/xmldom')
  const {execFileSync}=await import('node:child_process'),{writeFile,mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
  const root='/api/operator/report-authoring',headers={Origin:origin}
@@ -99,6 +99,7 @@ export async function proveNativeReportAuthoring({origin,context,page,upload,pro
  let definition={version:1,queryId:snapshot.queryId,title:'Regional operating statement',header:'October operations',footer:'Reviewed internal statement',groupBy:'region',pageBreakGroups:true,parameters:[]}
  const draft={definition,reportId:null,previousVersion:0}
  const review=await call(root+'/review',draft,200)
+ assert.equal(review.manifest.snapshot.queryId,snapshot.queryId);assert.equal(review.manifest.snapshot.digest,snapshot.digest);assert.deepEqual(review.manifest.query,snapshot.definition);assert.deepEqual(review.manifest.sourceWatermarks,snapshot.answer.sourceWatermarks);assert.deepEqual(review.manifest.context.securityScope,snapshot.context.securityScope)
  assert.equal(review.manifest.answer.totals.amount.value,'26.00');assert.equal(review.manifest.answer.totals.rate.value,'0.5306');assert.equal(review.manifest.answer.totals.weighted.value,'1.8776')
  assert.deepEqual(review.manifest.groups.map(group=>[group.value,group.values.amount.value,group.values.rate.value,group.values.weighted.value]),[['East','6.00','0.1333','0.2667'],['West','20.00','5.0000','20.0000']]);assert.equal(review.manifest.answer.totals.amount.nulls,1)
  assert.ok(review.pages.length>=3,'Dense East group continues before an explicit West page break')
@@ -118,7 +119,7 @@ export async function proveNativeReportAuthoring({origin,context,page,upload,pro
  const artifacts={}
  for(const format of ['pdf','xlsx','csv']){const response=await context.request.get(origin+root+'/runs/'+saved.runId+'/'+format);assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['cache-control'],'no-store');assert.match(response.headers()['content-disposition'],new RegExp('\\.'+format));artifacts[format]=await response.body();assert.equal(createHash('sha256').update(artifacts[format]).digest('hex'),saved.manifest.artifacts[format]);if(directory)await writeFile(join(directory,'native-report.'+format),artifacts[format]);if(reader)assert.equal((await reader.request.get(origin+root+'/runs/'+saved.runId+'/'+format)).status(),403)}
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});for(const format of ['pdf','xlsx','csv']){const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:'Download '+format.toUpperCase(),exact:true}).click()]);assert.equal(await download.failure(),null);const file=await download.path();assert.deepEqual(await (await import('node:fs/promises')).readFile(file),artifacts[format])}}
- if(devKey)await proveNativeReportRevocation({origin,context,root,runId:saved.runId,devKey})
+ if(nativeSessionProof)await proveNativeReportRevocation({origin,context,root,runId:saved.runId})
  const scratch=await mkdtemp(join(tmpdir(),'bifocal-native-report-inspect-'))
  try{
   await writeFile(join(scratch,'report.pdf'),artifacts.pdf)
@@ -128,7 +129,7 @@ export async function proveNativeReportAuthoring({origin,context,page,upload,pro
   assert.equal(pdfPages.length,saved.manifest.pages.length);assert.match(pdfPages[0][3],/East/);assert.match(pdfPages[1][3],/East/);assert.match(pdfPages[2][3],/West/);assert.ok(!pdfPages[2][3].includes('East'),'The explicit West group starts on its own page')
   for(const [i,p] of pdfPages.entries()){assert.equal(Number(p[1]),612);assert.equal(Number(p[2]),792);assert.match(p[3],/October/);assert.match(p[3],/invoice/);assert.match(p[3],/amount/);assert.match(p[3],new RegExp('>'+String(i+1)+'<'));for(const word of p[3].matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)"/g)){assert.ok(Number(word[1])>=30&&Number(word[2])>=20&&Number(word[3])<=582&&Number(word[4])<=772,'PDF text stays inside page margins')}}
  }finally{await rm(scratch,{recursive:true,force:true})}
- const zipped=unzipSync(artifacts.xlsx),parse=value=>new DOMParser().parseFromString(strFromU8(value),'application/xml'),sheet=parse(zipped['xl/worksheets/sheet1.xml']),cells=Array.from(sheet.getElementsByTagName('c'))
+ const zipped=unzipSync(artifacts.xlsx);assert.equal(JSON.parse(strFromU8(zipped['bifocal-provenance.json'])).snapshot.digest,snapshot.digest);assert.ok(artifacts.pdf.includes(Buffer.from(snapshot.digest)),'The PDF retains its exact source-query provenance');const parse=value=>new DOMParser().parseFromString(strFromU8(value),'application/xml'),sheet=parse(zipped['xl/worksheets/sheet1.xml']),cells=Array.from(sheet.getElementsByTagName('c'))
  const workbookRows=Array.from(sheet.getElementsByTagName('row')).map(row=>Object.fromEntries(Array.from(row.getElementsByTagName('c')).map(cell=>[cell.getAttribute('r').replace(/\d/g,''),cell])))
  const amountRow=invoice=>workbookRows.find(row=>row.A?.textContent==='Detail'&&row.C?.textContent===invoice)
  assert.equal(amountRow('4').D.getElementsByTagName('v').length,0,'NULL amount is a blank Excel cell, distinct from numeric zero');assert.equal(amountRow('3').D.textContent,'0.00');assert.equal(amountRow('2').D.textContent,'-4.00');assert.equal(workbookRows.filter(row=>row.A?.textContent==='Detail').length,45)
@@ -205,12 +206,11 @@ async function proveNativeReportTypes({origin,context,call,upload,root,definitio
  return {dataset,saved}
 }
 
-async function proveNativeReportRevocation({origin,context,root,runId,devKey}){
+async function proveNativeReportRevocation({origin,context,root,runId}){
  const secondary=await context.browser().newContext()
  try{
-  const owner=(await(await context.request.get(origin+'/auth/session')).json()).operator
-  assert.equal((await secondary.request.post(origin+'/__dev/key',{headers:{Origin:origin},data:{key:devKey}})).status(),204)
-  assert.equal((await secondary.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(owner.email),{headers:{'x-rer-dev-key':devKey},maxRedirects:0})).status(),303)
+  const proof=createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('local-cli'+String.fromCharCode(0)+'sign-in').digest('hex')
+  assert.equal((await secondary.request.post(origin+'/auth/local/cli-session',{headers:{Origin:origin,'x-rer-local-cli':proof},data:{returnTo:'/app'},maxRedirects:0})).status(),303)
   const session=await(await secondary.request.get(origin+'/auth/session')).json()
   assert.equal((await secondary.request.get(origin+root+'/runs/'+runId+'/pdf')).status(),200)
   assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
