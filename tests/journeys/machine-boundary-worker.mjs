@@ -11,6 +11,7 @@ const local=withDevIdentity(worker,{config:env=>({dependencies:true,origin:env.A
 // delivery sink. Sessions, invitation consumption and application checks are real.
 const mail=[]
 let pending
+let completed
 const statements=new WeakMap()
 export default {
  async fetch(request,env,execution){
@@ -25,6 +26,10 @@ export default {
    pending=await request.json()
    return Response.json({armed:true})
   }
+  if(url.pathname==='/__machine-boundary'&&request.method==='GET'){
+   const result=completed;completed=undefined
+   return Response.json(result??null,{headers:{'cache-control':'no-store'}})
+  }
   const wrap=(statement,query,args=[])=>{
    const proxy=new Proxy(statement,{get(target,key){
     if(key==='bind')return(...values)=>wrap(target.bind(...values),query,values)
@@ -38,9 +43,15 @@ export default {
     const metadata=queries.map(query=>statements.get(query))
     if(pending&&metadata.some(q=>(q?.query.startsWith('INSERT INTO bf_machine_audit(')&&['query','definitions'].includes(q.args[4]))||(q?.query==='INSERT INTO bf_portal_audit VALUES(?,?,?,?,?,?)'&&['read-completed','export-completed'].includes(q.args[3])))){
      const mutation=pending;pending=null
-     const response=await fetch(new Request(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json'},body:JSON.stringify(mutation.body)}))
-     if(response.status!==200){console.error('Boundary fixture mutation refused',response.status,await response.text());throw Error('Boundary fixture public mutation refused: '+response.status)}
-     await response.arrayBuffer()
+     const headers={cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json'}
+     if(mutation.rotate){
+      const review=await fetch(new Request(url.origin+mutation.path+'/review',{method:'POST',headers,body:'{}'}))
+      if(review.status!==200)throw Error('Boundary rotation review refused: '+review.status)
+      const {reviewedAt,reviewedDigest}=await review.json();mutation.body={reviewedAt,reviewedDigest}
+     }
+     const response=await fetch(new Request(url.origin+mutation.path,{method:'POST',headers,body:JSON.stringify(mutation.body)}))
+     if(response.status!==(mutation.rotate?201:200)){console.error('Boundary fixture mutation refused',response.status,await response.text());throw Error('Boundary fixture public mutation refused: '+response.status)}
+     completed=await response.json()
     }
     return target.batch(metadata.map((value,i)=>value?.statement??queries[i]))
    }

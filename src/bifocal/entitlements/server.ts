@@ -72,7 +72,7 @@ const audit=(actor:Authority,model:string,view:string,revision:number,digest:str
 /** Additional row restrictions only: this never issues or widens a grant. */
 export async function entitlementScope(env:Bindings,actor:Authority,owner:string,model:string,view:string){
  const row=await stored(env,owner,model,view),guard=policyGuard(owner,model,view,row?.revision??null)
- if(!row)return {revision:null,day:null,filters:[] as Filter[],guards:[guard]}
+ if(!row)return {revision:null,day:null,filters:[] as Filter[],guards:[guard],sources:[] as Source[]}
  const document=JSON.parse(row.document_json) as Document
  if(sha256(canonicalJson(document))!==row.digest)fail('entitlement_snapshot_changed',409)
  const person=await env.DB.prepare("SELECT email FROM oa_operators WHERE id=? AND status='active'").bind(actor.id).first<{email:string}>()
@@ -85,7 +85,7 @@ export async function entitlementScope(env:Bindings,actor:Authority,owner:string
  for(const ref of document.sources){const s=await source(env,ref.id);if(s.revision!==ref.revision||sha256(s.value_json)!==ref.digest)fail('entitlement_snapshot_changed',409);sources.push(s)}
  const result=evaluate(document.definition,sources,person.email,new Date())
  if(!result.values.length)fail('entitlement_mapping_missing',403)
- return {revision:row.revision,day:result.day,filters:[{column:document.definition.column,op:'in' as const,value:result.values}],guards:[guard,identityGuard,...sources.map(sourceMatch),sql("strftime('%Y-%m-%dT%H:%M:%fZ','now')<? AND strftime('%Y-%m-%d','now')=?",result.expiresAt,result.day)]}
+ return {revision:row.revision,day:result.day,filters:[{column:document.definition.column,op:'in' as const,value:result.values}],sources,guards:[guard,identityGuard,...sources.map(sourceMatch),sql("strftime('%Y-%m-%dT%H:%M:%fZ','now')<? AND strftime('%Y-%m-%d','now')=?",result.expiresAt,result.day)]}
 }
 
 /** Owner review binds normalization, sources and current model before publish. */

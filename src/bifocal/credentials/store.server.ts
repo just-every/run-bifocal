@@ -11,20 +11,21 @@ import { queryInput } from '../query/validate'
 import { fail, type Filter } from '../query/types'
 export type Scope={purpose:string;modelId:string;revision:string;viewId:string;filters:Filter[];dimensions:string[];measures:string[];tools:string[];expiresAt:string;maxOperations:number;sources:{id:string;revision:string;digest:string;policyDigest?:string;policyVersion?:number}[]}
 export type Credential={id:string;owner_id:string;owner_version:number;definition_json:string;digest:string;expires_at:string;max_operations:number;used_operations:number;scope:Scope}
-const hash=(env:Bindings,token:string)=>{
+export const credentialHash=(env:Bindings,token:string)=>{
  if(!env.INSTALLATION_KEY)fail('credential_custody_unavailable',503)
  return createHmac('sha256',env.INSTALLATION_KEY).update(env.AUTH_ORIGIN+'\n'+token).digest('hex')
 }
-export const machineAudit=(id:string,owner:string,kind:'human'|'machine',action:string)=>sql('INSERT INTO bf_machine_audit(id,credential_id,owner_id,actor_kind,action,recorded_at) VALUES(?,?,?,?,?,?)',randomUUID(),id,owner,kind,action,new Date().toISOString())
+export const machineAudit=(id:string,owner:string,kind:'human'|'machine',action:string,by?:{agentId:string;agentName:string;sponsorName:string})=>sql('INSERT INTO bf_machine_audit(id,credential_id,owner_id,actor_kind,action,recorded_at,agent_id,agent_name,sponsor_name) VALUES(?,?,?,?,?,?,?,?,?)',randomUUID(),id,owner,kind,action,new Date().toISOString(),by?.agentId??null,by?.agentName??null,by?.sponsorName??null)
 export const credentialGuard=(c:Credential)=>sql(`EXISTS(SELECT 1 FROM bf_machine_credentials c JOIN oa_operators o ON o.id=c.owner_id
  WHERE c.id=? AND c.digest=? AND c.revoked=0 AND c.expires_at>strftime('%Y-%m-%dT%H:%M:%fZ','now')
  AND o.status='active' AND o.role='owner' AND o.version=c.owner_version)`,c.id,c.digest)
 export async function machineAuthority(request:Request,env:Bindings){
  const url=new URL(request.url)
+ if(request.headers.has('cookie'))fail('separate_machine_authority_required',401)
  if(url.origin!==env.AUTH_ORIGIN||request.headers.get('sec-fetch-site')==='cross-site'||request.headers.has('Origin')&&request.headers.get('Origin')!==env.AUTH_ORIGIN)fail('credential_required',401)
  const token=/^Bearer ([a-f0-9]{64})$/.exec(request.headers.get('authorization')??'')?.[1]
  if(!token)fail('credential_required',401)
- const row=await env.DB.prepare('SELECT id,owner_id,owner_version,definition_json,digest,expires_at,max_operations,used_operations FROM bf_machine_credentials WHERE token_hash=?').bind(hash(env,token)).first<Omit<Credential,'scope'>>()
+ const row=await env.DB.prepare('SELECT id,owner_id,owner_version,definition_json,digest,expires_at,max_operations,used_operations FROM bf_machine_credentials WHERE token_hash=?').bind(credentialHash(env,token)).first<Omit<Credential,'scope'>>()
  if(!row)fail('credential_required',401)
  const credential={...row,scope:JSON.parse(row.definition_json) as Scope}
  if(sha256(canonicalJson(credential.scope))!==credential.digest)fail('credential_required',401)
@@ -40,9 +41,10 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
  if(!actor||actor.role!=='owner')fail('owner_required',401)
  if(new URL(request.url).search)fail('unsupported_input',400)
  const sourceResponse=await sourceRuleResponse(request,env,actor,path);if(sourceResponse)return sourceResponse
+ const rotation=await (await import('./rotation.server')).rotationResponse(request,env,actor,path);if(rotation)return rotation
  if(path==='/api/operator/credentials'&&request.method==='GET'){
-  const credentials=(await env.DB.prepare('SELECT id,definition_json,digest,used_operations,revoked FROM bf_machine_credentials WHERE owner_id=? ORDER BY created_at DESC,id LIMIT 100').bind(actor.id).all()).results
-  const history=(await env.DB.prepare('SELECT credential_id,actor_kind,action,recorded_at FROM bf_machine_audit WHERE owner_id=? ORDER BY recorded_at DESC,id LIMIT 200').bind(actor.id).all()).results
+  const credentials=(await env.DB.prepare('SELECT id,definition_json,digest,used_operations,revoked,predecessor_id FROM bf_machine_credentials WHERE owner_id=? ORDER BY created_at DESC,id LIMIT 100').bind(actor.id).all()).results
+  const history=(await env.DB.prepare('SELECT credential_id,actor_kind,action,recorded_at,agent_id,agent_name,sponsor_name FROM bf_machine_audit WHERE owner_id=? ORDER BY recorded_at DESC,id LIMIT 200').bind(actor.id).all()).results
   await transact(env.DB,actor,[]);return json({credentials,history})
  }
  const revoke=/^\/api\/operator\/credentials\/([a-f0-9-]{36})\/revoke$/.exec(path)
@@ -79,7 +81,7 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
  if(path.endsWith('/review')){await transact(env.DB,actor,guards.map(assertion));return json({scope,digest})}
  if(input.reviewedDigest!==digest)fail('exact_credential_review_required',409)
  const token=Array.from(randomBytes(32),b=>b.toString(16).padStart(2,'0')).join(''),id=randomUUID()
- await transact(env.DB,actor,[...guards.map(assertion),sql('INSERT INTO bf_machine_credentials(id,owner_id,owner_version,token_hash,definition_json,digest,expires_at,max_operations,created_at) VALUES(?,?,?,?,?,?,?,?,?)',id,actor.id,owner.version,hash(env,token),canonicalJson(scope),scopeDigest,scope.expiresAt,scope.maxOperations,new Date().toISOString()),machineAudit(id,actor.id,'human','issued-exact-review')])
+ await transact(env.DB,actor,[...guards.map(assertion),sql('INSERT INTO bf_machine_credentials(id,owner_id,owner_version,token_hash,definition_json,digest,expires_at,max_operations,created_at) VALUES(?,?,?,?,?,?,?,?,?)',id,actor.id,owner.version,credentialHash(env,token),canonicalJson(scope),scopeDigest,scope.expiresAt,scope.maxOperations,new Date().toISOString()),machineAudit(id,actor.id,'human','issued-exact-review')])
  return json({id,token,scope,digest:scopeDigest},201)
 }
 
@@ -88,7 +90,7 @@ export async function credentialResponse(request:Request,env:Bindings):Promise<R
 export async function recordMachineRefusal(request:Request,env:Bindings){
  const token=/^Bearer ([a-f0-9]{64})$/.exec(request.headers.get('authorization')??'')?.[1]
  if(!token||!env.INSTALLATION_KEY)return
- const tokenHash=hash(env,token),row=await env.DB.prepare('SELECT id,owner_id FROM bf_machine_credentials WHERE token_hash=?').bind(tokenHash).first<{id:string;owner_id:string}>()
+ const tokenHash=credentialHash(env,token),row=await env.DB.prepare('SELECT id,owner_id FROM bf_machine_credentials WHERE token_hash=?').bind(tokenHash).first<{id:string;owner_id:string}>()
  if(!row)return
  await transact(env.DB,sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND token_hash=?)',row.id,tokenHash),[machineAudit(row.id,row.owner_id,'machine','denied')])
 }

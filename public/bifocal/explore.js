@@ -1,6 +1,7 @@
 import {fullExportController} from './full-export.js'
 import {mountComposition} from './composition.js'
 import {when} from './format.js'
+import {cacheNote} from './cache-view.js'
 const $=id=>document.getElementById(id)
 const node=(tag,text)=>{const element=document.createElement(tag);if(text!==undefined)element.textContent=String(text??'—');return element}
 let views=[],view,snapshot,parameters,scope='summary',offset=0,nextOffset=null,busy=false
@@ -17,6 +18,7 @@ async function showResult(){
  const comparison=snapshot.context.exploration.comparison;$('comparison').replaceChildren();$('comparison').hidden=!comparison;if(comparison){$('comparison').append(node('h3','Compared period through '+comparison.definition.fiscal.asOf));const values=node('div');values.className='kpis';for(const [name,value] of Object.entries(comparison.answer.totals)){const box=node('div');box.className='kpi';box.append(node('span',name),node('strong',value.value??value.state));values.append(box)}$('comparison').append(values,node('p',comparison.answer.filteredRows+' matching source rows. Same model rules, source snapshot, calendar and filters.'))}
  $('scope-note').textContent=view.grantId?snapshot.answer.filteredRows+' matching rows in your authorized scope. Counts outside this scope are not disclosed. Snapshot '+snapshot.createdAt+'. Current delegated view authority.':snapshot.answer.filteredRows+' matching source rows from '+snapshot.answer.inputRows+' input rows. '+(snapshot.answer.inputRows-snapshot.answer.filteredRows)+' excluded by the question and model rules. Snapshot '+snapshot.createdAt+'. '+(view.grantId?'Current delegated view authority.':'Owner-only.')
  $('join-note').textContent=snapshot.answer.joinDiagnostics.map(j=>j.alias+': '+(snapshot.answer.inputRows-j.unmatchedRows)+' matching and '+j.unmatchedRows+' unmatched base rows before question filters; '+j.duplicateRowsRemoved+' identical duplicate rows removed.').join(' ')
+ $('cache-note').textContent=cacheNote(snapshot)
  $('parameters').textContent=JSON.stringify({parameters,definition:snapshot.definition,modelRevision:snapshot.context.exploration.revision},null,2)
  $('underlying').disabled=!!view.permissions&&!view.permissions.underlying
  $('saved-link').href='/app/questions/'+snapshot.snapshotId

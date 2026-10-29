@@ -2,12 +2,10 @@ import { nativeApiResponse } from './native.server'
 import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
-import { sha256, canonicalJson } from '../../modules/import-kit/src/provenance/identity.ts'
 import { credentialResponse, machineAuthority, machineAudit, recordMachineRefusal } from '../credentials/store.server'
-import { readModel, readDefinition, modelGuard } from '../models/validation/store.server'
+import { credentialBindings } from '../credentials/bindings.server'
 import { scopedQuery } from '../models/validation/protocol'
-import { sourceRules, intersectSources } from '../credentials/sources.server'
-import { readSources, sourceMatch } from '../data/snapshots/store'
+import { intersectSources } from '../credentials/sources.server'
 import { queryContext } from '../query/context'
 import { queryInput } from '../query/validate'
 import { execute } from '../query/execute'
@@ -19,16 +17,10 @@ type QueryPage { rows: JSON!, totals: JSON!, totalRows: Int!, offset: Int!, next
 type Query { definitions: JSON!, query(input: QueryInput!): QueryPage! }`
 const schema=buildSchema(schemaText)
 const tool={name:'query',description:'Read one explicitly permitted published semantic view. Fixed source and row restrictions always intersect request filters.',inputSchema:{type:'object',properties:{modelId:{type:'string'},revision:{type:'string'},viewId:{type:'string'},groupBy:{type:'array',items:{type:'string'}},filters:{type:'array',items:{type:'object'}},offset:{type:'integer',minimum:0}},required:['modelId','revision','viewId','groupBy','filters'],additionalProperties:false}}
-async function machineOperation(request:Request,env:Bindings,name:string,input:Record<string,unknown>={}){
- const {credential:c,authority}=await machineAuthority(request,env),scope=c.scope
+export async function credentialOperation(env:Bindings,admission:Awaited<ReturnType<typeof machineAuthority>>,name:string,input:Record<string,unknown>={},attribution?:{agentId:string;agentName:string;sponsorName:string}){
+ const {credential:c,authority}=admission,scope=c.scope
  if(!scope.tools.includes(name))fail('tool_not_permitted',403)
- const model=await readModel(env,c.owner_id,scope.modelId)
- if(model.production!==scope.revision)fail('credential_scope_changed',409)
- const view=(await readDefinition(env,scope.revision)).views.find(v=>v.id===scope.viewId)
- if(!view?.query.semantic)fail('credential_scope_changed',409)
- const sources=await readSources(env,view.query),rules=await sourceRules(env,sources)
- if(canonicalJson(rules.map(r=>({id:r.source.id,revision:r.source.revision,digest:sha256(r.source.value_json),...r.digest?{policyDigest:r.digest,policyVersion:r.version}:{}})))!==canonicalJson(scope.sources))fail('credential_scope_changed',409)
- const fences=[modelGuard(model),...sources.map(sourceMatch),...rules.map(r=>r.guard)]
+ const {model,view,sources,rules,fences}=await credentialBindings(env,c)
  const reserve=()=>transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine','read-reserved')])
  let result:unknown
  if(name==='definitions'){
@@ -55,8 +47,11 @@ async function machineOperation(request:Request,env:Bindings,name:string,input:R
  }
  // Recheck the reserved activation and all current bindings before releasing data.
  // No raw source count, hidden schema, credential or source text enters diagnostics.
- await transact(env.DB,authority,[...fences.map(assertion),machineAudit(c.id,c.owner_id,'machine',name)])
+ await transact(env.DB,authority,[...fences.map(assertion),machineAudit(c.id,c.owner_id,'machine',name,attribution)])
  return result
+}
+async function machineOperation(request:Request,env:Bindings,name:string,input:Record<string,unknown>={}){
+ return credentialOperation(env,await machineAuthority(request,env),name,input)
 }
 export async function publicApiResponse(request:Request,original:Bindings):Promise<Response|null>{
  const path=new URL(request.url).pathname
@@ -68,7 +63,7 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
   if(new URL(request.url).search)fail('unsupported_input',400)
   // Even protocol discovery requires a current credential; cookies never substitute.
   await machineAuthority(request,env)
-  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:25,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersion:'2025-06-18'}})
+  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:25,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersions:['2026-07-28','2025-11-25']}})
   if(path==='/api/v1/definitions'&&request.method==='GET')return json(await machineOperation(request,env,'definitions'))
   if(path==='/api/v1/query'&&request.method==='POST')return json(await machineOperation(request,env,'query',await jsonBody(request)))
   if(path==='/api/v1/graphql'&&request.method==='POST'){
@@ -86,32 +81,6 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
    const result=await graphql({schema,source:input.query,variableValues:input.variables as Record<string,unknown>|undefined,operationName:input.operationName as string|undefined,rootValue:{definitions:()=>machineOperation(request,env,'definitions'),query:({input}:{input:Record<string,unknown>})=>machineOperation(request,env,'query',input)}})
    if(result.errors){await recordMachineRefusal(request,env).catch(()=>{});const error=result.errors[0].originalError,code=error instanceof QueryError?error.code:'operation_refused',status=error instanceof QueryError?error.status:409;return json({errors:[{message:code,extensions:{code}}]},status)}
    return json(result)
-  }
-  if(path==='/api/v1/mcp'&&request.method==='POST'){
-   const body=await jsonBody(request);exactKeys(body,['jsonrpc','id','method','params'])
-   if(body.jsonrpc!=='2.0'||typeof body.method!=='string'||body.id!==undefined&&typeof body.id!=='string'&&!(typeof body.id==='number'&&Number.isSafeInteger(body.id)))fail('invalid_rpc_request',400)
-   if(body.method==='notifications'+'/initialized'&&body.id===undefined)return new Response(null,{status:202,headers:{'cache-control':'no-store'}})
-   if(body.id===undefined)fail('rpc_id_required',400)
-   const reply=(result:unknown)=>json({jsonrpc:'2.0',id:body.id,result})
-   if(body.method==='initialize')return reply({protocolVersion:'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'bifocal',version:'1'}})
-   if(body.method==='ping')return reply({})
-   if(body.method==='tools'+'/list'){
-    const {credential}=await machineAuthority(request,env)
-    await transact(env.DB,(await machineAuthority(request,env)).authority,[])
-    return reply({tools:credential.scope.tools.includes('query')?[tool]:[]})
-   }
-   if(body.method==='tools'+'/call'){
-    try{
-    const params=body.params as Record<string,unknown>|undefined
-    if(!params||typeof params!=='object'||Array.isArray(params))fail('invalid_tool_request',400)
-    exactKeys(params,['name','arguments'])
-    if(params.name!=='query')fail('tool_not_permitted',403)
-    if(!params.arguments||typeof params.arguments!=='object'||Array.isArray(params.arguments))fail('invalid_tool_request',400)
-    const result=await machineOperation(request,env,'query',params.arguments as Record<string,unknown>)
-    return reply({content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result,isError:false})
-    }catch(error){await recordMachineRefusal(request,env).catch(()=>{});const code=error instanceof QueryError?error.code:'operation_refused';return reply({content:[{type:'text',text:code}],isError:true})}
-   }
-   return json({jsonrpc:'2.0',id:body.id,error:{code:-32601,message:'Method not found'}})
   }
   fail('not_found',404)
  }catch(error){await recordMachineRefusal(request,env).catch(()=>{});if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'operation_refused',reason:'Check current authority, scope and remaining operation budget.'},409)}finally{await discardBody(request)}

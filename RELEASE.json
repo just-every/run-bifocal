@@ -1,8 +1,8 @@
 {
   "version": "0.1.3",
-  "publicReleaseNotes": "Keep the exact rer 0.2.80 pin and refresh native release inputs. Clean Wrangler scratch after Worker verification so the hosted installation artifact builds cleanly on Linux. Retain the isolated retail demo and real app capture.",
+  "publicReleaseNotes": "Keep the exact rer 0.2.85 pin and refresh native release inputs. Clean Wrangler scratch after Worker verification so the hosted installation artifact builds cleanly on Linux. Retain the isolated retail demo and real app capture.",
   "migrations": [],
   "breaking": false,
-  "agentUpdateInstructions": "Use the pinned rer 0.2.80 package and the documented installation commands. Preserve the existing project identity and migration history.",
+  "agentUpdateInstructions": "Use the pinned rer 0.2.85 package and the documented installation commands. Preserve the existing project identity and migration history.",
   "previousVersion": "0.1.2"
 }

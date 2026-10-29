@@ -4,6 +4,25 @@ import {execFileSync} from 'node:child_process'
 import {unzipSync,strFromU8} from 'fflate'
 import {DOMParser} from '@xmldom/xmldom'
 
+function cacheReceipt(snapshot,status){
+ assert.ok(['miss','hit'].includes(snapshot.cache.status))
+ if(status)assert.equal(snapshot.cache.status,status)
+ assert.match(snapshot.cache.key,/^[a-f0-9]{64}$/)
+ assert.ok(Number.isFinite(Date.parse(snapshot.cache.createdAt)))
+ assert.ok(Number.isSafeInteger(snapshot.cache.ageMs)&&snapshot.cache.ageMs>=0)
+ assert.equal(snapshot.cache.principalId,snapshot.context.securityScope.operatorId??snapshot.context.ownerId)
+}
+function cacheHit(first,repeated){
+ cacheReceipt(repeated,'hit');assert.equal(repeated.cache.key,first.cache.key)
+ assert.equal(repeated.cache.createdAt,first.cache.createdAt)
+ assert.notEqual(repeated.snapshotId,first.snapshotId);assert.notEqual(repeated.queryId,first.queryId)
+ assert.deepEqual(repeated.answer,first.answer)
+ assert.deepEqual(repeated.context.exploration.comparison,first.context.exploration.comparison)
+}
+function cacheErased(receipt){
+ for(const store of ['bf_query_cache','bf_query_cache_sources'])assert.ok(receipt.stores.some(entry=>entry.store===store&&entry.rows>0))
+}
+
 /** One governed question journey through the built Worker and its browser. */
 export async function proveExploration({origin,context,page,call,upload,proveScreen,definition}) {
  const dataset='synthetic-bifocal-exploration',records=Array.from({length:61},(_,i)=>({invoice:'synthetic-bifocal-'+(i+1),region:i%2?'East':'West',cents:101+i,date:i<10?'06/30/2026':'07/02/2026'}))
@@ -24,10 +43,26 @@ c=sqlite3.connect(':memory:')
 c.execute('CREATE TABLE invoice(id TEXT,region TEXT,cents INTEGER,day TEXT)')
 c.executemany('INSERT INTO invoice VALUES(?,?,?,?)',[(f'synthetic-bifocal-{i+1}','East' if i%2 else 'West',101+i,'2026-06-30' if i<10 else '2026-07-02') for i in range(61)])
 print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE day>=?",(start,)).fetchone()) for start in ['2026-07-01','2025-07-01']]))`],{encoding:'utf8'}))
- const run=await call('/explore/run',input)
+ const noStore=await context.request.post(origin+'/api/operator/explore/run',{headers:{Origin:origin},data:input})
+ assert.equal(noStore.status(),201,await noStore.text());assert.equal(noStore.headers()['cache-control'],'no-store')
+ const run=await noStore.json();cacheReceipt(run,'miss')
+ const cachedRun=await call('/explore/run',input);cacheHit(run,cachedRun)
+ await page.goto(origin+'/app/questions/'+run.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
+ assert.match(await page.locator('#cache-note').innerText(),/cache miss.*age/);await proveScreen('explore-cache-miss')
+ await page.goto(origin+'/app/questions/'+cachedRun.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
+ assert.match(await page.locator('#cache-note').innerText(),/cache hit.*age/);await proveScreen('explore-cache-hit')
  assert.deepEqual(run.answer.joinDiagnostics,[{alias:'customer',duplicateRowsRemoved:0,unmatchedRows:31}])
  assert.equal(run.answer.filteredRows,sql[0][0]);assert.equal(run.answer.totals.revenue.value,(sql[0][1]/100).toFixed(2));assert.equal(run.answer.totals.invoices.value,String(sql[0][0]))
  const compared=await call('/explore/run',{...input,compareAsOf:'2026-06-30'});assert.equal(compared.context.exploration.comparison.answer.filteredRows,10);assert.equal(compared.context.exploration.comparison.answer.totals.revenue.value,'10.55');assert.equal((await call('/explore/'+compared.snapshotId)).context.exploration.comparison.answer.totals.revenue.value,'10.55')
+ const comparisonRepeat=await call('/explore/run',{...input,compareAsOf:'2026-06-30'});cacheReceipt(compared,'miss');cacheHit(compared,comparisonRepeat)
+ assert.notEqual(compared.cache.key,run.cache.key)
+ const filteredInput={...input,filters:[{column:'region',op:'eq',value:'West'}]},filtered=await call('/explore/run',filteredInput)
+ cacheReceipt(filtered,'miss');assert.notEqual(filtered.cache.key,run.cache.key);assert.equal(filtered.answer.totals.revenue.value,'35.36')
+ cacheHit(filtered,await call('/explore/run',filteredInput))
+ const groupedInput={...input,groupBy:['invoice']},grouped=await call('/explore/run',groupedInput)
+ cacheReceipt(grouped,'miss');assert.notEqual(grouped.cache.key,run.cache.key);assert.equal(grouped.answer.rows.length,sql[0][0])
+ cacheHit(grouped,await call('/explore/run',groupedInput))
+ await call('/explore/run',input,403,{Authorization:'Bearer synthetic-bifocal-87'})
  await call('/explore/run',{...input,joins:[]},400)
  await call('/explore/run',{...input,groupBy:['salary']},403)
  await call('/explore/run',{...input,filters:[{column:'salary',op:'eq',value:'9000'}]},403)
@@ -60,6 +95,9 @@ print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE 
   const option=page.getByLabel('Published model').locator('option').filter({hasText:saved.modelId.slice(0,8)});await page.getByLabel('Published model').selectOption(await option.getAttribute('value'))
   await page.getByRole('button',{name:'Run and save question'}).focus();await page.keyboard.press('Enter');await page.getByRole('status').filter({hasText:'Question saved'}).waitFor()
   assert.match(await page.locator('#totals').innerText(),new RegExp((sql[0][1]/100).toFixed(2).replace('.','\\.')))
+  await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor()
+  assert.match(await page.locator('#cache-note').innerText(),/cache hit.*age/)
+  for(const source of run.answer.sourceWatermarks)assert.ok((await page.locator('#cache-note').innerText()).includes(source.revision))
   assert.match(await page.locator('#join-note').innerText(),/31 matching and 31 unmatched/);await screen('explore-summary')
   const parent=await page.getByRole('link',{name:'Reopen saved question'}).getAttribute('href');await page.getByRole('button',{name:'Drill to invoice for West',exact:true}).click();await page.getByRole('status').filter({hasText:'Hierarchy level loaded'}).waitFor();assert.equal(await page.getByLabel('Group by',{exact:true}).inputValue(),'invoice');assert.match(await page.locator('#totals').innerText(),/35.36/);assert.match(await page.locator('#page-note').innerText(),/of 26 summary rows/);await screen('explore-hierarchy');await page.goto(origin+parent);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor()
   // One click from the regional total opens precisely that region's invoices.
@@ -80,7 +118,7 @@ print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE 
  // Exports preserve source text or refuse an unrepresentable workbook value.
  const formulaCSV=csv.replace('synthetic-bifocal-12,','=synthetic-bifocal-12,').replace('synthetic-bifocal-13,','synthetic-bifocal-13_x0041_,')
  await upload(dataset,formulaCSV.replace('synthetic-bifocal-11,','synthetic-bifocal-11\u0001,'),true)
- const unusual=await call('/explore/run',input)
+ const unusual=await call('/explore/run',input);cacheReceipt(unusual,'miss');assert.notEqual(unusual.cache.key,run.cache.key);cacheHit(unusual,await call('/explore/run',input))
  const csvResponse=await context.request.post(origin+'/api/operator/explore/'+unusual.snapshotId+'/export',{headers:{Origin:origin},data:{scope:'underlying',format:'csv'}});assert.equal(csvResponse.status(),200);const unusualCSV=await csvResponse.text();assert.ok(unusualCSV.includes('synthetic-bifocal-11\u0001'));assert.ok(unusualCSV.includes("\"'=synthetic-bifocal-12\""))
  const invalid=await call('/explore/'+unusual.snapshotId+'/export',{scope:'underlying',format:'xlsx'},422);assert.equal(invalid.error,'xlsx_xml_character_refused')
  await upload(dataset,formulaCSV,true)
@@ -93,7 +131,8 @@ print(json.dumps([list(c.execute("SELECT count(*),sum(cents) FROM invoice WHERE 
  const catalog=await call('/explore');assert.ok(catalog.questions.some(q=>q.id===run.snapshotId));assert.ok(catalog.questions.every(q=>!('comparison' in q)&&!('parameters' in q)&&!('answer' in q)),'Question history contains labels only, including after promotion')
  await call('/explore/'+run.snapshotId,undefined,409);await call('/explore/'+run.snapshotId+'/page',{scope:'underlying',offset:0},409);await call('/explore/'+run.snapshotId+'/export',{scope:'summary',format:'csv'},409)
  await page.goto(origin+'/app/questions/'+run.snapshotId);await page.getByRole('status').filter({hasText:'published model changed'}).waitFor();assert.equal(await page.locator('#result').isVisible(),false);await proveScreen('explore-stale')
- const datasetState=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:datasetState.revision},200);await call('/explore/'+run.snapshotId,undefined,404)
+ const currentInput={...input,revision:branch.revision},current=await call('/explore/run',currentInput);cacheReceipt(current,'miss');assert.notEqual(current.cache.key,literal.cache.key);cacheHit(current,await call('/explore/run',currentInput))
+ const datasetState=await call('/datasets/'+dataset);cacheErased(await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:datasetState.revision},200));await call('/explore/'+run.snapshotId,undefined,404)
  const mapping=await call('/datasets/synthetic-bifocal-customer-map');await call('/datasets/synthetic-bifocal-customer-map/erase',{confirmDataset:'synthetic-bifocal-customer-map',reviewedRevision:mapping.revision},200)
  console.log('Exploration: published model rules, exact fiscal totals and paged drill, scoped CSV and typed XLSX, saved parameters, stale model and source erasure passed at 1440 and 390')
 }
@@ -135,6 +174,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
  assert.equal((await reader.request.get(origin+'/api/operator/models/'+model.modelId)).status(),401)
  assert.equal((await reader.request.post(origin+'/api/operator/explore/run',{headers:{Origin:'https://foreign.example.test'},data:input})).status(),401)
  const run=await call(reader,'/explore/run',input),expected=records.filter(r=>r.region==='West'&&r.date==='07/02/2026'),money=expected.reduce((sum,r)=>sum+r.cents,0)
+ cacheReceipt(run,'miss');cacheHit(run,await call(reader,'/explore/run',input))
  assert.equal(run.answer.filteredRows,26);assert.equal(run.answer.inputRows,26,'Unpermitted input counts never leave the server');assert.deepEqual(run.answer.joinDiagnostics,[]);assert.equal(run.answer.totals.revenue.value,(money/100).toFixed(2));assert.equal(run.context.securityScope.operatorId,readerId)
  assert.deepEqual((await call(reader,'/explore/'+run.snapshotId)).definition.filters,run.definition.filters)
  const discovered=async(id)=>(await call(reader,'/explore')).questions.some(q=>q.id===id)
@@ -143,7 +183,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
  const rows=[];let offset=0
  do{const result=await call(reader,'/explore/'+run.snapshotId+'/page',{scope:'underlying',offset},200);rows.push(...result.rows);offset=result.nextOffset}while(offset!==null)
  assert.deepEqual(rows.map(r=>r[0]).sort(),expected.map(r=>r.id).sort());assert.equal(rows.reduce((sum,r)=>sum+Math.round(Number(r[3])*100),0),money)
- const ownerRun=await call(owner,'/explore/run',parameters);await call(reader,'/explore/'+ownerRun.snapshotId,undefined,404)
+ const ownerRun=await call(owner,'/explore/run',parameters);cacheReceipt(ownerRun,'miss');assert.notEqual(ownerRun.cache.key,run.cache.key);assert.equal(ownerRun.answer.totals.revenue.value,'69.36');cacheHit(ownerRun,await call(owner,'/explore/run',parameters));await call(reader,'/explore/'+ownerRun.snapshotId,undefined,404)
  for(const scope of ['summary','underlying'])for(const format of ['csv','xlsx']){
   const response=await reader.request.post(origin+'/api/operator/explore/'+run.snapshotId+'/export',{headers,data:{scope,format}});assert.equal(response.status(),200,await response.text());assert.equal(Number(response.headers()['x-bifocal-row-count']),scope==='summary'?1:26)
   if(format==='csv'){const csv=await response.text();assert.ok(csv.includes((money/100).toFixed(2))||scope==='underlying');assert.ok(!csv.includes('East')&&!csv.includes('salary'));if(scope==='underlying'){const exported=csv.trimEnd().split('\r\n').slice(1).map(row=>row.split(',').map(c=>c.slice(1,-1)));assert.deepEqual(exported.map(r=>r[0]).sort(),expected.map(r=>r.id).sort());assert.equal(exported.reduce((sum,r)=>sum+Math.round(Number(r[3])*100),0),money)}}
@@ -153,7 +193,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
  try{
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/questions');await page.getByRole('status').filter({hasText:'Ready to explore'}).waitFor()
-   await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();await screen('explore-manager-summary')
+   await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();await page.getByRole('button',{name:'Run and save question'}).click();await page.getByRole('status').filter({hasText:'Question saved'}).waitFor();assert.match(await page.locator('#cache-note').innerText(),/cache hit.*age/);await screen('explore-manager-summary')
    await page.getByRole('button',{name:'View records for West',exact:true}).click();await page.getByRole('status').filter({hasText:'Filtered source rows loaded'}).waitFor();assert.match(await page.locator('#page-note').innerText(),/of 26 underlying rows/);assert.doesNotMatch(await page.locator('#results').innerText(),/East|salary/)
    const link=await page.getByRole('link',{name:'Reopen saved question'}).getAttribute('href');await page.goto(origin+link);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();await page.getByRole('button',{name:'Underlying rows',exact:true}).click();await page.getByRole('status').filter({hasText:'Question scope changed'}).waitFor();await screen('explore-manager-drill')
    await page.getByRole('button',{name:'Next page',exact:true}).click();await page.waitForFunction(()=>document.getElementById('page-note').textContent.includes('26–26'));await screen('explore-manager-last-page')
@@ -174,6 +214,16 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
   assert.equal(await discovered(run.snapshotId),false,'Revocation withdraws discovery metadata');
   await call(reader,'/explore/'+run.snapshotId,undefined,403);await call(reader,'/explore/'+run.snapshotId+'/export',{scope:'summary',format:'csv'},403)
   const summary=await issue({...body,underlying:false,underlyingExport:false}),summaryRun=await call(reader,'/explore/run',{...parameters,grantId:summary.id})
+  cacheReceipt(summaryRun,'miss');assert.notEqual(summaryRun.cache.key,run.cache.key);assert.notEqual(summaryRun.cache.key,ownerRun.cache.key)
+  cacheHit(summaryRun,await call(reader,'/explore/run',{...parameters,grantId:summary.id}))
+  const eastGrant=await issue({...body,filters:[{column:'region',op:'eq',value:'East'}],underlying:false,underlyingExport:false})
+  const eastInput={...parameters,grantId:eastGrant.id},eastRun=await call(reader,'/explore/run',eastInput)
+  cacheReceipt(eastRun,'miss');assert.notEqual(eastRun.cache.key,summaryRun.cache.key);assert.notEqual(eastRun.cache.key,ownerRun.cache.key)
+  assert.equal(eastRun.answer.filteredRows,25);assert.equal(eastRun.answer.totals.revenue.value,'34.00');assert.ok(eastRun.answer.rows.every(row=>row.dimensions[0]==='East'))
+  cacheHit(eastRun,await call(reader,'/explore/run',eastInput))
+  const narrowedInput={...parameters,grantId:summary.id,filters:[{column:'region',op:'eq',value:'East'}]},narrowed=await call(reader,'/explore/run',narrowedInput)
+  cacheReceipt(narrowed,'miss');assert.notEqual(narrowed.cache.key,summaryRun.cache.key);assert.equal(narrowed.answer.filteredRows,0);cacheHit(narrowed,await call(reader,'/explore/run',narrowedInput))
+  await call(owner,'/explore/access/'+eastGrant.id+'/revoke',{},200);await call(reader,'/explore/run',eastInput,403)
   for(const format of ['csv','xlsx']){await call(reader,'/explore/'+summaryRun.snapshotId+'/export',{scope:'summary',format},200);await call(reader,'/explore/'+summaryRun.snapshotId+'/export',{scope:'underlying',format},403)}
   await call(reader,'/explore/'+summaryRun.snapshotId+'/page',{scope:'underlying',offset:0},403);await call(reader,'/explore/run',{...parameters,grantId:summary.id,groupBy:['invoice']},403)
   await page.goto(origin+'/app/questions/'+summaryRun.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();assert.equal(await page.getByRole('button',{name:'Underlying rows',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'View records for West',exact:true}).count(),0);await screen('explore-summary-only')
@@ -187,6 +237,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
   await call(reader,'/explore/'+summaryRun.snapshotId,undefined,403);await call(reader,'/explore/run',{...parameters,grantId:summary.id},403)
   assert.deepEqual((await call(reader,'/explore')).questions,[],'Source rollback never revives historical metadata')
   const beforePublication=await issue(body),beforeRun=await call(reader,'/explore/run',{...parameters,grantId:beforePublication.id})
+  cacheReceipt(beforeRun,'miss');assert.notEqual(beforeRun.cache.key,summaryRun.cache.key);cacheHit(beforeRun,await call(reader,'/explore/run',{...parameters,grantId:beforePublication.id}))
   assert.equal(await discovered(beforeRun.snapshotId),true)
   await page.goto(origin+'/app/questions/'+beforeRun.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();await screen('explore-source-renewed')
   const next=await call(owner,'/models/'+model.modelId+'/branches',{definition:{views:[{id:'sales',kind:'chart',query,rowRules:[]}],quality:[]}}),nextBase='/models/'+model.modelId+'/branches/'+next.branchId,nextReview=await call(owner,nextBase+'/validate',{},200)
@@ -200,6 +251,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
   assert.deepEqual((await call(reader,'/explore')).questions,[],'Model rollback never revives historical metadata')
   await page.goto(origin+'/app/questions/'+beforeRun.snapshotId);await page.getByRole('heading',{name:'Question access unavailable'}).waitFor();await screen('explore-model-rollback-refused')
   const renewed=await issue(body),renewedRun=await call(reader,'/explore/run',{...parameters,grantId:renewed.id})
+  cacheReceipt(renewedRun,'miss');assert.notEqual(renewedRun.cache.key,beforeRun.cache.key);cacheHit(renewedRun,await call(reader,'/explore/run',{...parameters,grantId:renewed.id}))
   assert.equal(await discovered(renewedRun.snapshotId),true,'Fresh exact owner review permits a fresh question')
   assert.equal(await discovered(beforeRun.snapshotId),false,'New authority never revives a question made with an earlier grant')
   await page.goto(origin+'/app/questions/'+renewedRun.snapshotId);await page.getByRole('status').filter({hasText:'Saved question reopened'}).waitFor();assert.equal(await page.locator('#questions a[href="/app/questions/'+beforeRun.snapshotId+'"]').count(),0);await screen('explore-model-rollback-renewed')
@@ -208,7 +260,7 @@ export async function proveExplorationAccess(origin,owner,reader,readerId){
   assert.equal((await owner.request.post(origin+'/auth/operator/status',{headers,data:{operatorId:readerId,status:'active'}})).status(),200)
   await reader.request.get(new URL((await person()).signInUrl,origin).href);await call(reader,'/explore/run',{...parameters,grantId:renewed.id},403)
   const finalGrant=await issue({...body,operatorVersion:(await person()).version}),finalRun=await call(reader,'/explore/run',{...parameters,grantId:finalGrant.id})
-  const state=await call(owner,'/datasets/'+dataset);await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:state.revision},200);await call(reader,'/explore/'+finalRun.snapshotId,undefined,404)
+  const state=await call(owner,'/datasets/'+dataset);cacheErased(await call(owner,'/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:state.revision},200));await call(reader,'/explore/'+finalRun.snapshotId,undefined,404)
  }finally{await page.close()}
  console.log('Delegated exploration: native manager, exact West money and complete pages, fiscal pivot, saved question, source link, typed downloads, summary-only and distinct export grants, source revision, membership and erasure fences passed at 1440 and 390')
 }
@@ -261,6 +313,9 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  const actors=[{context:reader,person:managerVersion},rep,next,nextManager,guest]
  for(const actor of actors)actor.grant=await grant(actor.person)
  const warm=await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id});assert.equal(warm.answer.filteredRows,4)
+ await clock.set(new Date(clock.now()+5000).toISOString())
+ const aged=await call(reader,'/explore/run',{...parameters,grantId:actors[0].grant.id});cacheHit(warm,aged)
+ assert.equal(aged.cache.ageMs,clock.now()-Date.parse(warm.cache.createdAt),'The pinned elapsed interval is reported as cache age at this run')
  assert.equal((await call(owner,'/explore/run',parameters)).answer.filteredRows,5,'Owner cache is broader than the delegated result')
  const definition={modelId:model.modelId,viewId:'accounts',column:'account',mapping,hierarchy,normalization:'ascii-lowercase',maxAgeSeconds:3600}
  let revision=null
@@ -275,15 +330,19 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  await publish();assert.equal(revision,1)
  await call(reader,'/explore/'+warm.snapshotId,undefined,409)
  assert.ok(!(await call(reader,'/explore')).questions.some(q=>q.id===warm.snapshotId),'New policy withdraws saved broad metadata')
+ const observedKeys=new Set()
  const run=async(actor,expected)=>{
   const result=await call(actor.context,'/explore/run',{...parameters,grantId:actor.grant.id})
+  cacheReceipt(result);if(!observedKeys.has(result.cache.key))cacheReceipt(result,'miss')
+  observedKeys.add(result.cache.key)
+  const repeated=await call(actor.context,'/explore/run',{...parameters,grantId:actor.grant.id});cacheHit(result,repeated)
   const rows=await call(actor.context,'/explore/'+result.snapshotId+'/page',{scope:'underlying',offset:0},200)
   assert.deepEqual(rows.rows.map(r=>r[0]).sort(),expected,'Exact allowed record IDs, including an empty role intersection')
   assert.equal(result.answer.totals.records.value,String(expected.length));assert.equal(result.answer.filteredRows,expected.length)
   assert.deepEqual(rows.columns.map(c=>c.name),['id','account','region'],'Salary never leaves the governed dimensions')
   const csv=await call(actor.context,'/explore/'+result.snapshotId+'/export',{scope:'underlying',format:'csv'},200)
   assert.equal(Number(csv.headers()['x-bifocal-row-count']),expected.length);assert.ok(!(await csv.text()).includes('9999'))
-  return result
+  return repeated
  }
  let managerRun=await run(actors[0],['five','one','two']);
  assert.equal((await call(reader,'/collaboration/resolve',{kind:'answer',id:managerRun.snapshotId},200)).subject.id,managerRun.snapshotId);
@@ -298,7 +357,7 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  assert.ok(await readerPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
  assert.equal(await readerPage.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0)
  for(const width of [1440,390]){
-  await readerPage.setViewportSize({width,height:1000})
+  await readerPage.setViewportSize({width,height:1000});assert.match(await readerPage.locator('#cache-note').innerText(),/cache hit.*age/)
   if(process.env.BIFOCAL_PROOF_DIR){const {mkdir}=await import('node:fs/promises');await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});await readerPage.screenshot({path:process.env.BIFOCAL_PROOF_DIR+'/entitlements-manager-'+width+'.png',fullPage:true})}
  }
  await readerPage.close()
@@ -331,7 +390,13 @@ export async function proveEntitlements({origin,owner,reader,readerId,browser,de
  await clock.set(new Date(deadline+100).toISOString())
  assert.equal((await call(next.context,'/explore/'+fresh.snapshotId+'/export',{scope:'summary',format:'csv'},409)).error,'entitlement_feed_stale')
  assert.equal((await call(owner,'/explore/entitlements/review',{definition:short,previousRevision:revision},409)).error,'entitlement_feed_stale')
- await call(owner,'/datasets/'+mapping+'/erase',{confirmDataset:mapping,reviewedRevision:source.revision},200)
+ cacheErased(await call(owner,'/datasets/'+mapping+'/erase',{confirmDataset:mapping,reviewedRevision:source.revision},200))
+ assert.equal((await call(next.context,'/explore/run',{...parameters,grantId:next.grant.id},409)).error,'entitlement_feed_missing')
+ const replacementMapping='synthetic-bifocal-entitlement-map-next'
+ await upload(replacementMapping,map(next.person.email));await upload(hierarchy,tree(),true)
+ await publish({...definition,mapping:replacementMapping});await run(next,['one'])
+ const currentHierarchy=await call(owner,'/datasets/'+hierarchy)
+ cacheErased(await call(owner,'/datasets/'+hierarchy+'/erase',{confirmDataset:hierarchy,reviewedRevision:currentHierarchy.revision},200))
  assert.equal((await call(next.context,'/explore/run',{...parameters,grantId:next.grant.id},409)).error,'entitlement_feed_missing')
  console.log('Entitlements: reviewed atomic snapshots, role union and manager inheritance, effective intervals, exact reassignment parity for native identities, scoped records and CSV, stale and missing feeds, cycles and old snapshot refusal passed')
  } finally {await clock.set(null);for(const context of contexts)await context.close()}
