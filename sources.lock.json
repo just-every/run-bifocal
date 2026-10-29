@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "1ebcfc371bd10cf77800dfbef542b112b4d45d6f586cd50d26016fc903901ff5",
+      "sha256": "ac6964f8c1b7a0fb971966ac39c3909315bf11a863959f48b7cae63015a2ea5b",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -2190,7 +2190,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/index.server.ts": {
-      "sha256": "ed45b4485b0716323e367a8198128e7f0a18c28f7daead4b8b94334dfd4a1a23",
+      "sha256": "96f92384ec9c1a154e9d90286e820a13f70a940a1896049f1be58ceaa23e09b7",
       "executable": false
     },
     "src/bifocal/agent-door/schemas.ts": {
@@ -5826,7 +5826,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "050a8c6f33aeb788e8de5b935f1ec80c2796af4e2ed98ff569272a1f0e8d316a",
+      "sha256": "286e99be0e96e135d0fde45a753be72df2e6b9ae74c3dcd6cee694a2150eb409",
       "executable": false
     },
     "src/site/base-pages.tsx": {
