@@ -182,7 +182,7 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/d1249b3
 
 Read root CONTRACT.md and ACCEPTANCE.md before product work. They are ct's target drafts; no complete product clause is proven. The file backend does not establish the complete BI product. Do not add speculative BI screens, mock providers or feature claims. The isolated demo ships fictional retail data through the reviewed file import door; see DEMO.md. The run site (src/site, docs/, public/brand, public/fonts) wears the design desk's approved look and shows the target product, every claim backed by a contract clause; the installed app keeps Base's default theme until its own design round. Keep verbatim src/base copies. Research and evidence belong in private-bifocal or the lane evidence folder, never this public tree.
 
-Use the exact published @runeditrun/rer 0.2.85 package. Run source:lock after intentional selected-source changes and source:check before pushing. Keep tests small, through public user flows, and never weaken a foundation test. Stop only processes you started, by recorded PID; do not use rer dev/demo --stop, pkill, killall or pattern-based kills. Never read or print private settings, credentials or token-bearing URLs.
+Use the exact published @runeditrun/rer 0.2.91 package. Run source:lock after intentional selected-source changes and source:check before pushing. Keep tests small, through public user flows, and never weaken a foundation test. Stop only processes you started, by recorded PID; do not use rer dev/demo --stop, pkill, killall or pattern-based kills. Never read or print private settings, credentials or token-bearing URLs.
 
 The installed `/docs` guide is static edition documentation available signed out, without visiting the separate Run site. People (`/app/people`) delegates invitation cancellation and eligible account deactivation/reactivation to the native handlers; it does not offer owner changes. Your settings (`/app/settings`) lists your active sessions and can revoke one, including the current session. Native API clients retain their JSON/204 responses; browser forms return useful pages. Role and status changes invalidate old sessions, and reactivation does not restore them.
 
@@ -201,3 +201,5 @@ Lander-Regenerate: sources.lock.json: `node scripts/edition-authoring/cli.mjs lo
 Run that source lock regeneration last, after staging new selected source files.
 Check edition source lock freshness with
 `node scripts/edition-authoring/cli.mjs check`. Keep the current Base pin.
+
+Lander-Regenerate: node scripts/contract-docs.mjs write BIF-027 BIF-035 BASE-AGENT-001 BASE-AGENT-002 BASE-AGENT-003 BASE-AGENT-004 BASE-AGENT-005 BASE-AGENT-006 BASE-AGENT-007 BASE-AGENT-008 BASE-AGENT-009 BASE-AGENT-010 BASE-AGENT-011 BASE-AGENT-012 BASE-AGENT-013

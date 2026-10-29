@@ -1,3 +1,6 @@
+import { agentDoorResponse } from './bifocal/agent-door/index.server'
+import { businessSettings } from './auth.server'
+import { agentBindingResponse } from './bifocal/agent-door/grants.server'
 import { portalResponse } from './bifocal/portal/server'
 import { alertResponse } from './bifocal/alerts/server'
 import { alertPage } from './bifocal/alerts/page.server'
@@ -77,6 +80,13 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const bindings = runtimeBindings(env)
+    const agent = await agentDoorResponse(request, bindings)
+    if (agent) return agent
+    const business = await businessSettings(bindings).handle(request)
+    if (business) return business
+    const grant = await agentBindingResponse(request, bindings)
+    if (grant) return grant
     const auth = await authResponse(request, env)
     if (auth) return auth
     const alertsDocument = await alertPage(request, env)

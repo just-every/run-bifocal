@@ -414,6 +414,42 @@
       "name": "0063_collaboration_participants.sql",
       "sha256": "56cc06fdb4c9bbc439bb2c4b02d4d00dcca75df70a585e510bf307a9d345ab17",
       "sql": "CREATE TABLE bf_collaboration_participants (\n subject_key TEXT NOT NULL REFERENCES bf_collaboration_subjects(key) ON DELETE CASCADE,\n operator_id TEXT NOT NULL, grant_id TEXT NOT NULL REFERENCES bf_explore_grants(id) ON DELETE CASCADE,\n owner_version INTEGER NOT NULL, operator_version INTEGER NOT NULL,\n PRIMARY KEY(subject_key,operator_id)\n);\nCREATE TRIGGER bf_collaboration_participant_membership AFTER UPDATE ON oa_operators\nWHEN NEW.version<>OLD.version OR NEW.status<>OLD.status OR NEW.role<>OLD.role BEGIN\n DELETE FROM bf_collaboration_participants WHERE operator_id=NEW.id\n OR subject_key IN (SELECT key FROM bf_collaboration_subjects WHERE owner_id=NEW.id);\nEND;\nCREATE TRIGGER bf_collaboration_participant_grant_retired AFTER DELETE ON bf_explore_activation BEGIN\n UPDATE bf_collaboration_links SET revoked=1 WHERE subject_key IN\n (SELECT subject_key FROM bf_collaboration_participants WHERE grant_id=OLD.grant_id);\n DELETE FROM bf_collaboration_participants WHERE grant_id=OLD.grant_id;\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0064_agent_door.sql",
+      "sha256": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
+      "sql": "CREATE TABLE IF NOT EXISTS agent_door_state (\n  id INTEGER PRIMARY KEY CHECK(id=1), envelope TEXT, local_document TEXT,\n  local_revision INTEGER NOT NULL DEFAULT 0, local_paused INTEGER NOT NULL DEFAULT 0,\n  decision_lock TEXT, decision_until INTEGER\n);\nCREATE TABLE IF NOT EXISTS agent_door_agents (\n  id TEXT PRIMARY KEY, name TEXT NOT NULL, specialist TEXT, sponsor TEXT NOT NULL,\n  sponsor_name TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,\n  window INTEGER NOT NULL DEFAULT 0, requests INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS agent_door_audit (\n  sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, at TEXT NOT NULL,\n  agent TEXT NOT NULL, classes TEXT NOT NULL, row TEXT NOT NULL, evidence TEXT\n);\nCREATE INDEX IF NOT EXISTS agent_door_audit_agent ON agent_door_audit(agent,sequence);\nCREATE TABLE IF NOT EXISTS agent_door_calls (\n  agent TEXT NOT NULL, key TEXT NOT NULL, digest TEXT NOT NULL, decision_id TEXT NOT NULL,\n  created_at INTEGER NOT NULL, state TEXT NOT NULL, outcome TEXT, PRIMARY KEY(agent,key)\n);\nCREATE TABLE IF NOT EXISTS agent_door_approvals (\n  id TEXT PRIMARY KEY, state TEXT NOT NULL, saved TEXT NOT NULL, approvals TEXT NOT NULL DEFAULT '[]',\n  result TEXT, version INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS agent_door_reviews (\n  id TEXT PRIMARY KEY, state TEXT NOT NULL, saved TEXT NOT NULL, marked_by TEXT, marked_at TEXT\n);\nCREATE TABLE IF NOT EXISTS agent_door_events (\n  sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, uri TEXT NOT NULL, event TEXT NOT NULL\n);\nCREATE INDEX IF NOT EXISTS agent_door_events_uri ON agent_door_events(uri,sequence);\nCREATE TABLE IF NOT EXISTS agent_door_usage (\n  decision_id TEXT PRIMARY KEY, at INTEGER NOT NULL, seed TEXT NOT NULL, specialist TEXT, agent TEXT NOT NULL,\n  classes TEXT NOT NULL\n);\nCREATE INDEX IF NOT EXISTS agent_door_usage_day ON agent_door_usage(at);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0064_machine_rotation.sql",
+      "sha256": "1adac88bdaee70ba0aba8825467fc96cb25fdd0dbcb1da0fcf2657622fd47bd8",
+      "sql": "ALTER TABLE bf_machine_credentials ADD COLUMN predecessor_id TEXT;\nCREATE UNIQUE INDEX bf_machine_rotation_predecessor ON bf_machine_credentials(predecessor_id);\n-- A retired activation is permanent, including a rotation predecessor.\nCREATE TRIGGER bf_machine_no_reactivation BEFORE UPDATE OF revoked ON bf_machine_credentials\nWHEN OLD.revoked=1 AND NEW.revoked=0 BEGIN\n SELECT RAISE(ABORT,'credential_permanently_retired');\nEND;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0065_business_settings.sql",
+      "sha256": "a16f736a781aa3fe02a2e090c993f8c360c904f9fb6d86126acdab6e1f24e773",
+      "sql": "CREATE TABLE bs_settings (\n  singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n  rev INTEGER NOT NULL DEFAULT 0,\n  document TEXT,\n  applied_at TEXT,\n  stopped INTEGER NOT NULL DEFAULT 0 CHECK(stopped IN(0,1)),\n  token TEXT NOT NULL DEFAULT ''\n);\nCREATE TABLE bs_overrides (\n  field TEXT PRIMARY KEY CHECK(field IN('display_name','owner_name','brand_color','logo','timezone')),\n  value TEXT NOT NULL,\n  actor TEXT NOT NULL,\n  changed_at TEXT NOT NULL\n);\nCREATE TABLE bs_logo (\n  singleton INTEGER PRIMARY KEY CHECK(singleton=1),\n  sha256 TEXT NOT NULL,\n  type TEXT NOT NULL,\n  bytes BLOB NOT NULL\n);\nCREATE TABLE bs_team (\n  email TEXT PRIMARY KEY,\n  operator_id TEXT,\n  invite INTEGER NOT NULL,\n  state TEXT NOT NULL CHECK(state IN('invited','active','inactive','conflict'))\n);\nCREATE TABLE bs_audit (\n  id INTEGER PRIMARY KEY,\n  actor TEXT NOT NULL,\n  action TEXT NOT NULL,\n  field TEXT,\n  changed_at TEXT NOT NULL\n);\n-- An INSERT of NULL fails the transaction if a concurrent write invalidated its fence.\nCREATE TABLE bs_assert (value INTEGER NOT NULL);\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0065_query_result_cache.sql",
+      "sha256": "d69ef307a9c8da27aafbc6776485d7284f180f1f384b1b5982f66d5417892231",
+      "sql": "-- Execution results are reusable only under an exact, current evidence key.\n-- Immutable answers remain independent of this disposable bounded store.\nCREATE TABLE bf_query_cache (\n key TEXT PRIMARY KEY, owner_id TEXT NOT NULL, principal_id TEXT NOT NULL,\n answer_json TEXT NOT NULL CHECK(json_valid(answer_json)), digest TEXT NOT NULL,\n created_at TEXT NOT NULL\n);\nCREATE INDEX bf_query_cache_principal ON bf_query_cache(principal_id,created_at);\nCREATE TABLE bf_query_cache_sources (\n cache_key TEXT NOT NULL REFERENCES bf_query_cache(key) ON DELETE CASCADE,\n dataset_id TEXT NOT NULL, revision TEXT NOT NULL, fingerprint TEXT NOT NULL,\n PRIMARY KEY(cache_key,dataset_id)\n);\nCREATE INDEX bf_query_cache_dataset ON bf_query_cache_sources(dataset_id);\nALTER TABLE bf_query_snapshots ADD COLUMN cache_json TEXT CHECK(cache_json IS NULL OR json_valid(cache_json));\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0066_business_people.sql",
+      "sha256": "51aa39622d866b987d71b6e37c9a8300e7f24c54a55611edaab669ed051b01cd",
+      "sql": "ALTER TABLE bs_settings ADD COLUMN owner_id TEXT CHECK(owner_id IS NULL OR owner_id <> '');\nALTER TABLE bs_team ADD COLUMN business_id TEXT CHECK(business_id IS NULL OR business_id <> '');\nALTER TABLE bs_team ADD COLUMN business_role TEXT CHECK(business_role IS NULL OR business_role IN('admin','member'));\nCREATE UNIQUE INDEX bs_team_business_id ON bs_team(business_id) WHERE business_id IS NOT NULL;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0067_agent_grants.sql",
+      "sha256": "6d6a1c91b45b86dbf7ab6a24650c8e121442e3b330aad87e33cdd6e81d050d2a",
+      "sql": "-- Exact native owner review binds one named agent to an existing bounded read\n-- credential. Activation is installation-local and is never exported.\nCREATE TABLE bf_agent_grants (\n agent_id TEXT PRIMARY KEY, credential_id TEXT NOT NULL REFERENCES bf_machine_credentials(id),\n owner_id TEXT NOT NULL REFERENCES oa_operators(id), reviewed_digest TEXT NOT NULL,\n reviewed_at TEXT NOT NULL\n);\nALTER TABLE bf_machine_audit ADD COLUMN agent_id TEXT;\nALTER TABLE bf_machine_audit ADD COLUMN agent_name TEXT;\nALTER TABLE bf_machine_audit ADD COLUMN sponsor_name TEXT;\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
@@ -429,8 +465,7 @@
     "MAIL_FROM": "",
     "MAIL_RELAY_URL": "",
     "MAIL_ACCOUNT_ID": "",
-    "IDENTITY_PROVIDER": "",
-    "OWNER_EMAIL": ""
+    "IDENTITY_PROVIDER": ""
   },
   "secretNames": [
     "SESSION_SECRET",
