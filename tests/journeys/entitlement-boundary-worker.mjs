@@ -11,6 +11,11 @@ export default {
    if(!env.RER_DEV_KEY||request.headers.get('x-rer-dev-key')!==env.RER_DEV_KEY)return new Response(null,{status:404})
    const input=await request.json()
    if(input.action==='clock')return Response.json(await env.DB.prepare("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now') AS utc").first())
+   if(input.action==='input-custody'){
+    const counts={}
+    for(const store of ['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas'])counts[store]=await env.DB.prepare('SELECT count(*) AS n FROM '+store).first()
+    return Response.json(counts)
+   }
    if(input.action==='collision-insert'&&typeof input.operatorId==='string'){
     await env.DB.prepare("INSERT INTO oa_operators(id,email,display_name,role,status,version,created_at) SELECT 'synthetic-bifocal-normalization-collision',upper(email),'Synthetic collision','member','active',1,created_at FROM oa_operators WHERE id=?").bind(input.operatorId).run()
     return Response.json({ok:true})

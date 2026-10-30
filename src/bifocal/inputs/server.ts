@@ -44,7 +44,7 @@ async function handle(request: Request, original: Bindings): Promise<Response | 
   if (!id) {
    if (request.method !== 'GET' || action) fail('method_not_allowed', 405)
    const tables = (await env.DB.prepare('SELECT id,name FROM bf_input_tables WHERE owner_id=? ORDER BY id LIMIT 100').bind(ownerId).all<{id: string; name: string}>()).results
-   await transact(env.DB, owner, [])
+   await transact(env.DB, owner, tables.map(table => assertion(sql('EXISTS(SELECT 1 FROM bf_input_tables WHERE id=? AND owner_id=? AND name=?)', table.id, ownerId, table.name))))
    return page ? inputDocument('Input tables', viewer, inputList(tables)) : json({tables})
   }
   const table = await env.DB.prepare('SELECT * FROM bf_input_tables WHERE id=? AND owner_id=?').bind(id, ownerId).first<InputTable>()

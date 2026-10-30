@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict'
 import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
-import { proveInputTemplates } from './input-templates.mjs'
+import { proveInputTemplates, proveInputCommitFences } from './input-templates.mjs'
 import { createHash, createHmac } from 'node:crypto'
-import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 
 /** Regional analytical inputs through the actual reviewed import and input doors. */
@@ -94,7 +93,7 @@ export async function proveInputTables(origin,context,page,custody) {
  }
  const extra=await proveInputTemplates({origin,context,page,call,definition,source,owner,shot})
  // Native memberships and sessions are obtained through the real local doors.
- const {reader,persist,environment}=custody
+ const {reader,environment}=custody
  const id='synthetic-bifocal-input-1440',path='/inputs/'+id,beforeAuthority=await call(path)
  const deniedDefinition={id:'synthetic-bifocal-denied',name:'Denied',...definition}
  const schemaMutation={previousSchemaRevision:beforeAuthority.schemaRevision,schema:beforeAuthority.schema}
@@ -191,11 +190,16 @@ export async function proveInputTables(origin,context,page,custody) {
  await call(path,undefined,404);await call(path+'/rows',{...base,previousVersion:3},404)
  for(const [extraPath,state] of extra.states){await call(extraPath,undefined,404);await call(extraPath+'/rows',{rowKey:'1',previousVersion:state.rows[0].version,schemaRevision:state.schemaRevision,...state.rows[0].values},404)}
  // Inspect the independent persisted store, including orphan rows the API could hide.
- const inspect=command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',env:environment,stdio:['ignore','pipe','pipe']}))[0].results
- for(const store of ['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas'])assert.deepEqual(inspect('SELECT count(*) AS n FROM '+store),[{n:0}],store+' retains no orphaned values, notes or history')
+ const inspect=async()=>{
+  const response=await context.request.post(origin+'/__entitlement-fixture',{headers:{'x-rer-dev-key':environment.RER_DEV_KEY},data:{action:'input-custody'}})
+  assert.equal(response.status(),200,await response.text());return response.json()
+ }
+ const inputCounts=await inspect()
+ for(const store of ['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas'])assert.deepEqual(inputCounts[store],{n:0},store+' retains no orphaned values, notes or history')
  const receipt=await call('/erasure-receipts/'+erased.auditId)
  for(const value of [dataset,base.note,owner.email,owner.displayName,'25.50','-10.25'])assert.equal(JSON.stringify(receipt).includes(value),false,'Minimal receipt must not retain erased values')
  for(const value of extra.erasedValues)assert.equal(JSON.stringify(receipt).includes(JSON.stringify(value)),false,'Minimal receipt must not retain added typed values or notes')
+ await proveInputCommitFences({origin,context,call,owner,environment,inspect})
  console.log('Input tables: typed separate USD adjustments, conflicts and attributed history; native member and admin, working analytical grant and machine credential refusal; owner suspension and stale-session refusal; held erasure, independent persisted note and history withdrawal and minimal receipt passed. Assertions at 1440; screens at 1440 and 390.')
 }
 export async function proveConventions(origin, context, page) {

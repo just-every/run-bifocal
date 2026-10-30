@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6f79d62bad787da6f925bd5a91ec709e607815a5b4443318dab48e5d557f9cbc",
+      "sha256": "9f62b6a8110cf34c3dfb31f58282bbc3d1238ad23aa12632536e911d8f877be5",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "007e34fbdbceebed0794479cb73ff9970cce9bc9c9ca1a77d92780eda9712434",
+      "sha256": "7ec1b09c809e4fc22b64983cac97e19a78eed79c5386e7bcb22a231a1bd567a0",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -2989,7 +2989,7 @@
       "executable": false
     },
     "src/bifocal/inputs/server.ts": {
-      "sha256": "070f8f71e5637c42a84ceb9b0ccd8fcd445eacc1cc1e6627f9fe39e73e390aa7",
+      "sha256": "a0a148916a1ce3cca46f693e6d54f6d5e7c096bde00dbd24520675d0f8b6b97c",
       "executable": false
     },
     "src/bifocal/inputs/store.server.ts": {
@@ -5649,7 +5649,7 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "7e8426d99dc1ae0aeb86df97d2053d13c7f483f4716042dffce85febf0d15d6c",
+      "sha256": "b2b5319637c0debb2be7baed1d689b0d7c44607999b9810a894f94794fd265f7",
       "executable": false
     },
     "tests/journeys/cost-controls.mjs": {
@@ -5685,7 +5685,7 @@
       "executable": false
     },
     "tests/journeys/entitlement-boundary-worker.mjs": {
-      "sha256": "836405b2a7ab16413f508c4b80c735cb2dfe548b0a7a6e53fd89f8b5be66168e",
+      "sha256": "59e00daf35e0f2fc6ee5e6e2f3017076e471b8796c3aa9fff807f579ff56b30f",
       "executable": false
     },
     "tests/journeys/entitlement-clock.mjs": {
@@ -5721,7 +5721,7 @@
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
-      "sha256": "3047d70473956c9e8ba028d7ade5a9dde02aece850a6053aaa8d72f1e9a8b6b3",
+      "sha256": "f038f745f356d0472f635e1e7b48100d5ccb825b87d8c9e3a97205cb9362778f",
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {

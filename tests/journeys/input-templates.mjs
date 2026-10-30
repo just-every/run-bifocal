@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 
 /** Extend the existing input journey through browser and authenticated HTTP doors. */
 export async function proveInputTemplates({origin,context,page,call,definition,source,owner,shot}) {
@@ -161,4 +162,124 @@ export async function proveInputTemplates({origin,context,page,call,definition,s
  assert.deepEqual(custom.history[0].before,normalized);assert.deepEqual(custom.history[0].after,edited)
  await unchangedSource();states.push([customPath,custom]);erasedValues.push(valid.memo,edited.memo,'12.50')
  return {states,erasedValues}
+}
+
+/** Public mutations scheduled immediately before the real input transaction. */
+export async function proveInputCommitFences({origin,context,call,owner,environment,inspect}) {
+ const headers={Origin:origin},dataset='synthetic-bifocal-input-fences',id='synthetic-bifocal-fenced-input',path='/inputs/'+id
+ const importing=async(action,data,status=200,sourceId=dataset)=>{
+  const response=await context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':sourceId},data})
+  assert.equal(response.status(),status,await response.text());return response.json()
+ }
+ const importSource=async sourceId=>{
+  const bytes=Buffer.from(JSON.stringify({version:1,datasetId:sourceId,filename:'synthetic-bifocal-2.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:'id,region,amount\n1,West,$100.00\n2,East,$250.00\n'}))
+  const digest=createHash('sha256').update(bytes).digest('hex')
+  const upload=await importing('uploads',{name:'synthetic-bifocal-2.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')},200,sourceId)
+  const plan=await importing('plan',{uploadId:upload.uploadId},200,sourceId)
+  for(let n=0;n<20;n++)if((await importing('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},200,sourceId)).job.state==='completed')return plan
+  assert.fail('Input fence source import did not complete')
+ }
+ const plan=await importSource(dataset)
+ const source=await call('/datasets/'+dataset)
+ const definition={id,name:'Fenced regional inputs',dataset,sourceRevision:source.revision,keyColumn:'id',regionColumn:'region',region:'West',observedColumn:'amount'}
+ const review=await call('/inputs/review',definition)
+ await call('/inputs',{...definition,reviewedDigest:review.digest},201)
+ let state=await call(path)
+ const values={adjustment:'25.50',note:'Retained fence explanation',effectiveOn:'2026-10-01',active:true}
+ const edit=(snapshot,extra={})=>({rowKey:'1',previousVersion:snapshot.rows[0].version,schemaRevision:snapshot.schemaRevision,...values,...extra})
+ await call(path+'/rows',edit(state));state=await call(path)
+ assert.equal(state.rows[0].adjusted,'125.50');assert.equal(state.historyCount,1)
+ const arm=async(at,before,mutation)=>{
+  const cookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join('; ')
+  const response=await context.request.post(origin+'/__entitlement-boundary',{data:{at:'/api/operator'+at,before,cookie,...mutation}})
+  assert.equal(response.status(),200,await response.text())
+ }
+ const revise=async snapshot=>{
+  const schema=structuredClone(snapshot.schema);schema.columns.find(c=>c.name==='note').label='Reviewed explanation'
+  const input={previousSchemaRevision:snapshot.schemaRevision,schema}
+  return {...input,reviewedDigest:(await call(path+'/schema/review',input)).digest}
+ }
+ // A row accepted during schema approval invalidates the exact reviewed rows.
+ const schemaInput=await revise(state),rival=edit(state,{adjustment:'40.00',note:'Winning regional edit'})
+ await arm(path+'/schema','UPDATE bf_input_tables',{path:'/api/operator'+path+'/rows',body:rival})
+ await call(path+'/schema',schemaInput,409)
+ let changed=await call(path)
+ assert.equal(changed.rows[0].adjusted,'140.00');assert.equal(changed.historyCount,2)
+ assert.deepEqual(changed.schemaHistory,state.schemaHistory)
+ assert.deepEqual(changed.history[0].before,state.rows[0].values)
+ assert.equal(changed.history[0].after.adjustment,'40.00')
+ state=changed
+ // Conversely, a committed column definition invalidates an already-admitted row edit.
+ const approved=await revise(state)
+ await arm(path+'/rows','INSERT INTO bf_input_rows',{path:'/api/operator'+path+'/schema',body:approved})
+ await call(path+'/rows',edit(state,{adjustment:'80.00'}),409)
+ changed=await call(path)
+ assert.deepEqual(changed.rows,state.rows);assert.deepEqual(changed.history,state.history)
+ assert.equal(changed.schemaVersion,state.schemaVersion+1);assert.deepEqual(changed.schema,approved.schema)
+ state=changed
+ // A conflicting writer wins once; the stale request cannot overwrite its value or audit.
+ await arm(path+'/rows','INSERT INTO bf_input_rows',{path:'/api/operator'+path+'/rows',body:edit(state,{adjustment:'10.00'})})
+ await call(path+'/rows',edit(state,{adjustment:'90.00'}),409)
+ changed=await call(path)
+ assert.equal(changed.rows[0].adjusted,'110.00');assert.equal(changed.historyCount,state.historyCount+1)
+ assert.equal(changed.history[0].actorId,owner.id);assert.equal(changed.history[0].after.adjustment,'10.00')
+ state=changed
+ // Admission is not authority: revoke a second native session at each input door's final batch.
+ const refusedDefinition={...definition,id:'synthetic-bifocal-revoked-input'}
+ for(const [route,data,before] of [
+  ['/inputs',undefined,'INSERT INTO ik_d1_assertions'],
+  [path,undefined,'INSERT INTO ik_d1_assertions'],
+  ['/inputs/review',refusedDefinition,'INSERT INTO ik_d1_assertions'],
+  ['/inputs',refusedDefinition,'INSERT INTO bf_input_tables'],
+  [path+'/rows',edit(state),'INSERT INTO bf_input_rows'],
+  [path+'/schema',null,'UPDATE bf_input_tables'],
+ ]) {
+  const withdrawn=await context.browser().newContext()
+  try {
+   assert.equal((await withdrawn.request.post(origin+'/__dev/key',{headers,data:{key:environment.RER_DEV_KEY}})).status(),204)
+   assert.equal((await withdrawn.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(owner.email),{maxRedirects:0})).status(),303)
+   const session=await (await withdrawn.request.get(origin+'/auth/session')).json()
+   const local=async(route,data)=>{
+    const response=await withdrawn.request.post(origin+'/api/operator'+route,{headers,data})
+    assert.equal(response.status(),200,await response.text());return response.json()
+   }
+   let body=data
+   if(route==='/inputs'&&data)body={...data,reviewedDigest:(await local('/inputs/review',data)).digest}
+   if(data===null){
+    const schema=structuredClone(state.schema);schema.columns.find(c=>c.name==='note').maxLength=500
+    body={previousSchemaRevision:state.schemaRevision,schema}
+    body={...body,reviewedDigest:(await local(path+'/schema/review',body)).digest}
+   }
+   await arm(route,before,{path:'/auth/session/revoke',body:{sessionId:session.id}})
+   const response=await withdrawn.request.fetch(origin+'/api/operator'+route,{method:body===undefined?'GET':'POST',headers,...body===undefined?{}:{data:body}})
+   assert.equal(response.status(),409,await response.text())
+   assert.deepEqual(await response.json(),{error:'input_conflict'},'Revoked input responses contain no values or table metadata')
+   assert.equal((await withdrawn.request.get(origin+'/auth/session')).status(),401)
+   assert.deepEqual(await call(path),state,'Revocation cannot change input values, column definitions or attributed history')
+   assert.deepEqual((await call('/inputs')).tables,[{id,name:definition.name}])
+  } finally {await withdrawn.close()}
+ }
+ assert.deepEqual(await call('/datasets/'+dataset),source,'Every accepted input change preserves source actuals')
+ // Erasure wins at the input commit boundary, including removal of its value-bearing histories.
+ await arm(path+'/rows','INSERT INTO bf_input_rows',{path:'/api/operator/datasets/'+dataset+'/erase',body:{confirmDataset:dataset,reviewedRevision:source.revision}})
+ await call(path+'/rows',edit(state,{adjustment:'99.00'}),409)
+ assert.deepEqual((await call('/inputs')).tables,[])
+ const erasedCounts=await inspect()
+ for(const store of ['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas'])assert.deepEqual(erasedCounts[store],{n:0},store+' cannot be resurrected by an admitted input edit')
+ await call(path,undefined,404);await call(path+'/rows',edit(state),404)
+ const replay=await importing('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)
+ assert.equal(replay.error,'snapshot_withdrawn')
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404)
+ // A list is also a read of controlled input metadata: an erased name cannot escape it.
+ const listDataset='synthetic-bifocal-input-list-fence'
+ await importSource(listDataset)
+ const listSource=await call('/datasets/'+listDataset)
+ const listDefinition={...definition,id:'synthetic-bifocal-list-fence',name:'Erased regional input name',dataset:listDataset,sourceRevision:listSource.revision}
+ const listReview=await call('/inputs/review',listDefinition)
+ await call('/inputs',{...listDefinition,reviewedDigest:listReview.digest},201)
+ assert.deepEqual((await call('/inputs')).tables,[{id:listDefinition.id,name:listDefinition.name}])
+ await arm('/inputs','INSERT INTO ik_d1_assertions',{path:'/api/operator/datasets/'+listDataset+'/erase',body:{confirmDataset:listDataset,reviewedRevision:listSource.revision}})
+ assert.deepEqual(await call('/inputs',undefined,409),{error:'input_conflict'},'Erasure at the list boundary refuses all withdrawn names')
+ assert.deepEqual((await call('/inputs')).tables,[])
+ console.log('Input commit fences: exact schema and row conflicts, native session revocation on reads and writes, source erasure during edits and listing, and erased import replay refused without value, metadata or history resurrection')
 }
