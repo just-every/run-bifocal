@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "1ebcfc371bd10cf77800dfbef542b112b4d45d6f586cd50d26016fc903901ff5",
+      "sha256": "ac6964f8c1b7a0fb971966ac39c3909315bf11a863959f48b7cae63015a2ea5b",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -570,7 +570,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "6c54f1732090a8a0b817acf1d0a7159ce872f512fcf3b707416d816fa2866ca5",
+      "sha256": "5d95bc8206f16e9a31cfbff24eaa2e4a5c9a2ff81b305a6245bf2914484960a8",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -2206,7 +2206,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/index.server.ts": {
-      "sha256": "ed45b4485b0716323e367a8198128e7f0a18c28f7daead4b8b94334dfd4a1a23",
+      "sha256": "96f92384ec9c1a154e9d90286e820a13f70a940a1896049f1be58ceaa23e09b7",
       "executable": false
     },
     "src/bifocal/agent-door/schemas.ts": {
@@ -5842,7 +5842,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "30ea03849e170b5f4e7a6b2e4e24844a1bdffaff80f4dfdc43c6018fbc39d590",
+      "sha256": "788a4f5631c6b8525b812214849559569a59e09f7d951df8055422b2dcee7182",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -6327,6 +6327,10 @@
     },
     "tests/runtime.mjs": {
       "sha256": "701054ee2bf90b4e1fbba96d2cfc1e43701fc48da29c26b0369aa300ab14cafb",
+      "executable": false
+    },
+    "tests/site/contract-docs.test.mjs": {
+      "sha256": "de401ed1cf182f33ab9219940c1454339b165a928ba31ff5df9b7ca4cf9d93b3",
       "executable": false
     },
     "tests/site/site.test.mjs": {
