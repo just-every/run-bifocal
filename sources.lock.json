@@ -2105,7 +2105,7 @@
       "executable": false
     },
     "src/bifocal/actions/server.ts": {
-      "sha256": "1c5bbd2cf43a23c2e4998439719b5daa66a840bb7395ca01ffa2f3f652ce2e27",
+      "sha256": "4650b3afc9ac73423215ab2a0d0ea02e4847cd72a90b6e60eaba021acdc0e510",
       "executable": false
     },
     "src/bifocal/alerts/erasure.ts": {
@@ -5841,7 +5841,7 @@
       "executable": false
     },
     "tests/journeys/row-actions.mjs": {
-      "sha256": "b8b834b0edf17ba38a2ba4b62ca9894a3354b4f9bc7cf73faafbbaf995fbdc8c",
+      "sha256": "6125e5a7373aad2a98d63b993efb921558804059619a000f77db24b4af8a0116",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {

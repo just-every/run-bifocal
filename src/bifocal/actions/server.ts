@@ -94,7 +94,7 @@ async function handle(request: Request, original: Bindings): Promise<Response | 
     await transact(env.DB, owner, [...guards, sql("INSERT INTO bf_action_receipts(id,owner_id,grant_id,table_id,request_ref,digest,state,created_at) VALUES(?,?,?,?,?,?,'review',?)", id, ownerId, g.id, source.t.id, requestRef, digest, now)])
     r = (await env.DB.prepare('SELECT * FROM bf_action_receipts WHERE id=?').bind(id).first<Receipt>())!
    } else await transact(env.DB, owner, guards)
-   return json({...present(r), provider: g.provider, scope: scopes[g.provider], destination: wire.url, providerTarget: {target: g.target, ...(g.workflow_id ? {workflowId: g.workflow_id} : {})}, payload: wire.body, source: {dataset: source.t.dataset_id, revision: source.t.source_revision, rowKey, inputVersion: v.inputVersion}, notice: 'Review the exact external destination and payload. Nothing has been sent.'})
+   return json({...present(r), provider: g.provider, scope: scopes[g.provider], destination: wire.url, providerTarget: {target: g.target, ...(g.workflow_id ? {workflowId: g.workflow_id} : {})}, payload: wire.body, source: {dataset: source.t.dataset_id, revision: source.t.source_revision, rowKey, inputVersion: v.inputVersion}, notice: r.state === 'review' ? 'Review the exact external destination and payload. Nothing has been sent.' : 'This request reference already has an attempt. Inspect its recorded outcome; a new write is not authorized.'})
   }
   if (!r || v.confirm !== true || v.reviewedDigest !== digest) fail('exact_human_approval_required', 409)
   if (r.state !== 'review') { await transact(env.DB, owner, guards); return json(present(r)) }

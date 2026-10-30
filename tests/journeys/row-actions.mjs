@@ -76,7 +76,9 @@ export async function proveRowActions() {
    release();const receipt=await first;state.gate=null
    assert.equal(receipt.state,'acknowledged');assert.ok(receipt.approvedBy);assert.ok(receipt.approvedAt);assert.ok(receipt.settledAt)
    const links={pegboard:providerOrigins.pegboard+'/api/v1/public/tasks/synthetic-task',orbit:'orbit://records/opportunity/synthetic-deal',happytohelp:providerOrigins.happytohelp+'/api/v1/conversations/synthetic-ticket',crank:providerOrigins.crank+'/api/crank/agent-tasks/synthetic-run'}
-   assert.equal(receipt.sourceLink,links[name]);assert.deepEqual(await call('/row-actions/send',send),receipt)
+   assert.equal(receipt.sourceLink,links[name])
+   const reopened=await call('/row-actions/review',action);assert.equal(reopened.state,receipt.state);assert.equal(reopened.sourceLink,receipt.sourceLink);assert.doesNotMatch(reopened.notice,/Nothing has been sent/)
+   assert.deepEqual(await call('/row-actions/send',send),receipt)
    assert.deepEqual(await call('/row-actions/receipts/'+receipt.id),receipt)
    assert.equal(state.calls.length,before+1);assert.equal(state.effects.filter(e=>e.key===action.requestRef).length,1)
    // Provider revocation is a definite refusal, with no receiver effect.
