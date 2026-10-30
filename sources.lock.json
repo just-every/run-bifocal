@@ -337,7 +337,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6f79d62bad787da6f925bd5a91ec709e607815a5b4443318dab48e5d557f9cbc",
+      "sha256": "5b920011a7bb154bf57adbe4a27b661abaa67728e299845a1b4e26fce25f3ed5",
       "executable": false
     },
     "AGENTS.md": {
@@ -357,7 +357,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "007e34fbdbceebed0794479cb73ff9970cce9bc9c9ca1a77d92780eda9712434",
+      "sha256": "7fbfb773aa1c0e56a5140d35746b0c2d039cff782ade1bebdf4b314491389cea",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -774,6 +774,10 @@
     },
     "migrations/core/0065_query_result_cache.sql": {
       "sha256": "d69ef307a9c8da27aafbc6776485d7284f180f1f384b1b5982f66d5417892231",
+      "executable": false
+    },
+    "migrations/core/0066_input_custody.sql": {
+      "sha256": "868616ad09894778822b3240883fb031dc854838432b9cf001bd77b6030de37e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -2829,7 +2833,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "0c1d0a4614363d1f55d25fca78b56150c1e9882963bf57fcbc7ddd6e2cb0b2a9",
+      "sha256": "0f21c47f15323dc841c3fddb8e7e557e0712a630371acedc8d995a9f009ed861",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -2978,6 +2982,10 @@
     },
     "src/bifocal/imports/models/targets.ts": {
       "sha256": "20ea2700da1d3cf084279bca429a12c94749b2530ddea50387e78d66852cb5d3",
+      "executable": false
+    },
+    "src/bifocal/inputs/erasure.ts": {
+      "sha256": "9524f3995903d52bb361aa748b4456e5333a7de482d92315931dcad9114c3789",
       "executable": false
     },
     "src/bifocal/inputs/pages.ts": {
@@ -5649,7 +5657,7 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "7e8426d99dc1ae0aeb86df97d2053d13c7f483f4716042dffce85febf0d15d6c",
+      "sha256": "da5efc2b6691b1dd83ff3c1900b333a05ac44bc38dfe257e4428be03ae988b55",
       "executable": false
     },
     "tests/journeys/cost-controls.mjs": {
@@ -5721,7 +5729,7 @@
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
-      "sha256": "3047d70473956c9e8ba028d7ade5a9dde02aece850a6053aaa8d72f1e9a8b6b3",
+      "sha256": "d2126fc6cef150946f6ee5a6a181ddf98e9b946981f559ca22af3c3db0e4d866",
       "executable": false
     },
     "tests/journeys/large-exploration.mjs": {

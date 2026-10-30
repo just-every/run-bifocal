@@ -162,3 +162,56 @@ export async function proveInputTemplates({origin,context,page,call,definition,s
  await unchangedSource();states.push([customPath,custom]);erasedValues.push(valid.memo,edited.memo,'12.50')
  return {states,erasedValues}
 }
+
+/** Undo source publication without erasing separately authored analytical input. */
+export async function proveInputUndoCustody({origin,context,page,call,importSource,persist,environment,shot}) {
+ const {execFileSync}=await import('node:child_process')
+ const inspect=command=>JSON.parse(execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','foundation','--local','--persist-to',persist,'--config','wrangler.jsonc','--command',command,'--json'],{encoding:'utf8',env:environment,stdio:['ignore','pipe','pipe']}))[0].results
+ const stores=['bf_input_tables','bf_input_rows','bf_input_history','bf_input_schemas']
+ const snapshot=()=>Object.fromEntries(stores.map(store=>[store,inspect('SELECT * FROM '+store+' ORDER BY rowid')]))
+ const unrelated=snapshot(),dataset='synthetic-bifocal-input-undo',id='synthetic-bifocal-input-retained',path='/inputs/'+id
+ const source=await importSource('100.00',dataset),headers={Origin:origin}
+ const definition={id,name:'Retained regional note',dataset,sourceRevision:source.revision,keyColumn:'id',regionColumn:'region',region:'West',observedColumn:'amount',template:'note-only'}
+ const review=await call('/inputs/review',definition)
+ await call('/inputs',{...definition,reviewedDigest:review.digest},201)
+ const initial=await call(path),note='Retained explanation after source Undo'
+ const edit={rowKey:'1',previousVersion:0,schemaRevision:initial.schemaRevision,note}
+ await call(path+'/rows',edit)
+ const saved=await call(path)
+ assert.equal(saved.rows[0].observed,'100.00');assert.equal(saved.rows[0].values.note,note)
+ assert.equal(saved.history[0].after.note,note)
+ const retained=snapshot(),retention=origin+'/api/operator/retention/'+dataset
+ const protect=async(previousRevision,reviewedDatasetRevision,protection)=>{
+  const response=await context.request.put(retention,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision,previousRevision,...protection,releaseHold:true}})
+  assert.equal(response.status(),200,await response.text());return (await response.json()).revision
+ }
+ let policy=await protect(null,source.revision,{legalHold:true,minimumRetainUntil:null})
+ const history=await context.request.get(origin+'/api/operator/import/history',{headers:{'X-Import-Dataset':dataset}})
+ assert.equal(history.status(),200)
+ const original=(await history.json()).history.find(entry=>entry.state==='completed')
+ assert.ok(original,'A real completed first import can be undone')
+ const undo=await context.request.post(origin+'/api/operator/import/undo',{headers:{...headers,'X-Import-Dataset':dataset},data:{planId:original.planId}})
+ assert.equal(undo.status(),200,await undo.text())
+ await call('/datasets/'+dataset,undefined,404)
+ await call(path,undefined,409);await call(path+'/rows',{...edit,previousVersion:1},409)
+ await call(path+'/schema/review',{previousSchemaRevision:saved.schemaRevision,schema:saved.schema},409)
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app'+path)
+ await page.getByRole('alert').filter({hasText:'source_changed_or_removed'}).waitFor()
+ await shot('undone-source-refusal',1440)
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:null},423)
+ assert.deepEqual(snapshot(),retained,'Undo and a legal hold retain exact input values, before and after history and schemas')
+ policy=await protect(policy,null,{legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z'})
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:null},423)
+ assert.deepEqual(snapshot(),retained,'Minimum retention also protects inputs whose source publication was undone')
+ await protect(policy,null,{legalHold:false,minimumRetainUntil:null})
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},409)
+ assert.deepEqual(snapshot(),retained,'Erasure requires the exact reviewed absent-source state')
+ const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:null})
+ for(const store of stores)assert.equal(erased.stores.find(entry=>entry.store===store)?.rows,1,store+' is counted before explicit erasure')
+ await call(path,undefined,404);await call(path+'/rows',{...edit,previousVersion:1},404)
+ assert.deepEqual(snapshot(),unrelated,'Eligible erasure removes undone-source inputs and preserves every unrelated input')
+ const receipt=await call('/erasure-receipts/'+erased.auditId)
+ assert.equal(JSON.stringify(receipt).includes(note),false)
+ assert.equal(JSON.stringify(receipt).includes('Retained regional note'),false)
+ console.log('Input custody: Undo retains authored values and history; absent sources refuse reads and edits; both retention protections block erasure; exact absent-source erasure removes controlled copies and preserves unrelated inputs.')
+}

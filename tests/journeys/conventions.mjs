@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { proveCostControls } from './cost-controls.mjs'
 import { proveCompanyBrowser } from './company-browser.mjs'
-import { proveInputTemplates } from './input-templates.mjs'
+import { proveInputTemplates, proveInputUndoCustody } from './input-templates.mjs'
 import { createHash, createHmac } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
@@ -10,13 +10,13 @@ import { mkdir } from 'node:fs/promises'
 export async function proveInputTables(origin,context,page,custody) {
  const dataset='synthetic-bifocal-inputs',root=origin+'/api/operator',headers={Origin:origin}
  const call=async(path,data,expected=200)=>{const r=await context.request.fetch(root+path,{method:data===undefined?'GET':'POST',headers,data});assert.equal(r.status(),expected,await r.text());return r.json()}
- const importSource=async(amount='100.00')=>{
-  const envelope={version:1,datasetId:dataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:`id,region,amount\n1,West,$${amount}\n2,East,$250.00\n`}
-  const bytes=Buffer.from(JSON.stringify(envelope)),digest=createHash('sha256').update(bytes).digest('hex'),importHeaders={...headers,'X-Import-Dataset':dataset}
+ const importSource=async(amount='100.00',sourceDataset=dataset)=>{
+  const envelope={version:1,datasetId:sourceDataset,filename:'synthetic-bifocal-1.csv',encoding:'utf-8',delimiter:',',nullValue:'',mode:'replace',key:'id',formulaTreatment:'literal-text',data:`id,region,amount\n1,West,$${amount}\n2,East,$250.00\n`}
+  const bytes=Buffer.from(JSON.stringify(envelope)),digest=createHash('sha256').update(bytes).digest('hex'),importHeaders={...headers,'X-Import-Dataset':sourceDataset}
   const post=async(action,data)=>{const r=await context.request.post(root+'/import/'+action,{headers:importHeaders,data});assert.equal(r.status(),200,await r.text());return r.json()}
   const upload=await post('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
   const plan=await post('plan',{uploadId:upload.uploadId,...(amount!=='100.00'?{catchup:true}:{})})
-  for(let n=0;n<20;n++){const applied=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(applied.job.state==='completed')return call('/datasets/'+dataset)}
+  for(let n=0;n<20;n++){const applied=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(applied.job.state==='completed')return call('/datasets/'+sourceDataset)}
   assert.fail('Input source import did not complete')
  }
  const source=await importSource(),owner=(await (await context.request.get(origin+'/auth/session')).json()).operator
@@ -167,6 +167,7 @@ export async function proveInputTables(origin,context,page,custody) {
   assert.equal((await context.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(owner.email),{maxRedirects:0})).status(),303)
   assert.deepEqual(await call(path),beforeAuthority,'Authority loss and reactivation leave values and attributed history intact')
  }finally{await second.close()}
+ await proveInputUndoCustody({origin,context,page,call,importSource,persist,environment,shot})
  const retention=root+'/retention/'+dataset
  let previousRevision=null
  for(const protection of [{legalHold:true,minimumRetainUntil:null},{legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z'}]){
