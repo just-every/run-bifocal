@@ -23,7 +23,11 @@ export async function questionRuntime(edge,model){
   await rm('dist/server/.wrangler',{recursive:true,force:true})
  }
  try{
+<<<<<<< HEAD
   execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe',maxBuffer:16*1024*1024})
+=======
+  execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:['ignore','inherit','inherit']})
+>>>>>>> 555f02d (Stream migration progress in native verification journeys)
   worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-1@example.test','--var','MAIL_FROM:synthetic-bifocal-2@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`,'--var','AI_ENABLED:true','--var',`AI_MODEL:${model}`,'--var',`AI_BASE_URL:${edge.origin}/v1`,'--var',`AI_API_KEY:${edge.key}`],{env,stdio:['ignore','pipe','pipe']})
   worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
   for(let i=0;i<120;i++){if(worker.exitCode!==null)throw Error('Question Worker exited');try{if((await fetch(origin+'/health')).ok)break}catch{}await new Promise(r=>setTimeout(r,250))}

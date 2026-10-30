@@ -11,7 +11,11 @@ export async function analyticsEdge(persist) {
  const socket=createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
  const analyticsPersist=join(persist,'analytics')
  try {
+<<<<<<< HEAD
   execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',analyticsPersist,'--config','dist/server/wrangler.json'],{stdio:'pipe',maxBuffer:16*1024*1024,env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+=======
+  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',analyticsPersist,'--config','dist/server/wrangler.json'],{stdio:['ignore','inherit','inherit'],env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+>>>>>>> 555f02d (Stream migration progress in native verification journeys)
  } finally {
   // Wrangler migrations can leave scratch beside the emitted config too.
   await rm('dist/server/.wrangler', { recursive: true, force: true })
