@@ -20,6 +20,7 @@ import { displayZone } from './bifocal/company/display-zone'
 const theme = { href: '/app-theme.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ BIFOCAL_ACTION_ORIGINS?: string
  BIFOCAL_VANE_ORIGIN?: string
  DB: D1Database
  /** Built browser files; hosted deploys run the Worker first (staticAssetResponse). */

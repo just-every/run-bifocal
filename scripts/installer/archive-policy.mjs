@@ -171,6 +171,8 @@ export default {
     "ik_targets"
   ],
   "excludeTables": [
+    "bf_action_grants",
+    "bf_action_receipts",
     "bf_portal_activation",
     "bf_portal_tokens",
     "bf_portal_cache",

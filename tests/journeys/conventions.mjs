@@ -98,6 +98,7 @@ export async function proveInputTables(origin,context,page,custody) {
  const deniedDefinition={id:'synthetic-bifocal-denied',name:'Denied',...definition}
  const schemaMutation={previousSchemaRevision:beforeAuthority.schemaRevision,schema:beforeAuthority.schema}
  const deniedMutations=[['/inputs',deniedDefinition],['/inputs/review',deniedDefinition],[path+'/rows',{...base,previousVersion:3}],[path+'/schema/review',schemaMutation],[path+'/schema',{...schemaMutation,reviewedDigest:'unreviewed'}]]
+ for(const route of ['grants/review','grants','review','send','grants/synthetic-grant/revoke'])deniedMutations.push(['/row-actions/'+route,{grantId:'synthetic-grant',rowKey:'1',confirm:true}])
  const refuse=async(client)=>{
   for(const route of ['/inputs',path])assert.equal((await client.request.get(root+route)).status(),401)
   for(const [route,data] of deniedMutations)assert.equal((await client.request.post(root+route,{headers,data})).status(),401)

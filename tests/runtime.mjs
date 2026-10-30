@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { proveReportProvider } from './journeys/report-edge.mjs'
 import { proveContentGovernance } from './journeys/content-governance.mjs'
 import { proveAnalyticsBoundaries } from './journeys/analytics-boundaries.mjs'
+import { proveRowActions } from './journeys/row-actions.mjs'
 import { proveFileImports } from './journeys/file-import.mjs'
 import { proveSpreadsheetEdges } from './journeys/spreadsheet-edge.mjs'
 import { proveConventions } from './journeys/conventions.mjs'
@@ -324,6 +325,7 @@ try {
 }
 
 await proveContentGovernance()
+await proveRowActions()
 
 // Optional local-only proof against this checkout's actual Vite dev entry.
 // The harness starts it with this synthetic gate, never a real browser session.
