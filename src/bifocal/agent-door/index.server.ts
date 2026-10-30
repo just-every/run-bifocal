@@ -29,3 +29,11 @@ export function bifocalAgentDoor(env:Bindings) {
   },
  })
 }
+
+/** Owner-claim trust can be deliberately incomplete during native setup. Only
+ * the agent door depends on it; unrelated native routes retain their own checks. */
+export async function agentDoorResponse(request: Request, env: Bindings): Promise<Response | null> {
+ const path=new URL(request.url).pathname
+ if(!['/mcp','/api/v1/mcp','/api/rer/agent-policy','/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/agents'].includes(path) && !path.startsWith('/agents/')) return null
+ return bifocalAgentDoor(env).handle(request)
+}
