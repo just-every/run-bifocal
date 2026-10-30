@@ -96,13 +96,15 @@ multiple operations and alias amplification across root fields refuse. Schema
 discovery uses the explicit schema route. `JSON` fields preserve exact decimal
 strings and typed query results without conversion to binary floating point.
 
-`POST /api/v1/mcp` implements stateless JSON responses over Streamable HTTP for
-protocol `2025-06-18`: `initialize`, the `initialized` notification in the `notifications` namespace, `ping`,
-the `list` and `call` methods in the `tools` namespace. The `query` tool accepts the same query input and
-returns both text content and `structuredContent` with identical results and
-citations. Tool discovery lists only reviewed query authority; execution requires `query`.
-Claude, ChatGPT and Cursor protocol-edge clients are exercised by the journey;
-no hosted client installation or account qualification is claimed.
+`POST /api/v1/mcp` is an alias of the shared `/mcp` agent door. It negotiates
+`2026-07-28` or `2025-11-25`; send the matching `MCP-Protocol-Version` header
+(and the modern method/name metadata when using the modern era). Tools use
+`bifocal.analytics.query`, `bifocal.analytics.definitions` and
+`bifocal.analytics.status`. The shared handler requires answered company or
+standalone owner policy in addition to the existing exact native read grant.
+The registry describes available verbs; each call still checks its current
+credential's explicit tools and native scope. See [Company agent access](AGENT-ACCESS.md)
+for exact owner binding, capabilities, typed refusals, approvals and audit.
 
 The request limit is 65536 bytes; GraphQL source is limited to 8192 characters.
 Errors contain a stable code without stack, bearer, source-cell contents or
