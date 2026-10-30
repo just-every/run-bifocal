@@ -34,7 +34,11 @@ async function importData(csv, catchup=false) {
 before(async()=>{
  const socket=createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
  origin=`http://127.0.0.1:${port}`;persist=await mkdtemp(join(tmpdir(),'bifocal-charts-'))
+<<<<<<< HEAD
  execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',persist,'--config','dist/server/wrangler.json'],{stdio:'pipe',maxBuffer:16*1024*1024,env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+=======
+ execFileSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','migrations','apply','foundation','--local','--persist-to',persist,'--config','dist/server/wrangler.json'],{stdio:['ignore','inherit','inherit'],env:{...process.env,CI:'1',WRANGLER_SEND_METRICS:'false'}})
+>>>>>>> 555f02d (Stream migration progress in native verification journeys)
  const setup='synthetic-bifocal-12'.repeat(3),installation=createHash('sha256').update('synthetic-bifocal-13').digest('hex')
  worker=spawn(process.execPath,['node_modules/wrangler/bin/wrangler.js','dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1','--config','dist/server/wrangler.json','--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-11@example.test','--var','MAIL_FROM:synthetic-bifocal-12@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-14'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${installation}`],{stdio:['ignore','pipe','pipe']})
  let output='';worker.stdout.on('data',chunk=>output+=chunk);worker.stderr.on('data',chunk=>output+=chunk)
