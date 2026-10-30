@@ -5837,7 +5837,7 @@
       "executable": false
     },
     "tests/journeys/row-action-edge.mjs": {
-      "sha256": "79038151491dc949bdf958883b328bf7c2fbfb4e4fb8109c68db43e350854c4d",
+      "sha256": "e7237ad7a9547e66e6ee799d19cf8cc98502f8d8da18c20adb2e31507186d21b",
       "executable": false
     },
     "tests/journeys/row-actions.mjs": {
