@@ -24,7 +24,8 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
 export type ReadBounds = { deadline?:number; bytes?:number; headers?:Record<string,string>; inspect?:(text:string)=>void }
-export async function providerJson(url: string, accessToken: string, data?: unknown, bounds:ReadBounds = {}): Promise<Record<string, unknown>> {
+export async function providerJson(url: string, accessToken: string, data?: unknown, bounds:ReadBounds | ((text:string)=>void) = {}): Promise<Record<string, unknown>> {
+ if(typeof bounds === 'function')bounds={inspect:bounds}
  const remaining = Math.min(15000, (bounds.deadline ?? Date.now()+15000)-Date.now())
  requireValue(remaining > 0, 'provider_timeout', 502)
  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), remaining)

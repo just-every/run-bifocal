@@ -4,6 +4,7 @@ import {copyFile, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promise
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import test from 'node:test'
+import {parseContract} from '../../src/base/seed-contract.mjs'
 
 test('new agent acceptance entries are fresh after one regeneration',async()=>{
  const root=await mkdtemp(join(tmpdir(),'bifocal-contract-docs-'))
@@ -12,7 +13,11 @@ test('new agent acceptance entries are fresh after one regeneration',async()=>{
   await mkdir(join(root,'src/base'),{recursive:true})
   for(const path of ['scripts/contract-docs.mjs','src/base/seed-contract.mjs','CONTRACT.md'])
    await copyFile(new URL('../../'+path,import.meta.url),join(root,path))
-  const original=await readFile(new URL('../../ACCEPTANCE.md',import.meta.url),'utf8')
+  // Candidate views may await the lander. Keep the fixture summary current
+  // while retaining every unrelated acceptance entry byte for byte.
+  const {counts,clauses}=parseContract(await readFile(new URL('../../CONTRACT.md',import.meta.url),'utf8'))
+  const summary=`Of ${counts.total} BI clauses (${clauses.filter(clause=>clause.kind!=='push-further').length} target and ${clauses.filter(clause=>clause.kind==='push-further').length} push-further), ${counts.done} are done, ${counts.partial} partial and ${counts.missing} missing.`
+  const original=(await readFile(new URL('../../ACCEPTANCE.md',import.meta.url),'utf8')).replace(/Of \d+ BI clauses \([^\n]*?\), \d+ are done, \d+ partial and \d+ missing\./,summary)
   const before=original.split('\n').filter(line=>!line.startsWith('- **BASE-AGENT-')).join('\n')
   await writeFile(join(root,'ACCEPTANCE.md'),before)
   const ids=Array.from({length:13},(_,index)=>`BASE-AGENT-${String(index+1).padStart(3,'0')}`)

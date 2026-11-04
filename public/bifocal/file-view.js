@@ -24,6 +24,10 @@ export function sourceView(source, updatedAt, zone) {
  const container = element('div'); container.append(element('h3', 'Source lineage and interpretation'), metadata(entries))
  if(source.lineage){const line=source.lineage,link=element('a','Open source report or table');link.href=line.link;link.rel='noreferrer';container.append(metadata([['Source kind',line.kind],['Definition',line.description],['Window',line.from+' through '+line.to+' (end exclusive)'],['Reporting timezone',line.timezone],['Observed',stamp(line.observedAt,zone)],['Protocol',line.schema]]),link)}
  if(source.lineage?.stripe){const read=source.lineage.stripe;container.append(metadata([['Account context (unverified)',read.accountContext],['Read completed',stamp(read.completedAt,zone)],['Observed pages',read.pages],['Observed movements',read.rows],['Response bytes',read.bytes],['Observation limits','20 pages; 2,000 movements; 2 MiB; 15 seconds overall; shared file bound'],['Source consistency','Paginated observation; no transactional source snapshot']]))}
+ if (source.smartsheet) {
+  const snapshot=source.smartsheet, link=element('a','Open selected Smartsheet');link.href='https://api.smartsheet.com/2.0/sheets/'+snapshot.sheetId;link.rel='noreferrer'
+  container.append(metadata([['Provider','Smartsheet snapshot'],['Sheet id',snapshot.sheetId],['Sheet version',snapshot.version],['Accounted rows',snapshot.rowIds.length],['Observed',stamp(snapshot.observedAt,zone)],['Protocol','OpenAPI 3.0.3; API 2.0.0'],['Specification SHA-256',snapshot.spec]]),link,table('Selected Smartsheet columns',['Column id','Provider title','Provider type','Native column','Native type'],snapshot.columns.map(column=>[column.id,column.title,column.sourceType,column.name,column.type])))
+ }
  if (source.formulas?.length) container.append(table('Retained formulas (never evaluated)', ['Cell', 'Formula', 'Cached value'], source.formulas.map(row => [row.cell, row.formula, row.cached])))
  return container
 }
