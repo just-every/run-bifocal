@@ -23,7 +23,7 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 }
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
-export async function providerJson(url: string, accessToken: string, data?: unknown): Promise<Record<string, unknown>> {
+export async function providerValue(url: string, accessToken: string, data?: unknown): Promise<unknown> {
  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000)
  try {
   const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json', ...(data === undefined ? {} : {'content-type':'application/json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
@@ -35,10 +35,15 @@ export async function providerJson(url: string, accessToken: string, data?: unkn
   const text = await boundedText(response.body, 1048576, 'provider_response_limit')
   const result: unknown = JSON.parse(text)
   requireValue(!text.includes(accessToken) && !JSON.stringify(result).includes(accessToken), 'provider_credential_in_response', 502)
-  requireValue(object(result), 'provider_schema_mismatch', 502)
   return result
  } catch(error) {
   if(error instanceof RangeError) throw error
   throw new AnalyticsError(controller.signal.aborted ? 'provider_timeout' : 'provider_response_unavailable', 502)
  } finally { clearTimeout(timeout) }
+}
+
+export async function providerJson(url: string, accessToken: string, data?: unknown): Promise<Record<string, unknown>> {
+ const result = await providerValue(url, accessToken, data)
+ requireValue(object(result), 'provider_schema_mismatch', 502)
+ return result
 }
