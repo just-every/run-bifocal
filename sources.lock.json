@@ -2986,11 +2986,11 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/hex.ts": {
-      "sha256": "fad561c87cde95b49b98f151b8c037a803d32b5c1f8d7ec4a9d3066c5906575f",
+      "sha256": "95b304843dc783a096bbd29887b3182edb70f44a550ac375a371574a3fb20192",
       "executable": false
     },
     "src/bifocal/imports/migrations/safety.ts": {
-      "sha256": "6b9fe2beea4671bf736dc4080cab475b1019a114b195b04d6df34ae93501b653",
+      "sha256": "7e507a3cc8b60a6b8ca99b5dddbfdb5930bdbf39ce0c14fc6398d28891e21a69",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {
@@ -6254,7 +6254,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "6b37b4b5be1adc1d41ffc1f3b336e8faf953fdfa358fa5981229824c03644a94",
+      "sha256": "071046b59c4c70c016b9f02b88605d50998adf0102092e5a72e9863a7355811d",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {

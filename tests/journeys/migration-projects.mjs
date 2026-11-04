@@ -70,19 +70,21 @@ async function proveHexMigration({origin,context,call,page,proveScreen,persist})
  const id='synthetic-bifocal-hex',base='/migration-projects/'+id,headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
  const ids=['00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000005','00000000-0000-4000-8000-000000000006']
  const missing='00000000-0000-4000-8000-000000000099'
- const root={schemaVersion:3,meta:{projectId:'10000000-0000-4000-8000-000000000001',sourceVersionId:'20000000-0000-4000-8000-000000000001',title:'Synthetic Hex intake',codeLanguage:'PYTHON',kernelImage:'python-synthetic-bifocal',timezone:'UTC'},projectAssets:{dataConnections:[{dataConnectionId:'30000000-0000-4000-8000-000000000001'}],envVars:[{name:'BIFOCAL_REGION',value:'West'}]},sharedAssets:{vcsPackages:[{vcsPackageId:'40000000-0000-4000-8000-000000000001'}],secrets:[{secretName:'synthetic-bifocal-reference'}]},cells:[
+ const root={schemaVersion:3,meta:{projectId:'10000000-0000-4000-8000-000000000001',sourceVersionId:'20000000-0000-4000-8000-000000000001',title:'Synthetic Hex intake',codeLanguage:'PYTHON',kernelImage:'python-synthetic-bifocal',timezone:'UTC'},projectAssets:{dataConnections:[{dataConnectionId:'30000000-0000-4000-8000-000000000001'}],envVars:[{name:'BIFOCAL_REGION',value:'West'},{name:'PASSPHRASE',value:''},{name:'AUTHORIZATION',value:''}]},sharedAssets:{vcsPackages:[{vcsPackageId:'40000000-0000-4000-8000-000000000001'}],secrets:[{secretName:'synthetic-bifocal-reference'}]},cells:[
   {cellId:ids[0],cellType:'SQL',config:{source:'select amount from sales where region = {{ region }}',resultVariableName:'sales',dataConnectionId:'30000000-0000-4000-8000-000000000001'}},
-  {cellId:ids[1],cellType:'CODE',config:{source:'import synthetic_bifocal_missing_package\nfrom os import system\nresult = sales[globals()["column"]]\nsystem("synthetic-bifocal-must-never-execute")'}},
-  {cellId:ids[2],cellType:'MARKDOWN',config:{source:'<script>globalThis.syntheticHexExecuted=true</script><img src="/__hex-executed"> {{ result }}'}},
+  {cellId:ids[1],cellType:'CODE',config:{source:'import synthetic_bifocal_missing_package\nfrom os import system\nvalues = [1, 2]\nexpanded = [*values]\nreference = "https://example.test/data?region=West"\nresult = sales[globals()["column"]]\nsystem("synthetic-bifocal-must-never-execute")'}},
+  {cellId:ids[2],cellType:'MARKDOWN',config:{source:'Some *emphasis* and **strong** text. [Guide](https://example.test/guide?topic=syntax) <script>globalThis.syntheticHexExecuted=true</script><img src="/__hex-executed"> {{ result }}'}},
   {cellId:ids[3],cellType:'CHART',config:{vegaSpec:{data:{name:'result'},mark:'bar',encoding:{x:{field:'region'},y:{field:'amount'}}}}},
   {cellId:ids[4],cellType:'INPUT',config:{name:'region',inputType:'TEXT_INPUT',outputType:'STRING'}},
-  {cellId:ids[5],cellType:'TEXT',config:{richText:[{type:'paragraph',children:[{text:'Synthetic original text'}]}]}},
+  {cellId:ids[5],cellType:'TEXT',config:{richText:[{type:'paragraph',children:[{text:'*Quoted emphasis* and &ordinary text'}]}]}},
  ],dataAppCellIds:[ids[1]],appLayout:{fullWidth:true,tabs:[{name:'Original app',rows:[{columns:[{start:0,end:120,elements:[{type:'CELL',cellId:ids[4]},{type:'CELL',cellId:ids[3]},{type:'CELL',cellId:missing}]}]}]}]}}
  const original=Buffer.from('\ufeff'+dump(root,{noRefs:true,lineWidth:-1}),'utf8'),filename='synthetic-bifocal-hex.hex.yaml'
  const inputFor=(bytes=original)=>({version:1,projectId:id,source:'hex',format:'hex-yaml',filename,base64:bytes.toString('base64'),cutoff:'2026-11-04T07:00:00Z',rollbackPlan:'Keep the incumbent active until independently reconciled and explicitly approved.'})
  const post=async(action,data,status=200)=>{const response=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(response.status(),status,await response.text());return response.json()}
+ const refusedUploads=[]
  const upload=async(bytes,expected=200)=>{
   const payload=Buffer.from(JSON.stringify(inputFor(bytes))),hash=createHash('sha256').update(payload).digest('hex'),chunks=Math.ceil(payload.length/65536);let result
+  if(expected===422)refusedUploads.push(hash)
   for(let index=0;index<chunks;index++){const chunk=payload.subarray(index*65536,(index+1)*65536);result=await post('uploads',{...(result?{uploadId:result.uploadId}:{}),name:'hex-project.json',bundleSha256:hash,totalBytes:payload.length,totalChunks:chunks,index,chunkSha256:createHash('sha256').update(chunk).digest('hex'),base64:chunk.toString('base64')},index===chunks-1?expected:200)}
   return result
  }
@@ -148,13 +150,34 @@ async function proveHexMigration({origin,context,call,page,proveScreen,persist})
  const secrets=['synthetic-bifocal-701','synthetic-bifocal-702','synthetic-bifocal-703','synthetic-bifocal-704']
  const planted=[]
  for(let i=0;i<4;i++){const source=structuredClone(root);if(i===0)source.projectAssets.dataConnections[0].password=secrets[i];if(i===1)source.cells[1].config.source='api_key = "'+secrets[i]+'"';if(i===2)source.projectAssets.envVars=[{name:'ACCESS_TOKEN',value:secrets[i]}];if(i===3)source.cells[2].config.source='authorization%3D%22'+secrets[i]+'%22';planted.push(Buffer.from(dump(source)))}
+ // Exercise credential names carried as data and literal URLs embedded in both source and prose.
+ for(const name of ['PASSPHRASE','AUTHORIZATION']){
+  const source=structuredClone(root),credential='synthetic-bifocal-'+(705+secrets.length);secrets.push(credential)
+  source.projectAssets.envVars=[{name,value:credential}];planted.push(Buffer.from(dump(source)))
+ }
+ for(const cellType of ['CODE','MARKDOWN'])for(const queryName of ['api_key','api-key','%61pi%5fkey']){
+  const source=structuredClone(root),credential='synthetic-bifocal-'+(705+secrets.length);secrets.push(credential)
+  const address='https://example.test/data?'+queryName+'='+credential
+  source.cells[cellType==='CODE'?1:2].config.source=cellType==='CODE'?'response = fetch("'+address+'")':'[Source data]('+address+')'
+  planted.push(Buffer.from(dump(source)))
+ }
  planted[0]=Buffer.concat([planted[0],Buffer.from('\n# '+'synthetic-bifocal-padding '.repeat(3500))])
- for(const bytes of planted){const refusal=await upload(bytes,422);assert.equal(refusal.error,'migration_secret_refused');assert.ok(!JSON.stringify(refusal).includes('synthetic-bifocal-70'));assert.deepEqual(await call(base),current)}
+ for(const bytes of planted){const refusal=await upload(bytes,422);assert.equal(refusal.error,'migration_secret_refused');for(const credential of secrets)assert.ok(!JSON.stringify(refusal).includes(credential));assert.deepEqual(await call(base),current)}
  await call(base+'/edit',{reviewedRevision:current.revision,itemId:'cell-'+ids[0],native:'password = "'+secrets[0]+'"'},422);assert.deepEqual(await call(base),current)
+ // Scalar stars remain safe, while actual YAML graphs and executable tags remain refused.
+ for(const suffix of ['\nsharedFilters: &synthetic-bifocal [*synthetic-bifocal]\n','\nsharedFilters: &synthetic-bifocal []\n','\nsharedFilters: !!js'+'/'+'function function() {}\n']){
+  const refusal=await upload(Buffer.concat([original,Buffer.from(suffix)]),422);assert.equal(refusal.error,'hex_yaml_required');assert.deepEqual(await call(base),current)
+ }
+
  const files=await readdir(persist,{recursive:true}),sqlite=files.filter(file=>file.endsWith('.sqlite'))
  let inspected=false;const custodyDatabases=[]
  for(const file of sqlite){const db=new DatabaseSync(join(persist,file),{readOnly:true});try{
   if(!db.prepare("SELECT 1 FROM sqlite_master WHERE name='ik_door_uploads'").get())continue;inspected=true;custodyDatabases.push(file)
+  for(const hash of refusedUploads){
+   assert.equal(db.prepare('SELECT count(*) AS n FROM ik_door_uploads WHERE bundle_sha256=?').get(hash).n,0,'Refused upload metadata purged')
+   assert.equal(db.prepare('SELECT count(*) AS n FROM ik_door_plans WHERE bundle_sha256=?').get(hash).n,0,'Refused original cannot enter retained plan history')
+  }
+  assert.equal(db.prepare('SELECT count(*) AS n FROM ik_door_chunks c LEFT JOIN ik_door_uploads u ON c.upload_id=u.id WHERE u.id IS NULL').get().n,0,'No orphan refused upload chunks remain')
   for(const {name:table} of db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'ik_%' OR name LIKE 'bf_migration_%')").all()){
    if(!db.prepare('SELECT 1 FROM sqlite_master WHERE name=?').get(table))continue
    for(const row of db.prepare('SELECT * FROM '+table).all())for(const value of Object.values(row))if(typeof value==='string'){
@@ -188,6 +211,8 @@ async function proveHexMigration({origin,context,call,page,proveScreen,persist})
  console.log('PROBE BIF-049 original intake: browser /app/import -> six ordered cell definitions, exact original bytes and schema and source version identifiers retained inactive')
  console.log('PROBE BIF-049 diagnostics: missing layout reference, Python packages and dynamic dependencies -> exact source locations and concrete unresolved tasks; stored outputs unverified')
  console.log('PROBE BIF-049 deltas: stable IDs, stale approval and conflicting native edits -> preserved native definition; plain source Undo restores exact prior inventory')
- console.log('PROBE BIF-049 custody: four planted secret forms including chunked upload -> 422, purged upload copies, redacted response and no persisted credentials')
+ console.log('PROBE A safe intake: /app/import with Python [*values], Markdown emphasis and quoted rich text -> reviewed and applied; exact original bytes downloadable; actual YAML graphs refused')
+ console.log('PROBE B environment refusal: import uploads with nonempty PASSPHRASE and AUTHORIZATION -> 422 migration_secret_refused, upload copies purged, unchanged retained project and no persisted credentials')
+ console.log('PROBE B literal refusal: import uploads with API-key URLs embedded in Python and Markdown -> 422 migration_secret_refused, upload copies purged, redacted diagnostics and unchanged retained project')
  console.log('PROBE BIF-049 authority and erasure: member, machine and foreign requests refused; eligible erasure withdraws originals, project and history; replay is 410')
 }

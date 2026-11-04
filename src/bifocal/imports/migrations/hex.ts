@@ -28,10 +28,14 @@ export function readHex(value:Record<string,unknown>){
  let document:string,root:unknown,depth=0
  try{
   document=new TextDecoder('utf-8',{fatal:true}).decode(bytes)
-  // Refuse aliases rather than ever expand a YAML graph. JSON schema admits no executable YAML tags.
-  if(/(^|[\s,[{])[*&][A-Za-z0-9_-]+/m.test(document))throw Error('alias')
   assertMigrationSafe(document)
-  root=load(document,{schema:JSON_SCHEMA,listener(event){if(event==='open'&&++depth>48)throw Error('depth');if(event==='close')depth--}})
+  // Inspect parser anchors, not scalar text: Python unpacking and Markdown emphasis are ordinary source.
+  // Refuse an anchored scalar at close, or a collection before its first child can resolve an alias.
+  root=load(document,{schema:JSON_SCHEMA,listener(event,state){
+   const graph=state as typeof state & {anchor:string|null;anchorMap:Record<string,unknown>}
+   if(Object.keys(graph.anchorMap).length||event==='close'&&graph.anchor!==null)throw Error('alias')
+   if(event==='open'&&++depth>48)throw Error('depth');if(event==='close')depth--
+  }})
  }catch(error){if(error instanceof Error&&error.message==='migration_secret_refused')throw error;throw migrationRefusal('hex_yaml_required')}
  assertMigrationSafe(root)
  if(!record(root)||root.schemaVersion!==3||!record(root.meta)||typeof root.meta.title!=='string'||!['PYTHON','R'].includes(String(root.meta.codeLanguage))||!Array.isArray(root.cells)||!root.cells.length||root.cells.length>90)throw migrationRefusal('hex_schema_v3_required')
