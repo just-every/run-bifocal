@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "1d96aefd34ed92d1450d00b40dd13b76af0edfe49641687ac37d830bd93b03d4",
+      "sha256": "e180069fffa25653a95b92c23473e5f74dbfe5dca863561cb15418cf8df17b2e",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -1070,7 +1070,7 @@
       "executable": false
     },
     "public/bifocal/looker-reconstruction.js": {
-      "sha256": "ee067bcc2c93a588823d105b6ebb81167d464f1dd4d947ff50771f71a7f2800a",
+      "sha256": "d631927999df306dab769e6e7ee17107f9e75e17a58b570d2ff1ce1d97a6891f",
       "executable": false
     },
     "public/bifocal/model-import.css": {
@@ -2974,7 +2974,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/compile.ts": {
-      "sha256": "faffe7cc494084298403086aa852ef60bd68fddc2123329209b55dc2833f4a95",
+      "sha256": "8edd7b1abc3c638f7923c316c18a4abdeaf32b1e353a204a6cbd9c7e5ced10f0",
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
@@ -2986,11 +2986,11 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/form.ts": {
-      "sha256": "4f1a27961440033a3a84d5aa9ef4c5236c7ede57cb63a6118c96611b84dc3ab9",
+      "sha256": "321d6ca61250afa58ec03de0a46cb3f996ba3a6765957384a1631813ebba6984",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/manifest.ts": {
-      "sha256": "c7c0180b2a7e5d881c97dae1fccd59d143f29e2ea822b1ce507aee3c46f85c99",
+      "sha256": "2df357a668fd9ac81307533e387a45344684482f3234ecab5f99ffde1bed86ea",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/review.server.ts": {
@@ -6258,7 +6258,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "cd6effd2184990c59b71dced23128a8598ec83af38267a8f4acf19daeb47d5a7",
+      "sha256": "43991bc7fce56a67d5bd3d0f65e399206fc9521e0db8c649e32392734ab52f3d",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {

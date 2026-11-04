@@ -14,7 +14,7 @@ export function item(value:unknown):InventoryItem{
  if(!['data','metric','dashboard','parameter','schedule','folder','permission','identity','schema','load-script','association','set-analysis','sheet','bookmark','calculation','page','data-source','field','blend','parameter','filter','layout','sharing','delivery'].includes(text(v.kind,32)))fail('migration_item_kind_required',400)
  const sourceRevision=text(v.sourceRevision,128);if(!sourceRevision)fail('migration_source_revision_required',400)
  // These are inert original descriptions. No expression, script or grant executes.
- return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original,v.kind==='schema'?524288:8192),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
+ return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original,v.kind==='schema'?786432:8192),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
 }
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
 export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null):MigrationProject{

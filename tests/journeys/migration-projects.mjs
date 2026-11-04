@@ -104,7 +104,8 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  await page.getByRole('button',{name:'Start reconstruction guide',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Guide started'}).waitFor()
  assert.equal(await page.getByLabel('page status',{exact:true}).inputValue(),'inaccessible')
  for(const evidence of input.evidence){await page.getByLabel(evidence.kind+' status',{exact:true}).selectOption(evidence.status);await page.getByLabel(evidence.kind+' original',{exact:true}).fill(evidence.original)}
- await page.getByLabel('Original evidence files',{exact:true}).setInputFiles({name:'owner-notes.txt',mimeType:'text/plain',buffer:Buffer.from(input.originals[0].content)})
+ const opaqueCapture=Buffer.from([37,80,68,70,45,49,46,55,10,0,255,16])
+ await page.getByLabel('Original evidence files',{exact:true}).setInputFiles([{name:'owner-notes.txt',mimeType:['text','plain'].join('/'),buffer:Buffer.from(input.originals[0].content)},{name:'owner-capture.pdf',mimeType:['application','pdf'].join('/'),buffer:opaqueCapture}])
  await page.getByLabel('Inactive native document (JSON)',{exact:true}).fill(JSON.stringify(document,null,2))
  await page.getByRole('button',{name:'Review reconstruction import',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Review the exact reconstruction plan'}).waitFor()
  await page.getByText('Inspect plan and retained source definitions',{exact:true}).click()
@@ -119,7 +120,7 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  assert.match(await page.getByRole('table',{name:'Reconstructed native values'}).innerText(),/West.*9.98.*1/s)
  await page.getByRole('button',{name:'Confirm exact native preview',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Exact native preview confirmed'}).waitFor()
  await capture('looker-reconstruction-native-preview')
- await page.getByRole('button',{name:'Inspect retained originals',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Retained originals inspected'}).waitFor();assert.match(await page.locator('#looker-original-text').textContent(),/Self-authored inspection specimen/);await page.locator('#looker-original-view summary').click()
+ await page.getByRole('button',{name:'Inspect retained originals',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Retained originals inspected'}).waitFor();assert.match(await page.locator('#looker-original-text').textContent(),/owner-capture\.pdf/);await page.locator('#looker-original-view summary').click()
  const browserEdit=structuredClone(document);browserEdit.definition.views[0].query.context.metricVersion='owner-browser-edit'
  await page.getByLabel('Reconstruction item',{exact:true}).selectOption('native-page');await page.getByLabel('Edited reconstruction item',{exact:true}).fill(JSON.stringify(browserEdit));await page.getByRole('button',{name:'Save inactive edit',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Inactive edit saved'}).waitFor()
  current=await call(base);assert.deepEqual(JSON.parse(current.items.find(i=>i.source.id==='native-page').native),browserEdit)
@@ -129,7 +130,7 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  const history=await context.request.get(origin+'/api/operator/import/history',{headers}),initialPlan=(await history.json()).history[0].planId
  // Inspect retained original bytes through the shared custody door.
  const readOriginal=async p=>{const r=await context.request.get(origin+'/api/operator/import/original/'+p,{headers});assert.equal(r.status(),200);return (await r.json()).originals}
- const original=await readOriginal(initialPlan);assert.equal(original.length,1);assert.equal(JSON.parse(Buffer.from(original[0].original.base64,'base64').toString()).originals[0].content,input.originals[0].content)
+ const original=await readOriginal(initialPlan);assert.equal(original.length,1);const retainedFiles=JSON.parse(Buffer.from(original[0].original.base64,'base64').toString()).originals;assert.equal(Buffer.from(retainedFiles[0].base64,'base64').toString(),input.originals[0].content);assert.deepEqual(Buffer.from(retainedFiles[1].base64,'base64'),opaqueCapture);assert.equal(retainedFiles[1].name,'owner-capture.pdf')
  // Every unsupported or missing field is retained in one complete diagnostic.
  const broken=structuredClone(document);broken.definition.views[0].query.groupBy=['missing-a','missing-b']
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(broken)},200)

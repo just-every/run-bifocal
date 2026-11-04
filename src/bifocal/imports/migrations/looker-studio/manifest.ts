@@ -19,7 +19,17 @@ export function reconstructionItems(value:unknown):InventoryItem[] {
  const link=new URL(text(v.reportUrl,1024))
  if(link.protocol!=='https:'||link.hostname!=='lookerstudio.google.com'||link.username||link.password||link.search||link.hash||!/^\/reporting\/[a-zA-Z0-9_-]+(?:\/page\/[a-zA-Z0-9_-]+)?\/?$/.test(link.pathname))fail('looker_report_link_required',400)
  if(!Array.isArray(v.originals)||!v.originals.length||v.originals.length>12||!Array.isArray(v.evidence)||v.evidence.length>70||!Array.isArray(v.drafts)||v.drafts.length>12)fail('looker_manifest_bounds',400)
- const originals=v.originals.map(value=>{const file=object(value);exactKeys(file,['name','content']);const name=text(file.name,128);if(!/^[a-zA-Z0-9_. -]+$/.test(name))fail('looker_original_name_required',400);return {name,content:text(file.content,32768)}})
+ const originals=v.originals.map(value=>{
+  const file=object(value);exactKeys(file,['name','content','base64','mediaType'])
+  const name=text(file.name,128);if(!/^[a-zA-Z0-9_. -]+$/.test(name))fail('looker_original_name_required',400)
+  if(file.base64===undefined){if(file.mediaType!==undefined)fail('looker_original_encoding_required',400);const content=text(file.content,32768);if(new TextEncoder().encode(content).length>32768)fail('looker_original_too_large',413);return {name,content}}
+  if(file.content!==undefined)fail('looker_original_encoding_ambiguous',400)
+  const base64=text(file.base64,43692),mediaType=text(file.mediaType,128)
+  if(!/^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(mediaType))fail('looker_original_media_type_required',400)
+  let bytes:string;try{bytes=atob(base64)}catch{fail('looker_original_encoding_required',400)}
+  if(bytes.length>32768||btoa(bytes)!==base64)fail('looker_original_encoding_required',400)
+  return {name,base64,mediaType}
+ })
  const evidence=v.evidence.map(evidenceInput)
  if(new Set(evidence.map(e=>e.id)).size!==evidence.length)fail('looker_duplicate_evidence',400)
  for(const kind of evidenceKinds)if(!evidence.some(e=>e.kind===kind))evidence.push({id:'missing-'+kind,kind,sourceRevision:'omitted',sourceLocation:link.href,status:'inaccessible',original:'Not supplied by the owner. Capture this definition or explicitly document its absence.'})
