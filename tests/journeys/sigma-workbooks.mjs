@@ -50,6 +50,42 @@ export async function proveSigmaWorkbooks({origin,context,page,call,upload,prove
  const [createdResponse]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/model-authoring/create')),page.getByRole('button',{name:'Save reviewed native draft',exact:true}).first().click()]);assert.equal(createdResponse.status(),201);const created=await createdResponse.json();await page.getByRole('status').filter({hasText:'Sigma native draft saved'}).waitFor();await screen('sigma-native-draft','#sigma-current > section')
  const branch='/models/'+created.modelId+'/branches/'+created.branchId,validation=await call(branch+'/validate',{},200),snapshot=await call(branch+'/preview',{viewId:draft.definition.views[0].id,digest:validation.digest})
  assert.equal(snapshot.answer.totals.revenue.value,'85.05');assert.equal(snapshot.productionSends,0);assert.equal(snapshot.sourceWrites,0)
+ // Sigma CountDistinct excludes both empty text and null, per its documented
+ // semantics: https://help.sigmacomputing.com/docs/countdistinct
+ // A nonempty null marker preserves the distinction through the public file door.
+ const distinctDataset='synthetic-bifocal-sigma-empty',distinctId='synthetic-bifocal-sigma-count'
+ await upload(distinctDataset,'invoice,customer,region,revenue\n1,a,West,$100.10\n2,,West,-$20.05\n3,NULL,West,NULL\n4,,East,$7.00\n5,NULL,East,NULL\n6, ,Other,$5.00\n',false,{nullValue:'NULL'})
+ const distinctSource=await call('/datasets/'+distinctDataset)
+ assert.deepEqual(distinctSource.table.rows.map(r=>r[1]),['a','',null,'',null,' '])
+ const distinctDoc=structuredClone(document);distinctDoc.contents.elements=distinctDoc.contents.elements.slice(0,2);distinctDoc.contents.pages=distinctDoc.contents.pages.slice(0,1);distinctDoc.contents.layout='<Layout><Page id="summary"><Element elementId="revenue-table"/><Element elementId="region-control"/></Page></Layout>'
+ const distinctMapping=structuredClone(reconstruction);distinctMapping.bindings['revenue-table'].dataset=distinctDataset;distinctMapping.bindings['revenue-table'].revision=distinctSource.revision
+ const distinctPost=async(action,data)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,'X-Import-Dataset':distinctId},data});assert.equal(r.status(),200,await r.text());return r.json()}
+ for(const [region,count,revenue,filtered] of [['West','1','80.05',3],['East','0','7.00',2],['Other','1','5.00',1],['Missing','0',null,0]]){
+  distinctDoc.contents.elements[1].value=region;distinctDoc.documentVersion++
+  const bytes=Buffer.from(JSON.stringify(envelope(distinctDoc,distinctMapping,distinctId))),hash=createHash('sha256').update(bytes).digest('hex')
+  const uploadResult=await distinctPost('uploads',{name:'synthetic-bifocal-1.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')})
+  const distinctPlan=await distinctPost('plan',{uploadId:uploadResult.uploadId,...(region==='West'?{}:{catchup:true})})
+  assert.equal(distinctPlan.counts.rejected,0)
+  for(let i=0;i<20;i++){const result=await distinctPost('apply',{planId:distinctPlan.planId,reviewedFingerprint:distinctPlan.fingerprint});if(result.job.state==='completed')break;assert.ok(i<19)}
+  assert.equal((await distinctPost('reconcile',{planId:distinctPlan.planId})).ok,true)
+  const project=await call('/migration-projects/'+distinctId),definition=project.sigma.drafts.find(d=>d.element==='revenue-table').definition
+  const input={document:JSON.stringify(definition),migrationProject:distinctId,migrationRevision:project.revision,migrationElement:'revenue-table'}
+  const review=await call('/model-authoring/review',input,200),actual=review.impacts[0].answer
+  console.log('PROBE BIF-048 A: public Sigma import and native review, '+region+' -> distinct '+actual.totals.customers.value+', USD '+actual.totals.revenue.value+', rows '+actual.filteredRows)
+  assert.equal(actual.totals.customers.value,count,'Sigma CountDistinct excludes empty strings and nulls, preserving whitespace')
+  assert.equal(actual.totals.revenue.value,revenue,'CountDistinct exclusion must not filter the SUM input')
+  assert.equal(actual.filteredRows,filtered)
+  const saved=await call('/model-authoring/create',{...input,reviewedDigest:review.digest})
+  const path='/models/'+saved.modelId+'/branches/'+saved.branchId,validated=await call(path+'/validate',{},200)
+  const preview=await call(path+'/preview',{viewId:definition.views[0].id,digest:validated.digest})
+  assert.equal(preview.answer.totals.customers.value,count)
+  assert.equal(preview.answer.totals.revenue.value,revenue)
+  // Ordinary native distinct retains its existing empty-text behavior.
+  const nativeDefinition=structuredClone(definition);delete nativeDefinition.views[0].query.measures.find(m=>m.id==='customers').excludeEmpty
+  const nativeReview=await call('/model-authoring/review',{document:JSON.stringify(nativeDefinition)},200)
+  assert.equal(nativeReview.impacts[0].answer.totals.customers.value,region==='West'?'2':region==='East'?'1':count)
+ }
+ const distinctCurrent=await call('/datasets/'+distinctDataset);await call('/datasets/'+distinctDataset+'/erase',{confirmDataset:distinctDataset,reviewedRevision:distinctCurrent.revision},200)
  const original=await post('original/'+plan.planId);assert.deepEqual(JSON.parse(Buffer.from(original.originals[0].original.base64,'base64').toString()).sigma,{filename:'synthetic-bifocal-workbook.yaml',content:dump(document,{noRefs:true})})
  // Credentials never enter retained original custody or create a history row.
  const secret=envelope();secret.sigma.content=dump({...document,password:'synthetic-bifocal-1'});const bytes=Buffer.from(JSON.stringify(secret)),hash=createHash('sha256').update(bytes).digest('hex'),beforeHistory=await post('history')

@@ -51,7 +51,7 @@ export function reconstructSigma(code: unknown, manifest: unknown, sources: Sour
    const refs = formula ? names.get(formula[2]) ?? [] : [], format = requested[String(c.id)]
    if (!formula || refs.length !== 1 || !mapped.has(refs[0])) { add('elements.' + id + '.columns.' + c.id, 'Formula or dependency is unresolved. Only SUM and CountDistinct over one mapped sibling physical field can yield a draft.'); continue }
    if (!record(format) || Object.keys(format).some(k => !['id', 'unit', 'scale', 'sourceCurrency'].includes(k))) { add('bindings.' + id + '.measures.' + c.id, 'Supply an explicit native measure identity and exact format.', true); continue }
-   measures.push({ ...format, op: formula[1].toLowerCase() === 'sum' ? 'sum' : 'count-distinct', column: mapped.get(refs[0]), ...(formula[1].toLowerCase() === 'sum' ? { empty: 'null' } : {}) } as Measure)
+   measures.push({ ...format, op: formula[1].toLowerCase() === 'sum' ? 'sum' : 'count-distinct', column: mapped.get(refs[0]), ...(formula[1].toLowerCase() === 'sum' ? { empty: 'null' } : { excludeEmpty: true }) } as Measure)
   }
   for (const key of Object.keys(requested)) if (!columns.some(c => c.id === key && !mapped.has(key))) add('bindings.' + id + '.measures.' + key, 'Measure mapping does not identify a source calculation.')
   const grouped = binding.groupBy

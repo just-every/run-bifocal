@@ -123,6 +123,7 @@ export function execute(query: Query, sources: Source[], context: Context, captu
    }
    const refs = m.op === 'ratio' ? [m.numerator!,m.denominator!] : m.op === 'weighted-average' ? [m.column!,m.weight!] : m.column ? [m.column] : []
    if (refs.some(ref => get(row,ref) === null)) { nulls++; continue }
+   if (m.excludeEmpty && get(row,m.column!) === '') { excluded++; continue }
    nonnull++
    if (m.op === 'count') n = add(n,rational(1n))
    else if (m.op === 'count-distinct') { const raw = get(row,m.column!); const k = ['number','money'].includes(col(m.column!).type) ? key({n:decimal(raw).numerator.toString(),d:decimal(raw).denominator.toString()}) : key(raw); seen.add(k) }
