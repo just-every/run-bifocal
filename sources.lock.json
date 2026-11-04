@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "622f9f083bc7e35f016855d136c216c78f6e3393e6b71655155295d84d42c60c",
+      "sha256": "b447df38ba07505a92647ac41cf336205ab2425e94824194e865242e73f09ab0",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -2978,11 +2978,11 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
-      "sha256": "652470660b750e61a418ef78679cceb14d909741e5e18e923d57850c6a5061f9",
+      "sha256": "a21f1b820d3613ddebe87d161b3e6240dbf1eb3253e8bb62bab72a781449e448",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/custody.ts": {
-      "sha256": "f4f5118a237a0a667da1e8d2bc3f59f7c156c90bf8a537eef702e595e5164f81",
+      "sha256": "5515b3eef09dea42bc0c6172320862583c3b45abd3f20b1d29f761a217f31489",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/form.ts": {
@@ -6262,7 +6262,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "43991bc7fce56a67d5bd3d0f65e399206fc9521e0db8c649e32392734ab52f3d",
+      "sha256": "c51115b1687d86fd53c8c0345b7259ee7a5781c88117ec9c623c0077c9182722",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {

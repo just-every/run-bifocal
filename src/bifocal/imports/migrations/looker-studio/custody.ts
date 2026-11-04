@@ -4,7 +4,13 @@ import { assertion, sql } from '../../../../modules/import-kit/src/door/store.ts
 export function sourceLinks(project:MigrationProject):string[]{
  const ids=new Set<string>()
  if(project.source==='looker-studio')for(const entry of project.items.filter(i=>i.source.kind==='dashboard'))for(const document of [entry.native,entry.source.original,entry.conflict?.original]){
-  try{for(const view of JSON.parse(document??'null')?.definition?.views??[])if(typeof view?.query?.dataset==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(view.query.dataset))ids.add(view.query.dataset)}catch{}
+  try{
+   for(const view of JSON.parse(document??'null')?.definition?.views??[]){
+    const query=view?.query
+    for(const source of [query,...Array.isArray(query?.joins)?query.joins:[]])
+     if(typeof source?.dataset==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(source.dataset))ids.add(source.dataset)
+   }
+  }catch{}
  }
  return [...ids]
 }
