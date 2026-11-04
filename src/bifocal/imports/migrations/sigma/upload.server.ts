@@ -23,7 +23,7 @@ export async function guardMigrationUpload(request: Request) {
  const copy=request.clone(),reader=copy.body?.getReader(),decoder=new TextDecoder('utf-8',{fatal:true})
  if(!reader)fail('migration_json_required',400)
  let encoded='',size=0
- try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>90000)fail('sigma_complete_envelope_required',413);encoded+=decoder.decode(part.value,{stream:true})}encoded+=decoder.decode()}finally{await reader.cancel();reader.releaseLock()}
+ try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.length;if(size>90000)fail('sigma_complete_envelope_required',413);encoded+=decoder.decode(part.value,{stream:true})}encoded+=decoder.decode()}finally{void reader.cancel().catch(()=>{});reader.releaseLock()}
  let input:Record<string,unknown>
  try{const value:unknown=JSON.parse(encoded);if(!record(value))throw Error('mapping');input=value}catch{fail('migration_json_required',400)}
  try{assertNoCredentials(input)}catch{fail('migration_secret_excluded',422)}

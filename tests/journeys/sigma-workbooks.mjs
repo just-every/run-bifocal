@@ -25,7 +25,11 @@ export async function proveSigmaWorkbooks({origin,context,page,call,upload,prove
  const apply=async plan=>{for(let i=0;i<20;i++){const value=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(value.job.state==='completed'){assert.equal((await post('reconcile',{planId:plan.planId})).ok,true);return}}assert.fail('Sigma shared-door apply incomplete')}
  const screen=async(label,target)=>{await proveScreen(label);for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator(target).first().scrollIntoViewIfNeeded();await proveScreen(label+'-visible',{widths:[width],resize:false,fullPage:false})}}
  const outbound=[];page.on('request',r=>{if(r.url().startsWith('https://synthetic-bifocal.invalid'))outbound.push(r.url())})
- await page.goto(origin+'/app/import');await page.locator('#sigma-import > summary').click()
+ await page.goto(origin+'/app/import')
+ const settings=page.locator('summary[aria-label="Settings"]'),tooltip=page.getByRole('tooltip')
+ await settings.focus();assert.equal(await tooltip.isVisible(),true);await proveScreen('sigma-settings-tooltip')
+ await page.locator('h1').click();await settings.hover();await tooltip.waitFor({state:'visible'});await page.locator('h1').click()
+ await page.locator('#sigma-import > summary').click()
  const form=page.locator('#sigma-form');await form.getByLabel('Migration project ID',{exact:true}).fill(id);await form.getByLabel('Source cutoff (UTC)').fill('2026-10-30T12:00:00Z');await form.getByLabel('Rollback plan',{exact:true}).fill('Keep the incumbent active; no imported source actions run.');await form.getByLabel('Reviewed reconstruction (JSON)').fill(JSON.stringify(reconstruction,null,2));await form.getByLabel('Sigma workbook code').setInputFiles({name:'synthetic-bifocal-workbook.yaml',mimeType:'application/octet-stream',buffer:Buffer.from(dump(document,{noRefs:true}))})
  const [preview]=await Promise.all([page.waitForResponse(r=>r.url().endsWith('/import/plan')),form.getByRole('button',{name:'Review Sigma import',exact:true}).click()]);assert.equal(preview.status(),200);const plan=await preview.json();assert.equal(plan.counts.rejected,0,JSON.stringify(plan))
  const observed=plan.project.sigma

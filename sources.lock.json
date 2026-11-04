@@ -3002,7 +3002,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/upload.server.ts": {
-      "sha256": "dc18b33789c774154ad1834d4ee6362148a7357ea3badc8f32126f1b8bb43033",
+      "sha256": "10b162c121f81388bbbcbe4e47377931bdfe75e2e375d714798235bb0ca2d2c6",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {
@@ -6358,7 +6358,7 @@
       "executable": false
     },
     "tests/journeys/sigma-workbooks.mjs": {
-      "sha256": "54ea70176b7f412a03dfdf4b1fe01413dfc1c8871ffc66892ef39367c5da37ea",
+      "sha256": "574fce600f19d2e486ec71074fc057f1056cc6c724bae4233354331cd864f63f",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {
