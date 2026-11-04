@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e1d0a70d485b814add878a7edcaca0334f8615cf89c448e54c4a78e287e745f3",
+      "sha256": "b472dbcde4ae70d0bb757b179474f4274ecaca0271eae436c67ae484bbc54e27",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -2994,7 +2994,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/reader.ts": {
-      "sha256": "67ab17654710902029c4cf63849440bc2b3d041d424343ddd42b7343a2009865",
+      "sha256": "b03bf0ec425eaee579a4c3a9d137d92a03e75a54cada8e570684b32382bc7e31",
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/reconstruction.ts": {
@@ -6358,7 +6358,7 @@
       "executable": false
     },
     "tests/journeys/sigma-workbooks.mjs": {
-      "sha256": "574fce600f19d2e486ec71074fc057f1056cc6c724bae4233354331cd864f63f",
+      "sha256": "e081bb55e2280fdf10020ea6153a147cc86807c2818f0a542b16445f660300b1",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {

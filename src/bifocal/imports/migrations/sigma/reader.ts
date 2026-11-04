@@ -77,6 +77,21 @@ export function readSigma(value: unknown): SigmaRead {
   }
   inventory(stableId('element', id), kind === 'table' ? 'data' : kind === 'control' ? 'parameter' : kind === 'input-table' ? 'schema' : 'dashboard', element, issues.filter(i => i.element === id).map(i => i.reason).join(' ') || 'Original behavior requires independent reconciliation.')
  }
+ // A missing filter target has unknown scope. An explicit reconstruction
+ // cannot silently drop it and then preview an unrestricted native table.
+ const elements=rows(contents.elements)
+ for(const [index,control] of elements.entries())if(control.kind==='control'&&control.filters!==undefined){
+  if(!Array.isArray(control.filters)||!control.filters.every(record))problem('elements['+index+'].filters',null,'unsupported_construct','Control filter dependencies are not a documented list.')
+  else for(const [n,filter] of rows(control.filters).entries()){
+   const location='elements['+index+'].filters['+n+']',source=record(filter.source)?filter.source:{}
+   if(source.kind!=='table')problem(location,null,'unsupported_construct','Control source dependency requires an explicit supported table target.')
+   else{
+    const target=elements.find(e=>e.id===source.elementId)
+    if(!target)problem(location,null,'absent_evidence','The referenced control target element was not supplied; its filter scope is unresolved.')
+    else if(!rows(target.columns).some(c=>c.id===filter.columnId))problem(location,String(target.id),'absent_evidence','The referenced control target column was not supplied.')
+   }
+  }
+ }
  if (typeof contents.layout !== 'string') problem('contents.layout', null, 'absent_evidence', 'Layout evidence is absent; page membership is unknown.', false)
  else {
   const layout = contents.layout

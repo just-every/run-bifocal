@@ -64,6 +64,9 @@ export async function proveSigmaWorkbooks({origin,context,page,call,upload,prove
  const absent=structuredClone(document);delete absent.contents.layout;delete absent.documentVersion;absent.contents.elements[3].source={kind:'data-model',dataModelId:'unprovided',elementId:'missing'}
  const missing=await prepare(envelope(absent));assert.ok(missing.project.sigma.issues.some(i=>i.code==='absent_evidence'&&i.location==='contents.layout'));assert.ok(missing.project.sigma.issues.some(i=>i.code==='unsupported_construct'&&i.element==='sql-table'));await post('undo',{planId:missing.planId})
  const unresolved=structuredClone(reconstruction);delete unresolved.security;const denied=await prepare(envelope(document,unresolved));assert.equal(denied.project.sigma.drafts.find(d=>d.element==='revenue-table').definition,null);await post('undo',{planId:denied.planId})
+ // An omitted filter target cannot be waived by omitting its control mapping.
+ const lostTarget=structuredClone(document),lostMapping=structuredClone(reconstruction);lostTarget.documentVersion=10;lostTarget.contents.elements[1].filters[0].source.elementId='unprovided-table';lostMapping.bindings['revenue-table'].controls=[]
+ const missingDependency=await prepare(envelope(lostTarget,lostMapping));assert.equal(missingDependency.project.sigma.drafts.find(d=>d.element==='revenue-table').definition,null,'Unresolved source control target must block native preview');await post('undo',{planId:missingDependency.planId})
  // Changing a physical snapshot invalidates both retained plan and native review.
  const stalePlan=await prepare(envelope());await upload(dataset,csv.replace('$100.10','$101.10'),true)
  await call('/model-authoring/create',{...input(),reviewedDigest:reviewed.digest},409);await call(branch+'/preview',{viewId:draft.definition.views[0].id,digest:validation.digest},409)
