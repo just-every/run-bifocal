@@ -1,3 +1,4 @@
+import { lookerItems } from './looker/reader'
 import { reconstructionItems } from './looker-studio/manifest'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { exactKeys } from '../../models/validation/transport'
@@ -18,7 +19,7 @@ export function item(value:unknown):InventoryItem{
 }
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
 export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null):MigrationProject{
- const raw=object(value),v=raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw;exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
+ const raw=object(value),v=raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw.source==='looker'&&raw.files!==undefined?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:lookerItems(raw)}:raw;exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
  if(v.version!==1||v.projectId!==id||!sources.includes(String(v.source)))fail('migration_envelope_required',400)
  const cutoff=text(v.cutoff,32);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(cutoff)||!Number.isFinite(Date.parse(cutoff)))fail('migration_cutoff_required',400)
  const rollbackPlan=text(v.rollbackPlan,2048);if(!rollbackPlan.trim())fail('migration_rollback_plan_required',400)

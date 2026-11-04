@@ -1,3 +1,4 @@
+import { reviewLooker } from './looker/review.server'
 import { sourceLinkStatements } from './looker-studio/custody'
 import { reviewReconstruction } from './looker-studio/review.server'
 import { digest, text, type MigrationProject } from './compile'
@@ -32,7 +33,7 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,resource[3]==='review'?['reviewedRevision']:['reviewedRevision','reviewedDigest'])
    if(input.reviewedRevision!==current!.revision)fail('migration_review_stale',409)
-   const {review}=await reviewReconstruction(env,owner,ownerId,current!)
+   const {review}=await (current!.value.source==='looker'?reviewLooker:reviewReconstruction)(env,owner,ownerId,current!)
    if(resource[3]==='preview'&&(!review.compatible||input.reviewedDigest!==review.digest))fail('exact_reconstruction_review_required',409)
    return json(review)
   }

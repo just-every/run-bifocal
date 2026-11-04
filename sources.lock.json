@@ -2654,7 +2654,7 @@
       "executable": false
     },
     "src/bifocal/dashboards/authoring.server.ts": {
-      "sha256": "02a9b953a2a52c58fe5789988a0f4b0b637c9796ed919e9034949b7981ad4bb5",
+      "sha256": "047284594649ddfec0ad3e6731876f235a5cbb3386d03a8e58800d246197370b",
       "executable": false
     },
     "src/bifocal/dashboards/authoring.store.server.ts": {
@@ -2986,15 +2986,15 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/compile.ts": {
-      "sha256": "8edd7b1abc3c638f7923c316c18a4abdeaf32b1e353a204a6cbd9c7e5ced10f0",
+      "sha256": "dd42100a81bccf785cbcbc411a49f6b5e2a6944cbd6f86ac0cad6cb55d1f44c6",
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
-      "sha256": "a21f1b820d3613ddebe87d161b3e6240dbf1eb3253e8bb62bab72a781449e448",
+      "sha256": "695f4497f70c5e8de6ec02d71adcfbd39d5732d9039f3435a91543bf40e00a14",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/custody.ts": {
-      "sha256": "5515b3eef09dea42bc0c6172320862583c3b45abd3f20b1d29f761a217f31489",
+      "sha256": "e64df3bdddb14d8a81f4b2d2cb94b36855ee764499e49e51936a787e9a160a3c",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/form.ts": {
@@ -3007,6 +3007,14 @@
     },
     "src/bifocal/imports/migrations/looker-studio/review.server.ts": {
       "sha256": "6b3288afe3d2e95e3fcb6852796196fea71c5d5b33fa4d64323d8f5a8c5b2f99",
+      "executable": false
+    },
+    "src/bifocal/imports/migrations/looker/reader.ts": {
+      "sha256": "88dabf712b72c58f2d9335d05ddb6287e383ecf16b5ab792db9d72f707e28bc3",
+      "executable": false
+    },
+    "src/bifocal/imports/migrations/looker/review.server.ts": {
+      "sha256": "f53d6609090910a3e1eb7b58150dd1096404d0946f5ad15ea011377bf06348f5",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {

@@ -12,6 +12,12 @@ export function sourceLinks(project:MigrationProject):string[]{
    }
   }catch{}
  }
+ if(project.source==='looker')for(const entry of project.items)for(const document of [entry.native,entry.source.original,entry.conflict?.original]){
+  try{for(const binding of Object.values(JSON.parse(document??'null')?.bindings??{})){
+   const dataset=(binding as {dataset?:unknown}).dataset
+   if(typeof dataset==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(dataset))ids.add(dataset)
+  }}catch{}
+ }
  return [...ids]
 }
 export const sourceLinkStatements=(project:MigrationProject)=>sourceLinks(project).flatMap(dataset=>[

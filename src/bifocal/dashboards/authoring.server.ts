@@ -51,3 +51,10 @@ export async function dashboardAuthoringResponse(request:Request,env:Bindings,ac
   return json((await readDashboardDefinition(env,actor,id))!)
  }catch(error){return error instanceof QueryError?json({error:error.code},error.status):json({error:'dashboard_definition_conflict'},409)}finally{await discardBody(request)}
 }
+
+/** Inactive migration previews use the native dashboard validator and exact
+ * evaluator, with current-source guards and no saved answers or publication. */
+export async function previewInactiveDashboard(env:Bindings,actor:Authority,document:unknown) {
+ const prepared=await prepareDashboardDefinition(env,actor,document,null,null)
+ return {document:prepared.review.document,guards:prepared.guards,answers:prepared.evaluations.map(({card,answer})=>({key:card.key,answer}))}
+}
