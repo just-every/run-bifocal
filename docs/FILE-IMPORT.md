@@ -298,6 +298,6 @@ exact-digest `preview` and explicit `erase`. Imported source changes preserve
 native edits as conflicts until the owner chooses which version to retain.
 Undo refuses intervening native edits. Eligible project or linked-source
 erasure withdraws originals, native drafts and edit history and retires the
-project ID; linked legal holds and minimum retention dates still prevent
-premature erasure. Installation archive and restore qualification, real source
+project ID; legal holds and minimum retention dates on any linked source are checked
+before cleanup and still prevent premature erasure. Installation archive and restore qualification, real source
 estates, managed connectors and governed delivery remain unfinished.

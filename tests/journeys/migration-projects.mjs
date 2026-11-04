@@ -200,15 +200,28 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  // Legal holds prevent source and reconstruction erasure. Eligible source
  // erasure reaches original bundles, every edit version and derived drafts.
  headers['X-Import-Dataset']=id
- const freshSource=await call('/datasets/'+dataset),policy={confirmDataset:dataset,reviewedDatasetRevision:freshSource.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}
+ const secondDataset=dataset+'-second'
+ await upload(secondDataset,csv)
+ const secondSource=await call('/datasets/'+secondDataset),multi=structuredClone(input);multi.projectId=id+'-multi';const secondDocument=structuredClone(document);secondDocument.sourceRevision=secondSource.revision;secondDocument.definition.views[0].query.dataset=secondDataset;multi.drafts.push({id:'second-page',sourceRevision:'owner-1',document:JSON.stringify(secondDocument)})
+ headers['X-Import-Dataset']=multi.projectId;const multiPlan=await prepare(multi);await apply(multiPlan);headers['X-Import-Dataset']=id
+ const freshSource=await call('/datasets/'+dataset),beforeHeldErasure=await call(base)
+ const secondaryPolicy={confirmDataset:secondDataset,reviewedDatasetRevision:secondSource.revision,previousRevision:null,legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z',releaseHold:false}
+ const secondaryHeld=await context.request.put(origin+'/api/operator/retention/'+secondDataset,{headers:{Origin:origin},data:secondaryPolicy});assert.equal(secondaryHeld.status(),200);const secondaryRevision=(await secondaryHeld.json()).revision
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:freshSource.revision},423)
+ assert.deepEqual(await call(base),beforeHeldErasure,'A hold on another linked source must be found before erasing any project')
+ assert.deepEqual(await call('/datasets/'+dataset),freshSource)
+ const secondaryReleased=await context.request.put(origin+'/api/operator/retention/'+secondDataset,{headers:{Origin:origin},data:{...secondaryPolicy,previousRevision:secondaryRevision,minimumRetainUntil:null,releaseHold:true}});assert.equal(secondaryReleased.status(),200)
+ const policy={confirmDataset:dataset,reviewedDatasetRevision:freshSource.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}
  const retention=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:policy});assert.equal(retention.status(),200);const held=await retention.json()
  await call(base+'/erase',{confirmImport:id,reviewedRevision:current.revision},423)
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:freshSource.revision},423)
  const released=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{...policy,previousRevision:held.revision,legalHold:false,releaseHold:true}});assert.equal(released.status(),200)
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:freshSource.revision},200)
- for(const projectId of [id,omitted.projectId])await call('/migration-projects/'+projectId,undefined,404)
+ for(const projectId of [id,omitted.projectId,multi.projectId])await call('/migration-projects/'+projectId,undefined,404)
  await call(base+'/versions/'+current.revision,undefined,404)
  assert.equal((await readOriginal(initialPlan))[0].original.status,'unavailable')
  await post('apply',{planId:delta.planId,reviewedFingerprint:delta.fingerprint},410)
+ assert.deepEqual(await call('/datasets/'+secondDataset),secondSource,'Erasing a linked project does not erase unrelated source rows')
+ await call('/datasets/'+secondDataset+'/erase',{confirmDataset:secondDataset,reviewedRevision:secondSource.revision},200)
  console.log('PROBE BIF-083 reconstruction: browser supplied evidence, exact inactive native values and date parameters, full diagnostics, stale evidence, conflicts, authority, Undo and source-linked erasure passed; sharing and schedules inactive; source parity and cutover unproved')
 }
