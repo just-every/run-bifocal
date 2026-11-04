@@ -1,6 +1,8 @@
 import { sourceLinkStatements } from './looker-studio/custody'
 import { reviewReconstruction } from './looker-studio/review.server'
 import { digest, text, type MigrationProject } from './compile'
+import { readTableauMigration, screenTableau } from './tableau/read'
+import { CredentialError } from '../../../modules/import-kit/src/provenance/credentials.ts'
 import { bundleBytes, uploadRow } from '../../../modules/import-kit/src/door/uploads.ts'
 import { tableauDraftOperation } from './tableau/drafts.server'
 import type { Source } from '../../query/types'
@@ -61,8 +63,9 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,['confirmImport','reviewedRevision'])
    if(input.confirmImport!==id||input.reviewedRevision!==(current?.revision??null))fail('exact_import_erasure_confirmation_required',409)
-   if(current?.value.tableau&&await env.DB.prepare('SELECT 1 FROM bf_tableau_migration_drafts d JOIN bf_metrics m ON m.id=d.metric_id WHERE d.project_id=? AND (m.head_revision>1 OR m.published_revision IS NOT NULL)').bind(id).first())fail('tableau_native_metric_custody_review_required',409)
-   return json(await eraseMigrationProject(env,owner,id,current?[importGuard(current)]:[]))
+   const nativeCustody=sql('NOT EXISTS(SELECT 1 FROM bf_tableau_migration_drafts d JOIN bf_metrics m ON m.id=d.metric_id WHERE d.project_id=? AND (m.head_revision>1 OR m.published_revision IS NOT NULL))',id)
+   if(current?.value.tableau){const allowed=await env.DB.prepare('SELECT ('+nativeCustody.sql+') AS allowed').bind(...nativeCustody.params??[]).first<{allowed:number}>();if(!allowed?.allowed)fail('tableau_native_metric_custody_review_required',409)}
+   return json(await eraseMigrationProject(env,owner,id,current?[importGuard(current),...(current.value.tableau?[nativeCustody]:[])]:[]))
   }
   if(request.method!=='GET')fail('method_not_allowed',405)
   await transact(env.DB,owner,[assertion(importGuard(current!))])
@@ -107,11 +110,19 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    const upload=await uploadRow(admitted,input.uploadId),bytes=await bundleBytes(admitted,upload)
    let raw:Record<string,unknown>|undefined
    try{raw=JSON.parse(new TextDecoder().decode(bytes))}catch{}
+   const forgetUpload=()=>transact(env.DB,owner,[sql('DELETE FROM ik_door_chunks WHERE upload_id=?',upload.id),sql('DELETE FROM ik_door_uploads WHERE id=?',upload.id)])
+   if(raw?.source==='tableau'&&raw.tableau){
+    try{screenTableau(raw);readTableauMigration(raw.tableau)}catch(error){
+     await forgetUpload()
+     if(error instanceof CredentialError)throw new DoorError('source_credential',422,{field:'embedded credential',reason:'Remove credential values and upload again. No source bytes were retained.'})
+     throw new DoorError('tableau_source_refused',422,{reason:'Supply a safe bounded package, inert XML and documented original response records. No source bytes were retained.'})
+    }
+   }
    const tableau=raw?.source==='tableau'?raw.tableau as {bindings?:Record<string,{dataset?:unknown}>}|undefined:undefined
    const ids=[...new Set(Object.values(tableau?.bindings??{}).map(b=>b?.dataset).filter((id):id is string=>typeof id==='string'))]
    for(const dataset of ids){
     const source=sources.find(s=>s.id===dataset)
-    if(!source)fail('tableau_bound_source_unavailable',409)
+    if(!source){await forgetUpload();fail('tableau_bound_source_unavailable',409)}
     await transact(env.DB,owner,[assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?) AND NOT EXISTS(SELECT 1 FROM bf_preparation_erasing WHERE dataset_id=?)',dataset,source.revision,dataset)),sql('INSERT OR IGNORE INTO bf_tableau_migration_sources(project_id,dataset_id) VALUES(?,?)',id,dataset)])
    }
   }

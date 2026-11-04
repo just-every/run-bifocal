@@ -19,7 +19,8 @@ export function compileTableau(value:unknown,projectId:string,sources:Source[]):
    if(!definition){problem(metric.id,metric.file,'pulse_definition_missing','Supply the original definition response.');continue}
    const d=definition.value,metadata=obj(d.metadata),spec=obj(d.specification),basic=obj(spec.basic_specification),measure=obj(basic.measure),time=obj(basic.time_dimension),datasource=obj(spec.datasource),ms=obj(m.specification)
    const sourceId=txt(datasource.id,128),model=read.models.find(m=>m.sourceId===sourceId),source=sources.find(s=>s.id===binding.dataset),columns=obj(binding.columns)
-   if(metadata.schema_version!=='1.0.0'||m.schema_version!=='1.0.0'||!metadata.definition_version||!m.metric_version)problem(metric.id,metric.file,'pulse_schema_version','Supply versioned 1.0.0 definition and metric responses.')
+   if(Number(read.input.apiVersion.split('.')[1])<21)problem(metric.id,metric.file,'pulse_api_version_unsupported','Pulse requires Tableau Cloud REST API 3.21 or later; no Server capability is established.')
+   if(metadata.schema_version!=='1.0.0'||m.schema_version!=='1.0.0'||typeof metadata.definition_version!=='string'||!/^\d+$/.test(metadata.definition_version)||typeof m.metric_version!=='string'||!/^\d+$/.test(m.metric_version))problem(metric.id,metric.file,'pulse_schema_version','Supply versioned 1.0.0 definition and metric responses.')
    if(datasource.id_type!=='DATASOURCE_ID_TYPE_LUID'||m.datasource_luid&&m.datasource_luid!==sourceId||!model||model.project.tables.length!==1)problem(metric.id,metric.file,'pulse_source_unresolved','Bind one original published-source LUID with a supplied supported TDS.')
    if(!source||binding.revision!==source.revision)problem(metric.id,metric.file,'pulse_snapshot_unreviewed','Map the exact revision of a separately reviewed native snapshot.')
    if(read.diagnostics.some(i=>i.blocksPreview&&(i.object==='source:'+sourceId||i.code==='missing_dependency'||i.code==='published_definition_missing'||i.code==='unmapped_tds'||i.code==='tds_definition_missing'||i.code==='incomplete_subscriptions')))problem(metric.id,metric.file,'pulse_package_unresolved','Resolve packaged definitions, security and dependency gaps before preview.')
@@ -35,7 +36,7 @@ export function compileTableau(value:unknown,projectId:string,sources:Source[]):
    const extension=d.extension_options?obj(d.extension_options):{}
    properties(extension,['allowed_dimensions','allowed_granularities'],definition.id,definition.file)
    const table=model?.project.tables[0],field=txt(measure.field),date=txt(time.field)
-   const bind=(field:string)=>{const column=columns[field];if(typeof column!=='string'||!table?.dimensions.some(d=>d.column===physical(field)))throw Error('physical');return column}
+   const bind=(field:string)=>{const column=columns[field],original=table?.dimensions.find(d=>d.column===physical(field)),target=source?.table.columns.find(c=>c.name===column);if(typeof column!=='string'||!original||!target||original.type!==target.type&&!(original.type==='number'&&target.type==='money'))throw Error('physical');return column}
    const amount=bind(field),dateColumn=bind(date),operation=measure.aggregation==='AGGREGATION_SUM'?'sum':measure.aggregation==='AGGREGATION_COUNT_DISTINCT'?'count-distinct':null
    if(!operation)problem(metric.id,metric.file,'pulse_aggregation_unsupported','Only scalar SUM and count-distinct physical measures are translated.')
    if(source?.table.columns.find(c=>c.name===dateColumn)?.type!=='date')problem(metric.id,metric.file,'pulse_date_binding','Bind the physical date dimension to a native date column.')
