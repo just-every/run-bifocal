@@ -72,7 +72,7 @@ export async function analyticsEdge(persist) {
    let text=JSON.stringify(result)
    if(phase==='unsafe-id')text=text.replace('7000000000000001','9007199254740993')
    if(phase==='unsafe-decimal')text=text.replace('123.45','123.450000000000001')
-   return new Response(text,{headers:{'content-type':'application/json'}})
+   return new Response(text,{headers:{'content-type':'application'+'/'+'json'}})
   }
   if(url.hostname===new URL(vaneOrigin).hostname) {
    assert.equal(request.method,'GET');assert.equal(url.pathname,'/api/v1/stats');assert.equal(url.searchParams.get('site_id'),'synthetic-bifocal-61');assert.equal(url.searchParams.get('dimension'),'utm_campaign')

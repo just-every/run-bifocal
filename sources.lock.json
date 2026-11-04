@@ -6138,11 +6138,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "fa41cd6a18d29caaa2e60bb032d0981c155105307b1f99d8da877c1b45d7b522",
+      "sha256": "436eb496f8dde85a875b7bcc2c482babf16b32142643ff58f9ee7940aa8eaac6",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "bcdce95939c651c600d2198d151f09c4fc08bd051093fcc71dd011d43e932d02",
+      "sha256": "a2259a9384bd8ba43fcc0b70454d00f068b0c5262b0f60c8f71a040f6f221bf1",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

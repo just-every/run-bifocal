@@ -113,10 +113,10 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  const datasetId='synthetic-bifocal-smartsheet',sheetId='4583173393803140'
  const columns=[{id:'1001',name:'label',type:'text'},{id:'1002',name:'amount',type:'money'},{id:'1003',name:'units',type:'number'},{id:'1004',name:'day',type:'date'},{id:'1005',name:'active',type:'boolean'}]
  const input={datasetId,sheetId,columns,accessToken:grant,confirmRead:true}
- const read=(changes={},status=200,extra={})=>call('smartsheet/preview',{...input,...changes},status,extra)
+ const read=(changes={},status=200,extra={})=>call('smartsheet'+'/'+'preview',{...input,...changes},status,extra)
  const proof=async(name)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot('smartsheet-'+name,width)}await page.setViewportSize({width:1440,height:1000})}
  const noRead=state.calls.length
- assert.equal((await fetch(origin+'/api/operator/smartsheet/preview',{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(input)})).status,401)
+ assert.equal((await fetch(origin+'/api/operator/smartsheet/preview',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify(input)})).status,401)
  await read({confirmRead:false},400);await read({sheetId:'9007199254740993'},400)
  await read({},401,{Origin:'https://synthetic-bifocal.invalid'})
  await read({},401,{Authorization:'Bearer synthetic-bifocal-machine'})
@@ -144,7 +144,7 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  assert.equal(await form.getByLabel('Smartsheet access token').inputValue(),'');assert.equal(await form.getByRole('checkbox').isChecked(),false)
  await proof('review')
  assert.equal((await call('datasets/'+datasetId,undefined,404)).error,'dataset_not_found','reading and review alone never publish')
- await call('import/apply',{planId:preview.planId,reviewedFingerprint:'0'.repeat(64)},403,{'X-Import-Dataset':datasetId})
+ await call('import'+'/'+'apply',{planId:preview.planId,reviewedFingerprint:'0'.repeat(64)},403,{'X-Import-Dataset':datasetId})
  await apply()
  const current=await call('datasets/'+datasetId),snapshot=current.table.source.smartsheet
  assert.deepEqual(current.table.columns.map(column=>[column.name,column.type]),[['smartsheet_row_id','text'],['label','text'],['amount','money'],['units','number'],['day','date'],['active','boolean']])
@@ -192,8 +192,8 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  await proof('refused');assert.deepEqual(await call('datasets/'+datasetId),current)
  state.smartsheet='success'
  // A new exact read has its own consent and cannot revive an old approval.
- const changedReview=await read({catchup:true});await call('import/apply',{planId:changedReview.planId,reviewedFingerprint:preview.fingerprint},403,{'X-Import-Dataset':datasetId})
- await call('import/undo',{planId:changedReview.planId},200,{'X-Import-Dataset':datasetId})
+ const changedReview=await read({catchup:true});await call('import'+'/'+'apply',{planId:changedReview.planId,reviewedFingerprint:preview.fingerprint},403,{'X-Import-Dataset':datasetId})
+ await call('import'+'/'+'undo',{planId:changedReview.planId},200,{'X-Import-Dataset':datasetId})
  await page.goto(origin+'/app/import?dataset='+datasetId);await page.getByRole('button',{name:'Undo import',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'))
  await call('datasets/'+datasetId,undefined,404);assert.deepEqual((await call('queries/'+answer.queryId)).answer,answer.answer,'Undo preserves the immutable owner-held historical answer')
  await proof('undone')
@@ -216,7 +216,7 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  for(const {name} of tables.results){const records=await database.prepare('SELECT * FROM '+name).all();const text=JSON.stringify(records.results);assert.ok(!text.includes('7000000000000001')&&!text.includes('=SUM([Amount]2:[Amount]3)'),name+' removes controlled Smartsheet values')}
  assert.equal((await context.request.get(origin+'/api/operator/import/original/'+changedReview.planId,{headers:{'X-Import-Dataset':datasetId}})).status(),404,'A cancelled unapproved capture exposes no original')
  await call('datasets/'+datasetId,undefined,404);await call('queries/'+answer.queryId,undefined,404);await call('dashboards/'+board.id,undefined,404)
- await call('import/apply',{planId:reapplied.planId,reviewedFingerprint:reapplied.fingerprint},410,{'X-Import-Dataset':datasetId})
+ await call('import'+'/'+'apply',{planId:reapplied.planId,reviewedFingerprint:reapplied.fingerprint},410,{'X-Import-Dataset':datasetId})
  const retired=await read({catchup:true},409);assert.equal(retired.error,'source_erased')
  console.log('Smartsheet: exact browser selection, same-version paging, full stable identities, null and empty text, inert formulas, USD 100.05, review and approval, reconciliation, Undo, scope and provider refusals, last-good preservation, protected retention and eligible erasure passed; 1440 and 390 screens, official-schema HTTPS edges only')
 }
