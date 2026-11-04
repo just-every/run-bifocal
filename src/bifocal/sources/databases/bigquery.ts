@@ -2,8 +2,10 @@ import { object, providerJson, requireValue } from '../analytics/protocol'
 import type { Column } from '../../imports/files/csv'
 import type { Lineage } from '../analytics/lineage'
 export type BigQueryTable = {project:string;dataset:string;table:string}
+export const projectId = (value: unknown): value is string => typeof value === 'string' && /^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(value)
+export const objectId = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(value)
 export function tableRef(value: Record<string,unknown>): BigQueryTable {
- requireValue(typeof value.project === 'string' && /^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(value.project) && typeof value.dataset === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(value.dataset) && typeof value.table === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(value.table),'bigquery_table_required')
+ requireValue(projectId(value.project) && objectId(value.dataset) && objectId(value.table),'bigquery_table_required')
  return {project:value.project,dataset:value.dataset,table:value.table}
 }
 export const tableUrl=(ref:BigQueryTable) => `https://bigquery.googleapis.com/bigquery/v2/projects/${ref.project}/datasets/${ref.dataset}/tables/${ref.table}`

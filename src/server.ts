@@ -38,6 +38,7 @@ import { scheduleDefinitionPage } from './bifocal/schedules/page.server'
 import { environmentResponse } from './bifocal/environments/server'
 import { environmentPage } from './bifocal/environments/page.server'
 import { warehouseResponse } from './bifocal/exports/warehouse/server'
+import { bigQueryCatalogResponse } from './bifocal/sources/databases/bigquery-catalog.server'
 import { analyticsSourceResponse } from './bifocal/sources/analytics/server'
 import { reportCustodyResponse } from './bifocal/reports/server'
 import { reportRunPage } from './bifocal/reports/page.server'
@@ -182,6 +183,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (query) return query
     const warehouse = await warehouseResponse(request, env)
     if (warehouse) return warehouse
+    const bigQueryCatalog = await bigQueryCatalogResponse(request, env)
+    if (bigQueryCatalog) return bigQueryCatalog
     const analyticsSource = await analyticsSourceResponse(request, env)
     if (analyticsSource) return analyticsSource
     const range = await spreadsheetRangeResponse(request, env)

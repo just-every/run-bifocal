@@ -128,3 +128,49 @@ The warehouse acknowledges the exact eight grouped metric rows. Revocation,
 redirect, partial-table, uncertain/partial-write, consent replay and source
 erasure probes retain the stated limitations. This is official-schema network
 edge qualification, not a claim of live Vane/Google account qualification.
+
+## BigQuery metadata browsing
+
+In **Browse BigQuery metadata** on `/app/import`, enter one Google project.
+Explicitly consent to **Browse datasets**, choose a US dataset, consent to
+**Browse tables**, then choose a table and consent to **Inspect schema**.
+Supply a current token for each action. The form clears it before dispatch;
+neither the token nor the catalog enters connection storage or import custody.
+Only a minimal attributed consent fingerprint is retained. Changing the project
+clears datasets, tables and observed results; changing a dataset clears tables
+and their schemas. Results from an operation for a changed selection are ignored.
+
+The protocol is pinned to the official BigQuery REST v2 discovery document,
+revision **20261009**, from
+[Google discovery](https://bigquery.googleapis.com/$discovery/rest?version=v2),
+SHA-256 `89a1eda2d72290cbc71e60cfc2495ba8177605c1a1bdb72b6474085cd18f9439`.
+Only GET `datasets.list`, `tables.list` and `tables.get` are used. Partial-response
+selectors request dataset and table references, location, table type, field names,
+field types, modes and nested fields, plus listing cursors. Provider SQL, labels,
+descriptions, connection configuration and arbitrary response properties are
+excluded. The application returns a fresh projection of these metadata fields,
+never the provider response body. Each listing permits at most five pages of 50
+objects; a table listing first verifies its dataset's US location with a bounded
+dataset listing. A schema permits 250 fields through eight nested levels.
+Repeated cursors, duplicates, malformed replies and overflow refuse the entire
+operation. Navigation between returned metadata pages is local and performs no
+additional provider request. A listing is an observed inventory, not an atomic
+provider snapshot or a guarantee that an unlisted object does not exist.
+
+Use a narrowly scoped token authorized for dataset visibility,
+`bigquery.tables.list` and `bigquery.tables.get` for the selected objects; a
+metadata browse needs no table-data or query-job permission. Google can hide an
+inaccessible object or refuse it with 403 or 404. Recheck the identifiers and
+provider permissions rather than assuming an empty listing proves absence.
+Rate limits and redirects are shown as refusals, with no automatic retry or
+credential forwarding. The current native owner is checked before each provider
+read and again before the response; machine bearers cannot borrow owner cookies.
+
+Nested and repeated fields are inspected with their complete bounded paths and
+concrete diagnostics. The separate scalar data reader still supports only its
+existing types and identifier bounds. Inspecting a view or external table never
+runs SQL or follows a connection. No row read, query job, source write, scheduled
+connection or provider grant is created by browsing. **Observed metadata time
+is distinct from source freshness, which remains unknown.** Official-schema
+network specimens qualify this bounded protocol only; no usable Google grant
+or live warehouse reconciliation is established.

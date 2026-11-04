@@ -1,0 +1,3 @@
+#bigquery-catalog .bigquery-metadata-table{overflow-x:auto;max-width:100%}
+#bigquery-catalog .bigquery-metadata-table:focus-visible{outline-offset:-2px}
+#bigquery-catalog .bigquery-metadata-table table{min-width:680px}

@@ -32,6 +32,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   assert.equal((await fetch(origin+'/api/operator/analytics/config')).status,401)
   const bootstrap=await context.request.post(origin+'/auth/bootstrap',{headers:{Origin:origin},data:{token:'synthetic-bifocal-1'.repeat(3),displayName:'Analytics owner',returnTo:'/app'},maxRedirects:0});assert.equal(bootstrap.status(),303,await bootstrap.text())
   await page.goto(origin+'/setup');await page.getByRole('checkbox').check();await Promise.all([page.waitForURL(origin+'/app'),page.getByRole('button',{name:'Finish setup',exact:true}).click()])
+  await proveBigQueryCatalog(context,page,edge,call,shot)
   const initialCalls=state.calls.length
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:false},400)
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true},401,{Origin:'https://foreign.example.test'})
@@ -106,10 +107,86 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
  } finally {page.off('request',recordRequest);if(original)await page.goto(original+'/app');await edge.close()}
 }
 
+// This is part of the existing analytics runtime registration, not a new test.
+async function proveBigQueryCatalog(context,page,edge,call,shot) {
+ const {origin,state,inspect,nativeMember,nativeOwner}=edge,path='analytics/bigquery/catalog'
+ const input={action:'datasets',project:'synthetic-bifocal-62',accessToken:grant,confirmBrowse:true}
+ const beforePlans=inspect('SELECT id FROM ik_door_plans'),beforeTables=inspect("SELECT name FROM sqlite_master WHERE type='table'")
+ const start=state.catalogCalls.length,allCalls=state.calls.length
+ await call(path,{...input,confirmBrowse:false},400)
+ await call(path,{...input,pageToken:'synthetic-bifocal-unsafe'},400)
+ await call(path,input,401,{Origin:'https://foreign.example.test'})
+ await call(path,input,401,{authorization:'Bearer synthetic-bifocal-machine'})
+ assert.equal((await fetch(origin+'/api/operator/'+path,{method:'POST',headers:{Origin:origin,'content-type':'application/json'},body:JSON.stringify(input)})).status,401)
+ assert.equal(state.catalogCalls.length,start,'refused authority and consent never dispatch')
+ const cookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join('; ')
+ const memberCookie=await nativeMember(cookie)
+ const memberResponse=await fetch(origin+'/auth/session',{headers:{cookie:memberCookie}})
+ assert.equal(memberResponse.status,200);assert.equal((await memberResponse.json()).operator.role,'member')
+ const memberDenied=await fetch(origin+'/api/operator/'+path,{method:'POST',headers:{cookie:memberCookie,Origin:origin,'content-type':'application/json'},body:JSON.stringify(input)})
+ assert.equal(memberDenied.status,401);assert.equal(state.catalogCalls.length,start)
+ const datasets=await call(path,input)
+ assert.deepEqual(datasets.pages.map(p=>p.map(row=>[row.id,row.location,row.selectable])),[[['business','US',true],['europe','EU',false]],[['archive','US',true]]])
+ assert.equal(datasets.freshness,'unknown');assert.ok(!JSON.stringify(datasets).includes('synthetic-private-metadata'));assert.equal(datasets.pages.flat().find(row=>row.id==='europe').diagnostic,'Unsupported location; select a US dataset.')
+ const calls=state.catalogCalls.length
+ await call(path,{...input,action:'tables',dataset:'europe'},422)
+ assert.ok(state.catalogCalls.slice(calls).every(c=>!c.path.endsWith('/tables')),'non-US dataset never lists tables')
+ const tables=await call(path,{...input,action:'tables',dataset:'business'})
+ assert.deepEqual(tables.pages.map(p=>p.map(row=>row.id)),[['usage'],['complex']])
+ const schema=await call(path,{...input,action:'schema',dataset:'business',table:'complex'})
+ assert.deepEqual(schema.fields.map(f=>[f.path,f.type,f.mode,f.readable]),[['campaign','STRING','NULLABLE',true],['amount','NUMERIC','REQUIRED',true],['events','RECORD','REPEATED',false],['events.day','DATE','NULLABLE',false],['events.detail','RECORD','NULLABLE',false],['events.detail.code','STRING','NULLABLE',false],['payload','JSON','NULLABLE',false],['future','FUTURE_TYPE','NULLABLE',false]])
+ assert.ok(schema.fields.slice(2).every(f=>f.diagnostic));assert.ok(!JSON.stringify(schema).includes('synthetic-private-metadata'))
+ for(const [phase,action,status,error] of [['403','schema',403,'provider_grant_refused'],['404','schema',404,'bigquery_object_not_found'],['429','datasets',503,'provider_rate_limited'],['redirect','datasets',502,'provider_redirect_refused'],['repeat','tables',502,'bigquery_repeated_or_invalid_cursor'],['overflow','tables',413,'bigquery_catalog_page_limit'],['wrong-project','tables',502,'bigquery_object_mismatch'],['non-us','schema',422,'bigquery_us_location_required'],['credential-response','schema',502,'provider_credential_in_response']]) {
+  state.catalogPhase=phase;const before=state.catalogCalls.length
+  const result=await call(path,{...input,action,...(action!=='datasets'?{dataset:'business'}:{}),...(action==='schema'?{table:'complex'}:{})},status)
+  assert.equal(result.error,error);assert.equal(Object.keys(result).join(),'error');assert.ok(!JSON.stringify(result).includes('synthetic-private-metadata'))
+  assert.ok(state.catalogCalls.length-before<=(action==='tables'?7:1),'bounded metadata calls without automatic retry')
+ }
+ state.catalogPhase='success'
+ for(const width of [1440,390]) {
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import');await page.getByText('Browse BigQuery metadata',{exact:true}).click()
+  const form=page.locator('#bigquery-catalog-form'),project=form.getByLabel('Catalog Google project'),dataset=form.getByLabel('Catalog dataset'),table=form.getByLabel('Catalog table'),token=form.getByLabel('Catalog access token'),consent=form.getByRole('checkbox')
+  await project.fill('synthetic-bifocal-62')
+  const submit=async(name)=>{await token.fill(grant);await consent.check();await form.getByRole('button',{name,exact:true}).click();await page.locator('#bigquery-catalog-status').filter({hasText:'Metadata inspected.'}).waitFor();assert.equal(await token.inputValue(),'');assert.equal(await consent.isChecked(),false)}
+  await submit('Browse datasets');await shot('catalog-datasets',width)
+  if(width===1440){assert.equal(await dataset.locator('option[value="europe"]').evaluate(option=>option.disabled),true,await dataset.evaluate(select=>select.outerHTML));assert.equal(await dataset.locator('option').count(),4);await page.getByRole('button',{name:'Next metadata page',exact:true}).click();assert.match(await page.locator('#bigquery-catalog-objects').innerText(),/archive/);await page.getByRole('button',{name:'Previous metadata page',exact:true}).click()}
+  await dataset.selectOption('business');await submit('Browse tables');await shot('catalog-tables',width)
+  if(width===1440){assert.equal(await table.locator('option').count(),3);await page.getByRole('button',{name:'Next metadata page',exact:true}).click();assert.match(await page.locator('#bigquery-catalog-objects').innerText(),/complex/)}
+  await table.selectOption('complex');await submit('Inspect schema');await shot('catalog-schema',width)
+  if(width===390){const region=page.getByRole('region',{name:'BigQuery metadata table',exact:true});await region.focus();await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('[aria-label="BigQuery metadata table"]').scrollLeft>0)}
+  if(width===1440){const content=await page.locator('#bigquery-catalog-results').innerText();assert.match(content,/events.detail.code/);assert.match(content,/Repeated values/);assert.match(content,/Source freshness remains unknown/);assert.ok(!content.includes('synthetic-private-metadata'));assert.equal(await form.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0);assert.ok(await form.locator('input,select,button').evaluateAll(es=>es.every(e=>parseFloat(getComputedStyle(e).fontSize)>=13)))}
+  await dataset.selectOption('archive');assert.equal(await table.isDisabled(),true);assert.equal(await page.locator('#bigquery-catalog-results').isVisible(),false)
+  await project.fill('synthetic-bifocal-63');assert.equal(await dataset.isDisabled(),true);assert.equal(await table.locator('option').count(),1)
+  // A changing project also discards an operation already in flight.
+  await project.fill('synthetic-bifocal-62');let entered;const started=new Promise(r=>entered=r);let release
+  state.catalogGate=new Promise(r=>release=r);state.catalogEntered=entered
+  await token.fill(grant);await consent.check();await form.getByRole('button',{name:'Browse datasets',exact:true}).click();await started
+  await project.fill('synthetic-bifocal-63');state.catalogGate=null;release()
+  assert.equal(await dataset.isDisabled(),true);assert.equal(await page.locator('#bigquery-catalog-results').isVisible(),false)
+  await project.fill('synthetic-bifocal-62');state.catalogPhase='403';await token.fill(grant);await consent.check();await form.getByRole('button',{name:'Browse datasets',exact:true}).click();await page.locator('#bigquery-catalog-status').filter({hasText:'Google refused'}).waitFor();await shot('catalog-refused',width);state.catalogPhase='success'
+  assert.ok(!(await page.evaluate(()=>JSON.stringify([Object.entries(localStorage),Object.entries(sessionStorage)]))).includes(grant))
+ }
+ // Revoke a separate native owner session while its first provider page is pending.
+ const temporary=await nativeOwner(),session=await(await fetch(origin+'/auth/session',{headers:{cookie:temporary}})).json()
+ let entered,release;const started=new Promise(r=>entered=r);state.catalogGate=new Promise(r=>release=r);state.catalogEntered=entered
+ const count=state.catalogCalls.length,pending=fetch(origin+'/api/operator/'+path,{method:'POST',headers:{cookie:temporary,Origin:origin,'content-type':'application/json'},body:JSON.stringify(input)})
+ await started
+ const revoke=await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})
+ assert.equal(revoke.status(),204,await revoke.text());state.catalogGate=null;release()
+ const withdrawn=await pending,text=await withdrawn.text();assert.equal(withdrawn.status,409,text);assert.ok(!text.includes('business')&&!text.includes(grant));assert.equal(state.catalogCalls.length,count+1,'withdrawn session cannot read a second page or receive metadata')
+ for(const {name} of beforeTables.filter(row=>!row.name.startsWith('sqlite_'))){const retained=JSON.stringify(inspect('SELECT * FROM "'+name.replaceAll('"','""')+'"'));assert.ok(!retained.includes(grant)&&!retained.includes('synthetic-private-metadata'),'provider secrets and excluded metadata never enter '+name)}
+ assert.deepEqual(inspect('SELECT id FROM ik_door_plans'),beforePlans,'catalog browsing never stages import custody')
+ assert.deepEqual(inspect("SELECT name FROM sqlite_master WHERE type='table'"),beforeTables)
+ const audit=inspect("SELECT dataset_id,fingerprint,event FROM bf_analytics_reads WHERE dataset_id='bigquery-catalog'")
+ assert.ok(audit.some(row=>row.event==='consented'));assert.ok(audit.some(row=>row.event==='failed'));assert.ok(audit.every(row=>/^[a-f0-9]{64}$/.test(row.fingerprint)))
+ assert.ok(!JSON.stringify(audit).includes(grant));assert.ok(state.catalogCalls.every(c=>!/(data|jobs|insertAll)$/.test(c.path)));assert.equal(state.calls.length-allCalls,state.catalogCalls.length,'browsing issues metadata GETs only')
+ console.log('PROBE BIF-001 catalog: explicit current-owner POST through /app/import -> complete multipage US datasets and tables, nested and repeated types, actionable refusals; no data, job or write request; token-free custody and 1440/390 screens passed (official-schema edges only)')
+}
+
 // The same public-door journey can run alone while iterating. CI invokes it
 // from runtime.mjs; this entry never substitutes for the push Verify wall.
 if(process.argv[1]===new URL(import.meta.url).pathname){
  const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
- const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...(process.env.BIFOCAL_CHROMIUM ? {executablePath:process.env.BIFOCAL_CHROMIUM} : {}),args:['--use-mock-keychain','--password-store=basic',...(process.env.BIFOCAL_CHROMIUM ? ['--no-sandbox'] : [])]})
  try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
 }
