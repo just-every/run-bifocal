@@ -28,7 +28,7 @@ export async function analyticsEdge(persist) {
  export default {async fetch(request,env,execution){
   const path=new URL(request.url).pathname;
   if(path==='/__analytics-mail')return Response.json(mail);
-  if(request.headers.get('X-Bifocal-Test-Mail')==='synthetic-bifocal-mail'&&['/auth/invite','/auth/confirm'].includes(path)){
+  if(request.headers.get('X-Bifocal-Test-Mail')==='synthetic-bifocal-mail'&&['/auth/invite','/auth/magic-link','/auth/confirm'].includes(path)){
    const auth=createOperatorAuth({db:env.DB,clientIp:()=> '127.0.0.1',config:{dependencies:true,origin:env.AUTH_ORIGIN,local:true,OWNER_EMAIL:env.OWNER_EMAIL,SESSION_SECRET:env.SESSION_SECRET,MAIL_FROM:env.MAIL_FROM},mailSender:{async send(message){mail.push(message);return {status:'accepted',provider:'resend',providerMessageId:'synthetic-bifocal-mail'}}}});
    return createAuthHandler(auth)(request);
   }
@@ -45,6 +45,7 @@ export async function analyticsEdge(persist) {
    // Self-authored responses from the pinned Sheet, Row, Column, Cell and
    // SheetVersion schemas; only this HTTPS boundary is replaced.
    const phase=state.smartsheet
+   if(state.beforeSmartsheetResponse)await state.beforeSmartsheetResponse(url)
    assert.equal(request.method,'GET');assert.match(url.pathname,/^\/2\.0\/sheets\/4583173393803140(?:\/version)?$/)
    if(phase==='denied'||phase==='revoked')return Response.json({errorCode:phase==='denied'?1006:1004,message:'synthetic-bifocal-88'},{status:phase==='denied'?404:403})
    if(phase==='rate')return Response.json({errorCode:4003,message:'synthetic-bifocal-89'},{status:429})
