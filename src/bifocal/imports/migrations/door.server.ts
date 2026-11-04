@@ -1,3 +1,7 @@
+import { assertMigrationSafe, migrationRefusal } from './safety'
+import { readHex } from './hex'
+import { uploadRow, bundleBytes } from '../../../modules/import-kit/src/door/uploads.ts'
+import { parseJson } from '../../../modules/import-kit/src/readers/json.ts'
 import { digest, text } from './compile'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
@@ -19,6 +23,7 @@ import { migrationImportContext, eraseMigrationProject, importGuard, readMigrati
 async function handleMigrationProject(request:Request,original:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/migration-projects\/([a-z][a-z0-9-]{0,63})(\/(erase|edit|resolve|versions\/([a-f0-9]{64})))?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='migration-project'))return null
+ if(request.headers.has('authorization'))fail('human_session_required',403)
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),id=resource?.[1]??request.headers.get('X-Import-Dataset')??''
@@ -32,7 +37,7 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    if(input.reviewedRevision!==current!.revision)fail('migration_review_stale',409)
    const value=structuredClone(current!.value),entry=value.items.find(i=>i.source.id===input.itemId)
    if(!entry)fail('migration_item_not_found',404)
-   if(resource[3]==='edit'){entry.native=text(input.native);entry.edited=true}
+   if(resource[3]==='edit'){assertMigrationSafe(input.native);entry.native=text(input.native,65536);entry.edited=true}
    else {
     if(!entry.conflict)fail('migration_conflict_required',409)
     if(input.choice!=='keep-native'&&input.choice!=='use-source')fail('migration_resolution_required',400)
@@ -63,11 +68,26 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  if(['uploads','plan','apply','undo'].some(action=>path==='/api/operator/import/'+action)&&await env.DB.prepare('SELECT 1 FROM ik_d1_erased_targets WHERE destination=? AND identity=?').bind(destination,sha256(canonicalJson([destination,'migration-project',id]))).first())fail('migration_project_erased',410)
  const namespace='migration-projects:'+id,current=await migrationImportTargets.read(env.DB,destination,'migration-project',id)
  const workspace=current?await readMigrationProject(env,ownerId,id):undefined
- if(path==='/api/operator/import/undo'&&workspace&&(workspace.revision!==current?.revision||workspace.value.expectedWorkspace!==null))fail('migration_undo_requires_native_review',409)
+ if(path==='/api/operator/import/undo'&&workspace&&(workspace.revision!==current?.revision||(workspace.value.hex?workspace.value.hexUndoSafe!==true:workspace.value.expectedWorkspace!==null)))fail('migration_undo_requires_native_review',409)
  const source=migrationImportSource(id,ownerId,current,workspace)
  const options={...source,database:env.DB,targets:migrationImportTargets,destination,format:'json' as const,ownerPrincipalId:'role:owner',installationId:'bifocal:files:v1',appOrigin:env.AUTH_ORIGIN,ownerEmail:owner.email,namespace,limits:{maxBytes:1048576,maxRecords:1,maxRecordBytes:1048576},authorize:(r:Request)=>fileOwner(r,env)}
  const rowForPlan=(planId:string)=>env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(planId,options.installationId,namespace).first<DoorPlanRow>()
  const admitted:DoorRequest={options,authority:owner,via:'operator',epoch:0,access:{action:'plan',installationId:options.installationId,email:owner.email,namespace,maxBytes:1048576,maxRecords:1,maxChunks:16}}
+ // Screen the assembled original before any plan, original history or derived draft can retain it.
+ const screenUpload=async(uploadId:string)=>{
+  const row=await uploadRow(admitted,uploadId)
+  try{
+   const bytes=await bundleBytes(admitted,row),input=parseJson(new TextDecoder('utf-8',{fatal:true}).decode(bytes),{artifact:'migration-upload'})
+   assertMigrationSafe(input)
+   if(input&&typeof input==='object'&&!Array.isArray(input)&&input.format==='hex-yaml')readHex(input)
+  }catch(error){
+   await transact(env.DB,owner,[sql('DELETE FROM ik_door_chunks WHERE upload_id=?',row.id),sql('DELETE FROM ik_door_uploads WHERE id=? AND installation_id=? AND namespace=?',row.id,options.installationId,namespace)])
+   throw error instanceof DoorError?error:migrationRefusal('migration_upload_refused')
+  }
+ }
+ if(path==='/api/operator/import/plan'&&request.method==='POST'){
+  const input=await jsonBody(request.clone());if(typeof input.uploadId==='string')await screenUpload(input.uploadId)
+ }
  if(path==='/api/operator/import/history'){
   if(request.method!=='GET')fail('method_not_allowed',405)
   return json({history:(await readImportDoorHistory(env.DB,options.installationId,owner)).filter(r=>r.namespace===namespace)})
@@ -83,6 +103,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
   if(row){const snapshot=await loadSnapshot(admitted,row);if(snapshot.plan.counts.rejected)fail('mapping_rejected',422)}
  }
  const response=await createImportOperatorHandler(options)(request)
+ if(path==='/api/operator/import/uploads'&&response?.ok){
+  const upload=await response.clone().json() as {uploadId:string;complete:boolean}
+  if(upload.complete)await screenUpload(upload.uploadId)
+ }
  if(path==='/api/operator/import/plan'&&response?.ok){
   const preview=await response.json() as {planId:string},row=await rowForPlan(preview.planId);if(!row)fail('plan_not_found',404)
   const snapshot=await loadSnapshot(admitted,row)
@@ -92,6 +116,6 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
 }
 export async function migrationImportResponse(request:Request,env:Bindings):Promise<Response|null>{
  let response
- try{response=await handleMigrationProject(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code},error.status):json({error:'migration_project_conflict',reason:'Reload the current project, then review again.'},409)}
+ try{response=await handleMigrationProject(request,env)}catch(error){response=error instanceof QueryError||error instanceof DoorError?json({error:error.code,...error instanceof DoorError&&error.details?{details:error.details}:{}},error.status):json({error:'migration_project_conflict',reason:'Reload the current project, then review again.'},409)}
  return response?rejectedUpload(request,response):null
 }

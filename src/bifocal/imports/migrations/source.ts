@@ -5,7 +5,9 @@ export function migrationImportSource(id:string,ownerId:string,current:TargetRow
  return {parse(value){try{
  const previous=current?.value as unknown as MigrationProject|undefined
  const baseline=compileMigration(value,id,ownerId,previous)
- const equivalent=previous&&digest({...baseline,expectedWorkspace:null})===digest({...previous,expectedWorkspace:null})
+ const stable=(project:MigrationProject)=>{const {expectedWorkspace,hexUndoSafe,...source}=project;return source}
+ const equivalent=previous&&digest(stable(baseline))===digest(stable(previous))
  const project=equivalent?previous:compileMigration(value,id,ownerId,workspace?.value??previous,workspace?.revision??null)
+ if(project.hex&&project!==previous)project.hexUndoSafe=!workspace||workspace.revision===current?.revision
  return {kind:'migration-project',sourceId:id,payload:project as unknown as Json}}catch{return {kind:'migration-project-invalid',sourceId:id,payload:{reason:'MIGRATION_PROJECT_SCHEMA: Review source inventory, stable revisions, mapping, cutoff and rollback plan.'}}}},mapping:{version:'migration-project-v1',map(record){if(record.kind!=='migration-project')return {effects:[],rejection:'MIGRATION_PROJECT_SCHEMA: A bounded inert migration inventory is required.'};return {effects:[{targetKind:'migration-project',targetId:id,value:record.payload,...(current?{expectedRevision:current.revision}:{})}]}}}}
 }

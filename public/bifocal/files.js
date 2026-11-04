@@ -1,3 +1,4 @@
+import './migration-import.js'
 import './rdl-import.js'
 import './model-import.js'
 import { element, table, metadata, sourceView } from './file-view.js'
