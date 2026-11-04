@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6f74ac735d2ba9d08b2df0327c44e9561376b7ca96dd0e4e9a380e72de6aa04b",
+      "sha256": "9177f8471050a5a7988c526dd814e525aa200c27670b3c9a7cb3262cc457a93d",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -454,7 +454,7 @@
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
-      "sha256": "650601a6113659154d840f26db4647d13aee7524493de56616e671bc0631893b",
+      "sha256": "84fa369b3d40bf5b7784dd31f630655e849440ded356034420ae967f3fa9d8f5",
       "executable": false
     },
     "docs/backup.md": {
@@ -946,7 +946,7 @@
       "executable": false
     },
     "public/bifocal/bigquery-catalog.js": {
-      "sha256": "46684fbc0fefa6c3ce70e02eb432f22f94f7ec629c42c753948577affeb6369a",
+      "sha256": "286f3e06465b84c29302dab0ed45a58b2c0527c54700563ddc730e4bf1334b95",
       "executable": false
     },
     "public/bifocal/board.js": {
@@ -3646,7 +3646,7 @@
       "executable": false
     },
     "src/bifocal/sources/databases/bigquery-catalog.ts": {
-      "sha256": "2aa0fb00ec2780c952f3063b89b6941d42620956d73605a01046ec884b956085",
+      "sha256": "fb45155d6b6968ff167bfcd310d6f5fdb47eb3e686d74bdfb14e9d02f8519b9f",
       "executable": false
     },
     "src/bifocal/sources/databases/bigquery.ts": {
@@ -6134,11 +6134,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "1ff7866d3404453ffe21e04256d1adea90a1b1944a3766210801b77a68a81990",
+      "sha256": "f5a8adb7c803370f5b8a7230998026d5aa7518508c582429907b891125dab567",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "ef3d88ae974f59b200d0e71d0673d5c57baccea93c8f61a7e8b0ff4cb5f25017",
+      "sha256": "abfcd3352edaed380b02273f73b02836ed3f435e03bbe5d01f78ddf24106e2fa",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

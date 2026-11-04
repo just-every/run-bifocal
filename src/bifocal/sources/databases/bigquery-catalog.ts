@@ -88,9 +88,10 @@ export async function browseBigQuery(input: Record<string, unknown>, grant: stri
    return {id:String(id),type:item.type,selectable:true,diagnostic:item.type === 'TABLE' ? null : 'Inspect schema only; this object is unsupported by the bounded scalar read.'}
   })
   pages.push(rows)
-  if (!response.nextPageToken) return {...common,...(action === 'tables' ? {dataset} : {}),pages,count}
-  requireValue(typeof response.nextPageToken === 'string' && /^[A-Za-z0-9._~+\/=:-]{1,2048}$/.test(response.nextPageToken) && !cursors.has(response.nextPageToken), 'bigquery_repeated_or_invalid_cursor', 502)
-  cursors.add(response.nextPageToken); cursor = response.nextPageToken
+  const next = response.nextPageToken
+  requireValue(next === undefined || typeof next === 'string' && (next === '' || /^[A-Za-z0-9._~+\/=:-]{1,2048}$/.test(next) && !cursors.has(next)), 'bigquery_repeated_or_invalid_cursor', 502)
+  if (next === undefined || next === '') return {...common,...(action === 'tables' ? {dataset} : {}),pages,count}
+  cursors.add(next); cursor = next
  }
  requireValue(false, 'bigquery_catalog_page_limit', 413)
 }

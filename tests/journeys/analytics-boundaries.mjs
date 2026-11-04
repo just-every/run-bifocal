@@ -136,7 +136,14 @@ async function proveBigQueryCatalog(context,page,edge,call,shot) {
  const schema=await call(path,{...input,action:'schema',dataset:'business',table:'complex'})
  assert.deepEqual(schema.fields.map(f=>[f.path,f.type,f.mode,f.readable]),[['campaign','STRING','NULLABLE',true],['amount','NUMERIC','REQUIRED',true],['events','RECORD','REPEATED',false],['events.day','DATE','NULLABLE',false],['events.detail','RECORD','NULLABLE',false],['events.detail.code','STRING','NULLABLE',false],['payload','JSON','NULLABLE',false],['future','FUTURE_TYPE','NULLABLE',false]])
  assert.ok(schema.fields.slice(2).every(f=>f.diagnostic));assert.ok(!JSON.stringify(schema).includes('synthetic-private-metadata'))
- for(const [phase,action,status,error] of [['403','schema',403,'provider_grant_refused'],['404','schema',404,'bigquery_object_not_found'],['429','datasets',503,'provider_rate_limited'],['redirect','datasets',502,'provider_redirect_refused'],['repeat','tables',502,'bigquery_repeated_or_invalid_cursor'],['overflow','tables',413,'bigquery_catalog_page_limit'],['wrong-project','tables',502,'bigquery_object_mismatch'],['non-us','schema',422,'bigquery_us_location_required'],['credential-response','schema',502,'provider_credential_in_response']]) {
+ for(const type of ['VIEW','EXTERNAL']) {
+  state.catalogPhase=type;const start=state.calls.length
+  const inspected=await call(path,{...input,action:'schema',dataset:'business',table:'complex'})
+  assert.equal(inspected.type,type);assert.match(inspected.diagnostic,/Only ordinary TABLE objects/);assert.equal(inspected.freshness,'unknown')
+  assert.deepEqual(inspected.fields,schema.fields);assert.ok(!JSON.stringify(inspected).includes('synthetic-private-metadata'))
+  assert.deepEqual(state.calls.slice(start),[{host:'bigquery.googleapis.com',path:'/bigquery/v2/projects/synthetic-bifocal-62/datasets/business/tables/complex',method:'GET'}],'view SQL and external connections remain inert during schema inspection')
+ }
+ for(const [phase,action,status,error] of [['403','schema',403,'provider_grant_refused'],['404','schema',404,'bigquery_object_not_found'],['429','datasets',503,'provider_rate_limited'],['redirect','datasets',502,'provider_redirect_refused'],['repeat','tables',502,'bigquery_repeated_or_invalid_cursor'],['cursor-false','tables',502,'bigquery_repeated_or_invalid_cursor'],['cursor-zero','tables',502,'bigquery_repeated_or_invalid_cursor'],['cursor-null','tables',502,'bigquery_repeated_or_invalid_cursor'],['duplicate','tables',502,'bigquery_duplicate_object'],['overflow','tables',413,'bigquery_catalog_page_limit'],['wrong-project','tables',502,'bigquery_object_mismatch'],['schema-overflow','schema',413,'bigquery_schema_limit'],['malformed-schema','schema',502,'bigquery_schema_mismatch'],['non-us','schema',422,'bigquery_us_location_required'],['credential-response','schema',502,'provider_credential_in_response']]) {
   state.catalogPhase=phase;const before=state.catalogCalls.length
   const result=await call(path,{...input,action,...(action!=='datasets'?{dataset:'business'}:{}),...(action==='schema'?{table:'complex'}:{})},status)
   assert.equal(result.error,error);assert.equal(Object.keys(result).join(),'error');assert.ok(!JSON.stringify(result).includes('synthetic-private-metadata'))
@@ -156,6 +163,23 @@ async function proveBigQueryCatalog(context,page,edge,call,shot) {
   if(width===390){const region=page.getByRole('region',{name:'BigQuery metadata table',exact:true});await region.focus();await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('[aria-label="BigQuery metadata table"]').scrollLeft>0)}
   if(width===1440){const content=await page.locator('#bigquery-catalog-results').innerText();assert.match(content,/events.detail.code/);assert.match(content,/Repeated values/);assert.match(content,/Source freshness remains unknown/);assert.ok(!content.includes('synthetic-private-metadata'));assert.equal(await form.locator('button').evaluateAll(bs=>bs.filter(b=>!b.textContent.trim()).length),0);assert.ok(await form.locator('input,select,button').evaluateAll(es=>es.every(e=>parseFloat(getComputedStyle(e).fontSize)>=13)))}
   await dataset.selectOption('archive');assert.equal(await table.isDisabled(),true);assert.equal(await page.locator('#bigquery-catalog-results').isVisible(),false)
+  if(width===1440) {
+   await dataset.selectOption('business');let entered,release;const started=new Promise(r=>entered=r)
+   state.catalogGate=new Promise(r=>release=r);state.catalogEntered=entered
+   await token.fill(grant);await consent.check();await form.getByRole('button',{name:'Browse tables',exact:true}).click();await started
+   await dataset.selectOption('archive');state.catalogGate=null;release()
+   assert.equal(await table.isDisabled(),true);assert.equal(await table.locator('option').count(),1);assert.equal(await page.locator('#bigquery-catalog-results').isVisible(),false)
+   assert.equal(await token.inputValue(),'');assert.equal(await consent.isChecked(),false)
+   // Finish a later operation so the old request cannot silently repopulate selection.
+   await dataset.selectOption('business');await submit('Browse tables');assert.equal(await dataset.inputValue(),'business');assert.equal(await table.locator('option').count(),3)
+   for(const [phase,action,message] of [['duplicate','Browse tables',/duplicate object/],['wrong-project','Browse tables',/different project, dataset or table/],['malformed-schema','Inspect schema',/malformed field metadata/]]) {
+    if(action==='Inspect schema'){state.catalogPhase='success';await submit('Browse tables');await table.selectOption('complex')}
+    state.catalogPhase=phase;await token.fill(grant);await consent.check();await form.getByRole('button',{name:action,exact:true}).click()
+    await page.locator('#bigquery-catalog-status').filter({hasText:message}).waitFor();assert.equal(await page.locator('#bigquery-catalog-results').isVisible(),false)
+    assert.equal(await token.inputValue(),'');assert.equal(await consent.isChecked(),false)
+   }
+   state.catalogPhase='success'
+  }
   await project.fill('synthetic-bifocal-63');assert.equal(await dataset.isDisabled(),true);assert.equal(await table.locator('option').count(),1)
   // A changing project also discards an operation already in flight.
   await project.fill('synthetic-bifocal-62');let entered;const started=new Promise(r=>entered=r);let release

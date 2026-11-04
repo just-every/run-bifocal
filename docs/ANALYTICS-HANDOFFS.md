@@ -152,8 +152,11 @@ excluded. The application returns a fresh projection of these metadata fields,
 never the provider response body. Each listing permits at most five pages of 50
 objects; a table listing first verifies its dataset's US location with a bounded
 dataset listing. A schema permits 250 fields through eight nested levels.
-Repeated cursors, duplicates, malformed replies and overflow refuse the entire
-operation. Navigation between returned metadata pages is local and performs no
+Repeated or malformed cursors, duplicates, malformed replies and overflow
+refuse the entire operation. Only an absent or empty string cursor completes a
+listing; false, zero and null cannot silently accept an incomplete inventory.
+Object mismatches, duplicates and malformed field metadata include actionable
+browser diagnostics without echoing provider bodies. Navigation between returned metadata pages is local and performs no
 additional provider request. A listing is an observed inventory, not an atomic
 provider snapshot or a guarantee that an unlisted object does not exist.
 

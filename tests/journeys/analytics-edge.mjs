@@ -50,11 +50,14 @@ export async function analyticsEdge(persist) {
     assert.equal(url.searchParams.get('fields'),'nextPageToken,tables(tableReference(projectId,datasetId,tableId),type)')
     const row=id=>({tableReference:{projectId:state.catalogPhase==='wrong-project'?'foreign-project':'synthetic-bifocal-62',datasetId:'business',tableId:id},type:'TABLE',view:{query:'synthetic-private-metadata'},externalDataConfiguration:{connectionId:'synthetic-private-metadata'}})
     if(state.catalogPhase==='overflow')return Response.json({tables:[row('table_'+(cursor??'0'))],nextPageToken:String(Number(cursor??0)+1)})
-    return Response.json({tables:cursor?[row('complex')]:[row('usage')],...(!cursor||state.catalogPhase==='repeat'?{nextPageToken:'synthetic-bifocal-page-2'}:{})})
+    return Response.json({tables:cursor?[row(state.catalogPhase==='duplicate'?'usage':'complex')]:[row('usage')],...(['cursor-false','cursor-zero','cursor-null'].includes(state.catalogPhase)?{nextPageToken:state.catalogPhase==='cursor-false'?false:state.catalogPhase==='cursor-zero'?0:null}:!cursor||state.catalogPhase==='repeat'?{nextPageToken:'synthetic-bifocal-page-2'}:{})})
    }
    assert.match(url.pathname,new RegExp('^'+base+'/business/tables/(usage|complex)$'))
    assert.ok(!/query|connection|description|policyTags/.test(url.searchParams.get('fields')))
-   return Response.json({tableReference:{projectId:'synthetic-bifocal-62',datasetId:'business',tableId:url.pathname.split('/').at(-1)},location:state.catalogPhase==='non-us'?'EU':'US',type:'TABLE',view:{query:'synthetic-private-metadata'},schema:{fields:[{name:'campaign',type:'STRING',description:'synthetic-private-metadata'},{name:'amount',type:'NUMERIC',mode:'REQUIRED'},{name:'events',type:'RECORD',mode:'REPEATED',fields:[{name:'day',type:'DATE'},{name:'detail',type:'RECORD',fields:[{name:'code',type:'STRING'}]}]},{name:'payload',type:'JSON'},{name:'future',type:'FUTURE_TYPE'}]},...(state.catalogPhase==='credential-response'?{description:'synthetic-bifocal-60'}:{})})
+   const schemaFields=[{name:'campaign',type:'STRING',description:'synthetic-private-metadata'},{name:'amount',type:'NUMERIC',mode:'REQUIRED'},{name:'events',type:'RECORD',mode:'REPEATED',fields:[{name:'day',type:'DATE'},{name:'detail',type:'RECORD',fields:[{name:'code',type:'STRING'}]}]},{name:'payload',type:'JSON'},{name:'future',type:'FUTURE_TYPE'}]
+   if(state.catalogPhase==='schema-overflow')schemaFields.push(...Array.from({length:251},(_,n)=>({name:'field_'+n,type:'STRING'})))
+   if(state.catalogPhase==='malformed-schema')schemaFields[0].mode='UNRECOGNIZED'
+   return Response.json({tableReference:{projectId:'synthetic-bifocal-62',datasetId:'business',tableId:url.pathname.split('/').at(-1)},location:state.catalogPhase==='non-us'?'EU':'US',type:['VIEW','EXTERNAL'].includes(state.catalogPhase)?state.catalogPhase:'TABLE',view:{query:'synthetic-private-metadata'},externalDataConfiguration:{connectionId:'synthetic-private-metadata'},schema:{fields:schemaFields},...(state.catalogPhase==='credential-response'?{description:'synthetic-bifocal-60'}:{})})
   }
   assert.match(url.pathname,/^\/bigquery\/v2\/projects\/synthetic-bifocal-62\/datasets\/business\/tables\/(usage|reporting)(\/data|\/insertAll)?$/)
   if(url.pathname.endsWith('/data')) {
