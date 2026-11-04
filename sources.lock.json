@@ -6134,7 +6134,7 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "cbcca907d8834ed472bd3e6cc2fe8a0fb6d506e8428c03c4b859491bf332494f",
+      "sha256": "32ea7c570ac01da189e409baf7f92c4b60ebc648e5b26d48ae73aa7851f0b539",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
