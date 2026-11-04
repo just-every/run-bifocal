@@ -285,8 +285,9 @@ endpoint or acquire provider credentials.
 1. Import the native source records through the existing file review and Apply
    workflow. A report definition alone never imports or reconciles its source.
 2. Enter a project ID, the original Studio report link and the reviewed native
-   dataset ID. Choose Start reconstruction guide. Attach the authorized plain
-   text originals, keeping their original filenames and content.
+   dataset ID. Choose Start reconstruction guide. Attach the authorized
+   originals, keeping their original filenames and exact bytes. Binary captures
+   remain opaque; the application never renders or executes them.
 3. Inspect pages, data sources, fields, blends, calculations, parameters,
    filters, layout, sharing and delivery settings. For every category, supply
    its original definition and inspection location, or leave it inaccessible
@@ -320,12 +321,13 @@ start no schedules.
 The shared migration API uses `X-Import-Kind: migration-project` and the project
 ID in `X-Import-Dataset`. Its JSON envelope uses `source: looker-studio`,
 `version: 1`, `projectId`, an ISO UTC `cutoff`, a `rollbackPlan`, `reportUrl`,
-`originals` (name and content), `evidence` and `drafts`. Each evidence item has
+`originals` (name, exact `base64` and `mediaType`, or UTF-8 `content`),
+`evidence` and `drafts`. Each evidence item has
 `id`, `kind`, `sourceRevision`, `sourceLocation`, `status` and `original`.
 Accepted input states are `inaccessible`, `supplied` and `unsupported`;
 reconciliation is computed during review. Each draft has `id`,
 `sourceRevision` and its JSON `document` as a string. Bounds are 1 MiB per
-bundle, twelve original text files of at most 32 KiB each, seventy supplied
+bundle, twelve original files of at most 32 KiB each, seventy supplied
 evidence entries, twelve drafts and one hundred total inventory items.
 
 Current-owner routes under `/api/operator/migration-projects/<project-id>`
