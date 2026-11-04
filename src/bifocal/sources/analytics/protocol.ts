@@ -23,16 +23,19 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 }
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
-export async function providerJson(url: string, accessToken: string, data?: unknown): Promise<Record<string, unknown>> {
- const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000)
+export async function providerJson(url: string, accessToken: string, data?: unknown, options: {headers?: Record<string,string>; budget?: {remainingBytes:number;deadline:number}} = {}): Promise<Record<string, unknown>> {
+ const remaining = options.budget ? options.budget.deadline - Date.now() : 15000
+ requireValue(remaining > 0 && (!options.budget || options.budget.remainingBytes > 0), 'provider_aggregate_limit', 413)
+ const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), Math.min(15000, remaining))
  try {
-  const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json', ...(data === undefined ? {} : {'content-type':'application/json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
+  const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { ...options.headers, authorization: `Bearer ${accessToken}`, accept: 'application'+'/'+'json', ...(data === undefined ? {} : {'content-type':'application'+'/'+'json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
   if (response.status !== 200) {
    await response.body?.cancel()
    throw new AnalyticsError([401,403].includes(response.status) ? 'provider_grant_refused' : response.status === 429 ? 'provider_rate_limited' : response.status >= 300 && response.status < 400 ? 'provider_redirect_refused' : 'provider_request_failed', response.status === 429 ? 503 : [401,403].includes(response.status) ? 403 : 502)
   }
   requireValue(/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? ''), 'provider_json_required', 502)
-  const text = await boundedText(response.body, 1048576, 'provider_response_limit')
+  const text = await boundedText(response.body, Math.min(1048576, options.budget?.remainingBytes ?? 1048576), 'provider_response_limit')
+  if (options.budget) options.budget.remainingBytes -= new TextEncoder().encode(text).length
   const result: unknown = JSON.parse(text)
   requireValue(!text.includes(accessToken) && !JSON.stringify(result).includes(accessToken), 'provider_credential_in_response', 502)
   requireValue(object(result), 'provider_schema_mismatch', 502)

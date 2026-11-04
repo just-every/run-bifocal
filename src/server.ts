@@ -1,3 +1,4 @@
+import { commerceSourceResponse } from './bifocal/sources/commerce/server'
 import { agentDoorResponse } from './bifocal/agent-door/index.server'
 import { businessSettings } from './auth.server'
 import { agentBindingResponse } from './bifocal/agent-door/grants.server'
@@ -182,6 +183,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (query) return query
     const warehouse = await warehouseResponse(request, env)
     if (warehouse) return warehouse
+    const commerceSource = await commerceSourceResponse(request, env)
+    if (commerceSource) return commerceSource
     const analyticsSource = await analyticsSourceResponse(request, env)
     if (analyticsSource) return analyticsSource
     const range = await spreadsheetRangeResponse(request, env)

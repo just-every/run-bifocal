@@ -6,8 +6,8 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
  const recordRequest=request=>browserRequests.push(request.url())
  page.on('request',recordRequest)
  const edge=await analyticsEdge(persist),{origin,vaneOrigin,state}=edge
- const call=async(path,data,status=200,extra={})=>{
-  const response=await context.request.fetch(origin+'/api/operator/'+path,{method:data===undefined?'GET':'POST',headers:{Origin:origin,...extra},...(data===undefined?{}:{data})})
+ const call=async(path,data,status=200,extra={},method=data===undefined?'GET':'POST',timeout=30000)=>{
+  const response=await context.request.fetch(origin+'/api/operator/'+path,{method,timeout,headers:{Origin:origin,...extra},...(data===undefined?{}:{data})})
   const text=await response.text();assert.equal(response.status(),status,text);assert.ok(!text.includes(grant),'grants never appear in application responses');return JSON.parse(text)
  }
  const shot=async(name,width)=>{
@@ -37,6 +37,8 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true},401,{Origin:'https://foreign.example.test'})
   assert.equal(state.calls.length,initialCalls)
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
+  await proveSquare(edge,context,page,call,shot,apply)
+  if(process.argv.includes('--square'))return
   let lastBoard,apiDataset
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import')
@@ -110,6 +112,111 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
 // from runtime.mjs; this entry never substitutes for the push Verify wall.
 if(process.argv[1]===new URL(import.meta.url).pathname){
  const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
- const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
  try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
+}
+
+/** Square order summaries through the real installed file door and exact query.
+ * Assertions run at 1440; the same changed screens have a separate 390 proof. */
+async function proveSquare({origin,state,database,signInAs},context,page,call,shot,apply) {
+ const id='square-orders',input={datasetId:id,locationId:'synthetic-bifocal-location',environment:'sandbox',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true}
+ const post=(action,data,status=200)=>call('import/'+action,data,status,{'X-Import-Dataset':id})
+ const read=(extra={},status=200)=>call('analytics/square/preview',{...input,...extra},status,{},'POST',60000)
+ const calls=state.calls.length
+ await read({confirmRead:false},400);await read({environment:'other'},400);await read({locationId:'../orders'},400);await read({from:'2026-02-30'},400)
+ for(const extra of [{url:'https://foreign.example.test'},{method:'PUT'},{operation:'pay'},{query:{return_entries:true}},{location_ids:['synthetic-bifocal-other']}])await read(extra,400)
+ await call('analytics/square/preview',input,401,{Authorization:'Bearer synthetic-bifocal-machine'})
+ await call('analytics/square/preview',input,401,{Origin:'https://foreign.example.test'})
+ assert.equal(state.calls.length,calls)
+ const member=await context.browser().newContext()
+ try {
+  const email=['synthetic-bifocal-square-member','example.test'].join('@')
+  const memberSession=await signInAs(member,email,context);assert.equal(memberSession.operator.role,'member')
+  const response=await member.request.post(origin+'/api/operator/analytics/square/preview',{headers:{Origin:origin},data:input})
+  assert.equal(response.status(),401);assert.equal((await member.request.get(origin+'/api/operator/datasets/'+id)).status(),401);assert.equal((await member.request.post(origin+'/api/operator/datasets/'+id+'/erase',{headers:{Origin:origin},data:{confirmDataset:id,reviewedRevision:null}})).status(),401);assert.equal(state.calls.length,calls,'members cause no provider read')
+ } finally {await member.close()}
+ assert.equal((await fetch(origin+'/api/operator/analytics/square/preview',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify(input)})).status,401)
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
+ await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read Square order summaries',{exact:true}).click()
+ const form=page.locator('#square-form')
+ const fill=async()=>{
+  for(const [name,value]of Object.entries(input))if(['locationId','from','to','accessToken'].includes(name))await form.locator(`[name="${name}"]`).fill(String(value))
+  await form.getByLabel('Square environment').selectOption('sandbox');await form.getByRole('checkbox').check()
+ }
+ await fill();await shot('square-setup',1440)
+ await form.getByRole('button',{name:'Preview Square orders'}).click();await page.locator('#review:not([hidden])').waitFor()
+ assert.equal(await form.getByRole('checkbox').isChecked(),false);assert.equal(await form.getByLabel('Square orders read access token').inputValue(),'')
+ assert.equal((await call('datasets/'+id,undefined,404)).error,'dataset_not_found')
+ await shot('square-review',1440);await apply();await shot('square-applied',1440)
+ const current=await call('datasets/'+id),names=current.table.columns.map(c=>c.name),records=current.table.rows.map(row=>Object.fromEntries(names.map((name,i)=>[name,row[i]])))
+ assert.deepEqual(records.map(row=>row.order_id),['synthetic-bifocal-sale','synthetic-bifocal-void','synthetic-bifocal-return','synthetic-bifocal-nonapi'])
+ assert.deepEqual(records.map(row=>[row.state,row.version,row.order_total,row.return_total,row.net_total]),[['COMPLETED','3','117.85','25.00','92.85'],['CANCELED','1','0.00',null,null],['COMPLETED',null,'0.00','12.50','-12.50'],['OPEN',null,'22.00',null,null]])
+ assert.deepEqual([records[0].order_tax,records[0].order_discount,records[0].order_tip,records[0].order_service_charge,records[0].return_tax,records[0].net_tax],['8.00','5.00','12.00','2.85','1.50','6.50'])
+ assert.equal(records[3].order_tax,null);assert.equal(records[3].updated_at,null);assert.equal(records[0].closed_at,'2026-06-10T10:10:00Z');assert.equal(current.table.key,'order_id')
+ const history=await post('history'),initialPlan=history.history[0]
+ const originals=await post('original/'+initialPlan.planId),held=originals.originals.filter(entry=>entry.original.status==='retained')
+ assert.ok(held.length>0)
+ const original=held.map(entry=>Buffer.from(entry.original.base64,'base64').toString('utf8')).join('\n')
+ assert.ok(original.includes('synthetic-bifocal-sale'));assert.ok(original.includes('117.85'))
+ for(const value of [grant,'synthetic-bifocal-private-customer','Unnecessary customer data','line_items','fulfillments'])assert.ok(!original.includes(value),'unnecessary fields and credential never enter retained originals')
+ const audit=await database.prepare('SELECT event,fingerprint FROM bf_analytics_reads WHERE dataset_id=?').bind(id).all();assert.ok(audit.results.some(row=>row.event==='consented'));assert.ok(audit.results.some(row=>row.event==='staged'))
+ const query={version:1,dataset:id,joins:[],filters:[],groupBy:['location_id'],measures:['order_total','return_total','net_total','order_tax','order_discount','order_tip','order_service_charge'].map(column=>({id:column.replaceAll('_','-'),op:'sum',column,unit:'money',scale:2,sourceCurrency:'USD'})),context:{modelVersion:'native-business-v1',metricVersion:'owner-defined-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
+ await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click();await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
+ const running=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click();const response=await running,answer=await response.json();assert.equal(response.status(),201,JSON.stringify(answer))
+ assert.deepEqual(Object.fromEntries(Object.entries(answer.answer.totals).map(([k,v])=>[k,v.value])),{'order-total':'139.85','return-total':'37.50','net-total':'80.35','order-tax':'8.00','order-discount':'5.00','order-tip':'12.00','order-service-charge':'2.85'})
+ assert.equal(answer.answer.totals['net-total'].nulls,2);assert.equal(answer.answer.totals['order-tax'].nulls,2)
+ await page.locator('#answer:not([hidden])').waitFor();await shot('square-answer',1440)
+ // Every later-page failure must leave last-good rows AND retained import plans intact.
+ const plansBefore=await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first()
+ for(const [phase,status]of [['401',403],['403',403],['429',503],['redirect',502],['errors',502],['foreign',502],['duplicate',502],['conflict',502],['loop',502],['unsafe',502],['currency',502],['credential',502],['incomplete',502],['missing',502],['rows',413],['pages',413],['bytes',413],['deadline',502],['empty',422]]){
+  state.squarePhase=phase;const count=state.calls.length;const refused=await read({catchup:true},status);assert.ok(!JSON.stringify(refused).includes('synthetic-bifocal-private-diagnostic'));assert.ok(state.calls.slice(count).every(c=>c.host==='connect.squareupsandbox.com'&&c.path==='/v2/orders/search'&&c.method==='POST'),'refusals never follow redirects or perform writes');assert.deepEqual(await call('datasets/'+id),current,phase+' preserves the exact last-good source');assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore,phase+' stages nothing')
+ }
+ state.squarePhase='success'
+ // An in-flight bounded read loses native authority before it may stage.
+ const withdrawing=await context.browser().newContext()
+ let release
+ try {
+  const session=await signInAs(withdrawing,['synthetic-bifocal-1','example.test'].join('@'));assert.equal(session.operator.role,'owner')
+  let reached
+  const paused=new Promise(resolve=>{reached=resolve})
+  state.squarePause=async()=>{reached();await new Promise(resolve=>{release=resolve})}
+  const reading=withdrawing.request.post(origin+'/api/operator/analytics/square/preview',{headers:{Origin:origin},data:{...input,catchup:true}})
+  const early=await Promise.race([paused.then(()=>null),reading]);assert.ok(early===null,early===null?'Read reached pause':'Read ended before pause: '+early.status()+' '+await early.text())
+  assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
+  release();const refused=await reading;assert.equal(refused.status(),409,await refused.text())
+  assert.deepEqual(await call('datasets/'+id),current);assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore)
+ } finally {release?.();state.squarePause=null;await withdrawing.close()}
+ const stale=await read({catchup:true})
+ await post('apply',{planId:stale.planId,reviewedFingerprint:'0'.repeat(64)},403)
+ await post('undo',{planId:stale.planId})
+ const next=await read({catchup:true})
+ const applyPlan=async plan=>{for(let n=0;n<20;n++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return;assert.fail('Square Apply completes')}
+ await applyPlan(next);await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},404)
+ await post('undo',{planId:next.planId});assert.deepEqual((await call('datasets/'+id)).table,current.table)
+ // The phone proof uses the same source, review, Apply, query and Undo doors.
+ await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read Square order summaries',{exact:true}).click();await fill();await shot('square-setup',390)
+ state.squarePhase='changed';await form.getByRole('button',{name:'Preview Square orders'}).click();await page.locator('#review:not([hidden])').waitFor();await shot('square-review',390);await apply();await shot('square-applied',390)
+ await page.goto(origin+'/app/queries/'+answer.queryId);await page.locator('#answer:not([hidden])').waitFor();await shot('square-answer',390)
+ await page.goto(origin+'/app/import?dataset='+id);await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'));await shot('square-undone',390)
+ await page.setViewportSize({width:1440,height:1000});assert.deepEqual((await call('datasets/'+id)).table,current.table);state.squarePhase='success'
+ const revision=(await call('datasets/'+id)).revision
+ let retention=await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:null,legalHold:true,minimumRetainUntil:null},200,{},'PUT')
+ await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision},423)
+ retention=await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:retention.revision,legalHold:false,minimumRetainUntil:'9999-01-01T00:00:00.000Z',releaseHold:true},200,{},'PUT')
+ await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision},423)
+ await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:retention.revision,legalHold:false,minimumRetainUntil:null,releaseHold:true},200,{},'PUT')
+ const erased=await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision});assert.ok(erased.stores.some(store=>store.store==='bf_query_snapshots'&&store.rows>0))
+ await call('datasets/'+id,undefined,404);await call('queries/'+answer.queryId,undefined,404)
+ const erasedOriginal=await post('original/'+initialPlan.planId);assert.ok(erasedOriginal.originals.length>0);assert.ok(erasedOriginal.originals.every(entry=>entry.original.status!=='retained'&&!entry.original.base64),'Erasure withdraws original bytes')
+ await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},404)
+ const replay=await read({catchup:true},409);assert.ok(JSON.stringify(replay).includes('source_erased'))
+ await call('datasets/'+id,undefined,404)
+ const retained=await database.prepare('SELECT * FROM bf_analytics_reads WHERE dataset_id=?').bind(id).all();assert.ok(!JSON.stringify(retained).includes(grant));assert.ok(!JSON.stringify(retained).includes('synthetic-bifocal-private-customer'))
+ assert.ok(state.squareCalls.every(c=>['connect.squareupsandbox.com'].includes(c.host)),'explicit sandbox environment stays bound')
+ // A production read uses only the separately selected official production host.
+ await read({datasetId:'square-production',environment:'production'});assert.equal(state.squareCalls.at(-1).host,'connect.squareup.com')
+ console.log('PROBE BIF-041 bounded read: /app/import Square sandbox -> four stable order summaries over two pages; separate exact review, Apply and reconciliation')
+ console.log('PROBE BIF-041 money: /api/operator/queries/run -> order 139.85 USD, return 37.50 USD, reported net 80.35 USD; missing amounts and non-API versions remain null')
+ console.log('PROBE BIF-041 refusal: later-page HTTP and schema failures, duplicate records, paging, byte and deadline bounds -> no staged plan and unchanged last-good table')
+ console.log('PROBE BIF-041 custody: stale approval and retained capture replay refused; Undo restored prior revision; holds blocked erasure, eligible erasure withdrew originals and saved answer')
 }
