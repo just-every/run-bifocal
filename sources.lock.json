@@ -454,7 +454,7 @@
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
-      "sha256": "84fa369b3d40bf5b7784dd31f630655e849440ded356034420ae967f3fa9d8f5",
+      "sha256": "02a5ef82d094c8375b97277aeda020e6b201ad85d22c4c05a550b4b1aa1d6ea3",
       "executable": false
     },
     "docs/backup.md": {
@@ -3646,7 +3646,7 @@
       "executable": false
     },
     "src/bifocal/sources/databases/bigquery-catalog.ts": {
-      "sha256": "fb45155d6b6968ff167bfcd310d6f5fdb47eb3e686d74bdfb14e9d02f8519b9f",
+      "sha256": "1a490a6c7c810e09d2ecc23cb1661fdb9eb8abe84f999a0073c606d36385fe9b",
       "executable": false
     },
     "src/bifocal/sources/databases/bigquery.ts": {
@@ -6134,11 +6134,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "f5a8adb7c803370f5b8a7230998026d5aa7518508c582429907b891125dab567",
+      "sha256": "636d867df0ad5a8a5a6dfffcf928fa4a09385dcc6d976e9db08391814009bfec",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "abfcd3352edaed380b02273f73b02836ed3f435e03bbe5d01f78ddf24106e2fa",
+      "sha256": "b8ecabf6de0e9f9e30cdd1080d19ec0ce4db43a44376d620b7767f8c135fea46",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

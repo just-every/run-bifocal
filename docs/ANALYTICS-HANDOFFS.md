@@ -156,8 +156,10 @@ Repeated or malformed cursors, duplicates, malformed replies and overflow
 refuse the entire operation. Only an absent or empty string cursor completes a
 listing; false, zero and null cannot silently accept an incomplete inventory.
 Object mismatches, duplicates and malformed field metadata include actionable
-browser diagnostics without echoing provider bodies. Navigation between returned metadata pages is local and performs no
-additional provider request. A listing is an observed inventory, not an atomic
+browser diagnostics without echoing provider bodies. An unavailable schema is
+distinguished from malformed field metadata and schema overflow.
+Navigation between returned metadata pages is local and performs no additional
+provider request. A listing is an observed inventory, not an atomic
 provider snapshot or a guarantee that an unlisted object does not exist.
 
 Use a narrowly scoped token authorized for dataset visibility,

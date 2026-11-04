@@ -18,7 +18,8 @@ const known = new Set([...scalar,'FLOAT','FLOAT64','TIMESTAMP','TIME','DATETIME'
 const pageLimit = 5, objectLimit = 250, pageSize = 50
 export type CatalogField = { path: string; type: string; mode: string; readable: boolean; diagnostic: string | null }
 function fields(value: unknown, prefix = '', depth = 0, result: CatalogField[] = []): CatalogField[] {
- requireValue(Array.isArray(value) && value.length <= objectLimit && depth <= 8, 'bigquery_schema_limit', 413)
+ requireValue(Array.isArray(value), 'bigquery_schema_mismatch', 502)
+ requireValue(value.length <= objectLimit && depth <= 8, 'bigquery_schema_limit', 413)
  const names = new Set<string>()
  for (const field of value) {
   requireValue(object(field) && fieldName(field.name) && !names.has(field.name) && typeof field.type === 'string' && /^[A-Z][A-Z0-9_]{0,31}$/.test(field.type), 'bigquery_schema_mismatch', 502)
@@ -53,7 +54,7 @@ export async function browseBigQuery(input: Record<string, unknown>, grant: stri
   requireValue(metadata.location === 'US', 'bigquery_us_location_required', 422)
   const type = metadata.type ?? 'TABLE'
   requireValue(typeof type === 'string' && ['TABLE','VIEW','MATERIALIZED_VIEW','EXTERNAL','SNAPSHOT','CLONE'].includes(type), 'bigquery_table_type_unsupported', 422)
-  requireValue(object(metadata.schema), 'bigquery_schema_unavailable', 422)
+  requireValue(object(metadata.schema) && metadata.schema.fields !== undefined, 'bigquery_schema_unavailable', 422)
   return {...common,dataset,table,location:'US',type,diagnostic:type === 'TABLE' ? null : 'Only ordinary TABLE objects support the bounded scalar read; no SQL or external connection is executed.',fields:fields(metadata.schema.fields)}
  }
  if (action === 'tables') {
