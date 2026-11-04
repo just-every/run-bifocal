@@ -50,7 +50,7 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   const imported=input.importProject===undefined?null:await readImportedProject(env,ownerId,String(input.importProject))
   if(imported){
    if(input.importRevision!==imported.revision||!imported.value.report.compatible||canonicalJson(definition)!==canonicalJson(imported.value.definition))fail('exact_compatible_project_required',409)
-   guards.push(projectGuard(imported))
+   guards.push(projectGuard(imported), ...imported.value.sources.map(source => sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?)', source.id, source.revision)))
   }else if(input.importRevision!==undefined)fail('import_project_required',400)
   if(path.endsWith('/format')){await transact(env.DB,owner,guards.map(assertion));return json({document:dump(definition,{schema:JSON_SCHEMA,noRefs:true,lineWidth:100})})}
   const model=input.modelId===undefined?null:await readModel(env,ownerId,String(input.modelId))

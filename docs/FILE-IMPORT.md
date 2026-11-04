@@ -237,3 +237,40 @@ remain unresolved. The bounded dbt translator proves literal column projections
 through local dependency references and checks built-in column nullability and
 uniqueness against exact reviewed records. A failed quality check, mismatched
 alias mapping, unsupported SQL or test, or project hook blocks rebuilt export.
+
+
+### Bounded original Omni YAML
+
+Choose **Omni view and topic YAML** in the semantic project form at
+`/app/import`. Upload original `.view` and `.topic` files, including source
+folders when needed; `.view.yaml` and `.topic.yaml` are also accepted. Each topic
+requires its original `base_view`. Bind each view to an already reviewed native
+dataset with an explicit physical grain, measure units and scale, source currency
+for money, and a versioned calendar. The source revision is pinned by review.
+
+This reader accepts physical dimensions and same-view physical references for
+`sum` and `count_distinct` measures. Empty sums remain null and distinct counts
+exclude nulls. Original filenames, identifiers, expressions and dependency
+references remain inspectable in the compatibility report and retained originals.
+Unknown properties, security filters, access grants, joins, SQL expressions,
+inheritance and omitted dependencies stay unresolved and prevent rebuilt-model
+export and imported native preview. Source formatting and display properties
+outside this subset are also reported, rather than silently treated as parity.
+
+Apply retains an inactive project; it creates no published model, grant,
+connection or schedule. Use **Review imported model** to inspect exact native
+values and **Semantic import history** to Undo a completed import. A changed
+source or stale project review requires a fresh review. Eligible source erasure
+withdraws the retained project versions, originals and linked native derivatives.
+Imported permissions, MCP credentials and agent credentials confer no authority.
+
+The self-authored source-format specimens in
+`tests/journeys/model-project-fixtures.mjs` follow Omni's published
+[view reference](https://docs.omni.co/modeling/views/parameters),
+[dimension reference](https://docs.omni.co/modeling/dimensions/parameters),
+[measure reference](https://docs.omni.co/modeling/measures/parameters) and
+[topic reference](https://docs.omni.co/modeling/topics/parameters), read on
+4 November 2026. They establish the bounded parser and native preview only.
+Real buyer-authorized model and workbook estates, general content and rendering,
+new user and tenant grants, delivery, source deltas and approved cutover remain
+unqualified. No original Omni SQL or workbook code executes.
