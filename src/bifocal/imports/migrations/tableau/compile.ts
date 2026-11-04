@@ -55,7 +55,7 @@ export function compileTableau(value:unknown,projectId:string,sources:Source[]):
     else if(typeof v.bool_value==='boolean')literal=v.bool_value
     else if(v.null_value==='NULL_VALUE')literal=null
     else throw Error('filter')
-    if(f.include_null===true&&literal!==null)throw Error('filter')
+    if(f.include_null!==undefined&&typeof f.include_null!=='boolean'||f.include_null===true&&literal!==null||literal===null&&f.include_null!==true)throw Error('filter')
     if(instance&&(!Array.isArray(extension.allowed_dimensions)||!extension.allowed_dimensions.includes(name)))throw Error('filter')
     filters.push({column:bind(name),op:literal===null?'is-null':'eq',...(literal===null?{}:{value:literal})})
    }

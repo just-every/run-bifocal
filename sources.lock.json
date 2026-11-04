@@ -550,7 +550,7 @@
       "executable": false
     },
     "docs/TABLEAU-MIGRATION.md": {
-      "sha256": "916611392d639332bf8926cc1e9fbce13674c84e82d0660d5ca92984e8a3804b",
+      "sha256": "fe9b291be993e12ebd8a3f5d360b36b32c038d1b1f0e74d4447bfde2f7a980cf",
       "executable": false
     },
     "docs/US-CONVENTIONS.md": {
@@ -3018,7 +3018,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/compile.ts": {
-      "sha256": "7a22801f5146caa3ac1847a5536f06e23024b66d1ab9c2e8bfd55d1b63b0b5e6",
+      "sha256": "fdc482075fccdb89ba5de47da4ca1a087d269458fef0fe61a68221c5f3d9a432",
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/drafts.server.ts": {
@@ -6290,7 +6290,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "4636171f733dad80fa8282b7609a2fff0e336378081f60c271153c786dd6e6e9",
+      "sha256": "5dbc5b32446f78fcfe6c3e607fab915932961ef6ffbea3fd6026c4473b1febb0",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
