@@ -6154,7 +6154,7 @@
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
-      "sha256": "64bca7d0ce88afb28bf502446e31e70f8b3424c949b3375f97ba49297216a964",
+      "sha256": "a08ee01983d004bcbe559f2afddd5e280ea47af92360553ee2c1b010ddd53b07",
       "executable": false
     },
     "tests/journeys/composition-tooling.mjs": {
