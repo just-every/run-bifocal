@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 
-export async function proveMigrationProjects({origin,context,call}){
+export async function proveMigrationProjects({origin,context,call,page,upload,proveScreen}){
  const id='synthetic-bifocal-migration',base='/migration-projects/'+id,headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
  const post=async(action,data,status=200)=>{const response=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(response.status(),status,await response.text());return response.json()}
  const baselines=new Set()
@@ -60,5 +60,131 @@ export async function proveMigrationProjects({origin,context,call}){
  const withdrawn=await context.request.get(origin+'/api/operator/import/original/'+fresh.planId,{headers});assert.equal(withdrawn.status(),200);const unavailable=(await withdrawn.json()).originals;assert.equal(unavailable.length,1);assert.equal(unavailable[0].original.status,'unavailable');assert.equal(unavailable[0].original.base64,undefined)
  await call(base+'/versions/'+history.history[0].revision,undefined,404)
  await post('apply',{planId:fresh.planId,reviewedFingerprint:fresh.fingerprint},410)
+ await proveLookerReconstruction({origin,context,call,page,upload,proveScreen})
  console.log('Migration projects: shared retained plans, exact approval, idempotent resume, deltas, native conflicts, both resolutions, original history, stale and foreign refusal, erasure and inert reconstruction inventories passed')
+}
+
+export async function proveLookerReconstruction({origin,context,page,call,upload,proveScreen}){
+ console.log('Looker reconstruction journey started')
+ page.setDefaultTimeout(30000)
+ page.on('pageerror',error=>console.error('Reconstruction browser error:',error.message))
+ const {assertLookerNativePreview}=await import('./model-import.mjs')
+ const id='synthetic-bifocal-looker',base='/migration-projects/'+id,dataset=id+'-source',headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
+ const csv='invoice,date,region,revenue,person\n1,07/01/2026,West,$10.01,A\n2,07/02/2026,West,-$0.03,A\n3,07/03/2026,East,$20.02,B\n4,08/01/2026,West,$99.00,C\n5,07/04/2026,East,,\n6,07/05/2026,North,$0.00,D\n'
+ await upload(dataset,csv)
+ const source=await call('/datasets/'+dataset),kinds=['page','data-source','field','blend','calculation','parameter','filter','layout','sharing','delivery']
+ const query={version:1,dataset,joins:[],filters:[{column:'date',op:'gte',value:'2026-07-01'},{column:'date',op:'lte',value:'2026-07-31'}],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'},{id:'people',op:'count-distinct',column:'person',unit:'count',scale:0}],context:{modelVersion:'looker-reconstruction',metricVersion:'owner-1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-july',version:1},rounding:'half-even'},semantic:{grain:['invoice'],dimensions:source.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
+ const expected={rows:[{dimensions:['West'],values:{revenue:'9.98',people:'1'}}],totals:{revenue:'9.98',people:'1'}}
+ const document={sourceRevision:source.revision,definition:{views:[{id:'report-page',kind:'report',query,rowRules:[]}],quality:[]},parameters:[{id:'region',column:'region',type:'text',op:'eq',value:'West'}],reference:expected}
+ const post=async(action,data,status=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(r.status(),status,await r.text());return r.json()}
+ const prepare=async(input,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(input)),hash=createHash('sha256').update(bytes).digest('hex'),u=await post('uploads',{name:'owner-reconstruction.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')});return post('plan',{uploadId:u.uploadId,...catchup?{catchup:true}:{}})}
+ const apply=async p=>{assert.equal(p.counts.rejected,0,JSON.stringify(p));for(let n=0;n<20;n++){const r=await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint});if(r.job.state==='completed'){assert.equal((await post('reconcile',{planId:p.planId})).ok,true);return}}assert.fail('Reconstruction import incomplete')}
+ const input={version:1,projectId:id,source:'looker-studio',cutoff:'2026-10-15T12:00:00Z',rollbackPlan:'Keep the incumbent active; undo the exact import.',reportUrl:'https://lookerstudio.google.com/reporting/synthetic-bifocal-report',originals:[{name:'owner-notes.txt',content:'Self-authored inspection specimen. Supplied page and table; no API export is claimed.'}],evidence:kinds.map(kind=>({id:'evidence-'+kind,kind,sourceRevision:'owner-1',sourceLocation:'Owner inspection: '+kind,status:'supplied',original:['blend','calculation'].includes(kind)?'none':kind==='sharing'?'Owner only; imported shared viewers inactive':kind==='delivery'?'Weekly schedule retained inactive':'Owner-supplied '+kind})),drafts:[{id:'native-page',sourceRevision:'owner-1',document:JSON.stringify(document)}]}
+ // Omitted categories are accounted for, rather than disappearing from inventory.
+ const omitted={...structuredClone(input),projectId:id+'-omitted',evidence:[]};headers['X-Import-Dataset']=omitted.projectId
+ const missing=await prepare(omitted);await apply(missing)
+ const missingProject=await call('/migration-projects/'+omitted.projectId),missingReview=await call('/migration-projects/'+omitted.projectId+'/review',{reviewedRevision:missingProject.revision},200)
+ assert.deepEqual(missingReview.issues.filter(i=>i.code==='inaccessible_evidence').map(i=>i.item).sort(),kinds.map(k=>'missing-'+k).sort());assert.equal(missingReview.drafts[0].answer,null)
+ headers['X-Import-Dataset']=id
+ console.log('Looker omitted evidence proved')
+ // The actual browser guide starts with inaccessible definitions. Supplying them
+ // is explicit and does not establish live source-output or cutover parity.
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.locator('#looker-reconstruction summary').first().click()
+ await page.getByLabel('Reconstruction project ID',{exact:true}).fill(id)
+ await page.getByLabel('Original report link',{exact:true}).fill(input.reportUrl)
+ await page.getByLabel('Reviewed native dataset',{exact:true}).fill(dataset)
+ await page.getByRole('button',{name:'Start reconstruction guide',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Guide started'}).waitFor()
+ assert.equal(await page.getByLabel('page status',{exact:true}).inputValue(),'inaccessible')
+ for(const evidence of input.evidence){await page.getByLabel(evidence.kind+' status',{exact:true}).selectOption(evidence.status);await page.getByLabel(evidence.kind+' original',{exact:true}).fill(evidence.original)}
+ await page.getByLabel('Original evidence files',{exact:true}).setInputFiles({name:'owner-notes.txt',mimeType:'text/plain',buffer:Buffer.from(input.originals[0].content)})
+ await page.getByLabel('Inactive native document (JSON)',{exact:true}).fill(JSON.stringify(document,null,2))
+ await page.getByRole('button',{name:'Review reconstruction import',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Review the exact reconstruction plan'}).waitFor()
+ const browserPlan=await page.locator('#looker-plan-summary').textContent();assert.match(browserPlan,/Owner-supplied reconstruction/)
+ await page.getByLabel('I reviewed this exact reconstruction fingerprint',{exact:true}).check();await page.getByRole('button',{name:'Apply inactive reconstruction',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Inactive reconstruction imported'}).waitFor()
+ console.log('Looker browser import applied')
+ let current=await call(base)
+ assert.equal(current.items.find(i=>i.source.id==='evidence-page').source.mapping,'supplied')
+ await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Current evidence reviewed'}).waitFor()
+ assert.match(await page.getByRole('table',{name:'Reconstructed native values'}).innerText(),/West.*9.98.*1/s)
+ await page.getByRole('button',{name:'Confirm exact native preview',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Exact native preview confirmed'}).waitFor()
+ await proveScreen('looker-reconstruction-native-preview')
+ let review=await call(base+'/review',{reviewedRevision:current.revision},200);assertLookerNativePreview(review)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},200)
+ const history=await context.request.get(origin+'/api/operator/import/history',{headers}),initialPlan=(await history.json()).history[0].planId
+ // Inspect retained original bytes through the shared custody door.
+ const readOriginal=async p=>{const r=await context.request.get(origin+'/api/operator/import/original/'+p,{headers});assert.equal(r.status(),200);return (await r.json()).originals}
+ const original=await readOriginal(initialPlan);assert.equal(original.length,1);assert.equal(JSON.parse(Buffer.from(original[0].original.base64,'base64').toString()).originals[0].content,input.originals[0].content)
+ // Every unsupported or missing field is retained in one complete diagnostic.
+ const broken=structuredClone(document);broken.definition.views[0].query.groupBy=['missing-a','missing-b']
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(broken)},200)
+ const blend=current.items.find(i=>i.source.id==='evidence-blend'),badBlend={...JSON.parse(blend.native),original:'Blend GA4 and Ads',status:'unsupported'}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'evidence-blend',native:JSON.stringify(badBlend)},200)
+ const gaps=await call(base+'/review',{reviewedRevision:current.revision},200)
+ assert.deepEqual(gaps.issues.filter(i=>i.code==='missing_physical_field').map(i=>i.location).sort(),['missing-a','missing-b'])
+ assert.ok(gaps.issues.some(i=>i.item==='evidence-blend'&&i.code==='unsupported_evidence'));assert.equal(gaps.drafts[0].answer,null)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
+ await page.getByRole('button',{name:'Load reconstruction',exact:true}).click();await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-results').filter({hasText:'missing-b'}).waitFor();await proveScreen('looker-reconstruction-blocked')
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(document)},200)
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'evidence-blend',native:blend.native},200)
+ // Independent parameter and date bounds include zero, negative and null values.
+ const east=structuredClone(document);east.parameters[0].value='East';east.reference={rows:[{dimensions:['East'],values:{revenue:'20.02',people:'1'}}],totals:{revenue:'20.02',people:'1'}}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(east)},200)
+ const eastReview=await call(base+'/review',{reviewedRevision:current.revision},200);assertLookerNativePreview(eastReview,{total:'20.02',distinct:'1',rows:east.reference.rows})
+ const wrongReference=structuredClone(east);wrongReference.reference.totals.revenue='900.00';current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(wrongReference)},200)
+ const mismatch=await call(base+'/review',{reviewedRevision:current.revision},200);assert.ok(mismatch.issues.some(i=>i.code==='reference_mismatch'));assert.equal(mismatch.drafts[0].answer,null)
+ const zero=structuredClone(document);zero.parameters[0].value='North';zero.reference={rows:[{dimensions:['North'],values:{revenue:'0.00',people:'1'}}],totals:{revenue:'0.00',people:'1'}}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(zero)},200)
+ assertLookerNativePreview(await call(base+'/review',{reviewedRevision:current.revision},200),{total:'0.00',distinct:'1',rows:zero.reference.rows})
+ const empty=structuredClone(document);empty.parameters[0].value='Absent';empty.reference={rows:[],totals:{revenue:null,people:'0'}}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(empty)},200)
+ assertLookerNativePreview(await call(base+'/review',{reviewedRevision:current.revision},200),{total:null,distinct:'0',rows:[]})
+ // Concurrent review uses optimistic revisions; one edit wins and no losing edit
+ // changes the retained version. Native source deltas preserve both candidates.
+ const concurrentRevision=current.revision,responses=await Promise.all(['first','second'].map(value=>context.request.post(origin+'/api/operator'+base+'/edit',{headers:{Origin:origin},data:{reviewedRevision:concurrentRevision,itemId:'native-page',native:JSON.stringify({...document,reference:expected})}})))
+ assert.deepEqual(responses.map(r=>r.status()).sort(),[200,409]);current=await call(base)
+ const changed=structuredClone(input);changed.cutoff='2099-10-16T12:00:00Z';changed.drafts[0].sourceRevision='owner-2';changed.drafts[0].document=JSON.stringify(east)
+ // Preserve unchanged original manifest metadata when source cutoff advances.
+ const delta=await prepare(changed,true);await apply(delta);current=await call(base)
+ assert.ok(current.items.find(i=>i.source.id==='native-page').conflict)
+ assert.deepEqual(JSON.parse(current.items.find(i=>i.source.id==='native-page').native),document)
+ await call(base+'/review',{reviewedRevision:concurrentRevision},409)
+ current=await call(base+'/resolve',{reviewedRevision:current.revision,itemId:'native-page',choice:'keep-native'},200)
+ // A complete current review also invalidates when separate source evidence changes.
+ review=await call(base+'/review',{reviewedRevision:current.revision},200)
+ // Other changed evidence may remain conflicted; all are explicit and must resolve.
+ for(const item of current.items.filter(i=>i.conflict))current=await call(base+'/resolve',{reviewedRevision:current.revision,itemId:item.source.id,choice:'keep-native'},200)
+ review=await call(base+'/review',{reviewedRevision:current.revision},200);assertLookerNativePreview(review)
+ await upload(dataset,csv.replace('$10.01','$11.01'),true)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
+ const staleSource=await call(base+'/review',{reviewedRevision:current.revision},200);assert.ok(staleSource.issues.some(i=>i.code==='source_evidence_changed'));assert.equal(staleSource.drafts[0].answer,null)
+ // Same-origin owner cookies never turn a machine bearer into import authority.
+ for(const action of ['review','preview','edit','resolve','erase']){
+  const data={reviewedRevision:current.revision,reviewedDigest:review.digest,itemId:'native-page',native:'forbidden',choice:'use-source',confirmImport:id}
+  const foreign=await context.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:'https://synthetic-bifocal.invalid'},data});assert.equal(foreign.status(),401)
+  const machine=await context.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin,Authorization:'Bearer synthetic-bifocal-machine'},data});assert.equal(machine.status(),401)
+ }
+ const memberName=['synthetic-bifocal-looker-member','example.test'].join('@')
+ assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:memberName,displayName:'Reconstruction member',role:'member'}})).status(),202)
+ const member=await context.browser().newContext()
+ try{await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(memberName),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0});assert.equal((await member.request.get(origin+'/api/operator'+base)).status(),401);for(const action of ['review','preview','edit','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{}})).status(),401)}finally{await member.close()}
+ assert.deepEqual(await call(base),current)
+ // Clean imports Undo through the shared door, leaving original custody until erase.
+ const undoInput={...structuredClone(input),projectId:id+'-undo'};headers['X-Import-Dataset']=undoInput.projectId;const undoPlan=await prepare(undoInput);await apply(undoPlan);await post('undo',{planId:undoPlan.planId});await call('/migration-projects/'+undoInput.projectId,undefined,404)
+ assert.equal((await readOriginal(undoPlan.planId))[0].original.status,'retained')
+ await call('/migration-projects/'+undoInput.projectId+'/erase',{confirmImport:undoInput.projectId,reviewedRevision:null},200)
+ assert.equal((await readOriginal(undoPlan.planId))[0].original.status,'unavailable')
+ // Legal holds prevent source and reconstruction erasure. Eligible source
+ // erasure reaches original bundles, every edit version and derived drafts.
+ headers['X-Import-Dataset']=id
+ const freshSource=await call('/datasets/'+dataset),policy={confirmDataset:dataset,reviewedDatasetRevision:freshSource.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}
+ const retention=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:policy});assert.equal(retention.status(),200);const held=await retention.json()
+ await call(base+'/erase',{confirmImport:id,reviewedRevision:current.revision},423)
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:freshSource.revision},423)
+ const released=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{...policy,previousRevision:held.revision,legalHold:false,releaseHold:true}});assert.equal(released.status(),200)
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:freshSource.revision},200)
+ for(const projectId of [id,omitted.projectId])await call('/migration-projects/'+projectId,undefined,404)
+ await call(base+'/versions/'+current.revision,undefined,404)
+ assert.equal((await readOriginal(initialPlan))[0].original.status,'unavailable')
+ await post('apply',{planId:delta.planId,reviewedFingerprint:delta.fingerprint},410)
+ console.log('PROBE BIF-083 reconstruction: browser supplied evidence, exact inactive native values and date parameters, full diagnostics, stale evidence, conflicts, authority, Undo and source-linked erasure passed; sharing and schedules inactive; source parity and cutover unproved')
 }

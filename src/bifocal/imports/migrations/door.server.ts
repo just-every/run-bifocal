@@ -1,3 +1,5 @@
+import { sourceLinkStatements } from './looker-studio/custody'
+import { reviewReconstruction } from './looker-studio/review.server'
 import { digest, text } from './compile'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
@@ -17,15 +19,23 @@ import { migrationImportContext, eraseMigrationProject, importGuard, readMigrati
 
 /** The Migration inventory enters through Base's shared door: review, exact fingerprint, reconcile, Undo and erase. */
 async function handleMigrationProject(request:Request,original:Bindings):Promise<Response|null>{
- const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/migration-projects\/([a-z][a-z0-9-]{0,63})(\/(erase|edit|resolve|versions\/([a-f0-9]{64})))?$/.exec(path)
+ const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/migration-projects\/([a-z][a-z0-9-]{0,63})(\/(erase|edit|resolve|review|preview|versions\/([a-f0-9]{64})))?$/.exec(path)
  if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='migration-project'))return null
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
- if(!owner)return json({error:'owner_required'},401)
+ if(!owner||request.headers.has('Authorization'))return json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),id=resource?.[1]??request.headers.get('X-Import-Dataset')??''
  if(!/^[a-z][a-z0-9-]{0,63}$/.test(id)||url.search)fail('migration_project_id_required',400)
  if(resource){
   let current
   try{current=await readMigrationProject(env,ownerId,id)}catch(error){if(!(error instanceof QueryError)||error.code!=='migration_project_not_found'||resource[3]!=='erase')throw error}
+  if(resource[3]==='review'||resource[3]==='preview'){
+   if(request.method!=='POST')fail('method_not_allowed',405)
+   const input=await jsonBody(request);exactKeys(input,resource[3]==='review'?['reviewedRevision']:['reviewedRevision','reviewedDigest'])
+   if(input.reviewedRevision!==current!.revision)fail('migration_review_stale',409)
+   const {review}=await reviewReconstruction(env,owner,ownerId,current!)
+   if(resource[3]==='preview'&&(!review.compatible||input.reviewedDigest!==review.digest))fail('exact_reconstruction_review_required',409)
+   return json(review)
+  }
   if(resource[3]==='edit'||resource[3]==='resolve'){
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,resource[3]==='edit'?['reviewedRevision','itemId','native']:['reviewedRevision','itemId','choice'])
@@ -40,7 +50,7 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
     if(input.choice==='use-source'){entry.native=entry.source.original;entry.edited=false}
    }
    const revision=digest({previous:current!.revision,action:resource[3],value}),body=canonicalJson(value)
-   await transact(env.DB,owner,[assertion(importGuard(current!)),sql('UPDATE bf_migration_workspaces SET revision=?,value_json=? WHERE id=?',revision,body,id),sql('INSERT INTO bf_migration_project_edits(project_id,revision,action,value_json) VALUES(?,?,?,?)',id,revision,resource[3],body)])
+   await transact(env.DB,owner,[assertion(importGuard(current!)),...sourceLinkStatements(value),sql('UPDATE bf_migration_workspaces SET revision=?,value_json=? WHERE id=?',revision,body,id),sql('INSERT INTO bf_migration_project_edits(project_id,revision,action,value_json) VALUES(?,?,?,?)',id,revision,resource[3],body)])
    return json({revision,...value})
   }
   if(resource[3]==='erase'){
