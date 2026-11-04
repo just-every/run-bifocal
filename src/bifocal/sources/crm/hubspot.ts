@@ -16,7 +16,7 @@ function text(value: unknown): string | null {
 function dated(value: unknown, required = false): string | null {
  const raw = text(value)
  if (!required && (raw === null || raw === '')) return raw
- requireValue(raw !== null && /^\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?Z)?$/.test(raw) && Number.isFinite(Date.parse(raw)) && new Date(raw).toISOString().slice(0, 10) === raw.slice(0, 10), 'hubspot_invalid_date', 502)
+ requireValue(raw !== null && (!required || raw.includes('T')) && /^\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?Z)?$/.test(raw) && Number.isFinite(Date.parse(raw)) && new Date(raw).toISOString().slice(0, 10) === raw.slice(0, 10), 'hubspot_invalid_date', 502)
  return raw
 }
 function amount(value: string | null, currency: string | null): string | null {
@@ -51,9 +51,9 @@ export async function readHubspot(input: Record<string, unknown>, accessToken: s
   if (result.paging === undefined) { complete = true; break }
   requireValue(object(result.paging) && Object.keys(result.paging).every(k => k === 'next') && object(result.paging.next), 'hubspot_incomplete_paging', 502)
   const next = result.paging.next
-  requireValue(Object.keys(next).every(k => ['after', 'link'].includes(k)) && typeof next.after === 'string' && /^[0-9]{1,100}$/.test(next.after) && !cursors.has(next.after) && result.results.length > 0, 'hubspot_cursor_invalid_or_repeated', 502)
+  requireValue(Object.keys(next).every(k => ['after', 'link'].includes(k)) && typeof next.after === 'string' && /^[A-Za-z0-9._~+/%=-]{1,2048}$/.test(next.after) && !cursors.has(next.after) && result.results.length > 0, 'hubspot_cursor_invalid_or_repeated', 502)
   // The optional provider link is never fetched or retained. Only a bounded
-  // opaque numeric cursor can alter the constructed fixed-origin GET above.
+  // opaque cursor can alter the constructed fixed-origin GET above.
   after = next.after; cursors.add(after)
  }
  requireValue(complete, 'hubspot_incomplete_page_limit', 413)

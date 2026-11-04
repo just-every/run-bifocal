@@ -41,7 +41,7 @@ export async function analyticsEdge(persist) {
   assert.equal(url.protocol,'https:');assert.equal(request.headers.get('authorization'),'Bearer synthetic-bifocal-60');assert.equal(request.headers.has('cookie'),false)
   assert.ok([new URL(vaneOrigin).hostname,'bigquery.googleapis.com','api.smartsheet.com','connect.squareup.com','connect.squareupsandbox.com','api.hubapi.com'].includes(url.hostname),'no arbitrary host or telemetry egress')
   if(url.hostname==='api.hubapi.com')return hubspotResponse(request,state)
-  if(['connect.squareup.com','connect.squareupsandbox.com','api.hubapi.com'].includes(url.hostname))return squareResponse(request,state)
+  if(['connect.squareup.com','connect.squareupsandbox.com'].includes(url.hostname))return squareResponse(request,state)
   if(url.hostname==='api.smartsheet.com') {
    // Self-authored responses from the pinned Sheet, Row, Column, Cell and
    // SheetVersion schemas; only this HTTPS boundary is replaced.
@@ -175,7 +175,8 @@ async function hubspotResponse(request,state){
  assert.deepEqual([...url.searchParams.keys()].sort(),url.searchParams.has('after')?['after','archived','limit','properties']:['archived','limit','properties'])
  assert.equal(url.searchParams.get('limit'),'100');assert.equal(url.searchParams.get('archived'),'false')
  assert.deepEqual(url.searchParams.get('properties').split(','),['dealname','pipeline','dealstage','createdate','hs_lastmodifieddate','closedate','amount','deal_currency_code'])
- const after=url.searchParams.get('after'),page=after?Number(after):0
+ const after=url.searchParams.get('after'),page=after==='NTI1Cg%3D%3D'?2:after?Number(after):0
+ if(after&&!['pages','bytes','deadline','rows'].includes(phase))assert.equal(after,'NTI1Cg%3D%3D','the documented opaque cursor is encoded once as a query value, never interpreted as a URL')
  state.hubspotCalls.push({path:url.pathname,search:url.search,method:request.method})
  if(page&&['401','403','429'].includes(phase))return Response.json({message:'synthetic-bifocal-private-diagnostic'},{status:Number(phase)})
  if(page&&phase==='redirect')return new Response(null,{status:302,headers:{location:'https://foreign.example.test/deals'}})
@@ -200,5 +201,5 @@ async function hubspotResponse(request,state){
  if(page&&phase==='credential')results[0].properties.private_note='synthetic-bifocal-60'
  if(page&&phase==='incomplete')results=[]
  if(page&&phase==='changed'){results[0].properties.amount='50.05';results[0].properties.dealstage='closedwon';results[0].updatedAt='2026-06-20T12:00:00.000Z'}
- return Response.json({results,...(!page||phase==='loop'||phase==='incomplete'?{paging:{next:{after:phase==='bad-cursor'?'../private':'2',link:'https://foreign.example.test/must-never-follow'}}}:{}),...(page&&phase==='warnings'?{warnings:[{message:'synthetic-bifocal-private-diagnostic'}]}:{}),...(page&&phase==='errors'?{errors:[{message:'synthetic-bifocal-private-diagnostic'}]}:{})})
+ return Response.json({results,...(!page||phase==='loop'||phase==='incomplete'?{paging:{next:{after:phase==='bad-cursor'?'invalid\ncursor':'NTI1Cg%3D%3D',link:'https://foreign.example.test/must-never-follow'}}}:{}),...(page&&phase==='warnings'?{warnings:[{message:'synthetic-bifocal-private-diagnostic'}]}:{}),...(page&&phase==='errors'?{errors:[{message:'synthetic-bifocal-private-diagnostic'}]}:{})})
 }

@@ -1058,7 +1058,7 @@
       "executable": false
     },
     "public/bifocal/file-view.js": {
-      "sha256": "3da325839c0a873e7fe0067a83cb6ca752bb59a27c0df7c72052a9a0495e1d9d",
+      "sha256": "b961e704f64a57abbf467886d0410cef1b02338740e3cf0d21bde72a0367ca0a",
       "executable": false
     },
     "public/bifocal/files.js": {
@@ -2990,7 +2990,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "daf1bc8654282163c827d3dd97804117cf92c3471276eca0c1741b9c8665726c",
+      "sha256": "7023458bea7e012d7938837388c5553ad71c5ad9b8411c072a117ab9eab009e2",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -3434,7 +3434,7 @@
       "executable": false
     },
     "src/bifocal/query/server.ts": {
-      "sha256": "93e4aa6e21cc9608f088cd0e6e863d38e9b5904ef96d5f7c92712bc5b9f89970",
+      "sha256": "35bb9cf93948612398dc40332e173f1104fc1f66aa7c4f05e43e3313a9d752b5",
       "executable": false
     },
     "src/bifocal/query/types.ts": {
@@ -3654,7 +3654,7 @@
       "executable": false
     },
     "src/bifocal/sources/analytics/lineage.ts": {
-      "sha256": "2c1487d1f2bd4cc02d32c7fc6d301f7e754ea1c7a23564ae124defcc66a52f35",
+      "sha256": "6ace83446a7e5461ba42a664c4993b928a4d46d3f96f5e4f9951d211af5e6ebb",
       "executable": false
     },
     "src/bifocal/sources/analytics/protocol.ts": {
@@ -3682,11 +3682,11 @@
       "executable": false
     },
     "src/bifocal/sources/crm/form.ts": {
-      "sha256": "eca3340af4c68f006c488507914c1f4eaaf5e6187f1c5d57ea9ace0e4efb333a",
+      "sha256": "f4d393519e205c5f87ea6b64a49a007fc6f8b58667bfdea9362aa6be1f86f0e3",
       "executable": false
     },
     "src/bifocal/sources/crm/hubspot.ts": {
-      "sha256": "f5cc4f2ab852ce724d999f2fe36086c1d25eb6766d4b02b0b5a6d3ee173ed756",
+      "sha256": "28dcf0fbcb48d7382121eeb126bbc9e7b76533972d23e5f9f945afc2b77ab075",
       "executable": false
     },
     "src/bifocal/sources/crm/server.ts": {
@@ -6194,11 +6194,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "d9bf19e721cff3811a4a1b0ae18b218ae46d634ba9266893b33336edcbda1978",
+      "sha256": "be4390b2862483555d1ba1edd53c60fa4a06672e07676157ac85291216cb1871",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "c52ba454361ec614539369d15c15afe537edbc87387b5a3438ee24b1c8c846ce",
+      "sha256": "b89fd995840b5399440dca1021e802d450ea23535efc308c9271c77c1e72657e",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

@@ -38,6 +38,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   assert.equal(state.calls.length,initialCalls)
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
   await proveHubspot(edge,context,page,call,shot,apply)
+  assert.ok(!browserRequests.some(url=>new URL(url).hostname==='api.hubapi.com'),'the browser sends no credential or request to HubSpot')
   if(process.argv.includes('--hubspot'))return
   await proveSquare(edge,context,page,call,shot,apply)
   if(process.argv.includes('--square'))return
@@ -368,6 +369,7 @@ async function proveHubspot({origin,state,database,signInAs},context,page,call,s
  assert.deepEqual(records.map(r=>[r.pipeline_id,r.stage_id]),[['default','qualifiedtobuy'],['default','closedlost'],['default','qualifiedtobuy'],['default','closedlost'],['synthetic-bifocal-second','presentationscheduled']])
  assert.deepEqual(records.map(r=>[r.amount_observed,r.currency_observed,r.observed_pipeline_value]),[['123.45','USD','123.45'],['-23.4','USD','-23.40'],['0','USD','0.00'],[null,null,null],['','USD',null]])
  assert.equal(records[1].deal_name,'');assert.equal(records[3].deal_name,null);assert.equal(records[0].close_date,'2026-07-31T00:00:00.000Z');assert.equal(records[1].close_date,null);assert.equal(records[2].created_at,'2026-06-03T12:00:00.000Z');assert.equal(records[2].updated_at,'2026-06-13T12:00:00.000Z');assert.equal(records[0].created_date,'2026-06-01T12:00:00.000Z');assert.equal(records[0].modified_date,'2026-06-11T12:00:00.000Z')
+ for(const [path,data]of [['datasets/'+id,undefined],['import'+'/'+'history',undefined],['datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:current.revision}]])await call(path,data,401,{Authorization:'Bearer synthetic-bifocal-machine','X-Import-Dataset':id})
  const initial=(await post('history')).history[0],originals=await post('original/'+initial.planId),original=originals.originals.filter(e=>e.original.status==='retained').map(e=>Buffer.from(e.original.base64,'base64').toString('utf8')).join('\n')
  assert.ok(original.includes('9007199254740993'));assert.ok(original.includes('-23.4'))
  for(const excluded of [grant,'private_note','synthetic-bifocal-private-contact','must-never-follow'])assert.ok(!original.includes(excluded),'credential, unrelated properties and provider next links never enter retained originals')
@@ -393,16 +395,20 @@ async function proveHubspot({origin,state,database,signInAs},context,page,call,s
   assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
   release();const refused=await reading;assert.equal(refused.status(),409,await refused.text());assert.deepEqual(await call('datasets/'+id),current);assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore)
  }finally{release?.();state.hubspotPause=null;await withdrawing.close()}
- const stale=await read({catchup:true});await post('apply',{planId:stale.planId,reviewedFingerprint:'0'.repeat(64)},403)
+ await call('queries/'+answer.queryId,undefined,403,{Authorization:'Bearer synthetic-bifocal-machine'});await call('queries/run',query,403,{Authorization:'Bearer synthetic-bifocal-machine'})
+ const stale=await read({catchup:true});await call('import'+'/'+'apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},401,{Authorization:'Bearer synthetic-bifocal-machine','X-Import-Dataset':id});await call('import'+'/'+'undo',{planId:stale.planId},401,{Authorization:'Bearer synthetic-bifocal-machine','X-Import-Dataset':id});await post('apply',{planId:stale.planId,reviewedFingerprint:'0'.repeat(64)},403)
+ await read({catchup:true},409);assert.deepEqual(await call('datasets/'+id),current,'a second pending read cannot replace the source');await post('undo',{planId:stale.planId})
  const next=await read({catchup:true}),applyPlan=async plan=>{for(let n=0;n<20;n++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return;assert.fail('HubSpot Apply completes')}
- await applyPlan(next);await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},409)
- await post('undo',{planId:stale.planId});await post('undo',{planId:next.planId});assert.deepEqual((await call('datasets/'+id)).table,current.table)
+ await applyPlan(next);await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},404)
+ await post('undo',{planId:next.planId});assert.deepEqual((await call('datasets/'+id)).table,current.table)
  await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read HubSpot deal pipeline',{exact:true}).click();await fill();await shot('hubspot-setup',390)
  state.hubspotPhase='changed';await form.getByRole('button',{name:'Preview HubSpot deals'}).click();await page.locator('#review:not([hidden])').waitFor();await shot('hubspot-review',390);await apply();await shot('hubspot-applied',390)
  const changed=await call('queries/run',query,201);assert.equal(changed.answer.totals['pipeline-value'].value,'150.10');assert.equal((await call('queries/'+answer.queryId)).answer.totals['pipeline-value'].value,'100.05','historical answer is immutable')
  await page.goto(origin+'/app/queries/'+changed.queryId);await page.locator('#answer:not([hidden])').waitFor();await shot('hubspot-answer',390)
  await page.goto(origin+'/app/import?dataset='+id);await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'));await shot('hubspot-undone',390)
  await page.setViewportSize({width:1440,height:1000});assert.deepEqual((await call('datasets/'+id)).table,current.table);state.hubspotPhase='success'
+ const custodyTables=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'bf_%' OR name LIKE 'ik_%')").all()
+ for(const {name}of custodyTables.results){const rows=await database.prepare('SELECT * FROM '+name).all();assert.ok(!JSON.stringify(rows.results).includes(grant),name+' retains no HubSpot credential before erasure')}
  const revision=(await call('datasets/'+id)).revision
  let retention=await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:null,legalHold:true,minimumRetainUntil:null},200,{},'PUT')
  await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision},423)
