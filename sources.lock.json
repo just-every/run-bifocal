@@ -6386,7 +6386,7 @@
       "executable": false
     },
     "tests/site/contract-docs.test.mjs": {
-      "sha256": "b0eccdc7e068c24a821660010c1274d3168a4d0b79855a56b339d40af5e5ffcd",
+      "sha256": "bd4197457c3f66734cac05548a8c4df97308c55e2bb5412e095a076b9a0ec51d",
       "executable": false
     },
     "tests/site/site.test.mjs": {
