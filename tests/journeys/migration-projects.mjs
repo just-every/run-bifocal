@@ -224,5 +224,64 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  await post('apply',{planId:delta.planId,reviewedFingerprint:delta.fingerprint},410)
  assert.deepEqual(await call('/datasets/'+secondDataset),secondSource,'Erasing a linked project does not erase unrelated source rows')
  await call('/datasets/'+secondDataset+'/erase',{confirmDataset:secondDataset,reviewedRevision:secondSource.revision},200)
+ // Pending reviews and unsupported blends retain custody before native preview.
+ const activeProject=headers['X-Import-Dataset']
+ const custodyInput=async(projectId,sourceId,joinedId)=>{
+  const snapshot=await call('/datasets/'+sourceId),draft=structuredClone(document)
+  draft.sourceRevision=snapshot.revision;draft.definition.views[0].query.dataset=sourceId
+  if(joinedId)draft.definition.views[0].query.joins=[{dataset:joinedId,as:'joined',left:'invoice',right:'invoice',duplicates:'reject',cardinality:'many-to-one'}]
+  const manifest={...structuredClone(input),projectId}
+  manifest.drafts[0].document=JSON.stringify(draft)
+  if(joinedId){const blend=manifest.evidence.find(e=>e.kind==='blend');blend.status='unsupported';blend.original='Owner-supplied blend over two separately reviewed native sources'}
+  return manifest
+ }
+ const policyFor=async(sourceId,legalHold)=>{
+  const snapshot=await call('/datasets/'+sourceId)
+  const response=await context.request.put(origin+'/api/operator/retention/'+sourceId,{headers:{Origin:origin},data:{confirmDataset:sourceId,reviewedDatasetRevision:snapshot.revision,previousRevision:null,legalHold,minimumRetainUntil:null,releaseHold:false}})
+  assert.equal(response.status(),200,await response.text());return response.json()
+ }
+ const release=async(sourceId,policy)=>{
+  const snapshot=await call('/datasets/'+sourceId)
+  const response=await context.request.put(origin+'/api/operator/retention/'+sourceId,{headers:{Origin:origin},data:{confirmDataset:sourceId,reviewedDatasetRevision:snapshot.revision,previousRevision:policy.revision,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
+  assert.equal(response.status(),200,await response.text())
+ }
+ const pendingId=id+'-pending',pendingSource=pendingId+'-source'
+ await upload(pendingSource,csv);headers['X-Import-Dataset']=pendingId
+ const pendingInput=await custodyInput(pendingId,pendingSource),pendingPlan=await prepare(pendingInput),pendingPolicy=await policyFor(pendingSource,true)
+ await call('/migration-projects/'+pendingId+'/erase',{confirmImport:pendingId,reviewedRevision:null},423)
+ assert.deepEqual((await prepare(pendingInput)).project,pendingPlan.project,'Refused pending erasure preserves original reconstruction evidence')
+ const pendingSnapshot=await call('/datasets/'+pendingSource)
+ await call('/datasets/'+pendingSource+'/erase',{confirmDataset:pendingSource,reviewedRevision:pendingSnapshot.revision},423)
+ await release(pendingSource,pendingPolicy)
+ await call('/migration-projects/'+pendingId+'/erase',{confirmImport:pendingId,reviewedRevision:null},200)
+ await post('apply',{planId:pendingPlan.planId,reviewedFingerprint:pendingPlan.fingerprint},410)
+ await call('/datasets/'+pendingSource+'/erase',{confirmDataset:pendingSource,reviewedRevision:pendingSnapshot.revision},200)
+ const sourceErasedId=id+'-pending-source',sourceErasedDataset=sourceErasedId+'-data'
+ await upload(sourceErasedDataset,csv);headers['X-Import-Dataset']=sourceErasedId
+ const sourceErasedInput=await custodyInput(sourceErasedId,sourceErasedDataset),sourceErasedPlan=await prepare(sourceErasedInput),sourceErasedSnapshot=await call('/datasets/'+sourceErasedDataset)
+ await call('/datasets/'+sourceErasedDataset+'/erase',{confirmDataset:sourceErasedDataset,reviewedRevision:sourceErasedSnapshot.revision},200)
+ await post('apply',{planId:sourceErasedPlan.planId,reviewedFingerprint:sourceErasedPlan.fingerprint},410)
+ await post('plan',{uploadId:sourceErasedPlan.planId},410)
+ console.log('PROBE BLOCKING-B pending review: held reconstruction erasure and source erasure -> 423 with unchanged originals; released project or source erasure -> 200 and pending replay -> 410')
+ const blendId=id+'-joined',leftDataset=blendId+'-left',joinedDataset=blendId+'-right'
+ await upload(leftDataset,csv);await upload(joinedDataset,csv);headers['X-Import-Dataset']=blendId
+ const blendInput=await custodyInput(blendId,leftDataset,joinedDataset),blendPlan=await prepare(blendInput);await apply(blendPlan)
+ const blendProject=await call('/migration-projects/'+blendId),blendReview=await call('/migration-projects/'+blendId+'/review',{reviewedRevision:blendProject.revision},200)
+ assert.equal(blendReview.compatible,false);assert.equal(blendReview.drafts[0].answer,null)
+ const blendOriginal=await readOriginal(blendPlan.planId);assert.equal(blendOriginal[0].original.status,'retained')
+ const joinedPolicy=await policyFor(joinedDataset,true),leftSnapshot=await call('/datasets/'+leftDataset),joinedSnapshot=await call('/datasets/'+joinedDataset)
+ await call('/migration-projects/'+blendId+'/erase',{confirmImport:blendId,reviewedRevision:blendProject.revision},423)
+ await call('/datasets/'+leftDataset+'/erase',{confirmDataset:leftDataset,reviewedRevision:leftSnapshot.revision},423)
+ assert.deepEqual(await call('/migration-projects/'+blendId),blendProject);assert.deepEqual(await readOriginal(blendPlan.planId),blendOriginal)
+ await release(joinedDataset,joinedPolicy)
+ await call('/datasets/'+joinedDataset+'/erase',{confirmDataset:joinedDataset,reviewedRevision:joinedSnapshot.revision},200)
+ await call('/migration-projects/'+blendId,undefined,404)
+ await call('/migration-projects/'+blendId+'/versions/'+blendProject.revision,undefined,404)
+ assert.equal((await readOriginal(blendPlan.planId))[0].original.status,'unavailable')
+ await post('apply',{planId:blendPlan.planId,reviewedFingerprint:blendPlan.fingerprint},410)
+ assert.deepEqual(await call('/datasets/'+leftDataset),leftSnapshot)
+ await call('/datasets/'+leftDataset+'/erase',{confirmDataset:leftDataset,reviewedRevision:leftSnapshot.revision},200)
+ headers['X-Import-Dataset']=activeProject
+ console.log('PROBE BLOCKING-A unsupported blend: joined hold -> 423 without mutation; eligible joined-source erasure -> 200, draft and versions -> 404, originals unavailable and replay -> 410')
  console.log('PROBE BIF-083 reconstruction: browser supplied evidence, exact inactive native values and date parameters, full diagnostics, stale evidence, conflicts, authority, Undo and source-linked erasure passed; sharing and schedules inactive; source parity and cutover unproved')
 }

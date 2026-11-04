@@ -1,6 +1,6 @@
 import { sourceLinkStatements } from './looker-studio/custody'
 import { reviewReconstruction } from './looker-studio/review.server'
-import { digest, text } from './compile'
+import { digest, text, type MigrationProject } from './compile'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
 import { rejectedUpload } from '../../http/rejected'
@@ -8,7 +8,7 @@ import { fileOwner } from '../files/owner.server'
 import { ownerIdentity } from '../../data/snapshots/store'
 import { fail, QueryError } from '../../query/types'
 import { createImportOperatorHandler, readImportDoorHistory } from '../../../modules/import-kit/src/door/operator.ts'
-import { loadSnapshot, transact, assertion, sql } from '../../../modules/import-kit/src/door/store.ts'
+import { loadSnapshot, snapshotHeld, transact, assertion, sql } from '../../../modules/import-kit/src/door/store.ts'
 import type { DoorPlanRow, DoorRequest } from '../../../modules/import-kit/src/door/types.ts'
 import { DoorError } from '../../../modules/import-kit/src/door/protocol.ts'
 import { readD1ImportOriginals } from '../../../modules/import-kit/src/d1/index.ts'
@@ -96,6 +96,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  if(path==='/api/operator/import/plan'&&response?.ok){
   const preview=await response.json() as {planId:string},row=await rowForPlan(preview.planId);if(!row)fail('plan_not_found',404)
   const snapshot=await loadSnapshot(admitted,row)
+  // Retained review bytes already owe custody, even before Apply creates a draft.
+  // Use source payloads so rejected or unchanged effects cannot hide their links.
+  const projects=snapshot.plan.source.records.filter(record=>record.kind==='migration-project').map(record=>record.payload as unknown as MigrationProject)
+  await transact(env.DB,owner,[assertion(snapshotHeld(row.id)),...projects.flatMap(sourceLinkStatements)])
   return json({...preview,project:snapshot.plan.entries[0]?.effects[0]?.value})
  }
  return response
