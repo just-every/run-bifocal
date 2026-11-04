@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "01d3bd360f89b7ce14652db9cc02921c7174e7b3f88cabe8ebafed0cd15a2826",
+      "sha256": "a90cb72a620f497a4f935e4400b51c92525d16fa73100fe6875d941f123c37b7",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -498,7 +498,7 @@
       "executable": false
     },
     "docs/JIRA-WORK.md": {
-      "sha256": "1b728eb0d036d0397187e7d0539098e4bf7d41023a51f6ff63d98a4aed0296bf",
+      "sha256": "2ad1c542a1deef096cb0ac57ce441f7deaa99f21bdb3543dac76c3a7672ad555",
       "executable": false
     },
     "docs/MACHINE-API.md": {
@@ -3678,7 +3678,7 @@
       "executable": false
     },
     "src/bifocal/sources/work/jira.ts": {
-      "sha256": "a910a4c3390485cd68832cc799dc8188c2ad0207f1eba819e9da01c835265f47",
+      "sha256": "8f6bf90c7f3baa62f263f79c55270fd98c82c087daf9c16a9951bebab1fbe41d",
       "executable": false
     },
     "src/bifocal/sources/work/server.ts": {
@@ -6134,11 +6134,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "ff7014f6b47efe62a6bb483cc6556d6ec4f2c221984d801b84bcd151bf9d378f",
+      "sha256": "6653dad7bbea6d26203f8533e40145a3d70f2fee4f58172addd31a385f10952a",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "4a676c551fefd81a3603cbb46d6ca29d497a4cde41196deba1d9574612932b88",
+      "sha256": "6d27fa5f1d704cdf17b434fb2e1d05c9b076308e9e91e35a2479c6078e79a120",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

@@ -35,7 +35,11 @@ export async function analyticsEdge(persist) {
    if(state.jira==='revoked'||state.jira==='expired')return Response.json({error:'synthetic-bifocal-refused'},{status:state.jira==='expired'?401:403})
    if(state.jira==='rate')return Response.json({error:'synthetic-bifocal-rate'},{status:429})
    if(state.jira==='redirect')return new Response(null,{status:302,headers:{location:'https://foreign.example.test/private'}})
-   if(url.pathname==='/oauth/token/accessible-resources')return Response.json([{id:cloudId,url:siteUrl,name:'Discarded site name',avatarUrl:'https://foreign.example.test/avatar',scopes:state.jira==='scope'?['read:jira-user']:['read:jira-work']},{id:'21223344-a1b2-3b33-c444-def123456789',url:'https://other-synthetic-bifocal.atlassian.net',scopes:['read:confluence-content.all']}])
+   if(url.pathname==='/oauth/token/accessible-resources') {
+    const jira={id:cloudId,url:siteUrl,name:'Discarded site name',avatarUrl:'https://foreign.example.test/avatar',scopes:state.jira==='scope'?['read:jira-user']:['read:jira-work']}
+    const confluence={id:['shared-cloud','shared-cloud-first','shared-project-metadata','confluence-only'].includes(state.jira)?cloudId:'21223344-a1b2-3b33-c444-def123456789',url:['shared-cloud','shared-cloud-first','shared-project-metadata','confluence-only'].includes(state.jira)?siteUrl:'https://other-synthetic-bifocal.atlassian.net',scopes:['read:confluence-content.all']}
+    return Response.json(state.jira==='duplicate-resource'?[jira,jira]:state.jira==='confluence-only'?[confluence]:state.jira==='shared-cloud-first'?[confluence,jira]:[jira,confluence])
+   }
    assert.equal(url.pathname,`/ex/jira/${cloudId}/rest/api/3/search/jql`)
    assert.deepEqual([...url.searchParams.keys()].sort(),['failFast','fields','jql','maxResults',...(url.searchParams.has('nextPageToken')?['nextPageToken']:[])].sort())
    assert.equal(url.searchParams.get('jql'),'project = 10000 ORDER BY id ASC')
@@ -50,9 +54,14 @@ export async function analyticsEdge(persist) {
    }
    if(!next&&state.onJiraPage){const act=state.onJiraPage;state.onJiraPage=null;await act()}
    const selected=structuredClone(next?issues.slice(2):issues.slice(0,2))
+   for(const item of selected) {
+    if(['project-category','shared-project-metadata'].includes(state.jira))item.fields.project.projectCategory={id:'10001',name:'Discarded project category',description:'synthetic-bifocal-private-category',self:siteUrl+'/rest/api/3/projectCategory/10001'}
+    if(['insight','shared-project-metadata'].includes(state.jira))item.fields.project.insight={totalIssueCount:19,lastIssueUpdateTime:'2026-06-30T18:00:00.000+0000'}
+   }
    if(state.jira==='marker')selected[0].fields.status.name='__BIFOCAL_NULL__'
    if(state.jira==='nulls') {selected[0].fields.created=null;selected[0].fields.updated=null;selected[0].fields.resolutiondate=null}
    if(state.jira==='changed')selected[0].fields.status={id:'1',name:'Open'}
+   if(state.jira==='project-unexpected')selected[0].fields.project.unexpected='synthetic-bifocal-private-project'
    if(state.jira==='foreign-project')selected[0].fields.project.id='20000'
    if(state.jira==='foreign-key')selected[0].key='FOREIGN-11'
    if(state.jira==='foreign-self')selected[0].self='https://foreign.example.test/rest/api/3/issue/10101'

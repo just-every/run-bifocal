@@ -114,6 +114,7 @@ async function proveJiraFlow(edge,context,page,call,apply,shot) {
  const post=async(action,data,status=200)=>{const response=await context.request.fetch(origin+'/api/operator/import/'+action,{method:data===undefined?'GET':'POST',headers,...(data===undefined?{}:{data})});const text=await response.text();assert.equal(response.status(),status,text);return JSON.parse(text)}
  const read=()=>call('datasets/'+dataset)
  const screen=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot('jira-'+name,width)}await page.setViewportSize({width:1440,height:1000})}
+ state.jira='shared-project-metadata'
  await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
  await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByText('Read Jira work outcomes',{exact:true}).click()
  const discovery=page.locator('#jira-resources-form'),form=page.locator('#jira-form')
@@ -138,13 +139,33 @@ async function proveJiraFlow(edge,context,page,call,apply,shot) {
  const history=await post('history',undefined),firstFingerprint=history.history.find(item=>item.planId===firstId).fingerprint
  const retained=await post('original/'+firstId,undefined),envelope=JSON.parse(Buffer.from(retained.originals[0].original.base64,'base64'))
  assert.deepEqual(Object.keys(envelope.columns),['issue_id','issue_key','project_id','project_key','type_id','issue_type','status_id','status','created_at','updated_at','resolved_at','issue_count'])
- for(const prohibited of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','Discarded site name'])assert.ok(!JSON.stringify(envelope).includes(prohibited),'excluded data never reaches original custody: '+prohibited)
+ for(const prohibited of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','Discarded site name','Discarded project category','synthetic-bifocal-private-category','projectCategory','totalIssueCount','lastIssueUpdateTime'])assert.ok(!JSON.stringify(envelope).includes(prohibited),'excluded data never reaches original custody: '+prohibited)
  const query={version:1,dataset,joins:[],filters:[],groupBy:['issue_type','status'],measures:[{id:'issues',op:'sum',column:'issue_count',unit:'count',scale:0}],context:{modelVersion:'native-work-v1',metricVersion:'owner-work-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
  await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click();await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
  const response=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click();const answer=await(await response).json()
  assert.equal(answer.answer.totals.issues.value,'4');assert.deepEqual(answer.answer.rows.map(row=>[...row.dimensions,row.values.issues.value]).sort(),[['Bug','Done','1'],['Bug','Open','1'],['Task','Done','1'],['Task','In progress','1']].sort())
  await page.locator('#compose-form input[value="'+answer.snapshotId+'"]').waitFor({state:'attached'});await screen('work-counts')
  console.log('PROBE BIF-042 work totals: browser selected site and multipage project read, exact review and Apply, native query -> four issue identities and four exact type and status groups; unresolved timestamps stay null')
+ // Each ordinary compatibility path must also work independently through
+ // the public doors; decorative project metadata must not change work totals.
+ for(const phase of ['success','shared-cloud','shared-cloud-first','project-category','insight']) {
+  state.jira=phase
+  const discovery=await call('work/jira/resources',{accessToken:grant,confirmRead:true})
+  assert.deepEqual(discovery.resources,[{cloudId,siteUrl,scopes:['read:jira-work']}])
+  const preview=await call('work/jira/preview',{...selection,catchup:true})
+  assert.equal(preview.preview.rowCount,4)
+  assert.deepEqual(preview.preview.sample,expected,'selected Jira project only; provider metadata does not become issue counts: '+phase)
+  await post('undo',{planId:preview.planId})
+  assert.deepEqual(await read(),first,'preview keeps the published work snapshot: '+phase)
+ }
+ state.jira='confluence-only'
+ assert.deepEqual((await call('work/jira/resources',{accessToken:grant,confirmRead:true})).resources,[])
+ const confluenceCalls=state.calls.length
+ await call('work/jira/preview',{...selection,catchup:true},403)
+ assert.equal(state.calls.length,confluenceCalls+1,'Confluence scope cannot authorize a Jira search')
+ state.jira='duplicate-resource'
+ assert.equal((await call('work/jira/resources',{accessToken:grant,confirmRead:true},502)).error,'jira_duplicate_resource')
+ state.jira='success'
  const beforeCalls=state.calls.length
  for(const overrides of [{confirmRead:false},{siteUrl:'https://foreign-synthetic-bifocal.atlassian.net'},{cloudId:'31223344-a1b2-3b33-c444-def123456789'},{projectId:'10000 OR 1=1'},{fields:['description']}])await call('work/jira/preview',{...selection,catchup:true,...overrides},overrides.siteUrl||overrides.cloudId?403:400)
  await call('work/jira/preview',{...selection,catchup:true},401,{Origin:'https://foreign.example.test'})
@@ -167,7 +188,7 @@ async function proveJiraFlow(edge,context,page,call,apply,shot) {
   assert.equal(state.calls.length,count,'member refusal happens before egress')
   assert.equal((await member.request.get(origin+'/api/operator/datasets/'+dataset)).status(),401)
  } finally {await member.close()}
- for(const [phase,status] of [['revoked',403],['expired',403],['expired-page',403],['rate',503],['redirect',502],['scope',403],['foreign-project',502],['foreign-key',502],['foreign-self',502],['sensitive',502],['people',502],['custom',502],['echo',502],['duplicate',502],['missing-field',502],['warnings',502],['truncated',502],['cursor',502],['last-cursor',502],['overflow',413]]){
+ for(const [phase,status] of [['revoked',403],['expired',403],['expired-page',403],['rate',503],['redirect',502],['scope',403],['duplicate-resource',502],['project-unexpected',502],['foreign-project',502],['foreign-key',502],['foreign-self',502],['sensitive',502],['people',502],['custom',502],['echo',502],['duplicate',502],['missing-field',502],['warnings',502],['truncated',502],['cursor',502],['last-cursor',502],['overflow',413]]){
   state.jira=phase;const calls=state.calls.length
   await call('work/jira/preview',{...selection,catchup:true},status)
   assert.deepEqual(await read(),first,'refused Jira read preserves last good snapshot: '+phase)
@@ -217,7 +238,7 @@ async function proveJiraFlow(edge,context,page,call,apply,shot) {
  await call('datasets/synthetic-bifocal-jira-revoked',undefined,404)
  console.log('PROBE BIF-042 current authority: native session revoked during first issue page -> no second page or staged data; fresh owner confirmation required')
  const db=await edge.database(),tables=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").all()).results
- for(const {name} of tables){const data=JSON.stringify((await db.prepare('SELECT * FROM "'+name.replaceAll('"','""')+'"').all()).results);for(const value of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','synthetic-bifocal-private-warning'])assert.equal(data.includes(value),false,'sensitive provider data excluded from every retained store: '+name)}
+ for(const {name} of tables){const data=JSON.stringify((await db.prepare('SELECT * FROM "'+name.replaceAll('"','""')+'"').all()).results);for(const value of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','synthetic-bifocal-private-warning','synthetic-bifocal-private-project','synthetic-bifocal-private-category','Discarded project category','totalIssueCount','lastIssueUpdateTime'])assert.equal(data.includes(value),false,'sensitive provider data excluded from every retained store: '+name)}
  await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByRole('button',{name:'Load dataset',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent==='Dataset state and history loaded for review.');await screen('erased')
  console.log('PROBE BIF-042 custody: changed work read with stale approval -> 403; exact Apply and browser Undo restore prior rows; complete empty snapshot remains empty; legal hold and minimum retention refuse erasure; eligible erasure withdraws originals and answers, replay stays retired, and stored data excludes tokens and sensitive fields')
 }

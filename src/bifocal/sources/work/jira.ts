@@ -30,7 +30,11 @@ export async function jiraResources(grant: string, authorize: () => Promise<void
  const seen = new Set<string>()
  return value.map(resource => {
   requireValue(object(resource) && keys(resource,['id','url','scopes','name','avatarUrl']) && uuid(resource.id) && site(resource.url) && Array.isArray(resource.scopes) && resource.scopes.length <= 100 && resource.scopes.every(scope => typeof scope === 'string' && /^[a-z][a-z0-9:.-]{0,127}$/.test(scope)), 'jira_resource_schema_mismatch', 502)
-  requireValue(!seen.has(resource.id), 'jira_duplicate_resource', 502); seen.add(resource.id)
+  // Atlassian IDs may repeat across Jira and Confluence containers. Only
+  // Jira-readable containers participate in the selected Jira identity check.
+  if (resource.scopes.includes('read:jira-work')) {
+   requireValue(!seen.has(resource.id), 'jira_duplicate_resource', 502); seen.add(resource.id)
+  }
   return {cloudId:resource.id,siteUrl:resource.url,scopes:resource.scopes as string[]}
  }).filter(resource => resource.scopes.includes('read:jira-work'))
 }
@@ -70,7 +74,7 @@ export async function readJira(input: JiraSelection, grant: string, authorize: (
    requireValue(!seen.has(issue.id) && !issueKeys.has(issue.key), 'jira_duplicate_issue',502)
    seen.add(issue.id); issueKeys.add(issue.key)
    const fields = issue.fields
-   const project = reference(fields.project,['id','key','name','self','avatarUrls','projectTypeKey','simplified','style'])
+   const project = reference(fields.project,['id','key','name','self','avatarUrls','projectTypeKey','simplified','style','projectCategory','insight'])
    requireValue(project.id === input.projectId && project.key === input.projectKey, 'jira_foreign_project',502)
    // Documented decorative metadata is discarded, including type and status
    // descriptions. No issue description or other unrequested field is admitted.
