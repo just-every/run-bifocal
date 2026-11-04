@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "caf8130dd9d64691d21492e6032a46964884bdf7cab2e2346e988104720e9233",
+      "sha256": "673ce1d2f9c5fbef0cd3b65bb3064e5e03e112fe86de6d13ee50fbae2c466cfc",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -998,7 +998,7 @@
       "executable": false
     },
     "public/bifocal/company-errors.js": {
-      "sha256": "b02f0ed6a4f94a226c2660a7c484d86bf6043526f3fcd4527e74a051d619f520",
+      "sha256": "ebaddecd12432a75ed7344c17acef30ec355fa8ec0a5fb3eb337574d3d9f0ccd",
       "executable": false
     },
     "public/bifocal/company.js": {
@@ -2558,7 +2558,7 @@
       "executable": false
     },
     "src/bifocal/company/page.server.ts": {
-      "sha256": "62f2e1c93e7a93d9bbdebe5f2e2b564feeaa2c818b77842b33e708c366e0a335",
+      "sha256": "f8b750a902d75ebc5550e3518e1f287d2e6aa6f85f6c79e462252b0854000c1f",
       "executable": false
     },
     "src/bifocal/company/protocol.ts": {
@@ -6154,7 +6154,7 @@
       "executable": false
     },
     "tests/journeys/company-browser.mjs": {
-      "sha256": "a08ee01983d004bcbe559f2afddd5e280ea47af92360553ee2c1b010ddd53b07",
+      "sha256": "634f4eded541e0e012b2b0fb5268cabfa54438ff2c36884b62f286b5b155ed63",
       "executable": false
     },
     "tests/journeys/composition-tooling.mjs": {
