@@ -1,3 +1,4 @@
+import { sigmaBranchGuards } from '../../imports/migrations/sigma/native.server'
 import { randomUUID } from 'node:crypto'
 import type { Bindings } from '../../../auth.server'
 import type { D1Sql } from '../../../modules/import-kit/src/d1/types.ts'
@@ -29,7 +30,7 @@ export function revisionStatement(modelId:string,definition:Definition){const id
 type Inspection={state:'absent'}|{state:'failed';error:string}|{state:'compiled';answer:Answer}
 export async function validateBranch(env:Bindings,model:Model,branch:Branch) {
  const candidate=await readDefinition(env,branch.revision_id),base=model.production ? await readDefinition(env,model.production) : {views:[],quality:[]}
- const guards:D1Sql[]=[modelGuard(model),...(branch.id==='rollback'?[]:[branchGuard(branch)])]
+ const guards:D1Sql[]=[...await sigmaBranchGuards(env,model.owner_id,branch.revision_id),modelGuard(model),...(branch.id==='rollback'?[]:[branchGuard(branch)])]
  const impacts:{id:string;kind:string;before:Inspection;after:Inspection;accessReviewRequired:boolean}[]=[]
  for(const viewId of new Set([...base.views.map(v=>v.id),...candidate.views.map(v=>v.id)])) {
   const before=base.views.find(v=>v.id===viewId),after=candidate.views.find(v=>v.id===viewId)

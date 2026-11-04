@@ -1,3 +1,6 @@
+import { digest as migrationDigest } from '../imports/migrations/compile'
+import { importGuard, readMigrationProject } from '../imports/migrations/store.server'
+import { sigmaDraft, type SigmaOrigin } from '../imports/migrations/sigma/native.server'
 import { projectGuard, readImportedProject } from '../imports/models/store.server'
 import { randomUUID } from 'node:crypto'
 import { load, dump, JSON_SCHEMA } from 'js-yaml'
@@ -27,6 +30,7 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
  if(!path.startsWith('/api/operator/model-authoring'))return null
  const env=runtimeBindings(original)
  try {
+  if(request.headers.has('authorization'))return json({error:'human_session_required'},401)
   const owner=await fileOwner(request,env);if(!owner)return json({error:'owner_required'},401)
   const ownerId=await ownerIdentity(env,owner)
   if(url.search)fail('query_parameters_not_supported',400)
@@ -45,8 +49,14 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   }
   if(!['/api/operator/model-authoring/review','/api/operator/model-authoring/create','/api/operator/model-authoring/format'].includes(path))fail('not_found',404)
   if(request.method!=='POST')fail('method_not_allowed',405)
-  const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion','importProject','importRevision'])
+  const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion','importProject','importRevision','migrationProject','migrationRevision','migrationElement'])
   const definition=nativeDocument(input.document), guards=[], impacts:{view:string;state:string;answer?:Answer;error?:string}[]=[]
+  if(input.importProject!==undefined&&input.migrationProject!==undefined)fail('one_import_origin_required',400)
+  const migration=input.migrationProject===undefined?null:await sigmaDraft(env,ownerId,String(input.migrationProject),input.migrationRevision,input.migrationElement)
+  if(migration){
+   if(canonicalJson(definition)!==canonicalJson(migration.definition))fail('exact_sigma_definition_required',409)
+   guards.push(...migration.guards)
+  }else if(input.migrationRevision!==undefined||input.migrationElement!==undefined)fail('migration_project_required',400)
   const imported=input.importProject===undefined?null:await readImportedProject(env,ownerId,String(input.importProject))
   if(imported){
    if(input.importRevision!==imported.revision||!imported.value.report.compatible||canonicalJson(definition)!==canonicalJson(imported.value.definition))fail('exact_compatible_project_required',409)
@@ -66,19 +76,33 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   }
   const quality=definition.quality.map(q=>({...q,passed:impacts.find(i=>i.view===q.view)?.answer?.totals[q.measure]?.value===q.expected}))
   const compatible=impacts.every(i=>i.state==='compiled')&&quality.every(q=>q.passed)
-  const report={definition,impacts,quality,compatible,imported:imported?{id:imported.id,revision:imported.revision,digest:imported.value.digest,format:imported.value.input.format,report:imported.value.report}:null,scope:'Owner-only native model. Imported source definitions retain explicit compatibility and provenance. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
+  const report={definition,impacts,quality,compatible,migration:migration?.origin??null,imported:imported?{id:imported.id,revision:imported.revision,digest:imported.value.digest,format:imported.value.input.format,report:imported.value.report}:null,scope:'Owner-only native model. Imported source definitions retain explicit compatibility and provenance. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
   const digest=sha256(canonicalJson({ownerId,report,guards}))
   if(path.endsWith('/review')){await transact(env.DB,owner,guards.map(assertion));return json({...report,digest})}
   if(!compatible||input.reviewedDigest!==digest)fail('exact_current_model_review_required',409)
   const origin=imported?{project_id:imported.id,project_revision:imported.revision,format:imported.value.input.format,digest:imported.value.digest}:branch?await env.DB.prepare('SELECT project_id,project_revision,format,digest FROM bf_model_revision_imports WHERE revision_id=?').bind(branch.revision_id).first<{project_id:string;project_revision:string;format:string;digest:string}>():null
+  let sigmaOrigin=migration?.origin??(branch?await env.DB.prepare('SELECT project_id,project_revision,element_id FROM bf_migration_model_revisions WHERE revision_id=?').bind(branch.revision_id).first<SigmaOrigin>():null)
+  if(sigmaOrigin&&!migration)guards.push(...(await sigmaDraft(env,ownerId,sigmaOrigin.project_id,sigmaOrigin.project_revision,sigmaOrigin.element_id)).guards)
+  const nativeEdit=[]
+  if(sigmaOrigin&&model&&branch&&!migration){
+   const current=await readMigrationProject(env,ownerId,sigmaOrigin.project_id),value=structuredClone(current.value)
+   const item=value.items.find(i=>i.source.id===value.sigma?.drafts.find(d=>d.element===sigmaOrigin!.element_id)?.itemId)
+   if(!item)fail('sigma_native_item_missing',409)
+   item.native=canonicalJson(definition);item.edited=true
+   const revision=migrationDigest({previous:current.revision,action:'native-model-edit',value})
+   guards.push(importGuard(current))
+   nativeEdit.push(sql('UPDATE bf_migration_workspaces SET revision=?,value_json=? WHERE id=?',revision,canonicalJson(value),current.id),sql('INSERT INTO bf_migration_project_edits(project_id,revision,action,value_json) VALUES(?,?,?,?)',current.id,revision,'native-model-edit',canonicalJson(value)))
+   sigmaOrigin={...sigmaOrigin,project_revision:revision}
+  }
+  const sigmaProvenance=(revisionId:string)=>sigmaOrigin?[sql('INSERT INTO bf_migration_model_revisions(revision_id,project_id,project_revision,element_id) VALUES(?,?,?,?)',revisionId,sigmaOrigin.project_id,sigmaOrigin.project_revision,sigmaOrigin.element_id)]:[]
   const provenance=(revisionId:string)=>origin?[sql('INSERT INTO bf_model_revision_imports(revision_id,project_id,project_revision,format,digest) VALUES(?,?,?,?,?)',revisionId,origin.project_id,origin.project_revision,origin.format,origin.digest)]:[]
   if(model&&branch){
    const revision=revisionStatement(model.id,definition)
-   await transact(env.DB,owner,[...guards.map(assertion),revision.statement,...provenance(revision.id),sql('UPDATE bf_semantic_branches SET revision_id=?,version=version+1,base_generation=?,approval_json=NULL WHERE id=?',revision.id,model.generation,branch.id)])
+   await transact(env.DB,owner,[...guards.map(assertion),revision.statement,...provenance(revision.id),...sigmaProvenance(revision.id),...nativeEdit,sql('UPDATE bf_semantic_branches SET revision_id=?,version=version+1,base_generation=?,approval_json=NULL WHERE id=?',revision.id,model.generation,branch.id)])
    return json({modelId:model.id,branchId:branch.id,revision:revision.id,version:branch.version+1},201)
   }
   const modelId=randomUUID(),branchId=randomUUID(),revision=revisionStatement(modelId,definition)
-  await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT INTO bf_semantic_models(id,owner_id) VALUES(?,?)',modelId,ownerId),revision.statement,...provenance(revision.id),sql('INSERT INTO bf_semantic_branches(id,model_id,base_generation,revision_id) VALUES(?,?,0,?)',branchId,modelId,revision.id)])
+  await transact(env.DB,owner,[...guards.map(assertion),sql('INSERT INTO bf_semantic_models(id,owner_id) VALUES(?,?)',modelId,ownerId),revision.statement,...provenance(revision.id),...sigmaProvenance(revision.id),...nativeEdit,sql('INSERT INTO bf_semantic_branches(id,model_id,base_generation,revision_id) VALUES(?,?,0,?)',branchId,modelId,revision.id)])
   return json({modelId,branchId,revision:revision.id,version:1},201)
  }catch(error){if(error instanceof QueryError)return json({error:error.code},error.status);return json({error:'model_authoring_conflict',reason:'Reload current source data and review again. Nothing was published.'},409)}finally{await discardBody(request)}
 }

@@ -15,6 +15,7 @@ export async function semanticResponse(request:Request,original:Bindings):Promis
  if(!match)return null
  const env=runtimeBindings(original)
  try {
+  if(request.headers.has('authorization'))return json({error:'human_session_required'},401)
   const owner=await fileOwner(request,env);if(!owner){await discardBody(request);return json({error:'owner_required'},401)}
   const ownerId=await ownerIdentity(env,owner)
   if(url.search)fail('query_parameters_not_supported',400)

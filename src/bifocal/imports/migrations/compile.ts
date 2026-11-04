@@ -1,10 +1,12 @@
+import { reconstructSigma, type SigmaProject } from './sigma/reconstruction'
+import type { Source } from '../../query/types'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { exactKeys } from '../../models/validation/transport'
 import { fail } from '../../query/types'
 export type InventoryItem={id:string;kind:string;sourceRevision:string;original:string;mapping:string;gap:string}
 export type Item={source:InventoryItem;native:string;edited:boolean;conflict:InventoryItem|null}
-export type MigrationProject={id:string;ownerId:string;source:string;cutoff:string;rollbackPlan:string;items:Item[];state:'inactive';dispatch:'unavailable';grants:'none';expectedWorkspace:string|null}
-const sources=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex']
+export type MigrationProject={id:string;ownerId:string;source:string;cutoff:string;rollbackPlan:string;items:Item[];state:'inactive';dispatch:'unavailable';grants:'none';expectedWorkspace:string|null;sigma?:SigmaProject}
+const allowedSources=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex']
 export function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))fail('migration_object_required',400);return value as Record<string,unknown>}
 export function text(value:unknown,max=8192):string{if(typeof value!=='string'||value.length>max||value.includes('\u0000'))fail('migration_text_required',400);return value}
 export function item(value:unknown):InventoryItem{
@@ -16,15 +18,19 @@ export function item(value:unknown):InventoryItem{
  return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
 }
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
-export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null):MigrationProject{
- const v=object(value);exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
- if(v.version!==1||v.projectId!==id||!sources.includes(String(v.source)))fail('migration_envelope_required',400)
+export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null,sources:Source[]=[]):MigrationProject{
+ const v=object(value);exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items','sigma','reconstruction'])
+ if(v.version!==1||v.projectId!==id||!allowedSources.includes(String(v.source)))fail('migration_envelope_required',400)
  const cutoff=text(v.cutoff,32);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(cutoff)||!Number.isFinite(Date.parse(cutoff)))fail('migration_cutoff_required',400)
  const rollbackPlan=text(v.rollbackPlan,2048);if(!rollbackPlan.trim())fail('migration_rollback_plan_required',400)
  if(current&&(current.ownerId!==ownerId||current.source!==v.source))fail('migration_identity_changed',409)
  if(current&&cutoff<current.cutoff)fail('migration_cutoff_regressed',409)
- if(!Array.isArray(v.items)||!v.items.length||v.items.length>100)fail('migration_inventory_required',400)
- const incoming=v.items.map(item);if(new Set(incoming.map(i=>i.id)).size!==incoming.length)fail('migration_duplicate_item',400)
+ const sigma=v.sigma===undefined?undefined:reconstructSigma(v.sigma,v.reconstruction,sources)
+ if(sigma&&v.source!=='sigma'||!sigma&&v.reconstruction!==undefined)fail('sigma_envelope_required',400)
+ const inputItems=sigma?sigma.items:v.items
+ if(sigma&&v.items!==undefined)fail('sigma_inventory_is_derived',400)
+ if(!Array.isArray(inputItems)||!inputItems.length||inputItems.length>100)fail('migration_inventory_required',400)
+ const incoming=inputItems.map(item);if(new Set(incoming.map(i=>i.id)).size!==incoming.length)fail('migration_duplicate_item',400)
  const items:Item[]=structuredClone(current?.items??[])
  for(const next of incoming){
   const old=items.find(i=>i.source.id===next.id)
@@ -37,5 +43,5 @@ export function compileMigration(value:unknown,id:string,ownerId:string,current?
  }
  if(items.length>100)fail('migration_inventory_limit',413)
  // A reconstruction description never establishes translated behavior or parity.
- return {id,ownerId,source:v.source as string,cutoff,rollbackPlan,items:items.sort((a,b)=>a.source.id.localeCompare(b.source.id)),state:'inactive',dispatch:'unavailable',grants:'none',expectedWorkspace}
+ return {id,ownerId,source:v.source as string,cutoff,rollbackPlan,items:items.sort((a,b)=>a.source.id.localeCompare(b.source.id)),state:'inactive',dispatch:'unavailable',grants:'none',expectedWorkspace,...(sigma?{sigma}:{})}
 }

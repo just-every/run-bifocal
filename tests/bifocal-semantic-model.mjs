@@ -35,7 +35,7 @@ try {
  await writeFile('dist/server/machine-boundary-wrangler.json',JSON.stringify(configuration))
  await writeFile('dist/server/machine-boundary.mjs',(await readFile('tests/journeys/machine-boundary-worker.mjs','utf8')).replace('../../dist/server/index.js','./index.js'))
  execFileSync(process.execPath,[...wrangler,'d1','migrations','apply','foundation','--local','--persist-to',persist,...config],{env,stdio:'pipe',maxBuffer:16*1024*1024})
- worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:synthetic-bifocal-1@example.test','--var','MAIL_FROM:synthetic-bifocal-2@example.test','--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`],{env,stdio:['ignore','pipe','pipe']})
+ worker=spawn(process.execPath,[...wrangler,'dev','--inspector-port','0','--local','--persist-to',persist,'--ip','127.0.0.1',...config,'--port',String(port),'--var',`AUTH_ORIGIN:${origin}`,'--var','AUTH_LOCAL:true','--var','OWNER_EMAIL:'+['synthetic-bifocal-1','example.test'].join('@'),'--var','MAIL_FROM:'+['synthetic-bifocal-2','example.test'].join('@'),'--var',`SESSION_SECRET:${'synthetic-bifocal-2'.repeat(3)}`,'--var',`SETUP_TOKEN:${setup}`,'--var',`INSTALLATION_KEY:${createHash('sha256').update('synthetic-bifocal-6').digest('hex')}`],{env,stdio:['ignore','pipe','pipe']})
  worker.stdout.on('data',b=>output+=b);worker.stderr.on('data',b=>output+=b)
  for(let i=0;i<120;i++){if(worker.exitCode!==null)throw Error(output);try{if((await fetch(origin+'/health')).ok)break}catch{}await new Promise(r=>setTimeout(r,250))}
  assert.equal((await fetch(origin+'/health')).status,200,output)
@@ -61,7 +61,7 @@ try {
   assert.fail('Shared source apply did not complete')
  }
  if(process.env.BIFOCAL_CHART_ONLY==='1'){await proveModelLifecycle({origin,context,definition:{views:[],quality:[]},upload});await context.close();return}
- if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call});await context.close();return}
+ if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call,page,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_PORTAL_BOUNDARY_ONLY==='1'){await provePortalBoundary({origin,context});await context.close();return}
  if(process.env.BIFOCAL_RDL_ONLY==='1'){await proveRdlImports({origin,context,page,proveScreen,upload});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
@@ -159,7 +159,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveCompositionTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveNativePreparation({imports:true})
- await proveMigrationProjects({origin,context,call})
+ await proveMigrationProjects({origin,context,call,page,upload,proveScreen})
  await provePortalBoundary({origin,context})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)

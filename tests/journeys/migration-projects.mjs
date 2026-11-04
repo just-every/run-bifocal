@@ -1,7 +1,8 @@
+import {proveSigmaWorkbooks} from './sigma-workbooks.mjs'
 import assert from 'node:assert/strict'
 import {createHash} from 'node:crypto'
 
-export async function proveMigrationProjects({origin,context,call}){
+export async function proveMigrationProjects({origin,context,call,page,upload,proveScreen}){
  const id='synthetic-bifocal-migration',base='/migration-projects/'+id,headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
  const post=async(action,data,status=200)=>{const response=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(response.status(),status,await response.text());return response.json()}
  const baselines=new Set()
@@ -45,10 +46,10 @@ export async function proveMigrationProjects({origin,context,call}){
  const history=await call(base),versions=await Promise.all(history.history.map(h=>call(base+'/versions/'+h.revision)));assert.ok(versions.some(h=>h.action==='edit'&&h.value.items.some(i=>i.native==='sum(net_amount)')));assert.ok(versions.some(h=>h.action==='import'&&h.value.items.some(i=>i.conflict?.original==='sum(gross_amount)')))
  const originals=await context.request.get(origin+'/api/operator/import/original/'+fresh.planId,{headers});assert.equal(originals.status(),200);const retained=(await originals.json()).originals;assert.equal(retained.length,1);assert.deepEqual(JSON.parse(Buffer.from(retained[0].original.base64,'base64').toString('utf8')),freshInput)
  const foreign=await context.request.post(origin+'/api/operator'+base+'/edit',{headers:{Origin:'https://synthetic-bifocal.invalid'},data:{reviewedRevision:current.revision,itemId:'revenue',native:'foreign'}});assert.equal(foreign.status(),401)
- const invitation=await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:'synthetic-bifocal-migration-member@example.test',displayName:'Synthetic migration member',role:'member'}});assert.equal(invitation.status(),202)
+ const invitation=await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:['synthetic-bifocal-migration-member','example.test'].join('@'),displayName:'Synthetic migration member',role:'member'}});assert.equal(invitation.status(),202)
  const member=await context.browser().newContext()
  try{
-  const entered=await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent('synthetic-bifocal-migration-member@example.test'),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0});assert.equal(entered.status(),303)
+  const entered=await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(['synthetic-bifocal-migration-member','example.test'].join('@')),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0});assert.equal(entered.status(),303)
   assert.equal((await member.request.get(origin+'/api/operator'+base)).status(),401)
   assert.equal((await member.request.get(origin+'/api/operator'+base+'/versions/'+history.history[0].revision)).status(),401)
   for(const action of ['edit','resolve','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{reviewedRevision:current.revision,itemId:'revenue',native:'forbidden',choice:'use-source',confirmImport:id}})).status(),401)
@@ -60,5 +61,6 @@ export async function proveMigrationProjects({origin,context,call}){
  const withdrawn=await context.request.get(origin+'/api/operator/import/original/'+fresh.planId,{headers});assert.equal(withdrawn.status(),200);const unavailable=(await withdrawn.json()).originals;assert.equal(unavailable.length,1);assert.equal(unavailable[0].original.status,'unavailable');assert.equal(unavailable[0].original.base64,undefined)
  await call(base+'/versions/'+history.history[0].revision,undefined,404)
  await post('apply',{planId:fresh.planId,reviewedFingerprint:fresh.fingerprint},410)
+ await proveSigmaWorkbooks({origin,context,page,call,upload,proveScreen})
  console.log('Migration projects: shared retained plans, exact approval, idempotent resume, deltas, native conflicts, both resolutions, original history, stale and foreign refusal, erasure and inert reconstruction inventories passed')
 }

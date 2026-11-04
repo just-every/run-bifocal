@@ -1,3 +1,5 @@
+import type { Source } from '../../query/types'
+import { guardMigrationUpload } from './sigma/upload.server'
 import { digest, text } from './compile'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
@@ -18,7 +20,8 @@ import { migrationImportContext, eraseMigrationProject, importGuard, readMigrati
 /** The Migration inventory enters through Base's shared door: review, exact fingerprint, reconcile, Undo and erase. */
 async function handleMigrationProject(request:Request,original:Bindings):Promise<Response|null>{
  const url=new URL(request.url),path=url.pathname,resource=/^\/api\/operator\/migration-projects\/([a-z][a-z0-9-]{0,63})(\/(erase|edit|resolve|versions\/([a-f0-9]{64})))?$/.exec(path)
- if(!resource&&!(path.startsWith('/api/operator/import/')&&request.headers.get('X-Import-Kind')==='migration-project'))return null
+ if(!resource&&!(path.startsWith('/api/operator/import/')&&['migration-project','sigma-workbook'].includes(request.headers.get('X-Import-Kind')??'')))return null
+ if(request.headers.has('authorization'))return json({error:'human_session_required'},401)
  const env=runtimeBindings(original),owner=await fileOwner(request,env)
  if(!owner)return json({error:'owner_required'},401)
  const ownerId=await ownerIdentity(env,owner),id=resource?.[1]??request.headers.get('X-Import-Dataset')??''
@@ -64,7 +67,12 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  const namespace='migration-projects:'+id,current=await migrationImportTargets.read(env.DB,destination,'migration-project',id)
  const workspace=current?await readMigrationProject(env,ownerId,id):undefined
  if(path==='/api/operator/import/undo'&&workspace&&(workspace.revision!==current?.revision||workspace.value.expectedWorkspace!==null))fail('migration_undo_requires_native_review',409)
- const source=migrationImportSource(id,ownerId,current,workspace)
+ const sigmaIntake=request.headers.get('X-Import-Kind')==='sigma-workbook'
+ if(sigmaIntake&&path==='/api/operator/import/uploads'&&request.method==='POST')await guardMigrationUpload(request)
+ const rows=(await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables ORDER BY id LIMIT 101').all<Omit<Source,'table'>>()).results
+ if(rows.length>100)fail('migration_source_catalog_limit',413)
+ const sources=rows.map(row=>({...row,table:JSON.parse(row.value_json)}))
+ const source=migrationImportSource(id,ownerId,current,workspace,sources,sigmaIntake)
  const options={...source,database:env.DB,targets:migrationImportTargets,destination,format:'json' as const,ownerPrincipalId:'role:owner',installationId:'bifocal:files:v1',appOrigin:env.AUTH_ORIGIN,ownerEmail:owner.email,namespace,limits:{maxBytes:1048576,maxRecords:1,maxRecordBytes:1048576},authorize:(r:Request)=>fileOwner(r,env)}
  const rowForPlan=(planId:string)=>env.DB.prepare('SELECT * FROM ik_door_plans WHERE id=? AND installation_id=? AND namespace=? AND complete=1').bind(planId,options.installationId,namespace).first<DoorPlanRow>()
  const admitted:DoorRequest={options,authority:owner,via:'operator',epoch:0,access:{action:'plan',installationId:options.installationId,email:owner.email,namespace,maxBytes:1048576,maxRecords:1,maxChunks:16}}
@@ -86,7 +94,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  if(path==='/api/operator/import/plan'&&response?.ok){
   const preview=await response.json() as {planId:string},row=await rowForPlan(preview.planId);if(!row)fail('plan_not_found',404)
   const snapshot=await loadSnapshot(admitted,row)
-  return json({...preview,project:snapshot.plan.entries[0]?.effects[0]?.value})
+  const project=snapshot.plan.entries[0]?.effects[0]?.value as unknown as import('./compile').MigrationProject|undefined
+  const bound=project?.sigma&&project.sigma.reconstruction&&typeof project.sigma.reconstruction==='object'?(project.sigma.reconstruction as {bindings?:Record<string,{dataset?:unknown}>}).bindings:{}
+  await transact(env.DB,owner,Object.values(bound??{}).filter(b=>typeof b?.dataset==='string').map(b=>sql('INSERT OR IGNORE INTO bf_migration_sources(project_id,dataset_id) VALUES(?,?)',id,b.dataset as string)))
+  return json({...preview,project})
  }
  return response
 }

@@ -18,3 +18,12 @@ export async function eraseMigrationProject(env:Bindings,owner:Owner,id:string,g
  const checkpoint=[sql('INSERT OR IGNORE INTO rer_portability_state(id,source_identity) VALUES(1,?)',identity),assertion(sql('EXISTS(SELECT 1 FROM rer_portability_state WHERE id=1 AND source_identity=?)',identity)),sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)',identity,sha256(canonicalJson([identity,'rer_portability_state',{id:1}]))),sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
  return retireD1ImportCustody({target:{kind:'migration-project',id}},[...guards.map(assertion),sql('DELETE FROM bf_migration_projects WHERE id=?',id)],migrationImportContext(env,owner,id),checkpoint)
 }
+
+/** Every mapped original version owes custody to its native snapshot. */
+export async function eraseSourceMigrationProjects(env:Bindings,owner:Owner,dataset:string,sourceGuard:D1Sql){
+ const rows=(await env.DB.prepare('SELECT DISTINCT project_id FROM bf_migration_sources WHERE dataset_id=? ORDER BY project_id LIMIT 101').bind(dataset).all<{project_id:string}>()).results
+ if(rows.length>100)fail('migration_project_erasure_limit',413)
+ const receipts=[]
+ for(const row of rows)receipts.push(await eraseMigrationProject(env,owner,row.project_id,[sourceGuard]))
+ return receipts
+}
