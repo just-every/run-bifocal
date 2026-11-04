@@ -12,11 +12,15 @@ test('new agent acceptance entries are fresh after one regeneration',async()=>{
   await mkdir(join(root,'src/base'),{recursive:true})
   for(const path of ['scripts/contract-docs.mjs','src/base/seed-contract.mjs','CONTRACT.md'])
    await copyFile(new URL('../../'+path,import.meta.url),join(root,path))
-  const original=await readFile(new URL('../../ACCEPTANCE.md',import.meta.url),'utf8')
-  const before=original.split('\n').filter(line=>!line.startsWith('- **BASE-AGENT-')).join('\n')
-  await writeFile(join(root,'ACCEPTANCE.md'),before)
   const ids=Array.from({length:13},(_,index)=>`BASE-AGENT-${String(index+1).padStart(3,'0')}`)
   const run=mode=>execFileSync(process.execPath,['scripts/contract-docs.mjs',mode,...ids],{cwd:root,stdio:'pipe'})
+  await copyFile(new URL('../../ACCEPTANCE.md',import.meta.url),join(root,'ACCEPTANCE.md'))
+  // Candidate branches retain landed views. Start this entry-creation fixture
+  // from current generated counts before comparing the unchanged document.
+  run('write')
+  const original=await readFile(join(root,'ACCEPTANCE.md'),'utf8')
+  const before=original.split('\n').filter(line=>!line.startsWith('- **BASE-AGENT-')).join('\n')
+  await writeFile(join(root,'ACCEPTANCE.md'),before)
   run('write')
   run('check')
   const once=await readFile(join(root,'ACCEPTANCE.md'),'utf8')

@@ -25,7 +25,7 @@ export async function commerceSourceResponse(request: Request, original: Binding
   try {
    const data = await readSquare(input, grant, () => transact(env.DB, owner, []))
    lineage(data.source)
-   const response = await planSource(request, env, input.datasetId, data.rows, data.columns, data.source, input.catchup === true, 'order_id')
+   const response = await planSource(request, env, input.datasetId, data.rows, data.columns, data.source, input.catchup === true, {key: 'order_id'})
    await audit(response.ok ? 'staged' : 'refused')
    return response
   } catch (error) { await audit('failed'); throw error }

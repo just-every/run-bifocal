@@ -23,7 +23,7 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 }
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
-export async function providerJson(url: string, accessToken: string, data?: unknown, options: {headers?: Record<string,string>; budget?: {remainingBytes:number;deadline:number}} = {}): Promise<Record<string, unknown>> {
+export async function providerJson(url: string, accessToken: string, data?: unknown, options: {headers?: Record<string,string>; validateText?: (text: string) => void; budget?: {remainingBytes:number;deadline:number}} = {}): Promise<Record<string, unknown>> {
  const remaining = options.budget ? options.budget.deadline - Date.now() : 15000
  requireValue(remaining > 0 && (!options.budget || options.budget.remainingBytes > 0), 'provider_aggregate_limit', 413)
  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), Math.min(15000, remaining))
@@ -36,6 +36,7 @@ export async function providerJson(url: string, accessToken: string, data?: unkn
   requireValue(/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? ''), 'provider_json_required', 502)
   const text = await boundedText(response.body, Math.min(1048576, options.budget?.remainingBytes ?? 1048576), 'provider_response_limit')
   if (options.budget) options.budget.remainingBytes -= new TextEncoder().encode(text).length
+  options.validateText?.(text)
   const result: unknown = JSON.parse(text)
   requireValue(!text.includes(accessToken) && !JSON.stringify(result).includes(accessToken), 'provider_credential_in_response', 502)
   requireValue(object(result), 'provider_schema_mismatch', 502)

@@ -39,6 +39,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
   await proveSquare(edge,context,page,call,shot,apply)
   if(process.argv.includes('--square'))return
+  await proveSmartsheet({origin,context,page,state,call,apply,shot})
   let lastBoard,apiDataset
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import')
@@ -108,11 +109,125 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
  } finally {page.off('request',recordRequest);if(original)await page.goto(original+'/app');await edge.close()}
 }
 
+/** Bounded Smartsheet read, native publication and source custody through the
+ * same real browser and HTTP doors as other analytical inputs. */
+async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
+ const datasetId='synthetic-bifocal-smartsheet',sheetId='4583173393803140'
+ const columns=[{id:'1001',name:'label',type:'text'},{id:'1002',name:'amount',type:'money'},{id:'1003',name:'units',type:'number'},{id:'1004',name:'day',type:'date'},{id:'1005',name:'active',type:'boolean'}]
+ const input={datasetId,sheetId,columns,accessToken:grant,confirmRead:true}
+ const read=(changes={},status=200,extra={})=>call('smartsheet'+'/'+'preview',{...input,...changes},status,extra)
+ const proof=async(name)=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot('smartsheet-'+name,width)}await page.setViewportSize({width:1440,height:1000})}
+ const noRead=state.calls.length
+ assert.equal((await fetch(origin+'/api/operator/smartsheet/preview',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify(input)})).status,401)
+ await read({confirmRead:false},400);await read({sheetId:'9007199254740993'},400)
+ await read({},401,{Origin:'https://synthetic-bifocal.invalid'})
+ await read({},401,{Authorization:'Bearer synthetic-bifocal-machine'})
+ const memberName=['synthetic-bifocal-smartsheet-member','example.test'].join('@')
+ assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'},data:{email:memberName,displayName:'Smartsheet member',role:'member'}})).status(),202)
+ const member=await context.browser().newContext()
+ try {
+  const messages=await(await context.request.get(origin+'/__analytics-mail')).json(),link=messages.at(-1).text.match(/https?:[^\s]+/)[0],token=new URL(link).searchParams.get('token')
+  assert.equal((await member.request.post(origin+'/auth/confirm',{headers:{Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'},data:{token},maxRedirects:0})).status(),303)
+  assert.equal((await(await member.request.get(origin+'/auth/session')).json()).operator.role,'member')
+  assert.equal((await member.request.post(origin+'/api/operator/smartsheet/preview',{headers:{Origin:origin},data:input})).status(),401)
+  assert.equal((await member.request.get(origin+'/app/import')).status(),403)
+ } finally {await member.close()}
+ assert.equal(state.calls.length,noRead,'refused principals and missing consent never contact Smartsheet')
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
+ await page.getByLabel('Dataset id',{exact:true}).fill(datasetId);await page.getByText('Read a Smartsheet snapshot',{exact:true}).click()
+ const form=page.locator('#smartsheet-form')
+ await form.getByLabel('Smartsheet sheet id').fill(sheetId);await form.getByLabel('Smartsheet column selection (JSON)').fill(JSON.stringify(columns));await form.getByLabel('Smartsheet access token').fill(grant);await form.getByRole('checkbox').check()
+ await proof('selected')
+ const previewResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/smartsheet/preview')
+ await form.getByRole('button',{name:'Preview Smartsheet snapshot'}).click()
+ const previewHttp=await previewResponse;assert.equal(previewHttp.status(),200,await previewHttp.text());const preview=await previewHttp.json()
+ assert.equal(preview.counts.rejected,0,JSON.stringify(preview))
+ await page.locator('#review:not([hidden])').waitFor()
+ assert.equal(await form.getByLabel('Smartsheet access token').inputValue(),'');assert.equal(await form.getByRole('checkbox').isChecked(),false)
+ await proof('review')
+ assert.equal((await call('datasets/'+datasetId,undefined,404)).error,'dataset_not_found','reading and review alone never publish')
+ await call('import'+'/'+'apply',{planId:preview.planId,reviewedFingerprint:'0'.repeat(64)},403,{'X-Import-Dataset':datasetId})
+ await apply()
+ const current=await call('datasets/'+datasetId),snapshot=current.table.source.smartsheet
+ assert.deepEqual(current.table.columns.map(column=>[column.name,column.type]),[['smartsheet_row_id','text'],['label','text'],['amount','money'],['units','number'],['day','date'],['active','boolean']])
+ const expectedIds='7000000000000001 7000000000000003 7000000000000005 7000000000000007 7000000000000009 7000000000000011 7000000000000013 7000000000000015 7000000000000017 7000000000000019 7000000000000021 7000000000000023 7000000000000025 7000000000000027 7000000000000029 7000000000000031 7000000000000033 7000000000000035 7000000000000037 7000000000000039 7000000000000041 7000000000000043 7000000000000045 7000000000000047 7000000000000049 7000000000000051 7000000000000053 7000000000000055 7000000000000057 7000000000000059 7000000000000061 7000000000000063 7000000000000065 7000000000000067 7000000000000069 7000000000000071 7000000000000073 7000000000000075 7000000000000077 7000000000000079 7000000000000081 7000000000000083 7000000000000085 7000000000000087 7000000000000089 7000000000000091 7000000000000093 7000000000000095 7000000000000097 7000000000000099 7000000000000101 7000000000000103 7000000000000105 7000000000000107 7000000000000109 7000000000000111 7000000000000113 7000000000000115 7000000000000117 7000000000000119 7000000000000121 7000000000000123 7000000000000125 7000000000000127 7000000000000129 7000000000000131 7000000000000133 7000000000000135 7000000000000137 7000000000000139 7000000000000141 7000000000000143 7000000000000145 7000000000000147 7000000000000149 7000000000000151 7000000000000153 7000000000000155 7000000000000157 7000000000000159 7000000000000161 7000000000000163 7000000000000165 7000000000000167 7000000000000169 7000000000000171 7000000000000173 7000000000000175 7000000000000177 7000000000000179 7000000000000181 7000000000000183 7000000000000185 7000000000000187 7000000000000189 7000000000000191 7000000000000193 7000000000000195 7000000000000197 7000000000000199 7000000000000201'.split(' ')
+ assert.deepEqual(current.table.rows.map(row=>row[0]),expectedIds);assert.deepEqual(snapshot.rowIds,expectedIds)
+ assert.equal(snapshot.sheetId,sheetId);assert.equal(snapshot.version,17);assert.deepEqual(snapshot.columns.map(column=>column.id),['1001','1002','1003','1004','1005'])
+ assert.deepEqual(current.table.rows.slice(0,3),[['7000000000000001','','123.45','2','2026-06-30',true],['7000000000000003',null,'-23.40','3',null,false],['7000000000000005','=HYPERLINK("https://synthetic-bifocal.invalid")','0.00','0',null,null]])
+ assert.deepEqual(snapshot.formulas,[{rowId:'7000000000000001',columnId:'1002',formula:'=SUM([Amount]2:[Amount]3)',cached:'123.45'}])
+ const reads=state.calls.slice(noRead).filter(request=>request.host==='api.smartsheet.com')
+ assert.deepEqual(reads.map(request=>request.path.endsWith('/version')?'version':new URLSearchParams(request.search).get('page')),['1','2','version'])
+ const original=async(planId=preview.planId)=>{
+  const response=await context.request.get(origin+'/api/operator/import/original/'+planId,{headers:{'X-Import-Dataset':datasetId}})
+  assert.equal(response.status(),200);return response.json()
+ }
+ const retained=await original(),envelope=JSON.parse(Buffer.from(retained.originals[0].original.base64,'base64'))
+ assert.deepEqual(envelope.smartsheet,snapshot);assert.ok(!JSON.stringify(envelope).includes(grant))
+ const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Download original',exact:true}).click()
+ const download=await downloadEvent;assert.equal(download.suggestedFilename(),'smartsheet-snapshot.json')
+ const stream=await download.createReadStream(),parts=[];for await(const part of stream)parts.push(part)
+ assert.deepEqual(JSON.parse(Buffer.concat(parts)),envelope,'The protected browser original retains formulas, identities and typed mapping')
+ assert.ok(!(await page.evaluate(()=>JSON.stringify({local:{...localStorage},session:{...sessionStorage}}))).includes(grant))
+ const database=await state.database(),tables=await database.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND (name LIKE 'bf_%' OR name LIKE 'ik_%')").all()
+ for(const {name} of tables.results){assert.match(name,/^[a-z0-9_]+$/);const records=await database.prepare('SELECT * FROM '+name).all();assert.ok(!JSON.stringify(records.results).includes(grant),name+' never retains a provider token');for(const record of records.results)for(const value of Object.values(record)){const bytes=Array.isArray(value)?Buffer.from(value):typeof value==='string'&&/^[A-Za-z0-9+/]*={0,2}$/.test(value)?Buffer.from(value,'base64'):null;if(bytes)assert.ok(!bytes.includes(Buffer.from(grant)),name+' retains no encoded provider token')}}
+ await proof('applied')
+ await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click()
+ const query={version:1,dataset:datasetId,joins:[],filters:[],groupBy:[],measures:[{id:'revenue',op:'sum',column:'amount',unit:'money',scale:2,sourceCurrency:'USD'}],context:{modelVersion:'smartsheet-native-v1',metricVersion:'owner-defined-v1',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
+ await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
+ const queryResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/queries/run'&&response.request().method()==='POST')
+ await page.getByRole('button',{name:'Run exact query',exact:true}).click();const answer=await(await queryResponse).json()
+ assert.equal(answer.answer.totals.revenue.value,'100.05',JSON.stringify(answer))
+ const board=await call('dashboards',{queryId:answer.queryId,title:'Smartsheet exact USD'},201)
+ await page.locator('#compose-form input[value="'+answer.snapshotId+'"]').waitFor({state:'attached'});await proof('query')
+ for(const [phase,status,error] of [['schema-drift',409,'smartsheet_version_drift'],['column-missing',502,'smartsheet_selected_columns_missing'],['response-overflow',413,'provider_response_limit'],['snapshot-overflow',413,'smartsheet_snapshot_limit'],['page-drift',409,'smartsheet_version_drift'],['final-drift',409,'smartsheet_version_drift'],['missing-row',502,'smartsheet_incomplete_rows'],['duplicate-row',502,'smartsheet_incomplete_rows'],['row-overflow',413,'smartsheet_row_limit'],['unsafe-id',502,'smartsheet_unsafe_numeric_precision'],['unsafe-decimal',502,'smartsheet_unsafe_numeric_precision'],['complex-column',502,'smartsheet_unsupported_column_type'],['complex-cell',502,'smartsheet_unsupported_cell_value'],['cell-overflow',502,'smartsheet_text_required'],['money-precision',502,'smartsheet_usd_precision_required'],['empty',422,'smartsheet_empty_sheet'],['denied',502,'provider_request_failed'],['revoked',403,'provider_grant_refused'],['final-revoked',403,'provider_grant_refused'],['rate',503,'provider_rate_limited'],['redirect',502,'provider_redirect_refused'],['token-echo',502,'provider_credential_in_response']]) {
+  state.smartsheet=phase;const refused=await read({catchup:true},status);assert.equal(refused.error,error,phase)
+  if(phase==='complex-column')assert.deepEqual(refused.details,{columnId:'1001',sourceType:'MULTI_PICKLIST'})
+  assert.deepEqual(await call('datasets/'+datasetId),current,'refused '+phase+' preserves the complete last-good table')
+ }
+ state.smartsheet='revoked'
+ await page.goto(origin+'/app/import?dataset='+datasetId);await page.getByText('Read a Smartsheet snapshot',{exact:true}).click()
+ await form.getByLabel('Smartsheet sheet id').fill(sheetId);await form.getByLabel('Smartsheet column selection (JSON)').fill(JSON.stringify(columns));await form.getByLabel('Smartsheet access token').fill(grant);await form.getByRole('checkbox').check()
+ const refusedResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/smartsheet/preview')
+ await form.getByRole('button',{name:'Preview Smartsheet snapshot'}).click();assert.equal((await refusedResponse).status(),403)
+ await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true')
+ assert.match(await page.locator('#status').innerText(),/provider_grant_refused/);assert.equal(await form.getByLabel('Smartsheet access token').inputValue(),'')
+ await proof('refused');assert.deepEqual(await call('datasets/'+datasetId),current)
+ state.smartsheet='success'
+ // A new exact read has its own consent and cannot revive an old approval.
+ const changedReview=await read({catchup:true});await call('import'+'/'+'apply',{planId:changedReview.planId,reviewedFingerprint:preview.fingerprint},403,{'X-Import-Dataset':datasetId})
+ await call('import'+'/'+'undo',{planId:changedReview.planId},200,{'X-Import-Dataset':datasetId})
+ await page.goto(origin+'/app/import?dataset='+datasetId);await page.getByRole('button',{name:'Undo import',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'))
+ await call('datasets/'+datasetId,undefined,404);assert.deepEqual((await call('queries/'+answer.queryId)).answer,answer.answer,'Undo preserves the immutable owner-held historical answer')
+ await proof('undone')
+ await page.getByText('Read a Smartsheet snapshot',{exact:true}).click()
+ await form.getByLabel('Smartsheet sheet id').fill(sheetId);await form.getByLabel('Smartsheet column selection (JSON)').fill(JSON.stringify(columns));await form.getByLabel('Smartsheet access token').fill(grant);await form.getByRole('checkbox').check()
+ const reapplyResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/smartsheet/preview')
+ await form.getByRole('button',{name:'Preview Smartsheet snapshot'}).click()
+ const reapplyHttp=await reapplyResponse;assert.equal(reapplyHttp.status(),200,await reapplyHttp.text());const reapplied=await reapplyHttp.json();await apply()
+ const fresh=await call('datasets/'+datasetId),erase=()=>call('datasets/'+datasetId+'/erase',{confirmDataset:datasetId,reviewedRevision:fresh.revision})
+ let previousRevision=null
+ for(const protection of [{legalHold:true,minimumRetainUntil:null},{legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z'}]) {
+  const response=await context.request.put(origin+'/api/operator/retention/'+datasetId,{headers:{Origin:origin},data:{confirmDataset:datasetId,reviewedDatasetRevision:fresh.revision,previousRevision,...protection,releaseHold:true}})
+  assert.equal(response.status(),200,await response.text());previousRevision=(await response.json()).revision
+  await call('datasets/'+datasetId+'/erase',{confirmDataset:datasetId,reviewedRevision:fresh.revision},423)
+  assert.deepEqual(await call('datasets/'+datasetId),fresh);assert.deepEqual(await original(),retained)
+ }
+ const release=await context.request.put(origin+'/api/operator/retention/'+datasetId,{headers:{Origin:origin},data:{confirmDataset:datasetId,reviewedDatasetRevision:fresh.revision,previousRevision,legalHold:false,minimumRetainUntil:null,releaseHold:true}});assert.equal(release.status(),200)
+ const receipt=await erase();assert.equal(receipt.phase,'complete')
+ for(const capture of [preview,reapplied])assert.ok((await original(capture.planId)).originals.every(item=>item.original.status==='unavailable'))
+ for(const {name} of tables.results){const records=await database.prepare('SELECT * FROM '+name).all();const text=JSON.stringify(records.results);assert.ok(!text.includes('7000000000000001')&&!text.includes('=SUM([Amount]2:[Amount]3)'),name+' removes controlled Smartsheet values')}
+ assert.equal((await context.request.get(origin+'/api/operator/import/original/'+changedReview.planId,{headers:{'X-Import-Dataset':datasetId}})).status(),404,'A cancelled unapproved capture exposes no original')
+ await call('datasets/'+datasetId,undefined,404);await call('queries/'+answer.queryId,undefined,404);await call('dashboards/'+board.id,undefined,404)
+ await call('import'+'/'+'apply',{planId:reapplied.planId,reviewedFingerprint:reapplied.fingerprint},410,{'X-Import-Dataset':datasetId})
+ const retired=await read({catchup:true},409);assert.equal(retired.error,'source_erased')
+ console.log('Smartsheet: exact browser selection, same-version paging, full stable identities, null and empty text, inert formulas, USD 100.05, review and approval, reconciliation, Undo, scope and provider refusals, last-good preservation, protected retention and eligible erasure passed; 1440 and 390 screens, official-schema HTTPS edges only')
+}
+
 // The same public-door journey can run alone while iterating. CI invokes it
 // from runtime.mjs; this entry never substitutes for the push Verify wall.
 if(process.argv[1]===new URL(import.meta.url).pathname){
  const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
- const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.CHROMIUM_EXECUTABLE_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...((process.env.CHROMIUM_EXECUTABLE_PATH??process.env.BIFOCAL_CHROMIUM)?{executablePath:(process.env.CHROMIUM_EXECUTABLE_PATH??process.env.BIFOCAL_CHROMIUM)}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
  try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
 }
 
