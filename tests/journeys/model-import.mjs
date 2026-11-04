@@ -802,3 +802,15 @@ export async function proveNativePreparation({imports=false}={}){
   await context.close()
  }finally{await browser?.close();await mf?.dispose();await rm(persist,{recursive:true,force:true})}
 }
+
+/** Check native reconstruction values against independently enumerated rows. */
+export function assertLookerNativePreview(review,{total='9.98',distinct='1',rows=[{dimensions:['West'],values:{revenue:'9.98',people:'1'}}]}={}){
+ assert.equal(review.compatible,true,JSON.stringify(review.issues))
+ assert.equal(review.sourceParity,'unproved');assert.equal(review.cutover,false)
+ assert.equal(review.state,'inactive');assert.equal(review.grants,'none');assert.equal(review.dispatch,'unavailable')
+ const draft=review.drafts[0]
+ assert.deepEqual(draft.answer.rows.map(row=>({dimensions:row.dimensions,values:Object.fromEntries(Object.entries(row.values).map(([id,value])=>[id,value.value]))})),rows)
+ assert.equal(draft.answer.totals.revenue.value,total)
+ assert.equal(draft.answer.totals.people.value,distinct)
+ assert.equal(draft.reconciliation,'independently-reconciled')
+}

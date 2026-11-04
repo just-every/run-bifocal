@@ -1,23 +1,24 @@
+import { reconstructionItems } from './looker-studio/manifest'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { exactKeys } from '../../models/validation/transport'
 import { fail } from '../../query/types'
 export type InventoryItem={id:string;kind:string;sourceRevision:string;original:string;mapping:string;gap:string}
 export type Item={source:InventoryItem;native:string;edited:boolean;conflict:InventoryItem|null}
 export type MigrationProject={id:string;ownerId:string;source:string;cutoff:string;rollbackPlan:string;items:Item[];state:'inactive';dispatch:'unavailable';grants:'none';expectedWorkspace:string|null}
-const sources=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex']
+const sources=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex','looker-studio']
 export function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))fail('migration_object_required',400);return value as Record<string,unknown>}
 export function text(value:unknown,max=8192):string{if(typeof value!=='string'||value.length>max||value.includes('\u0000'))fail('migration_text_required',400);return value}
 export function item(value:unknown):InventoryItem{
  const v=object(value);exactKeys(v,['id','kind','sourceRevision','original','mapping','gap'])
  if(!/^[a-z][a-z0-9-]{0,63}$/.test(text(v.id,64)))fail('migration_item_id_required',400)
- if(!['data','metric','dashboard','parameter','schedule','folder','permission','identity','schema','load-script','association','set-analysis','sheet','bookmark','calculation'].includes(text(v.kind,32)))fail('migration_item_kind_required',400)
+ if(!['data','metric','dashboard','parameter','schedule','folder','permission','identity','schema','load-script','association','set-analysis','sheet','bookmark','calculation','page','data-source','field','blend','parameter','filter','layout','sharing','delivery'].includes(text(v.kind,32)))fail('migration_item_kind_required',400)
  const sourceRevision=text(v.sourceRevision,128);if(!sourceRevision)fail('migration_source_revision_required',400)
  // These are inert original descriptions. No expression, script or grant executes.
- return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
+ return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original,v.kind==='schema'?524288:8192),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
 }
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
 export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null):MigrationProject{
- const v=object(value);exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
+ const raw=object(value),v=raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw;exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
  if(v.version!==1||v.projectId!==id||!sources.includes(String(v.source)))fail('migration_envelope_required',400)
  const cutoff=text(v.cutoff,32);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(cutoff)||!Number.isFinite(Date.parse(cutoff)))fail('migration_cutoff_required',400)
  const rollbackPlan=text(v.rollbackPlan,2048);if(!rollbackPlan.trim())fail('migration_rollback_plan_required',400)

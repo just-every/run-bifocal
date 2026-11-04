@@ -61,7 +61,7 @@ try {
   assert.fail('Shared source apply did not complete')
  }
  if(process.env.BIFOCAL_CHART_ONLY==='1'){await proveModelLifecycle({origin,context,definition:{views:[],quality:[]},upload});await context.close();return}
- if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call});await context.close();return}
+ if(process.env.BIFOCAL_MIGRATION_ONLY==='1'){await proveMigrationProjects({origin,context,call,page,upload,proveScreen});await context.close();return}
  if(process.env.BIFOCAL_PORTAL_BOUNDARY_ONLY==='1'){await provePortalBoundary({origin,context});await context.close();return}
  if(process.env.BIFOCAL_RDL_ONLY==='1'){await proveRdlImports({origin,context,page,proveScreen,upload});await context.close();return}
  if(process.env.BIFOCAL_MACHINE_ONLY==='1'){await proveMachineDoors({origin,context,page,call,upload,proveScreen});await context.close();return}
@@ -159,7 +159,7 @@ print(json.dumps([c.execute('SELECT sum(cents),count(*) FROM invoices WHERE day>
  await proveCompositionTooling({origin,context,page,call,upload,proveScreen})
  await proveCalculations({origin,context,page,call,upload,proveScreen})
  await proveNativePreparation({imports:true})
- await proveMigrationProjects({origin,context,call})
+ await proveMigrationProjects({origin,context,call,page,upload,proveScreen})
  await provePortalBoundary({origin,context})
  await proveMachineDoors({origin,context,page,call,upload,proveScreen})
  const current=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision},200)
