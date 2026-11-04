@@ -66,7 +66,9 @@ const common={
  invalid_currency:['currency','Enter a supported three-letter currency code, like USD.'],
  invalid_clock:['cutoff','Enter the report cutoff as a time, like 17:00.']
 }
+const largeSubmission='This submission is too large. Use a smaller JSON array or remove unnecessary spacing, then submit again. Your entries have been kept.'
 const rateErrors={
+ request_too_large:largeSubmission,
  invalid_rates:'Enter between 1 and 1000 dated rates.',
  invalid_date:'Give each rate a real ISO date, like 2026-06-19.',
  invalid_currency:'Give each rate a supported foreign currency code, like EUR.',
@@ -76,6 +78,7 @@ const rateErrors={
  unknown_field:'Use only currency, date and rate in each rate object.'
 }
 const transactionErrors={
+ request_too_large:largeSubmission,
  explicit_offset_instant_required:'Give sourceInstant an ISO timestamp with an explicit UTC offset, or omit it.',
  invalid_instant:'Give sourceInstant a real ISO timestamp with an explicit UTC offset.',
  invalid_transactions:'Enter between 1 and 1000 original transactions.',

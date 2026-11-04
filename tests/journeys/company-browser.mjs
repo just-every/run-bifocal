@@ -148,6 +148,26 @@ export async function proveCompanyBrowser(origin,page) {
     assert.deepEqual(await read('/rates/'+rateId+'/1'),rateOriginal)
     assert.equal((await read('/rates/'+rateId)).versions.length,1)
    }
+   // Use a real HTTP refusal, held in flight, to prove keyboard recovery after failure.
+   const oversized=quotes('1'.repeat(270000))
+   await enter('Dated rates (JSON array)',oversized)
+   let resume,arrived
+   const held=new Promise(resolve=>resume=resolve),started=new Promise(resolve=>arrived=resolve)
+   await page.route('**/api/operator/rates',async route=>{
+    if(route.request().method()!=='POST')return route.continue()
+    const response=await route.fetch();assert.equal(response.status(),413)
+    arrived();await held;await route.fulfill({response})
+   })
+   await submit('Save rate source');await started
+   assert.equal(await page.locator('#rates-form').getAttribute('aria-busy'),'true')
+   assert.equal(await page.getByRole('button',{name:'Save rate source',exact:true}).isDisabled(),true)
+   resume();await refused('rates-form','rates','rates-help',/too large.*smaller/i)
+   await page.unroute('**/api/operator/rates')
+   assert.equal(await page.getByLabel('Dated rates (JSON array)',{exact:true}).inputValue(),oversized)
+   assert.deepEqual(await read('/rates/'+rateId+'/1'),rateOriginal)
+   assert.equal((await read('/rates/'+rateId)).versions.length,1)
+   await enter('Dated rates (JSON array)',quotes('1e-2'));await submit('Save rate source')
+   await refused('rates-form','rates','rates-help',/decimal string/)
    await shot('rate-errors')
    await enter('Dated rates (JSON array)',quotes('0.8'));await submit('Save rate source');await saved('Named rate source saved')
    assert.deepEqual(await read('/rates/'+rateId+'/1'),rateOriginal,'old named-rate revision is immutable after a new save')
@@ -174,17 +194,35 @@ export async function proveCompanyBrowser(origin,page) {
    assert.equal(await page.getByLabel('Original transactions (JSON array)',{exact:true}).inputValue(),transactions('2026-06-20'))
   } else await page.locator('#conversion-form-status[data-error=true]').waitFor()
   await shot('conversion-errors')
+  if(width===1440) {
+   const oversized=JSON.stringify([{id:'synthetic-bifocal-'+ 'x'.repeat(270000),amount:'100.00',currency:'EUR',date:'2026-06-19'}])
+   await enter('Original transactions (JSON array)',oversized)
+   const response=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/operator/currency/convert'&&response.request().method()==='POST')
+   await submit('Convert to USD');assert.equal((await response).status(),413)
+   await refused('conversion-form','transactions','conversion-help',/too large.*smaller/i)
+   assert.equal(await page.getByLabel('Original transactions (JSON array)',{exact:true}).inputValue(),oversized)
+   assert.equal(await page.locator('#conversion-result').innerText(),output)
+   assert.deepEqual(await read('/conventions/audit'),audit)
+  }
   await enter('Original transactions (JSON array)',transactions('2026-06-19'))
   await submit('Convert to USD');await saved('Exact USD conversion calculated')
   if(width===1440) {
    const rows=await page.getByRole('table',{name:'Original and converted amounts'}).locator('tbody tr').allTextContents()
    assert.match(rows[0],/125\.00$/);assert.match(rows[1],/100\.00$/)
    assert.equal(await page.getByLabel('Original transactions (JSON array)',{exact:true}).getAttribute('aria-invalid'),null)
-   for(const [form,heading,result] of [['company','US company',null],['calendar','Fiscal calendar','calendar'],['working','Holiday-adjusted working days','working'],['rates','Owner-imported currency rates','rates'],['conversion','Convert with an explicit rate and rounding policy','conversion']]) {
+   for(const [form,heading,result,help] of [['company','US company',null,'company-help'],['calendar','Fiscal calendar','calendar','calendar-help'],['working','Holiday-adjusted working days','working','working-help'],['rates','Owner-imported currency rates','rates','rates-help'],['conversion','Convert with an explicit rate and rounding policy','conversion','conversion-help']]) {
     assert.equal(await page.getByRole('form',{name:heading,exact:true}).count(),1)
     assert.equal(await page.locator('#'+form+'-form-status').getAttribute('role'),'status')
-    assert.equal(await page.locator('#'+form+'-form').getAttribute('aria-describedby'),form+'-form-status')
-    if(result)assert.equal(await page.getByRole('region',{name:heading,exact:true}).count(),1)
+    const descriptions=(await page.locator('#'+form+'-form').getAttribute('aria-describedby')).split(' ')
+    assert.ok(descriptions.includes(form+'-form-status'))
+    assert.ok(descriptions.includes(help),'the named form exposes its instructions as well as its changing status')
+    assert.equal(await page.locator('#'+form+'-form-status').getAttribute('aria-labelledby'),await page.locator('#'+form+'-form').getAttribute('aria-labelledby'))
+    if(result){
+     const region=page.getByRole('region',{name:heading,exact:true})
+     assert.equal(await region.count(),1)
+     assert.equal(await region.getAttribute('aria-describedby'),form+'-form-status')
+     assert.equal(await page.locator('[aria-controls="'+result+'-result"]').count(),1)
+    }
    }
   }
   const structure=await page.locator('main').ariaSnapshot()
