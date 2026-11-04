@@ -12,3 +12,10 @@ export const sourceLinkStatements=(project:MigrationProject)=>sourceLinks(projec
  assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=?) AND NOT EXISTS(SELECT 1 FROM bf_preparation_erasing WHERE dataset_id=?)',dataset,dataset)),
  sql('INSERT OR IGNORE INTO bf_looker_sources(project_id,dataset_id) VALUES(?,?)',project.id,dataset),
 ])
+
+/** Check every linked source before starting any reconstruction withdrawal. */
+export const reconstructionRetentionAllowsErasure=(dataset:string)=>sql(`NOT EXISTS(
+ SELECT 1 FROM bf_looker_sources erased JOIN bf_looker_sources linked ON linked.project_id=erased.project_id
+ JOIN bf_source_retention retention ON retention.dataset_id=linked.dataset_id
+ WHERE erased.dataset_id=? AND (retention.legal_hold=1 OR retention.minimum_retain_until>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+)`,dataset)
