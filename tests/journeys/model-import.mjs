@@ -7,7 +7,7 @@ import {join,dirname} from 'node:path'
 import {dump,load,JSON_SCHEMA} from 'js-yaml'
 import {unzipSync,strFromU8,zipSync,strToU8} from 'fflate'
 import {proveDBTPredicates} from './dbt-predicate-import.mjs'
-import {modelProjectFixtures,proveDBTExecution} from './model-project-fixtures.mjs'
+import {modelProjectFixtures,omniProjectFixture,proveDBTExecution} from './model-project-fixtures.mjs'
 import {proveMetricTooling} from './metric-tooling.mjs'
 import {proveChartTooling} from './chart-tooling.mjs'
 import {provePolicyTooling} from './policy-tooling.mjs'
@@ -60,7 +60,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
   assert.deepEqual(exported.definition,imported.definition)
   assert.deepEqual(exported.sources.map(s=>[s.table,s.dataset,s.revision,s.grain]),[[input.format==='tmdl'?'Sales':'sales',dataset,(await call('/datasets/'+dataset)).revision,['invoice']]])
   assert.deepEqual(exported.sources.map(s=>s.file),[input.files[0].path])
-  assert.deepEqual(exported.sources[0].columns,input.format==='tmdl'?[{source:'Invoice',column:'invoice'},{source:'Revenue',column:'revenue'},{source:'Region',column:'region'}]:['lookml','metabase','tableau'].includes(input.format)?[{source:'invoice',column:'invoice'},{source:'region',column:'region'},{source:'revenue',column:'revenue'}]:[{source:'invoice',column:'invoice'},{source:'region',column:'region'}])
+  assert.deepEqual(exported.sources[0].columns,input.format==='tmdl'?[{source:'Invoice',column:'invoice'},{source:'Revenue',column:'revenue'},{source:'Region',column:'region'}]:['lookml','metabase','tableau','omni'].includes(input.format)?[{source:'invoice',column:'invoice'},{source:'region',column:'region'},{source:'revenue',column:'revenue'}]:[{source:'invoice',column:'invoice'},{source:'region',column:'region'}])
   assert.deepEqual(exported.measures.map(m=>m.measure).sort(),input.format==='tmdl'?['revenuesum']:['revenue-sum','unique-regions'])
   assert.ok(!JSON.stringify(exported).includes('synthetic-bifocal-private-source'))
   assert.equal(exported.input,undefined);assert.equal(exported.ownerId,undefined)
@@ -89,6 +89,7 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
    assert.equal(await page.getByLabel('Model format',{exact:true}).inputValue(),input.format);assert.deepEqual(JSON.parse(await page.getByLabel('Source bindings (JSON)',{exact:true}).inputValue()),input.bindings);assert.match(await page.getByRole('table',{name:'Source measure translations'}).innerText(),/sales.revenue_sum/);assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),1);await proveScreen('model-import-'+input.format)
   }
  }
+ await proveOmniIntake({origin,context,page,call,upload,proveScreen,signInMember,prepare,apply,post})
  // Source query predicates and grouping survive exact mappings and exported
  // native execution. Later exploration can only intersect these restrictions.
  const scopedDataset='synthetic-bifocal-metabase-scoped'
@@ -400,6 +401,119 @@ print(json.dumps({'all':c.execute('SELECT sum(cents),count(distinct region) FROM
  for(const [input,plan] of [[unsupported,blocked],[cancelled,cancelledPlan],[stale,stalePlan]]){await call('/model-imports/'+input.projectId,undefined,404);await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)}
  for(const {input,plan} of dbtProjects){await call('/model-imports/'+input.projectId,undefined,404);const originals=await context.request.get(origin+'/api/operator/import/original/'+plan.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}});assert.equal(originals.status(),200);assert.ok((await originals.json()).originals.every(o=>o.original.status==='unavailable'));await post(input.projectId,'apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},410)}
  console.log('Source model imports: executable LookML, dbt Semantic Layer, MetricFlow, TMDL, Cube, bounded dbt Core and Cloud projections and quality checks, scoped Metabase aggregates and Tableau source measures, plus diagnostic PBIP inventories; shared review, exact source SQL parity, native publication, governed exploration and exports, git YAML, explicit gaps, stale refusal and full source withdrawal passed')
+}
+
+/** Original Omni intake stays inactive and never imports provider authority. */
+async function proveOmniIntake({origin,context,page,call,upload,proveScreen,signInMember,prepare,apply,post}){
+ const dataset='synthetic-bifocal-omni-values'
+ const csv='invoice,region,revenue\n1,West,$10.01\n2,East,$20.02\n3,West,-$0.03\n4,,\n5,West,$0.00\n'
+ await upload(dataset,csv)
+ const input=omniProjectFixture(dataset,'synthetic-bifocal-july');input.projectId='synthetic-bifocal-omni-browser'
+ const before=await call('/model-authoring')
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
+ await page.getByText('Import a semantic project',{exact:true}).click()
+ await page.getByLabel('Project ID',{exact:true}).fill(input.projectId)
+ await page.getByLabel('Model format',{exact:true}).selectOption('omni')
+ await page.getByLabel('Project fiscal calendar',{exact:true}).selectOption(JSON.stringify(input.context.calendar))
+ await page.getByLabel('Source bindings (JSON)',{exact:true}).fill(JSON.stringify(input.bindings))
+ await page.getByLabel('Measure formats (JSON)',{exact:true}).fill(JSON.stringify(input.formats))
+ await page.getByLabel('Original project files',{exact:true}).setInputFiles(input.files.map(f=>({name:f.path,mimeType:['text','plain'].join('/'),buffer:Buffer.from(f.content)})))
+ const planned=page.waitForResponse(r=>r.url()===origin+'/api/operator/import/plan'&&r.request().headers()['x-import-dataset']===input.projectId)
+ await page.getByRole('button',{name:'Preview semantic import',exact:true}).click()
+ const plan=await(await planned).json();assert.equal(plan.project.report.compatible,true,JSON.stringify(plan))
+ await page.getByRole('status').filter({hasText:'Review the source compatibility'}).waitFor()
+ assert.deepEqual(plan.project.input.files,input.files)
+ assert.deepEqual(plan.project.report.project.resources.map(r=>r.id),['view.sales','sales.invoice','sales.region','sales.revenue','sales.revenue_sum','sales.unique_regions','topic.sales'])
+ assert.deepEqual(plan.project.report.project.resources.at(-1).dependencies,['sales'])
+ assert.deepEqual(plan.project.report.translations.map(t=>[t.sourceObject,t.sourceExpression]),[['sales.revenue_sum','${sales.revenue}'],['sales.unique_regions','${region}']])
+ await proveScreen('omni-original-intake-review')
+ await page.getByLabel('I reviewed this exact project plan and its unresolved items').check()
+ await page.getByRole('button',{name:'Import reviewed project',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Project imported and reconciled'}).waitFor()
+ const current=await call('/model-imports/'+input.projectId)
+ assert.equal((await post(input.projectId,'reconcile',{planId:plan.planId})).ok,true)
+ assert.deepEqual((await call('/model-authoring')).branches,before.branches,'Import cannot publish or create model branches')
+ await proveScreen('omni-original-intake-retained')
+ const body={document:dump(current.definition),importProject:input.projectId,importRevision:current.revision}
+ const review=await call('/model-authoring/review',body,200)
+ assert.equal(review.compatible,true)
+ assert.equal(review.impacts[0].answer.totals['revenue-sum'].value,'30.00','Independent integer cents: 1001 + 2002 - 3 + 0 = 3000')
+ assert.equal(review.impacts[0].answer.totals['unique-regions'].value,'2','West and East; repeated West and NULL do not add distinct values')
+ const native=await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},200)
+ assert.deepEqual(native.definition,current.definition);assert.equal(native.sources[0].revision,(await call('/datasets/'+dataset)).revision)
+ await page.getByRole('link',{name:'Review imported model',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Imported definition loaded'}).waitFor()
+ await page.getByRole('button',{name:'Review model',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Review complete'}).waitFor()
+ assert.match(await page.locator('body').innerText(),/30\.00/);await proveScreen('omni-native-preview')
+ const model=await call('/model-authoring/create',{...body,reviewedDigest:review.digest})
+ const replacement=structuredClone(input);replacement.files[1].content+='description: Reviewed revision\n'
+ const replacementPlan=await prepare(replacement,true);await apply(input.projectId,replacementPlan)
+ await call('/model-authoring/review',body,409)
+ await call('/model-authoring/create',{...body,reviewedDigest:review.digest},409)
+ await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},409)
+ await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click()
+ await page.getByLabel('Project ID',{exact:true}).fill(input.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
+ await page.getByText('Semantic import history',{exact:true}).click()
+ // The newest completed plan is first in the shared history, including catchup.
+ await page.getByRole('button',{name:'Undo semantic import',exact:true}).first().click()
+ await page.getByRole('status').filter({hasText:'Semantic import undone'}).waitFor()
+ assert.equal((await call('/model-imports/'+input.projectId)).revision,current.revision)
+ assert.equal((await call('/model-authoring/review',body,200)).impacts[0].answer.totals['revenue-sum'].value,'30.00')
+ await page.locator('#model-import-current').scrollIntoViewIfNeeded();await proveScreen('omni-undo-restored')
+ const blocked=[]
+ const cases=[
+  ['security',document=>{document.files[1].content+='access_filters:\n  region: user_region\nrequired_access_grants: [finance]\njoins:\n  users: {}\nextends: inherited_topic\n';document.files[0].content+='required_access_grants: [finance]\n'},['topic.sales.access_filters','topic.sales.required_access_grants','topic.sales.joins','topic.sales.extends','view.sales.required_access_grants']],
+  ['expression',document=>{document.files[0].content=document.files[0].content.replace('sql: revenue','sql: revenue * 2').replace('aggregate_type: sum','aggregate_type: average')},['sales.dimensions.revenue','sales.measures.revenue_sum']],
+  ['dependency',document=>{document.files[1].content='base_view: absent_view\n';document.files.push({path:'relationships.yml',content:'joins:\n  users: {}\n'})},['relationships.yml','sales','absent_view','project']]
+ ]
+ for(const [name,change,objects] of cases){
+  const document=structuredClone(input);document.projectId='synthetic-bifocal-omni-'+name;change(document)
+  const plan=await prepare(document);assert.equal(plan.project.report.compatible,false)
+  assert.deepEqual(plan.project.report.issues.map(i=>i.object).sort(),[...objects].sort(),'Every unsupported item is accounted for, with no silent omission')
+  assert.ok(plan.project.report.project.issues.every(i=>i.file&&i.sourceExpression),'Every source-reader diagnostic retains its original file and expression')
+  if(name==='security')assert.deepEqual(plan.project.report.project.resources.at(-1).dependencies,['finance','inherited_topic','sales','users'])
+  await apply(document.projectId,plan);const imported=await call('/model-imports/'+document.projectId)
+  await call('/model-imports/'+document.projectId+'/export',{reviewedRevision:imported.revision},409)
+  await call('/model-authoring/review',{document:dump(current.definition),importProject:document.projectId,importRevision:imported.revision},409)
+  blocked.push({document,plan})
+ }
+ await page.goto(origin+'/app/import');await page.getByText('Import a semantic project',{exact:true}).click()
+ await page.getByLabel('Project ID',{exact:true}).fill(blocked[0].document.projectId);await page.getByRole('button',{name:'Load imported project',exact:true}).click()
+ await page.getByRole('status').filter({hasText:'Current project loaded'}).waitFor()
+ assert.equal(await page.getByRole('link',{name:'Review imported model',exact:true}).count(),0)
+ assert.equal(await page.getByRole('button',{name:'Export rebuilt model',exact:true}).count(),0)
+ assert.match(await page.locator('#model-import-current').innerText(),/access_filters/);await page.locator('#model-import-current').scrollIntoViewIfNeeded();await proveScreen('omni-unresolved-security')
+ const pending=structuredClone(input);pending.projectId='synthetic-bifocal-omni-stale-source'
+ const stalePlan=await prepare(pending)
+ await upload(dataset,csv.replace('$10.01','$11.01'),true)
+ await post(pending.projectId,'apply',{planId:stalePlan.planId,reviewedFingerprint:stalePlan.fingerprint},409)
+ await call('/model-imports/'+input.projectId+'/export',{reviewedRevision:current.revision},409)
+ await call('/model-authoring/review',body,409)
+ await call('/model-authoring/create',{...body,reviewedDigest:review.digest},409)
+ assert.equal((await call('/models/'+model.modelId)).production,null)
+ const member=await context.browser().newContext({ignoreHTTPSErrors:true})
+ try{
+  const email=['synthetic-bifocal-omni-reader','example.test'].join('@')
+  assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email,displayName:'Omni native reader',role:'member'},maxRedirects:0})).status(),202)
+  await signInMember(member,email)
+  for(const path of ['/model-imports/'+input.projectId,'/import/original/'+plan.planId])assert.equal((await member.request.get(origin+'/api/operator'+path,{headers:{'X-Import-Kind':'model','X-Import-Dataset':input.projectId}})).status(),401)
+  assert.equal((await member.request.post(origin+'/api/operator/model-authoring/review',{headers:{Origin:origin},data:body})).status(),401)
+  assert.equal((await member.request.post(origin+'/api/operator/import/undo',{headers:{Origin:origin,'X-Import-Kind':'model','X-Import-Dataset':input.projectId},data:{planId:plan.planId}})).status(),401)
+ }finally{await member.close()}
+ const source=await call('/datasets/'+dataset);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200)
+ await call('/models/'+model.modelId,undefined,404)
+ for(const {document,plan:receipt} of [{document:input,plan},{document:replacement,plan:replacementPlan},...blocked,{document:pending,plan:stalePlan}]){
+  await call('/model-imports/'+document.projectId,undefined,404)
+  await post(document.projectId,'apply',{planId:receipt.planId,reviewedFingerprint:receipt.fingerprint},410)
+  if(document!==pending){const r=await context.request.get(origin+'/api/operator/import/original/'+receipt.planId,{headers:{'X-Import-Kind':'model','X-Import-Dataset':document.projectId}});assert.equal(r.status(),200);assert.ok((await r.json()).originals.every(o=>o.original.status==='unavailable'))}
+ }
+ console.log('PROBE BIF-047 original intake: browser upload, review, Apply, reconciliation and Undo -> retained exact original view and topic files; native definitions remain inactive')
+ console.log('PROBE BIF-047 native preview: explicit physical grain, USD and distinct values with nulls -> USD 30.00 and 2; no automatic publication')
+ console.log('PROBE BIF-047 unresolved items: access filters, grants, joins, inheritance, SQL and missing dependencies -> complete named diagnostics; export and preview refused')
+ console.log('PROBE BIF-047 stale source and review: revised project and replaced source -> Apply, export, preview and stale creation refused')
+ console.log('PROBE BIF-047 authority and erasure: native member and eligible source erasure -> owner isolation; originals, imported revisions and derived model withdrawn; replay refused')
 }
 
 /** Real CLI and Terraform model changes share exact native review and fences. */

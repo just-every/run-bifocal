@@ -59,6 +59,33 @@ const tmdl=`table Sales
         sourceColumn: region
     measure RevenueSum = SUM('Sales'[Revenue])
 `
+// Self-authored original Omni YAML specimens, based on the published view,
+// dimension, measure and topic references at https://docs.omni.co/modeling/views
+// and https://docs.omni.co/modeling/topics/parameters (read 4 November 2026).
+// These prove bounded native behavior, never qualification of a buyer estate.
+export function omniProjectFixture(dataset,calendar){
+ return {version:1,projectId:'synthetic-bifocal-omni',format:'omni',files:[
+  {path:'sales.view',content:`table_name: invoices
+schema: public
+dimensions:
+  invoice:
+    sql: invoice
+    primary_key: true
+  region:
+    sql: region
+  revenue:
+    sql: revenue
+measures:
+  revenue_sum:
+    sql: \${sales.revenue}
+    aggregate_type: sum
+  unique_regions:
+    sql: \${region}
+    aggregate_type: count_distinct
+`},
+  {path:'sales.topic',content:'base_view: sales\nlabel: Sales\n'}
+ ],bindings:{sales:{dataset,grain:['invoice']}},formats:{'sales.revenue_sum':{unit:'money',scale:2,sourceCurrency:'USD'},'sales.unique_regions':{unit:'count',scale:0}},context:{modelVersion:'source-model',metricVersion:'source-measures',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+}
 export function modelProjectFixtures(dataset,calendar){
  const projects=['lookml','dbt','metricflow','tmdl','cube'].map(format=>{
   const name=format==='tmdl'?'Sales':'sales',revenue=format==='tmdl'?'RevenueSum':'revenue_sum'
@@ -72,6 +99,7 @@ export function modelProjectFixtures(dataset,calendar){
   {path:'database.json',content:JSON.stringify({id:9,name:'warehouse',engine:'postgres',details:{}})}
  ]})
  projects.push({...structuredClone(base),projectId:'synthetic-bifocal-tableau',format:'tableau',files:[{path:'sales.tds',content:'<datasource name="sales"><connection class="textscan"><relation type="table" table="invoices"/></connection><column name="[invoice]" datatype="integer"/><column name="[region]" datatype="string"/><column name="[revenue]" datatype="real"/><column name="[revenue_sum]" datatype="real"><calculation class="tableau" formula="SUM([revenue])"/></column><column name="[unique_regions]" datatype="integer"><calculation class="tableau" formula="COUNTD([region])"/></column></datasource>'}]})
+ projects.push(omniProjectFixture(dataset,calendar))
  return projects
 }
 
