@@ -1,3 +1,4 @@
+import { sigmaBranchGuards } from '../imports/migrations/sigma/native.server'
 import type { Bindings } from '../../auth.server'
 import { sql } from '../../modules/import-kit/src/door/store.ts'
 import { fail, type Context, type Query } from './types'
@@ -7,7 +8,7 @@ export async function queryContext(env: Bindings, query: Query, ownerId: string)
  if (!company) fail('company_conventions_required',409)
  const settings = JSON.parse(company.value_json) as Record<string,unknown>
  if (typeof settings.timezone !== 'string' || typeof settings.currency !== 'string') fail('invalid_company_conventions',409)
- const guards = [sql('EXISTS(SELECT 1 FROM bf_company_settings WHERE singleton=1 AND revision=? AND value_json=?)',company.revision,company.value_json)]
+ const guards = [...await sigmaBranchGuards(env,ownerId,query.context.modelVersion),sql('EXISTS(SELECT 1 FROM bf_company_settings WHERE singleton=1 AND revision=? AND value_json=?)',company.revision,company.value_json)]
  const load = async (table: 'bf_calendars' | 'bf_rate_sources', ref: {id:string;version:number}) => {
   const row = await env.DB.prepare(`SELECT value_json FROM ${table} WHERE id=? AND version=?`).bind(ref.id,ref.version).first<{value_json:string}>()
   if (!row) fail(table === 'bf_calendars' ? 'calendar_version_not_found' : 'rate_source_version_not_found',404)

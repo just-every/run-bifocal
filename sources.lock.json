@@ -1149,8 +1149,12 @@
       "sha256": "a59ee1527a316215947ca71474c86db9e6165f949c3394b48c3dcca4d4a669d2",
       "executable": false
     },
+    "public/bifocal/sigma-import.css": {
+      "sha256": "fd22be5f819e3f3f43280ee3e8a954a5d78a47cf98cb08e2978667ddbf511d56",
+      "executable": false
+    },
     "public/bifocal/sigma-import.js": {
-      "sha256": "fa1a0bb741b9d06b89347d59afe62074abf30dc9991b313d08c71ed73e826a4f",
+      "sha256": "223aadf02196a28b736b507f382cd81e81a02a1fd0eccf2915459f1a109cfbfa",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -2954,7 +2958,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/page.server.ts": {
-      "sha256": "c9547318bcaccae5d5db4d840b8e9a65bc697f67d3fdae341903f9ea55dc120b",
+      "sha256": "a425d9d09f0984b94dd936a48af1b5bcd00072fd55b798b5ed5217cb81faf2ee",
       "executable": false
     },
     "src/bifocal/imports/files/reviews.server.ts": {
@@ -2974,15 +2978,15 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/compile.ts": {
-      "sha256": "34a66d96f227d7d745e965456974b3696675c2b74a0ee60f3846831458b89744",
+      "sha256": "4e9fd20b4f34d6f77ed33e3a72cc68e174ef3481bb13ea0f26dfb8cbb5ade905",
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
-      "sha256": "1814b69b549919bbef85243013ac169a6276cf0abaec54a873008618e3e26f4d",
+      "sha256": "7b86b7908aa2ed02342a8ae531d17763f2de2e05c6bde3f303e64f77906af262",
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/form.ts": {
-      "sha256": "b8ff605625ea8c26b53c75f50fc6b2636843e3ae3a2cfc36f1e170dced69c153",
+      "sha256": "42989e050b0a55a6d95c60dd84694063cf799932634665c2facab5b6740032e8",
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/native.server.ts": {
@@ -2998,7 +3002,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/sigma/upload.server.ts": {
-      "sha256": "e71559d0ba803f82b5c0ee95639df4db919f439f9cf87c8792d87a27d4f398dd",
+      "sha256": "dc18b33789c774154ad1834d4ee6362148a7357ea3badc8f32126f1b8bb43033",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {
@@ -3006,7 +3010,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/store.server.ts": {
-      "sha256": "d9abe42dc3a9998c5e4e5edea9cbaeae6830719a69330f67562ed9ba2361e5b5",
+      "sha256": "ca0bd30cbc4a26f06e628db8d9b9c92661d19e031f08829901bf61b62561c0f3",
       "executable": false
     },
     "src/bifocal/imports/migrations/targets.ts": {
@@ -3190,7 +3194,7 @@
       "executable": false
     },
     "src/bifocal/models/authoring.server.ts": {
-      "sha256": "de39097aaecb1ea33de527963d3060718e0ee3c56de3a8b27254f74fb97c59b8",
+      "sha256": "37cc050caa00e73e6c871122da495d5bb207ae6ed75ac7c943c3e6667090b44f",
       "executable": false
     },
     "src/bifocal/models/lineage/server.ts": {
@@ -3370,7 +3374,7 @@
       "executable": false
     },
     "src/bifocal/query/context.ts": {
-      "sha256": "5a9fa1d082ea8632ca6acc430afff7402d23f7f6375bdd3a7aa7e1f4035b8a27",
+      "sha256": "c5e51f2ee62d5f0b128fb30473ffe5394e5185d6198cf204f94e2ee12e175d02",
       "executable": false
     },
     "src/bifocal/query/execute.ts": {
@@ -6354,7 +6358,7 @@
       "executable": false
     },
     "tests/journeys/sigma-workbooks.mjs": {
-      "sha256": "bf939695d683aed08516fcb6d949532843478a5bbf17770f6e7b3cadfabd4ff7",
+      "sha256": "54ea70176b7f412a03dfdf4b1fe01413dfc1c8871ffc66892ef39367c5da37ea",
       "executable": false
     },
     "tests/journeys/spreadsheet-edge.mjs": {

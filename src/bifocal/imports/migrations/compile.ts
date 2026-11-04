@@ -26,6 +26,11 @@ export function compileMigration(value:unknown,id:string,ownerId:string,current?
  if(current&&(current.ownerId!==ownerId||current.source!==v.source))fail('migration_identity_changed',409)
  if(current&&cutoff<current.cutoff)fail('migration_cutoff_regressed',409)
  const sigma=v.sigma===undefined?undefined:reconstructSigma(v.sigma,v.reconstruction,sources)
+ if(sigma&&current?.sigma){
+  if(sigma.document.workbookId!==current.sigma.document.workbookId)fail('sigma_workbook_identity_changed',409)
+  const before=current.sigma.document.documentVersion,next=sigma.document.documentVersion
+  if(typeof before==='number'&&typeof next==='number'&&(next<before||next===before&&digest(sigma.contents)!==digest(current.sigma.contents)))fail('sigma_document_version_reused_or_regressed',409)
+ }
  if(sigma&&v.source!=='sigma'||!sigma&&v.reconstruction!==undefined)fail('sigma_envelope_required',400)
  const inputItems=sigma?sigma.items:v.items
  if(sigma&&v.items!==undefined)fail('sigma_inventory_is_derived',400)

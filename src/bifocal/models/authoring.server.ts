@@ -50,7 +50,7 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   if(!['/api/operator/model-authoring/review','/api/operator/model-authoring/create','/api/operator/model-authoring/format'].includes(path))fail('not_found',404)
   if(request.method!=='POST')fail('method_not_allowed',405)
   const input=await jsonBody(request);exactKeys(input,['document','reviewedDigest','modelId','branchId','previousVersion','importProject','importRevision','migrationProject','migrationRevision','migrationElement'])
-  const definition=nativeDocument(input.document), guards=[], impacts:{view:string;state:string;answer?:Answer;error?:string}[]=[]
+  const definition=nativeDocument(input.document), guards=[], impacts:{view:string;state:string;answer?:Answer;error?:string;currency?:string}[]=[]
   if(input.importProject!==undefined&&input.migrationProject!==undefined)fail('one_import_origin_required',400)
   const migration=input.migrationProject===undefined?null:await sigmaDraft(env,ownerId,String(input.migrationProject),input.migrationRevision,input.migrationElement)
   if(migration){
@@ -67,22 +67,23 @@ export async function modelAuthoringResponse(request:Request,original:Bindings):
   const branch=model?await readBranch(env,model,String(input.branchId)):null
   if(branch){if(input.previousVersion!==branch.version)fail('stale_branch_version',409);guards.push(modelGuard(model!),branchGuard(branch))}
   else if(input.branchId!==undefined||input.previousVersion!==undefined)fail('model_branch_required',400)
+  const inheritedSigmaOrigin=branch?await env.DB.prepare('SELECT project_id,project_revision,element_id FROM bf_migration_model_revisions WHERE revision_id=?').bind(branch.revision_id).first<SigmaOrigin>():null
+  if(inheritedSigmaOrigin&&!migration)guards.push(...(await sigmaDraft(env,ownerId,inheritedSigmaOrigin.project_id,inheritedSigmaOrigin.project_revision,inheritedSigmaOrigin.element_id)).guards)
   for(const view of definition.views) {
    if(!view.query.semantic)fail('explicit_model_grain_required',400)
    if(view.query.joins.some(join=>!join.cardinality))fail('explicit_relationship_cardinality_required',400)
    const query=scopedQuery(view,'native-review'), context=await queryContext(env,query,ownerId), sources=await readSources(env,query)
    guards.push(...context.guards??[],...sources.map(sourceMatch))
-   try{impacts.push({view:view.id,state:'compiled',answer:execute(query,sources,context)})}catch(error){if(!(error instanceof QueryError))throw error;impacts.push({view:view.id,state:'failed',error:error.code})}
+   try{impacts.push({view:view.id,state:'compiled',currency:context.currency,answer:execute(query,sources,context)})}catch(error){if(!(error instanceof QueryError))throw error;impacts.push({view:view.id,state:'failed',error:error.code})}
   }
   const quality=definition.quality.map(q=>({...q,passed:impacts.find(i=>i.view===q.view)?.answer?.totals[q.measure]?.value===q.expected}))
   const compatible=impacts.every(i=>i.state==='compiled')&&quality.every(q=>q.passed)
-  const report={definition,impacts,quality,compatible,migration:migration?.origin??null,imported:imported?{id:imported.id,revision:imported.revision,digest:imported.value.digest,format:imported.value.input.format,report:imported.value.report}:null,scope:'Owner-only native model. Imported source definitions retain explicit compatibility and provenance. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
+  const report={definition,impacts,quality,compatible,migration:migration?.origin??inheritedSigmaOrigin,imported:imported?{id:imported.id,revision:imported.revision,digest:imported.value.digest,format:imported.value.input.format,report:imported.value.report}:null,scope:'Owner-only native model. Imported source definitions retain explicit compatibility and provenance. Slowly changing dimensions use explicit half-open effective-date relationships; overlapping history is refused.'}
   const digest=sha256(canonicalJson({ownerId,report,guards}))
   if(path.endsWith('/review')){await transact(env.DB,owner,guards.map(assertion));return json({...report,digest})}
   if(!compatible||input.reviewedDigest!==digest)fail('exact_current_model_review_required',409)
   const origin=imported?{project_id:imported.id,project_revision:imported.revision,format:imported.value.input.format,digest:imported.value.digest}:branch?await env.DB.prepare('SELECT project_id,project_revision,format,digest FROM bf_model_revision_imports WHERE revision_id=?').bind(branch.revision_id).first<{project_id:string;project_revision:string;format:string;digest:string}>():null
-  let sigmaOrigin=migration?.origin??(branch?await env.DB.prepare('SELECT project_id,project_revision,element_id FROM bf_migration_model_revisions WHERE revision_id=?').bind(branch.revision_id).first<SigmaOrigin>():null)
-  if(sigmaOrigin&&!migration)guards.push(...(await sigmaDraft(env,ownerId,sigmaOrigin.project_id,sigmaOrigin.project_revision,sigmaOrigin.element_id)).guards)
+  let sigmaOrigin=migration?.origin??inheritedSigmaOrigin
   const nativeEdit=[]
   if(sigmaOrigin&&model&&branch&&!migration){
    const current=await readMigrationProject(env,ownerId,sigmaOrigin.project_id),value=structuredClone(current.value)

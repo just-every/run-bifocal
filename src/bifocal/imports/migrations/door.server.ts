@@ -66,7 +66,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  if(['uploads','plan','apply','undo'].some(action=>path==='/api/operator/import/'+action)&&await env.DB.prepare('SELECT 1 FROM ik_d1_erased_targets WHERE destination=? AND identity=?').bind(destination,sha256(canonicalJson([destination,'migration-project',id]))).first())fail('migration_project_erased',410)
  const namespace='migration-projects:'+id,current=await migrationImportTargets.read(env.DB,destination,'migration-project',id)
  const workspace=current?await readMigrationProject(env,ownerId,id):undefined
- if(path==='/api/operator/import/undo'&&workspace&&(workspace.revision!==current?.revision||workspace.value.expectedWorkspace!==null))fail('migration_undo_requires_native_review',409)
+ if(path==='/api/operator/import/undo'&&workspace&&(workspace.revision!==current?.revision||workspace.value.expectedWorkspace!==null)){
+  const input=await jsonBody(request.clone()),job=typeof input.planId==='string'?await env.DB.prepare('SELECT j.state,j.checkpoint FROM ik_door_plans p LEFT JOIN ik_jobs j ON j.id=p.job_id WHERE p.id=? AND p.installation_id=? AND p.namespace=?').bind(input.planId,'bifocal:files:v1',namespace).first<{state:string|null;checkpoint:number|null}>():null
+  if(!job||job.state!==null&&!(job.checkpoint===0&&!['completed','undoing','undone'].includes(job.state)))fail('migration_undo_requires_native_review',409)
+ }
  const sigmaIntake=request.headers.get('X-Import-Kind')==='sigma-workbook'
  if(sigmaIntake&&path==='/api/operator/import/uploads'&&request.method==='POST')await guardMigrationUpload(request)
  const rows=(await env.DB.prepare('SELECT id,revision,value_json FROM bf_file_tables ORDER BY id LIMIT 101').all<Omit<Source,'table'>>()).results
@@ -88,13 +91,17 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
  }
  if(path==='/api/operator/import/apply'&&request.method==='POST'){
   const input=await jsonBody(request.clone()),row=typeof input.planId==='string'?await rowForPlan(input.planId):null
-  if(row){const snapshot=await loadSnapshot(admitted,row);if(snapshot.plan.counts.rejected)fail('mapping_rejected',422)}
+  if(row){const snapshot=await loadSnapshot(admitted,row);if(snapshot.plan.counts.rejected)fail('mapping_rejected',422)
+   const project=(snapshot.plan.entries[0]?.effects[0]?.value??workspace?.value) as unknown as import('./compile').MigrationProject|undefined
+   for(const dependency of project?.sigma?.sources??[]){if(!sources.some(s=>s.id===dependency.id&&s.revision===dependency.revision))fail('sigma_source_review_stale',409)}
+   await transact(env.DB,owner,(project?.sigma?.sources??[]).map(s=>assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?)',s.id,s.revision))))
+  }
  }
  const response=await createImportOperatorHandler(options)(request)
  if(path==='/api/operator/import/plan'&&response?.ok){
   const preview=await response.json() as {planId:string},row=await rowForPlan(preview.planId);if(!row)fail('plan_not_found',404)
   const snapshot=await loadSnapshot(admitted,row)
-  const project=snapshot.plan.entries[0]?.effects[0]?.value as unknown as import('./compile').MigrationProject|undefined
+  const project=(snapshot.plan.entries[0]?.effects[0]?.value??workspace?.value) as unknown as import('./compile').MigrationProject|undefined
   const bound=project?.sigma&&project.sigma.reconstruction&&typeof project.sigma.reconstruction==='object'?(project.sigma.reconstruction as {bindings?:Record<string,{dataset?:unknown}>}).bindings:{}
   await transact(env.DB,owner,Object.values(bound??{}).filter(b=>typeof b?.dataset==='string').map(b=>sql('INSERT OR IGNORE INTO bf_migration_sources(project_id,dataset_id) VALUES(?,?)',id,b.dataset as string)))
   return json({...preview,project})
