@@ -23,7 +23,7 @@ function date(value: string): string | null {
  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day ? `${yyyy}-${mm}-${dd}` : null
 }
 /** RFC 4180 quoting; no evaluation, trimming or implicit delimiter detection. */
-function csv(text: string, delimiter: string): string[][] {
+function csv(text: string, delimiter: string, allowEmpty = false): string[][] {
  if (text.includes('\0')) refuse('CSV_NUL: Remove NUL characters before uploading.')
  const rows: string[][] = [], row: string[] = []; let cell = '', quoted = false, closed = false
  const field = () => { if (cell.length > FILE_LIMITS.cell) refuse(`CELL_LIMIT: A cell exceeds ${FILE_LIMITS.cell} characters.`); row.push(cell); cell = ''; closed = false; if (row.length > FILE_LIMITS.columns) refuse(`COLUMN_LIMIT: At most ${FILE_LIMITS.columns} columns are supported.`) }
@@ -39,7 +39,7 @@ function csv(text: string, delimiter: string): string[][] {
  }
  if (quoted) refuse('CSV_QUOTE: Close the quoted field before uploading.')
  if (cell || row.length || closed) record()
- if (rows.length < 2) refuse('CSV_EMPTY: Supply a header and at least one data row.')
+ if (rows.length < (allowEmpty ? 1 : 2)) refuse('CSV_EMPTY: Supply a header and at least one data row.')
  return rows
 }
 function infer(values: string[]): Column['type'] {
@@ -84,7 +84,7 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
    else if (input.encoding !== 'utf-8' || input.originalBase64 !== undefined) refuse('ENCODING: XLSX uses UTF-8 XML and its data holds original bytes.')
    const workbook = isWorkbook ? readWorkbook(input.data, input.sheet) : null
    if (!isWorkbook && input.sheet !== undefined) refuse('CSV_SHEET: Sheet selection applies only to XLSX workbooks.')
-   const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter)), headers = records.shift()!
+   const records = workbook ? workbook.rows : csv(input.data.replace(/^\uFEFF/, ''), String(input.delimiter), sourceLineage?.kind === 'jira-work' && input.mode === 'replace' && object(input.columns)), headers = records.shift()!
    if (headers.length > FILE_LIMITS.columns || records.length > FILE_LIMITS.rows) refuse(`TABLE_LIMIT: At most ${FILE_LIMITS.columns} columns and ${FILE_LIMITS.rows} data rows are supported.`)
    if (headers.some(name => !name || name !== name.trim() || name.length > 128) || new Set(headers).size !== headers.length) refuse('HEADERS: Use unique, nonempty headers, at most 128 characters, without outer whitespace.')
    const widthErrors = records.flatMap((row, index) => row.length === headers.length ? [] : [{row: index + 2, actual: row.length, expected: headers.length}])

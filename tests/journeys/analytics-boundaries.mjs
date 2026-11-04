@@ -37,6 +37,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true},401,{Origin:'https://foreign.example.test'})
   assert.equal(state.calls.length,initialCalls)
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
+  await proveJiraFlow(edge,context,page,call,apply,shot)
   let lastBoard,apiDataset
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import')
@@ -106,10 +107,124 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
  } finally {page.off('request',recordRequest);if(original)await page.goto(original+'/app');await edge.close()}
 }
 
+
+async function proveJiraFlow(edge,context,page,call,apply,shot) {
+ const {origin,state,cloudId,siteUrl}=edge,dataset='synthetic-bifocal-jira',headers={Origin:origin,'X-Import-Dataset':dataset}
+ const selection={cloudId,siteUrl,projectId:'10000',projectKey:'BIF',datasetId:dataset,accessToken:grant,confirmRead:true}
+ const post=async(action,data,status=200)=>{const response=await context.request.fetch(origin+'/api/operator/import/'+action,{method:data===undefined?'GET':'POST',headers,...(data===undefined?{}:{data})});const text=await response.text();assert.equal(response.status(),status,text);return JSON.parse(text)}
+ const read=()=>call('datasets/'+dataset)
+ const screen=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot('jira-'+name,width)}await page.setViewportSize({width:1440,height:1000})}
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
+ await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByText('Read Jira work outcomes',{exact:true}).click()
+ const discovery=page.locator('#jira-resources-form'),form=page.locator('#jira-form')
+ await discovery.getByLabel('Jira discovery bearer').fill(grant);await discovery.getByRole('checkbox').check();await discovery.getByRole('button',{name:'Find permitted Jira sites'}).click()
+ await form.getByLabel('Permitted Jira site').selectOption('0')
+ assert.deepEqual(await form.getByLabel('Permitted Jira site').locator('option').allTextContents(),['Choose a permitted site',siteUrl+' · read:jira-work'])
+ await form.getByLabel('Jira project id').fill('10000');await form.getByLabel('Jira project key').fill('BIF')
+ await form.getByLabel('Jira read bearer').fill(grant);await form.getByRole('checkbox').check();await screen('selected')
+ await form.getByRole('button',{name:'Preview Jira work outcomes'}).click();await page.locator('#review:not([hidden])').waitFor()
+ assert.equal(await discovery.getByLabel('Jira discovery bearer').inputValue(),'');assert.equal(await form.getByLabel('Jira read bearer').inputValue(),'')
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404,'read never applies a plan')
+ const firstPlan=page.locator('#review'),firstId=await firstPlan.getAttribute('data-plan-id')
+ await screen('review');await apply()
+ const first=await read(),expected=[
+  ['10101','BIF-11','10000','BIF','1','Task','3','Done','2026-06-01T09:00:00.000+0000','2026-06-30T18:00:00.000+0000','2026-06-30T17:00:00.000+0000','1'],
+  ['10102','BIF-12','10000','BIF','2','Bug','1','Open','2026-06-01T09:00:00.000+0000','2026-06-30T18:00:00.000+0000',null,'1'],
+  ['10103','BIF-13','10000','BIF','1','Task','2','In progress','2026-06-01T09:00:00.000+0000','2026-06-30T18:00:00.000+0000',null,'1'],
+  ['10104','BIF-14','10000','BIF','2','Bug','3','Done','2026-06-01T09:00:00.000+0000','2026-06-30T18:00:00.000+0000','2026-06-29T17:00:00.000+0000','1']]
+ assert.deepEqual(first.table.rows,expected,'independently enumerated issue identities, exact timestamps and nulls across pages')
+ assert.equal(first.table.key,'issue_id');assert.equal(first.table.source.lineage.kind,'jira-work');assert.deepEqual(first.table.source.lineage.jira,{cloudId,projectId:'10000',projectKey:'BIF',pages:2,issues:4});assert.equal(first.table.source.lineage.link,siteUrl+'/plugins/servlet/project-config/BIF')
+ await screen('applied')
+ const history=await post('history',undefined),firstFingerprint=history.history.find(item=>item.planId===firstId).fingerprint
+ const retained=await post('original/'+firstId,undefined),envelope=JSON.parse(Buffer.from(retained.originals[0].original.base64,'base64'))
+ assert.deepEqual(Object.keys(envelope.columns),['issue_id','issue_key','project_id','project_key','type_id','issue_type','status_id','status','created_at','updated_at','resolved_at','issue_count'])
+ for(const prohibited of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','Discarded site name'])assert.ok(!JSON.stringify(envelope).includes(prohibited),'excluded data never reaches original custody: '+prohibited)
+ const query={version:1,dataset,joins:[],filters:[],groupBy:['issue_type','status'],measures:[{id:'issues',op:'sum',column:'issue_count',unit:'count',scale:0}],context:{modelVersion:'native-work-v1',metricVersion:'owner-work-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
+ await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click();await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
+ const response=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click();const answer=await(await response).json()
+ assert.equal(answer.answer.totals.issues.value,'4');assert.deepEqual(answer.answer.rows.map(row=>[...row.dimensions,row.values.issues.value]).sort(),[['Bug','Done','1'],['Bug','Open','1'],['Task','Done','1'],['Task','In progress','1']].sort())
+ await page.locator('#compose-form input[value="'+answer.snapshotId+'"]').waitFor({state:'attached'});await screen('work-counts')
+ console.log('PROBE BIF-042 work totals: browser selected site and multipage project read, exact review and Apply, native query -> four issue identities and four exact type and status groups; unresolved timestamps stay null')
+ const beforeCalls=state.calls.length
+ for(const overrides of [{confirmRead:false},{siteUrl:'https://foreign-synthetic-bifocal.atlassian.net'},{cloudId:'31223344-a1b2-3b33-c444-def123456789'},{projectId:'10000 OR 1=1'},{fields:['description']}])await call('work/jira/preview',{...selection,catchup:true,...overrides},overrides.siteUrl||overrides.cloudId?403:400)
+ await call('work/jira/preview',{...selection,catchup:true},401,{Origin:'https://foreign.example.test'})
+ await call('work/jira/preview',{...selection,catchup:true},401,{Authorization:'Bearer synthetic-bifocal-machine'})
+ assert.equal(state.calls.slice(beforeCalls).filter(item=>item.path.includes('/search/jql')).length,0)
+ const anonymous=await fetch(origin+'/api/operator/work/jira/resources',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({accessToken:grant,confirmRead:true})});assert.equal(anonymous.status,401)
+ // Real native session proof: invite with the native auth transport and a
+ // local mail sink, then consume its link through the emitted HTTP handler.
+ const {createOperatorAuth,createAuthHandler}=await import('../../src/modules/operator-auth/index.mjs'),mail=[]
+ const owner=(await(await context.request.get(origin+'/auth/session')).json()).operator
+ const cookie=(await context.cookies(origin)).map(cookie=>cookie.name+'='+cookie.value).join('; ')
+ const auth=createOperatorAuth({db:await edge.database(),clientIp:()=>'127.0.0.1',config:{dependencies:true,origin,local:true,OWNER_EMAIL:owner.email,SESSION_SECRET:'synthetic-bifocal-2'.repeat(3),MAIL_FROM:owner.email},mailSender:{async send(message){mail.push(message);return {status:'accepted',provider:'resend',providerMessageId:'synthetic-bifocal-mail'}}}})
+ const invited=await createAuthHandler(auth)(new Request(origin+'/auth/invite',{method:'POST',headers:{Origin:origin,Host:new URL(origin).host,cookie,'Content-Type':'application/json'},body:JSON.stringify({email:'synthetic-bifocal-jira-member'+owner.email.slice(owner.email.indexOf('@')),displayName:'Synthetic Jira member',role:'member'})}));assert.equal(invited.status,202,await invited.text())
+ const member=await context.browser().newContext()
+ try {
+  const token=new URL(mail[0].text.match(/https?:\/\/\S+\/auth\/confirm\?token=\S+/)[0]).searchParams.get('token')
+  const signedIn=await member.request.post(origin+'/auth/confirm',{headers:{Origin:origin},data:{token},maxRedirects:0});assert.equal(signedIn.status(),303,await signedIn.text())
+  const count=state.calls.length
+  for(const path of ['resources','preview'])assert.equal((await member.request.post(origin+'/api/operator/work/jira/'+path,{headers:{Origin:origin},data:selection})).status(),401)
+  assert.equal(state.calls.length,count,'member refusal happens before egress')
+  assert.equal((await member.request.get(origin+'/api/operator/datasets/'+dataset)).status(),401)
+ } finally {await member.close()}
+ for(const [phase,status] of [['revoked',403],['expired',403],['expired-page',403],['rate',503],['redirect',502],['scope',403],['foreign-project',502],['foreign-key',502],['foreign-self',502],['sensitive',502],['people',502],['custom',502],['echo',502],['duplicate',502],['missing-field',502],['warnings',502],['truncated',502],['cursor',502],['last-cursor',502],['overflow',413]]){
+  state.jira=phase;const calls=state.calls.length
+  await call('work/jira/preview',{...selection,catchup:true},status)
+  assert.deepEqual(await read(),first,'refused Jira read preserves last good snapshot: '+phase)
+  if(['revoked','expired','rate','redirect'].includes(phase))assert.equal(state.calls.length,calls+1,'no retry or redirect following: '+phase)
+ }
+ console.log('PROBE BIF-042 refusals: public Jira preview with foreign site and project, incomplete and warning pages, duplicate and cyclic cursors, overflow, expired and revoked bearers, 429 and redirect -> refused with unchanged last-good data; members and machine-plus-owner cookies make no provider read')
+ state.jira='changed'
+ const next=await call('work/jira/preview',{...selection,catchup:true})
+ assert.equal((await post('apply',{planId:next.planId,reviewedFingerprint:firstFingerprint},403)).error,'review_fingerprint_mismatch')
+ assert.deepEqual(await read(),first,'stale reviewed fingerprint cannot apply changed work outcomes')
+ const applied=await Promise.all([1,2].map(()=>context.request.post(origin+'/api/operator/import/apply',{headers,data:{planId:next.planId,reviewedFingerprint:next.fingerprint}})))
+ assert.ok(applied.some(response=>response.ok()));const reconciliation=await post('reconcile',{planId:next.planId});assert.equal(reconciliation.ok,true)
+ assert.equal((await read()).table.rows[0][7],'Open');assert.equal((await post('history',undefined)).history.filter(item=>item.planId===next.planId).length,1,'concurrent Apply produces one retained import')
+ await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByRole('button',{name:'Load dataset',exact:true}).click();await page.locator('#history-list button').first().waitFor()
+ await page.locator('#history-list .history-item').filter({hasText:next.planId}).getByRole('button',{name:'Undo import',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone.'))
+ assert.deepEqual((await read()).table.rows,expected,'actual browser Undo restores the exact prior snapshot');await screen('undone')
+ state.jira='empty';const empty=await call('work/jira/preview',{...selection,catchup:true});assert.equal(empty.preview.rowCount,0);await post('apply',{planId:empty.planId,reviewedFingerprint:empty.fingerprint});assert.equal((await post('reconcile',{planId:empty.planId})).ok,true);assert.deepEqual((await read()).table.rows,[]);await post('undo',{planId:empty.planId});assert.deepEqual((await read()).table.rows,expected)
+ // Null timestamps include created and updated as well as resolution date.
+ state.jira='nulls';const nulls=await call('work/jira/preview',{...selection,catchup:true});assert.deepEqual(nulls.preview.sample[0].slice(8,11),[null,null,null]);await post('undo',{planId:nulls.planId})
+ state.jira='success'
+ let retentionRevision=null
+ const source=await read()
+ for(const protection of [{legalHold:true,minimumRetainUntil:null},{legalHold:false,minimumRetainUntil:'2099-01-01T00:00:00.000Z'}]){
+  const response=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision:retentionRevision,...protection,releaseHold:true}});assert.equal(response.status(),200,await response.text());retentionRevision=(await response.json()).revision
+  await call('datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},423);assert.deepEqual((await read()).table.rows,expected)
+ }
+ assert.equal((await context.request.put(origin+'/api/operator/retention/'+dataset,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision:retentionRevision,legalHold:false,minimumRetainUntil:null,releaseHold:true}})).status(),200)
+ const erased=await call('datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision});assert.equal(erased.phase,'complete');assert.ok(erased.stores.some(store=>store.store==='bf_query_snapshots'&&store.rows===1))
+ await call('datasets/'+dataset,undefined,404);await call('queries/'+answer.snapshotId,undefined,404)
+ for(const planId of [firstId,next.planId,empty.planId])assert.ok((await post('original/'+planId,undefined)).originals.every(item=>item.original.status==='unavailable'))
+ await post('original/'+nulls.planId,undefined,404)
+ await post('apply',{planId:next.planId,reviewedFingerprint:next.fingerprint},410)
+ assert.equal((await call('work/jira/preview',{...selection,catchup:true},409)).error,'source_erased')
+ await call('datasets/'+dataset,undefined,404)
+ // Revoke an already-started native read after its first provider page. A
+ // freshly confirmed owner session is required to continue; no second page or
+ // plan may be staged under the revoked session.
+ const session=await(await context.request.get(origin+'/auth/session')).json(),count=state.calls.length
+ state.onJiraPage=async()=>{assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)}
+ await call('work/jira/preview',{...selection,datasetId:'synthetic-bifocal-jira-revoked'},409)
+ assert.equal(state.calls.length,count+2,'discovery and first page only; native revocation stops further reads')
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),401)
+ const magic=await createAuthHandler(auth)(new Request(origin+'/auth/magic-link',{method:'POST',headers:{Origin:origin,Host:new URL(origin).host,'Content-Type':'application/json'},body:JSON.stringify({email:owner.email})}));assert.equal(magic.status,202,await magic.text())
+ const freshToken=new URL(mail.at(-1).text.match(/https?:\/\/\S+\/auth\/confirm\?token=\S+/)[0]).searchParams.get('token')
+ assert.equal((await context.request.post(origin+'/auth/confirm',{headers:{Origin:origin},data:{token:freshToken},maxRedirects:0})).status(),303)
+ await call('datasets/synthetic-bifocal-jira-revoked',undefined,404)
+ console.log('PROBE BIF-042 current authority: native session revoked during first issue page -> no second page or staged data; fresh owner confirmation required')
+ const db=await edge.database(),tables=(await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").all()).results
+ for(const {name} of tables){const data=JSON.stringify((await db.prepare('SELECT * FROM "'+name.replaceAll('"','""')+'"').all()).results);for(const value of [grant,'synthetic-bifocal-private-description','synthetic-bifocal-private-person','synthetic-bifocal-private-custom','synthetic-bifocal-private-warning'])assert.equal(data.includes(value),false,'sensitive provider data excluded from every retained store: '+name)}
+ await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByRole('button',{name:'Load dataset',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent==='Dataset state and history loaded for review.');await screen('erased')
+ console.log('PROBE BIF-042 custody: changed work read with stale approval -> 403; exact Apply and browser Undo restore prior rows; complete empty snapshot remains empty; legal hold and minimum retention refuse erasure; eligible erasure withdraws originals and answers, replay stays retired, and stored data excludes tokens and sensitive fields')
+}
+
 // The same public-door journey can run alone while iterating. CI invokes it
 // from runtime.mjs; this entry never substitutes for the push Verify wall.
 if(process.argv[1]===new URL(import.meta.url).pathname){
  const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
- const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{}),args:['--no-sandbox','--use-mock-keychain','--password-store=basic']})
  try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
 }
