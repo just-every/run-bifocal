@@ -33,9 +33,9 @@ export async function reviewReconstruction(env:Bindings,owner:{email:string;sql:
   }
  }
  for(const kind of evidenceKinds)if(!evidence.some(e=>e.kind===kind))issues.push({item:kind,code:'missing_evidence',location:kind})
- const drafts:{item:string;definition:Definition|null;answer:Answer|null;reconciliation:'supplied'|'independently-reconciled'|'mismatch'|'unavailable'}[]=[]
+ const drafts:{item:string;definition:Definition|null;parameters:Parameter[];source:{id:string;revision:string}|null;bindings:{companyRevision:string;calendarDigest:string;rateDigest:string|null;authorityDigest:string}|null;answer:Answer|null;reconciliation:'supplied'|'independently-reconciled'|'mismatch'|'unavailable'}[]=[]
  for(const entry of current.value.items.filter(i=>i.source.kind==='dashboard')){
-  const result:typeof drafts[number]={item:entry.source.id,definition:null,answer:null,reconciliation:'unavailable'};drafts.push(result)
+  const result:typeof drafts[number]={item:entry.source.id,definition:null,parameters:[],source:null,bindings:null,answer:null,reconciliation:'unavailable'};drafts.push(result)
   try{
    const document=nativeDocument(JSON.parse(entry.native)),view=document.definition.views[0],q=structuredClone(view.query),sources=await readSources(env,q),source=sources[0]
    guards.push(...sources.map(sourceMatch))
@@ -46,7 +46,7 @@ export async function reviewReconstruction(env:Bindings,owner:{email:string;sql:
    for(const f of [...q.filters,...document.parameters])if(!['eq','gte','lte'].includes(f.op)||f.op!=='eq'&&source.table.columns.find(c=>c.name===f.column)?.type!=='date')issues.push({item:entry.source.id,code:'unsupported_filter',location:f.column})
    for(const p of document.parameters){if(source.table.columns.find(c=>c.name===p.column)?.type!==p.type)issues.push({item:entry.source.id,code:'parameter_type_mismatch',location:p.id});q.filters.push({column:p.column,op:p.op,value:p.value})}
    const context=await queryContext(env,q,ownerId);guards.push(...context.guards??[])
-   result.definition=document.definition
+   result.definition=document.definition;result.parameters=document.parameters;result.source={id:source.id,revision:source.revision};result.bindings={companyRevision:context.company.revision,calendarDigest:digest(context.calendar),rateDigest:context.rateSource?digest(context.rateSource):null,authorityDigest:digest({sql:owner.sql,params:owner.params??[]})}
    if(!issues.length){
     result.answer=execute(q,sources,context)
     // The reference is independently supplied evidence, never derived here.

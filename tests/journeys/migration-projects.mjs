@@ -69,9 +69,17 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  page.setDefaultTimeout(30000)
  page.on('pageerror',error=>console.error('Reconstruction browser error:',error.message))
  const {assertLookerNativePreview}=await import('./model-import.mjs')
+ const capture=async label=>{
+  await page.setViewportSize({width:1440,height:1000})
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Reconstruction fits desktop')
+  assert.equal(await page.locator('#looker-current button').evaluateAll(nodes=>nodes.filter(n=>!n.textContent.trim()).length),0,'Reconstruction controls have visible names')
+  if(process.env.BIFOCAL_PROOF_DIR){const {mkdir}=await import('node:fs/promises'),{join}=await import('node:path');await mkdir(process.env.BIFOCAL_PROOF_DIR,{recursive:true});for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.locator('#looker-current').screenshot({path:join(process.env.BIFOCAL_PROOF_DIR,label+'-'+width+'.png')})}}
+  await page.setViewportSize({width:1440,height:1000})
+ }
  const id='synthetic-bifocal-looker',base='/migration-projects/'+id,dataset=id+'-source',headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
  const csv='invoice,date,region,revenue,person\n1,07/01/2026,West,$10.01,A\n2,07/02/2026,West,-$0.03,A\n3,07/03/2026,East,$20.02,B\n4,08/01/2026,West,$99.00,C\n5,07/04/2026,East,,\n6,07/05/2026,North,$0.00,D\n'
  await upload(dataset,csv)
+ const schedulesBefore=await call('/schedules'),peopleBefore=await (await context.request.get(origin+'/auth/operators')).json()
  const source=await call('/datasets/'+dataset),kinds=['page','data-source','field','blend','calculation','parameter','filter','layout','sharing','delivery']
  const query={version:1,dataset,joins:[],filters:[{column:'date',op:'gte',value:'2026-07-01'},{column:'date',op:'lte',value:'2026-07-31'}],groupBy:['region'],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'},{id:'people',op:'count-distinct',column:'person',unit:'count',scale:0}],context:{modelVersion:'looker-reconstruction',metricVersion:'owner-1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-july',version:1},rounding:'half-even'},semantic:{grain:['invoice'],dimensions:source.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
  const expected={rows:[{dimensions:['West'],values:{revenue:'9.98',people:'1'}}],totals:{revenue:'9.98',people:'1'}}
@@ -99,15 +107,23 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  await page.getByLabel('Original evidence files',{exact:true}).setInputFiles({name:'owner-notes.txt',mimeType:'text/plain',buffer:Buffer.from(input.originals[0].content)})
  await page.getByLabel('Inactive native document (JSON)',{exact:true}).fill(JSON.stringify(document,null,2))
  await page.getByRole('button',{name:'Review reconstruction import',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Review the exact reconstruction plan'}).waitFor()
+ await page.getByText('Inspect plan and retained source definitions',{exact:true}).click()
  const browserPlan=await page.locator('#looker-plan-summary').textContent();assert.match(browserPlan,/Owner-supplied reconstruction/)
  await page.getByLabel('I reviewed this exact reconstruction fingerprint',{exact:true}).check();await page.getByRole('button',{name:'Apply inactive reconstruction',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Inactive reconstruction imported'}).waitFor()
+ assert.deepEqual(await call('/schedules'),schedulesBefore)
+ assert.deepEqual(await (await context.request.get(origin+'/auth/operators')).json(),peopleBefore)
  console.log('Looker browser import applied')
  let current=await call(base)
  assert.equal(current.items.find(i=>i.source.id==='evidence-page').source.mapping,'supplied')
  await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Current evidence reviewed'}).waitFor()
  assert.match(await page.getByRole('table',{name:'Reconstructed native values'}).innerText(),/West.*9.98.*1/s)
  await page.getByRole('button',{name:'Confirm exact native preview',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Exact native preview confirmed'}).waitFor()
- await proveScreen('looker-reconstruction-native-preview')
+ await capture('looker-reconstruction-native-preview')
+ await page.getByRole('button',{name:'Inspect retained originals',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Retained originals inspected'}).waitFor();assert.match(await page.locator('#looker-original-text').textContent(),/Self-authored inspection specimen/);await page.locator('#looker-original-view summary').click()
+ const browserEdit=structuredClone(document);browserEdit.definition.views[0].query.context.metricVersion='owner-browser-edit'
+ await page.getByLabel('Reconstruction item',{exact:true}).selectOption('native-page');await page.getByLabel('Edited reconstruction item',{exact:true}).fill(JSON.stringify(browserEdit));await page.getByRole('button',{name:'Save inactive edit',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Inactive edit saved'}).waitFor()
+ current=await call(base);assert.deepEqual(JSON.parse(current.items.find(i=>i.source.id==='native-page').native),browserEdit)
+ await page.getByLabel('Reconstruction item',{exact:true}).selectOption('native-page');await page.getByLabel('Edited reconstruction item',{exact:true}).fill(JSON.stringify(document));await page.getByRole('button',{name:'Save inactive edit',exact:true}).click();await page.locator('#looker-status').filter({hasText:'Inactive edit saved'}).waitFor();current=await call(base)
  let review=await call(base+'/review',{reviewedRevision:current.revision},200);assertLookerNativePreview(review)
  await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},200)
  const history=await context.request.get(origin+'/api/operator/import/history',{headers}),initialPlan=(await history.json()).history[0].planId
@@ -123,9 +139,16 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  assert.deepEqual(gaps.issues.filter(i=>i.code==='missing_physical_field').map(i=>i.location).sort(),['missing-a','missing-b'])
  assert.ok(gaps.issues.some(i=>i.item==='evidence-blend'&&i.code==='unsupported_evidence'));assert.equal(gaps.drafts[0].answer,null)
  await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
- await page.getByRole('button',{name:'Load reconstruction',exact:true}).click();await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-results').filter({hasText:'missing-b'}).waitFor();await proveScreen('looker-reconstruction-blocked')
+ await page.getByRole('button',{name:'Load reconstruction',exact:true}).click();await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-results').filter({hasText:'missing-b'}).waitFor();assert.match(await page.locator('#looker-inventory summary').filter({hasText:'evidence-blend'}).innerText(),/unsupported/);await capture('looker-reconstruction-blocked')
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(document)},200)
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'evidence-blend',native:blend.native},200)
+ const priorEvidenceReview=await call(base+'/review',{reviewedRevision:current.revision},200)
+ const layout=current.items.find(i=>i.source.id==='evidence-layout'),changedLayout={...JSON.parse(layout.native),original:'Owner inspected a changed page layout.'}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'evidence-layout',native:JSON.stringify(changedLayout)},200)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:priorEvidenceReview.digest},409)
+ const dateScope=structuredClone(document);dateScope.parameters=[{id:'after',column:'date',type:'date',op:'gte',value:'2026-07-03'}];dateScope.reference={rows:[{dimensions:['East'],values:{revenue:'20.02',people:'1'}},{dimensions:['North'],values:{revenue:'0.00',people:'1'}}],totals:{revenue:'20.02',people:'2'}}
+ current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(dateScope)},200)
+ assertLookerNativePreview(await call(base+'/review',{reviewedRevision:current.revision},200),{total:'20.02',distinct:'2',rows:dateScope.reference.rows})
  // Independent parameter and date bounds include zero, negative and null values.
  const east=structuredClone(document);east.parameters[0].value='East';east.reference={rows:[{dimensions:['East'],values:{revenue:'20.02',people:'1'}}],totals:{revenue:'20.02',people:'1'}}
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(east)},200)
@@ -157,6 +180,7 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  await upload(dataset,csv.replace('$10.01','$11.01'),true)
  await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
  const staleSource=await call(base+'/review',{reviewedRevision:current.revision},200);assert.ok(staleSource.issues.some(i=>i.code==='source_evidence_changed'));assert.equal(staleSource.drafts[0].answer,null)
+ const beforeRefusals=await call(base)
  // Same-origin owner cookies never turn a machine bearer into import authority.
  for(const action of ['review','preview','edit','resolve','erase']){
   const data={reviewedRevision:current.revision,reviewedDigest:review.digest,itemId:'native-page',native:'forbidden',choice:'use-source',confirmImport:id}
@@ -167,7 +191,7 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:memberName,displayName:'Reconstruction member',role:'member'}})).status(),202)
  const member=await context.browser().newContext()
  try{await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(memberName),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0});assert.equal((await member.request.get(origin+'/api/operator'+base)).status(),401);for(const action of ['review','preview','edit','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{}})).status(),401)}finally{await member.close()}
- assert.deepEqual(await call(base),current)
+ assert.deepEqual(await call(base),beforeRefusals)
  // Clean imports Undo through the shared door, leaving original custody until erase.
  const undoInput={...structuredClone(input),projectId:id+'-undo'};headers['X-Import-Dataset']=undoInput.projectId;const undoPlan=await prepare(undoInput);await apply(undoPlan);await post('undo',{planId:undoPlan.planId});await call('/migration-projects/'+undoInput.projectId,undefined,404)
  assert.equal((await readOriginal(undoPlan.planId))[0].original.status,'retained')

@@ -11,11 +11,10 @@ if(form){
  function evidenceEditor(items){el('evidence').replaceChildren();for(const item of items){const group=document.createElement('fieldset');group.dataset.kind=item.kind;group.dataset.id=item.id;group.dataset.revision=item.sourceRevision;group.append(text('legend',item.kind));for(const [name,value] of [['status',item.status],['sourceLocation',item.sourceLocation],['original',item.original]]){const label=text('label',item.kind+' '+name),input=document.createElement(name==='status'?'select':name==='original'?'textarea':'input');if(name==='status')for(const state of ['inaccessible','supplied','unsupported'])input.add(new Option(state,state));input.value=value;input.setAttribute('aria-label',item.kind+' '+name);input.dataset.field=name;label.append(input);group.append(label)}el('evidence').append(group)}}
  const evidence=()=>[...el('evidence').children].map(g=>({id:g.dataset.id,kind:g.dataset.kind,sourceRevision:new Date().toISOString(),...Object.fromEntries([...g.querySelectorAll('[data-field]')].map(i=>[i.dataset.field,i.value]))}))
  function inventory(){
-  el('current').hidden=false;review=null;el('preview').disabled=true;el('results').replaceChildren()
+  el('current').hidden=false;el('guide').open=false;el('plan').hidden=true;review=null;el('preview').disabled=true;el('results').replaceChildren()
   el('inventory').replaceChildren(text('p','Inactive · sharing grants: none · delivery unavailable · source parity unproved'))
-  const table=document.createElement('table');table.setAttribute('aria-label','Reconstruction evidence inventory');const head=document.createElement('thead'),hr=document.createElement('tr');for(const label of ['Item','Kind','Evidence','Gap','Conflict'])hr.append(text('th',label));head.append(hr);table.append(head);const body=document.createElement('tbody')
-  for(const item of current.items){const row=document.createElement('tr');for(const value of [item.source.id,item.source.kind,item.source.mapping,item.source.gap,item.conflict?'Unresolved source change':'None'])row.append(text('td',value));body.append(row)}table.append(body);const wrap=document.createElement('div');wrap.className='tablepanel';wrap.style.overflowX='auto';wrap.append(table);el('inventory').append(wrap)
-  el('item').replaceChildren(...current.items.map(i=>new Option(i.source.id,i.source.id)));selectItem()
+  for(const item of current.items){let state=item.source.mapping;try{if(kinds.includes(item.source.kind))state=JSON.parse(item.native).status??'invalid evidence'}catch{state='invalid evidence'}const detail=document.createElement('details');detail.append(text('summary',item.source.id+' · '+item.source.kind+' · '+state+(item.conflict?' · Source conflict':'')),text('p',item.source.gap||'Supplied owner evidence; live source parity remains unproved.'));el('inventory').append(detail)}
+  el('item').replaceChildren(...current.items.map(i=>new Option(i.source.id,i.source.id)));if(current.items.some(i=>i.source.id==='native-page'))el('item').value='native-page';selectItem()
  }
  function selectItem(){const item=current.items.find(i=>i.source.id===el('item').value);el('native').value=item.native;el('keep').disabled=el('source').disabled=!item.conflict}
  el('item').onchange=selectItem
@@ -25,7 +24,7 @@ if(form){
   const calendar=calendars.calendars?.[0]??calendars[0]
   evidenceEditor(kinds.map(kind=>({id:'evidence-'+kind,kind,sourceRevision:'owner-1',sourceLocation:field('reportUrl').value,status:'inaccessible',original:'Not supplied'})))
   field('document').value=JSON.stringify({sourceRevision:source.revision,definition:{views:[{id:'report-page',kind:'report',query:{version:1,dataset:field('dataset').value,joins:[],filters:[],groupBy:[],measures:[],context:{modelVersion:'looker-reconstruction',metricVersion:'owner-supplied',accountingBasis:'not-applicable',calendar:{id:calendar?.id??'choose-calendar',version:calendar?.version??1},rounding:'half-even'},semantic:{grain:[],dimensions:source.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}},rowRules:[]}],quality:[]},parameters:[],reference:null},null,2)
-  status('Guide started. Supply every omitted definition and complete the inactive native mapping.')
+  el('guide').open=true;status('Guide started. Supply every omitted definition and complete the inactive native mapping.')
  })
  el('load').onclick=run(load)
  form.onsubmit=run(async()=>{
@@ -39,6 +38,7 @@ if(form){
  })
  el('confirm').onchange=()=>el('apply').disabled=!el('confirm').checked
  el('apply').onclick=run(async()=>{if(!el('confirm').checked)throw Error('Exact review required');for(let i=0;i<20;i++){const result=await request('import/apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},headers());if(result.job.state==='completed'){const reconciled=await request('import/reconcile',{planId:plan.planId},headers());if(!reconciled.ok)throw Error('Import reconciliation failed');await load();status('Inactive reconstruction imported; source parity remains unproved.');return}}throw Error('Resume the incomplete import')})
+ el('originals').onclick=run(async()=>{const history=await request('import/history',undefined,headers()),retained=[];for(const entry of history.history.slice(0,100)){const value=await request('import/original/'+entry.planId,undefined,headers());for(const item of value.originals){if(item.original.status==='retained'){const bytes=Uint8Array.from(atob(item.original.base64),c=>c.charCodeAt(0)),input=JSON.parse(new TextDecoder().decode(bytes));retained.push({plan:entry.planId,reportUrl:input.reportUrl,originals:input.originals})}}}el('original-view').hidden=false;el('original-view').open=true;el('original-text').textContent=JSON.stringify(retained,null,2);status('Retained originals inspected.')})
  el('save').onclick=run(async()=>{current=await request(base()+'/edit',{reviewedRevision:current.revision,itemId:el('item').value,native:el('native').value});inventory();status('Inactive edit saved; review invalidated.')})
  for(const [button,choice] of [['keep','keep-native'],['source','use-source']])el(button).onclick=run(async()=>{current=await request(base()+'/resolve',{reviewedRevision:current.revision,itemId:el('item').value,choice});inventory();status('Conflict resolved; review again.')})
  function showReview(value){

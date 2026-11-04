@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e1d0a70d485b814add878a7edcaca0334f8615cf89c448e54c4a78e287e745f3",
+      "sha256": "d7ed7c284464b262be31202e25f7990461a7a86a05b10b9f8b9ea839f7df61cd",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "e439e023e7e4cf419c039fe408c2c960b8557762a264300dc33c67c828ff87fb",
+      "sha256": "5ca97ce242df1e26163437d8dbde200eb67acce37722c3f4e3a246f289b088d4",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -570,7 +570,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "5d95bc8206f16e9a31cfbff24eaa2e4a5c9a2ff81b305a6245bf2914484960a8",
+      "sha256": "21603adbc87f8cf1c023963519ea0e9c45de84445ae719d6a87bca9d27d4ec4d",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1070,7 +1070,7 @@
       "executable": false
     },
     "public/bifocal/looker-reconstruction.js": {
-      "sha256": "04285a2a53d3e3b8d5a2aab12de6f86e341c713bfe09ed50778c415f398075ea",
+      "sha256": "ee067bcc2c93a588823d105b6ebb81167d464f1dd4d947ff50771f71a7f2800a",
       "executable": false
     },
     "public/bifocal/model-import.css": {
@@ -1970,7 +1970,7 @@
       "executable": false
     },
     "scripts/installer/archive-policy.mjs": {
-      "sha256": "98bc30451efaa3218a6280a1912ea352c34602b033d9bdb4bea6223c42320e5e",
+      "sha256": "242251c57910a596d3b7bad19df8aca7b71d65b36a36fb72e1a33b7da1a5bd49",
       "executable": false
     },
     "scripts/installer/local.mjs": {
@@ -2986,7 +2986,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/form.ts": {
-      "sha256": "c47f563454167890dcfcfc1af17870359f9fc06e7235688997338e7cbf4d6e81",
+      "sha256": "4f1a27961440033a3a84d5aa9ef4c5236c7ede57cb63a6118c96611b84dc3ab9",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/manifest.ts": {
@@ -2994,7 +2994,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/review.server.ts": {
-      "sha256": "d22ae411ed6ea8d95239c72b7d775e2e3cf84d09bbbfe46fc0913132547df023",
+      "sha256": "6b3288afe3d2e95e3fcb6852796196fea71c5d5b33fa4d64323d8f5a8c5b2f99",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {
@@ -6262,7 +6262,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "e6b6ffb94da9b6437d48a4f983f32445b857e68d6f051155b00ed28f1ae2e353",
+      "sha256": "0e2a8fe4fc039860e1404c8c10ab456658d1e8b2fdf4e6de6fc16a4e4ac60272",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {

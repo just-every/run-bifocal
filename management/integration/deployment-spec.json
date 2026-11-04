@@ -456,6 +456,12 @@
       "name": "0070_agent_grants.sql",
       "sha256": "6d6a1c91b45b86dbf7ab6a24650c8e121442e3b330aad87e33cdd6e81d050d2a",
       "sql": "-- Exact native owner review binds one named agent to an existing bounded read\n-- credential. Activation is installation-local and is never exported.\nCREATE TABLE bf_agent_grants (\n agent_id TEXT PRIMARY KEY, credential_id TEXT NOT NULL REFERENCES bf_machine_credentials(id),\n owner_id TEXT NOT NULL REFERENCES oa_operators(id), reviewed_digest TEXT NOT NULL,\n reviewed_at TEXT NOT NULL\n);\nALTER TABLE bf_machine_audit ADD COLUMN agent_id TEXT;\nALTER TABLE bf_machine_audit ADD COLUMN agent_name TEXT;\nALTER TABLE bf_machine_audit ADD COLUMN sponsor_name TEXT;\n"
+    },
+    {
+      "binding": "DB",
+      "name": "0071_looker_reconstruction.sql",
+      "sha256": "4d9175cd4029d2e8c261a391f2379792a394ab1cd3b77db777d9f2174b6abdc9",
+      "sql": "-- Keep source custody links across delta imports and Undo until explicit erasure.\nCREATE TABLE bf_looker_sources (\n project_id TEXT NOT NULL,\n dataset_id TEXT NOT NULL,\n PRIMARY KEY(project_id,dataset_id)\n);\nCREATE INDEX bf_looker_sources_dataset ON bf_looker_sources(dataset_id);\n"
     }
   ],
   "compatibilityDate": "2026-09-08",
