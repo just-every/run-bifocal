@@ -23,7 +23,7 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 }
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
-export async function providerJson(url: string, accessToken: string, data?: unknown): Promise<Record<string, unknown>> {
+export async function providerJson(url: string, accessToken: string, data?: unknown, validateText?: (text: string) => void): Promise<Record<string, unknown>> {
  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000)
  try {
   const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json', ...(data === undefined ? {} : {'content-type':'application/json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
@@ -33,6 +33,7 @@ export async function providerJson(url: string, accessToken: string, data?: unkn
   }
   requireValue(/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? ''), 'provider_json_required', 502)
   const text = await boundedText(response.body, 1048576, 'provider_response_limit')
+  validateText?.(text)
   const result: unknown = JSON.parse(text)
   requireValue(!text.includes(accessToken) && !JSON.stringify(result).includes(accessToken), 'provider_credential_in_response', 502)
   requireValue(object(result), 'provider_schema_mismatch', 502)
