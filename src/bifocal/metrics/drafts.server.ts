@@ -28,8 +28,8 @@ export async function prepareMetricDraft(env:Bindings,ownerId:string,id:string,v
  const document={version:1,id,definition},reviewDigest=sha256(canonicalJson({ownerId,kind:'metric-definition',document,previousRevision:previous,guards}))
  return {id,ownerId,old,n,encoded,digest,guards,review:{document,previousRevision:previous,digest:reviewDigest,before,after:{definition,value:evaluation.value,revision:n},productionSends:0,sourceWrites:0}}
 }
-export async function saveMetricDraft(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,prepared:Awaited<ReturnType<typeof prepareMetricDraft>>) {
+export async function saveMetricDraft(env:Bindings,owner:NonNullable<Awaited<ReturnType<typeof fileOwner>>>,prepared:Awaited<ReturnType<typeof prepareMetricDraft>>,extra:import('../../modules/import-kit/src/d1/types.ts').D1Sql[]=[] ) {
  const {id,ownerId,old,n,encoded,digest,guards,review}=prepared
- await transact(env.DB,owner,[...guards.map(assertion),old?sql('UPDATE bf_metrics SET head_revision=? WHERE id=?',n,id):sql('INSERT INTO bf_metrics(id,owner_id,head_revision) VALUES(?,?,?)',id,ownerId,n),sql('INSERT INTO bf_metric_revisions(metric_id,revision,dataset_id,document_json,digest,created_at) VALUES(?,?,?,?,?,?)',id,n,review.document.definition.query.dataset,encoded,digest,new Date().toISOString())])
+ await transact(env.DB,owner,[...guards.map(assertion),old?sql('UPDATE bf_metrics SET head_revision=? WHERE id=?',n,id):sql('INSERT INTO bf_metrics(id,owner_id,head_revision) VALUES(?,?,?)',id,ownerId,n),sql('INSERT INTO bf_metric_revisions(metric_id,revision,dataset_id,document_json,digest,created_at) VALUES(?,?,?,?,?,?)',id,n,review.document.definition.query.dataset,encoded,digest,new Date().toISOString()),...extra])
  return {id,revision:n,digest,state:'draft'}
 }
