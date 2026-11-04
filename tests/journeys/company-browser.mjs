@@ -35,6 +35,7 @@ export async function proveCompanyBrowser(origin,page) {
   // An error description is separate from the accessible field name.
   assert.equal(await input.evaluate(node=>node.closest('label').querySelector('.field-error')),null)
  }
+ const misspeltZone=['America','New_Yrk'].join('/')
  const quotes=rate=>JSON.stringify([{currency:'EUR',date:'2026-06-19',rate}])
  const transactions=date=>JSON.stringify([{id:'synthetic-bifocal-60',amount:'100.00',currency:'EUR',date},{id:'synthetic-bifocal-61',amount:'100.00',currency:'USD',date}])
  for(const width of [1440,390]) {
@@ -69,17 +70,21 @@ export async function proveCompanyBrowser(origin,page) {
    assert.deepEqual(await read('/company'),companySaved)
    await enter('Company name','Synthetic Bifocal Supply '+width)
    await enter('Currency code','USD')
-   await enter('Organization timezone','America/New_Yrk')
+   await enter('Organization timezone',misspeltZone)
    await submit('Save company')
    await refused('company-form','timezone','company-help',/known IANA time zone/)
-   assert.equal(await page.getByLabel('Organization timezone',{exact:true}).inputValue(),'America/New_Yrk')
+   assert.equal(await page.getByLabel('Organization timezone',{exact:true}).inputValue(),misspeltZone)
    assert.deepEqual(await read('/company'),companySaved)
    await shot('company-errors')
    await enter('Organization timezone','America/New_York')
    await submit('Save company');await saved('Company conventions saved')
    assert.equal(await page.locator('#company-form [aria-invalid]').count(),0)
    assert.equal(await page.getByLabel('Organization timezone',{exact:true}).getAttribute('aria-describedby'),'company-help')
-  } else {await submit('Save company');await saved('Company conventions saved')}
+  } else {
+   await enter('Organization timezone',misspeltZone);await submit('Save company')
+   await page.locator('#company-form-status[data-error=true]').waitFor();await shot('company-errors')
+   await enter('Organization timezone','America/New_York');await submit('Save company');await saved('Company conventions saved')
+  }
   await shot('settings')
   const calendar='synthetic-bifocal-ui-july-'+width
   await enter('Calendar id',calendar);await enter('Calendar name','July fiscal')
@@ -98,6 +103,10 @@ export async function proveCompanyBrowser(origin,page) {
    await submit('Save calendar and inspect year');await refused('calendar-form','year','calendar-help',/whole number/)
    assert.equal((await read('/calendars/'+calendar)).versions.length,1,'invalid inspection year never creates a saved revision')
    await enter('Fiscal start year','2023')
+  } else {
+   await enter('Start month','2');await enter('Start day','30');await submit('Save calendar and inspect year')
+   await page.locator('#calendar-form-status[data-error=true]').waitFor();await shot('fiscal-errors')
+   await enter('Start month','7');await enter('Start day','1')
   }
   await shot('july')
   await enter('Calendar id','synthetic-bifocal-ui-retail-'+width)
@@ -119,6 +128,10 @@ export async function proveCompanyBrowser(origin,page) {
    assert.equal(await page.locator('#working-result').innerText(),workingText)
    await shot('working-errors')
    await enter('End date, exclusive (MM/DD/YYYY)','07/07/2026');await submit('Calculate working days');await saved('Holiday-adjusted measure calculated')
+  } else {
+   await enter('Start date (MM/DD/YYYY)','02/30/2026');await submit('Calculate working days')
+   await page.locator('#working-form-status[data-error=true]').waitFor();await shot('working-errors')
+   await enter('Start date (MM/DD/YYYY)','07/02/2026');await submit('Calculate working days');await saved('Holiday-adjusted measure calculated')
   }
   await shot('retail-holiday')
   const rateId='synthetic-bifocal-ui-rates-'+width
@@ -138,6 +151,13 @@ export async function proveCompanyBrowser(origin,page) {
    await shot('rate-errors')
    await enter('Dated rates (JSON array)',quotes('0.8'));await submit('Save rate source');await saved('Named rate source saved')
    assert.deepEqual(await read('/rates/'+rateId+'/1'),rateOriginal,'old named-rate revision is immutable after a new save')
+  } else {
+   for(const value of ['[{"rate":]',quotes('1e-2'),JSON.stringify([...JSON.parse(quotes('0.8')),...JSON.parse(quotes('0.9'))])]) {
+    await enter('Dated rates (JSON array)',value);await submit('Save rate source')
+    await page.locator('#rates-form-status[data-error=true]').waitFor()
+   }
+   await shot('rate-errors')
+   await enter('Dated rates (JSON array)',quotes('0.8'));await submit('Save rate source');await saved('Named rate source saved')
   }
   await enter('Original transactions (JSON array)',transactions('2026-06-19'))
   await submit('Convert to USD');await saved('Exact USD conversion calculated')
