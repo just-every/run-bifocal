@@ -37,6 +37,8 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true},401,{Origin:'https://foreign.example.test'})
   assert.equal(state.calls.length,initialCalls)
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
+  await proveHubspot(edge,context,page,call,shot,apply)
+  if(process.argv.includes('--hubspot'))return
   await proveSquare(edge,context,page,call,shot,apply)
   if(process.argv.includes('--square'))return
   await proveSmartsheet({origin,context,page,state,call,apply,shot})
@@ -334,4 +336,90 @@ async function proveSquare({origin,state,database,signInAs},context,page,call,sh
  console.log('PROBE BIF-041 money: /api/operator/queries/run -> order 139.85 USD, return 37.50 USD, reported net 80.35 USD; missing amounts and non-API versions remain null')
  console.log('PROBE BIF-041 refusal: later-page HTTP and schema failures, duplicate records, paging, byte and deadline bounds -> no staged plan and unchanged last-good table')
  console.log('PROBE BIF-041 custody: stale approval and retained capture replay refused; Undo restored prior revision; holds blocked erasure, eligible erasure withdrew originals and saved answer')
+}
+
+/** Actual HubSpot browser read, shared publication, exact queries and custody.
+ * Assertions run at 1440; changed screens also have one phone proof. */
+async function proveHubspot({origin,state,database,signInAs},context,page,call,shot,apply){
+ const id='hubspot-deals',input={datasetId:id,accountContext:'Synthetic sales account',accessToken:grant,confirmRead:true}
+ const post=(action,data,status=200)=>call('import/'+action,data,status,{'X-Import-Dataset':id})
+ const read=(extra={},status=200)=>call('analytics/hubspot/preview',{...input,...extra},status,{},'POST',60000)
+ const noRead=state.calls.length
+ await read({confirmRead:false},400);await read({accountContext:''},400)
+ for(const extra of [{url:'https://foreign.example.test'},{method:'POST'},{properties:['private_note']},{after:'2'},{archived:true}])await read(extra,400)
+ await call('analytics/hubspot/preview',input,401,{Authorization:'Bearer synthetic-bifocal-machine'});await call('analytics/hubspot/preview',input,401,{Origin:'https://foreign.example.test'})
+ assert.equal((await fetch(origin+'/api/operator/analytics/hubspot/preview',{method:'POST',headers:{Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify(input)})).status,401)
+ const member=await context.browser().newContext()
+ try{
+  const session=await signInAs(member,['synthetic-bifocal-hubspot-member','example.test'].join('@'),context);assert.equal(session.operator.role,'member')
+  assert.equal((await member.request.post(origin+'/api/operator/analytics/hubspot/preview',{headers:{Origin:origin},data:input})).status(),401)
+  assert.equal((await member.request.get(origin+'/api/operator/datasets/'+id)).status(),401)
+  assert.equal((await member.request.post(origin+'/api/operator/datasets/'+id+'/erase',{headers:{Origin:origin},data:{confirmDataset:id,reviewedRevision:null}})).status(),401)
+ }finally{await member.close()}
+ assert.equal(state.calls.length,noRead,'foreign, anonymous, member and machine requests never contact HubSpot')
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read HubSpot deal pipeline',{exact:true}).click()
+ const form=page.locator('#hubspot-form'),fill=async()=>{await form.getByLabel('HubSpot account context (unverified)').fill(input.accountContext);await form.getByLabel('HubSpot deals read access token').fill(grant);await form.getByRole('checkbox').check()}
+ await fill();await shot('hubspot-setup',1440);await form.getByRole('button',{name:'Preview HubSpot deals'}).click();await page.locator('#review:not([hidden])').waitFor()
+ assert.equal(await form.getByLabel('HubSpot deals read access token').inputValue(),'');assert.equal(await form.getByRole('checkbox').isChecked(),false)
+ await call('datasets/'+id,undefined,404);await shot('hubspot-review',1440);await apply();await shot('hubspot-applied',1440)
+ const current=await call('datasets/'+id),names=current.table.columns.map(c=>c.name),records=current.table.rows.map(row=>Object.fromEntries(names.map((name,i)=>[name,row[i]])))
+ assert.equal(current.table.key,'deal_id');assert.equal(current.table.source.lineage.kind,'hubspot-deals');assert.equal(current.table.source.lineage.pages,2);assert.equal(current.table.source.lineage.accountContext,'Synthetic sales account');assert.equal(current.table.source.lineage.from,'')
+ assert.deepEqual(records.map(r=>r.deal_id),['9007199254740993','9007199254740995','9007199254740997','9007199254740999','9007199254741001'])
+ assert.deepEqual(records.map(r=>[r.pipeline_id,r.stage_id]),[['default','qualifiedtobuy'],['default','closedlost'],['default','qualifiedtobuy'],['default','closedlost'],['synthetic-bifocal-second','presentationscheduled']])
+ assert.deepEqual(records.map(r=>[r.amount_observed,r.currency_observed,r.observed_pipeline_value]),[['123.45','USD','123.45'],['-23.4','USD','-23.40'],['0','USD','0.00'],[null,null,null],['','USD',null]])
+ assert.equal(records[1].deal_name,'');assert.equal(records[3].deal_name,null);assert.equal(records[0].close_date,'2026-07-31T00:00:00.000Z');assert.equal(records[1].close_date,null);assert.equal(records[2].created_at,'2026-06-03T12:00:00.000Z');assert.equal(records[2].updated_at,'2026-06-13T12:00:00.000Z');assert.equal(records[0].created_date,'2026-06-01T12:00:00.000Z');assert.equal(records[0].modified_date,'2026-06-11T12:00:00.000Z')
+ const initial=(await post('history')).history[0],originals=await post('original/'+initial.planId),original=originals.originals.filter(e=>e.original.status==='retained').map(e=>Buffer.from(e.original.base64,'base64').toString('utf8')).join('\n')
+ assert.ok(original.includes('9007199254740993'));assert.ok(original.includes('-23.4'))
+ for(const excluded of [grant,'private_note','synthetic-bifocal-private-contact','must-never-follow'])assert.ok(!original.includes(excluded),'credential, unrelated properties and provider next links never enter retained originals')
+ const query={version:1,dataset:id,joins:[],filters:[],groupBy:['stage_id'],measures:[{id:'pipeline-value',op:'sum',column:'observed_pipeline_value',unit:'money',sourceCurrency:'USD',scale:2},{id:'deals',op:'count',unit:'count',scale:0}],context:{modelVersion:'native-business-v1',metricVersion:'observed-pipeline-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
+ await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click();await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
+ const running=page.waitForResponse(r=>r.url()===origin+'/api/operator/queries/run'&&r.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click();const response=await running,answer=await response.json();assert.equal(response.status(),201,JSON.stringify(answer))
+ assert.equal(answer.answer.totals['pipeline-value'].value,'100.05');assert.equal(answer.answer.totals['pipeline-value'].nulls,2);assert.equal(answer.answer.totals.deals.value,'5')
+ assert.deepEqual(Object.fromEntries(answer.answer.rows.map(r=>[r.dimensions[0],[r.values['pipeline-value'].value,r.values.deals.value]])),{qualifiedtobuy:['123.45','2'],closedlost:['-23.40','2'],presentationscheduled:[null,'1']})
+ await page.locator('#answer:not([hidden])').waitFor();await shot('hubspot-answer',1440)
+ const plansBefore=await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first()
+ for(const [phase,status]of [['401',403],['403',403],['429',503],['redirect',502],['warnings',502],['errors',502],['duplicate',502],['conflict',502],['loop',502],['bad-cursor',502],['archived',502],['precision',502],['number',502],['unsafe',502],['currency',502],['ambiguous',502],['date',502],['credential',502],['incomplete',502],['missing',502],['rows',413],['pages',413],['bytes',413],['deadline',502],['empty',422]]){
+  state.hubspotPhase=phase;const start=state.calls.length,refused=await read({catchup:true},status)
+  assert.ok(!JSON.stringify(refused).includes('synthetic-bifocal-private-diagnostic'));assert.ok(state.calls.slice(start).every(c=>c.host==='api.hubapi.com'&&c.path==='/crm/v3/objects/0-3'&&c.method==='GET'))
+  assert.deepEqual(await call('datasets/'+id),current,phase+' preserves last-good values');assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore,phase+' stages no partial capture')
+ }
+ state.hubspotPhase='success'
+ const withdrawing=await context.browser().newContext();let release
+ try{
+  const session=await signInAs(withdrawing,['synthetic-bifocal-1','example.test'].join('@'));let reached
+  const paused=new Promise(resolve=>{reached=resolve});state.hubspotPause=async()=>{reached();await new Promise(resolve=>{release=resolve})}
+  const reading=withdrawing.request.post(origin+'/api/operator/analytics/hubspot/preview',{headers:{Origin:origin},data:{...input,catchup:true}})
+  const early=await Promise.race([paused.then(()=>null),reading]);assert.equal(early,null,'the read reaches its second page')
+  assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
+  release();const refused=await reading;assert.equal(refused.status(),409,await refused.text());assert.deepEqual(await call('datasets/'+id),current);assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore)
+ }finally{release?.();state.hubspotPause=null;await withdrawing.close()}
+ const stale=await read({catchup:true});await post('apply',{planId:stale.planId,reviewedFingerprint:'0'.repeat(64)},403)
+ const next=await read({catchup:true}),applyPlan=async plan=>{for(let n=0;n<20;n++)if((await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint})).job.state==='completed')return;assert.fail('HubSpot Apply completes')}
+ await applyPlan(next);await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},409)
+ await post('undo',{planId:stale.planId});await post('undo',{planId:next.planId});assert.deepEqual((await call('datasets/'+id)).table,current.table)
+ await page.setViewportSize({width:390,height:1000});await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read HubSpot deal pipeline',{exact:true}).click();await fill();await shot('hubspot-setup',390)
+ state.hubspotPhase='changed';await form.getByRole('button',{name:'Preview HubSpot deals'}).click();await page.locator('#review:not([hidden])').waitFor();await shot('hubspot-review',390);await apply();await shot('hubspot-applied',390)
+ const changed=await call('queries/run',query,201);assert.equal(changed.answer.totals['pipeline-value'].value,'150.10');assert.equal((await call('queries/'+answer.queryId)).answer.totals['pipeline-value'].value,'100.05','historical answer is immutable')
+ await page.goto(origin+'/app/queries/'+changed.queryId);await page.locator('#answer:not([hidden])').waitFor();await shot('hubspot-answer',390)
+ await page.goto(origin+'/app/import?dataset='+id);await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone'));await shot('hubspot-undone',390)
+ await page.setViewportSize({width:1440,height:1000});assert.deepEqual((await call('datasets/'+id)).table,current.table);state.hubspotPhase='success'
+ const revision=(await call('datasets/'+id)).revision
+ let retention=await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:null,legalHold:true,minimumRetainUntil:null},200,{},'PUT')
+ await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision},423)
+ retention=await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:retention.revision,legalHold:false,minimumRetainUntil:'9999-01-01T00:00:00.000Z',releaseHold:true},200,{},'PUT')
+ await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision},423)
+ await call('retention/'+id,{confirmDataset:id,reviewedDatasetRevision:revision,previousRevision:retention.revision,legalHold:false,minimumRetainUntil:null,releaseHold:true},200,{},'PUT')
+ const erased=await call('datasets/'+id+'/erase',{confirmDataset:id,reviewedRevision:revision});assert.ok(erased.stores.some(s=>s.store==='bf_query_snapshots'&&s.rows>0))
+ await call('datasets/'+id,undefined,404);await call('queries/'+answer.queryId,undefined,404);await call('queries/'+changed.queryId,undefined,404)
+ const erasedOriginal=await post('original/'+initial.planId);assert.ok(erasedOriginal.originals.every(e=>e.original.status!=='retained'&&!e.original.base64))
+ await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint},404);assert.equal((await read({catchup:true},409)).error,'source_erased')
+ const tables=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name LIKE 'bf_%' OR name LIKE 'ik_%')").all()
+ for(const {name}of tables.results){const rows=await database.prepare('SELECT * FROM '+name).all(),text=JSON.stringify(rows.results);assert.ok(!text.includes(grant),name+' retains no HubSpot credential');assert.ok(!text.includes('9007199254740993'),name+' erases controlled deal identity')}
+ const audit=await database.prepare('SELECT event FROM bf_analytics_reads WHERE dataset_id=?').bind(id).all();assert.ok(audit.results.some(r=>r.event==='consented'));assert.ok(audit.results.some(r=>r.event==='staged'));assert.ok(audit.results.some(r=>r.event==='failed'))
+ console.log('PROBE BIF-040 acquisition: /app/import HubSpot -> five independently enumerated stable deal IDs over two pages; separate exact review, approval, Apply and reconciliation at 1440 and 390')
+ console.log('PROBE BIF-040 money and dates: /api/operator/queries/run -> observed USD 100.05; stage counts 2, 2, 1; two unknown amounts, empty versus null text and exact raw evidence preserved')
+ console.log('PROBE BIF-040 changed observations: explicit new read -> USD 150.10, historical answer stays 100.05; Undo restores all prior rows')
+ console.log('PROBE BIF-040 refusals: later-page HTTP, redirect, warnings, IDs, cursors, unsafe money and aggregate bounds -> no plan, unchanged last-good source')
+ console.log('PROBE BIF-040 authority: member, anonymous, foreign, machine plus owner cookie and mid-read revoked session -> no unauthorized read or staged capture')
+ console.log('PROBE BIF-040 custody: stale approval and replay refused; credential-free originals and audit; legal hold and minimum retention block erasure, eligible erasure removes originals, controlled IDs and saved answers')
 }

@@ -1,3 +1,4 @@
+import { connectHubspot } from './hubspot.js'
 import { connectSquare } from './square.js'
 import { attachSmartsheet } from './smartsheet.js'
 import './rdl-import.js'
@@ -131,3 +132,5 @@ const initialDataset=new URL(location.href).searchParams.get('dataset')
 if(initialDataset){form.elements.dataset.value=initialDataset;action(()=>load(initialDataset))}
 
 connectSquare({action, load, call, request, renderPlan, datasetInput: form.elements.dataset})
+
+connectHubspot({action, load, call, request, renderPlan, datasetInput: form.elements.dataset})
