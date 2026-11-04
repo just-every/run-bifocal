@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4a09699a790d07ebf6dfafa01d5895e92ea709a7146e2bf47c4fb91c60f3088b",
+      "sha256": "e86c0c8c722fe193ab8470cb423be668c053ee203d5f76f6c9858a64336c4618",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -543,6 +543,10 @@
     },
     "docs/site.json": {
       "sha256": "5582254a940811adafd9505fa50eaa8e84504f8441f6e0c22688151829e87e24",
+      "executable": false
+    },
+    "docs/SMARTSHEET.md": {
+      "sha256": "12a508d5e88fd0446526ffdd68502b56f45ff80734ba0d4e388172c46eff978f",
       "executable": false
     },
     "docs/SPREADSHEET-RANGES.md": {
@@ -1046,7 +1050,7 @@
       "executable": false
     },
     "public/bifocal/file-upload.js": {
-      "sha256": "21ea409d665dc5a51161d238a63cc1f9b38da7ff4a8dfc7ed5fea2c72e58eefd",
+      "sha256": "a90d72b999b1a65a93c37d1e201f8b974dd005297a768c09f05a15ffc071de27",
       "executable": false
     },
     "public/bifocal/file-view.js": {
@@ -1054,7 +1058,7 @@
       "executable": false
     },
     "public/bifocal/files.js": {
-      "sha256": "849699e10aab95104712b6b087d0b958c75dade541ff554cf2ad71b9838b5b36",
+      "sha256": "3f323ca1f191971f1d4cf223a479e5e30caae2dd8b706be21db13049c691961b",
       "executable": false
     },
     "public/bifocal/format.js": {
@@ -1154,7 +1158,7 @@
       "executable": false
     },
     "public/bifocal/smartsheet.js": {
-      "sha256": "e0f148bd4308207c27f66aa03f877491c699ebb6898e112d8e1c5cee88ced5a2",
+      "sha256": "b11ff2b846c842eff72d846b421ab9b20c2980c68110ea7a0faefd715c71fb95",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -6134,11 +6138,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "9d73ef340d7cdf857aa1b403045e4c7f33808d1c0e15d653fb39f65537c1b9ca",
+      "sha256": "40acf4d73ab6be39d890664218a6e6db69fe855d989785391852815bdeff6495",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "79af15fc8e03c89a4e00ee3f20d5dd05ba0bd341e7a2c614ff9ad6dc9c036ed7",
+      "sha256": "bcdce95939c651c600d2198d151f09c4fc08bd051093fcc71dd011d43e932d02",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

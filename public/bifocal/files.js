@@ -68,6 +68,7 @@ async function load(id = form.elements.dataset.value) {
   $('history-list').append(row)
  }
  if (!history.history.length) $('history-list').append(element('p', current?.preparation?'Prepared publication has no file import revisions. Its saved preparation version and pinned inputs are shown above.':'No approved versions.'))
+ return current
 }
 form.onsubmit = event => { event.preventDefault(); action(async () => {
  activeInput = await envelope(form); await load(activeInput.datasetId); $('resume').hidden = false
