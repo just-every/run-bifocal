@@ -185,6 +185,7 @@ async function proveJiraFlow(edge,context,page,call,apply,shot) {
  await page.locator('#history-list .history-item').filter({hasText:next.planId}).getByRole('button',{name:'Undo import',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('Import undone.'))
  assert.deepEqual((await read()).table.rows,expected,'actual browser Undo restores the exact prior snapshot');await screen('undone')
  state.jira='empty';const empty=await call('work/jira/preview',{...selection,catchup:true});assert.equal(empty.preview.rowCount,0);await post('apply',{planId:empty.planId,reviewedFingerprint:empty.fingerprint});assert.equal((await post('reconcile',{planId:empty.planId})).ok,true);assert.deepEqual((await read()).table.rows,[]);await post('undo',{planId:empty.planId});assert.deepEqual((await read()).table.rows,expected)
+ state.jira='marker';const marker=await call('work/jira/preview',{...selection,catchup:true});assert.equal(marker.preview.sample[0][7],'__BIFOCAL_NULL__','a literal status never becomes a null timestamp');assert.equal(marker.preview.sample[1][10],null);await post('undo',{planId:marker.planId})
  // Null timestamps include created and updated as well as resolution date.
  state.jira='nulls';const nulls=await call('work/jira/preview',{...selection,catchup:true});assert.deepEqual(nulls.preview.sample[0].slice(8,11),[null,null,null]);await post('undo',{planId:nulls.planId})
  state.jira='success'

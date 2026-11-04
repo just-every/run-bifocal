@@ -49,14 +49,13 @@ function reference(value: unknown, allowed: string[]) {
  return value
 }
 const headers = ['issue_id','issue_key','project_id','project_key','type_id','issue_type','status_id','status','created_at','updated_at','resolved_at','issue_count']
-const nullMarker = 'synthetic-bifocal-null-timestamp'
 /** Constructed GETs only. No arbitrary JQL, redirects, retries, issue expansion,
  * people, custom fields, histories, writes or automatic deletion inference. */
 export async function readJira(input: JiraSelection, grant: string, authorize: () => Promise<void>) {
  const resources = await jiraResources(grant,authorize)
  requireValue(resources.some(resource => resource.cloudId === input.cloudId && resource.siteUrl === input.siteUrl), 'jira_selected_site_not_authorized',403)
  const root = `https://api.atlassian.com/ex/jira/${input.cloudId}/rest/api/3/search/jql`
- const rows: string[][] = [headers], seen = new Set<string>(), cursors = new Set<string>(), issueKeys = new Set<string>()
+ const rows: (string | null)[][] = [headers], seen = new Set<string>(), cursors = new Set<string>(), issueKeys = new Set<string>()
  let cursor: string | undefined
  for (let page = 0; page < 20; page++) {
   const params = new URLSearchParams({jql:`project = ${input.projectId} ORDER BY id ASC`,maxResults:'100',fields:jiraFields.join(','),failFast:'true'})
@@ -78,8 +77,8 @@ export async function readJira(input: JiraSelection, grant: string, authorize: (
    const type = reference(fields.issuetype,['id','name','self','description','iconUrl','subtask','avatarId','hierarchyLevel','scope','entityId'])
    const status = reference(fields.status,['id','name','self','description','iconUrl','statusCategory','scope'])
    const times = [timestamp(fields.created),timestamp(fields.updated),timestamp(fields.resolutiondate)]
-   const row = [issue.id,issue.key,input.projectId,input.projectKey,type.id as string,label(type.name),status.id as string,label(status.name),...times.map(time => time ?? nullMarker),'1']
-   requireValue(!row.some(cell => cell.includes(grant)), 'provider_credential_in_response',502)
+   const row = [issue.id,issue.key,input.projectId,input.projectKey,type.id as string,label(type.name),status.id as string,label(status.name),...times,'1']
+   requireValue(!row.some(cell => cell?.includes(grant)), 'provider_credential_in_response',502)
    rows.push(row)
   }
   requireValue(seen.size <= 2000, 'jira_issue_limit',413)
@@ -87,7 +86,11 @@ export async function readJira(input: JiraSelection, grant: string, authorize: (
    requireValue(data.nextPageToken === undefined || data.nextPageToken === null || data.nextPageToken === '', 'jira_inconsistent_cursor',502)
    const columns = Object.fromEntries(headers.map(name => [name,name === 'issue_count' ? 'number' : 'text'])) as Record<string,Column['type']>
    const source: Lineage = {kind:'jira-work',link:input.siteUrl+'/plugins/servlet/project-config/'+input.projectKey,description:'Permission-filtered current Jira work outcomes; search indexing may lag. No deletion, complete project or historical staffing inference.',from:'',to:'',timezone:'UTC',observedAt:new Date().toISOString(),schema:'Jira REST v3 '+jiraSchema.version+' sha256 '+jiraSchema.sha256,jira:{cloudId:input.cloudId,projectId:input.projectId,projectKey:input.projectKey,pages:page+1,issues:seen.size}}
-   return {rows,columns,source,options:{nullValue:nullMarker,key:'issue_id'}}
+   const retainedCells = new Set(rows.flat())
+   let nullMarker = '__BIFOCAL_NULL__', markerIndex = 0
+   while (retainedCells.has(nullMarker)) nullMarker = 'BIFOCAL_NULL_'+(++markerIndex)
+   const csvRows = rows.map(row => row.map(cell => cell === null ? nullMarker : cell))
+   return {rows:csvRows,columns,source,options:{nullValue:nullMarker,key:'issue_id'}}
   }
   requireValue(data.issues.length > 0 && typeof data.nextPageToken === 'string' && /^[A-Za-z0-9._~+=\/-]{1,2048}$/.test(data.nextPageToken) && !cursors.has(data.nextPageToken), 'jira_inconsistent_cursor',502)
   cursors.add(data.nextPageToken); cursor = data.nextPageToken

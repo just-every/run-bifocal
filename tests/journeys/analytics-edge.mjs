@@ -50,6 +50,7 @@ export async function analyticsEdge(persist) {
    }
    if(!next&&state.onJiraPage){const act=state.onJiraPage;state.onJiraPage=null;await act()}
    const selected=structuredClone(next?issues.slice(2):issues.slice(0,2))
+   if(state.jira==='marker')selected[0].fields.status.name='__BIFOCAL_NULL__'
    if(state.jira==='nulls') {selected[0].fields.created=null;selected[0].fields.updated=null;selected[0].fields.resolutiondate=null}
    if(state.jira==='changed')selected[0].fields.status={id:'1',name:'Open'}
    if(state.jira==='foreign-project')selected[0].fields.project.id='20000'
