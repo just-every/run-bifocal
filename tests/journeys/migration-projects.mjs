@@ -143,7 +143,7 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
   for(const action of ['tableau-review','tableau-apply','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{...exact,reviewedDigest:review.digest,confirmImport:id}})).status(),401)
  }finally{await member.close()}
  // Security and incomplete content can be inspected but can never yield executable drafts.
- for(const kind of ['security','missing-tds','dependency','unsupported-aggregation','incomplete-followers','filter','schema','binding-type']){
+ for(const kind of ['security','missing-tds','dependency','unsupported-aggregation','incomplete-followers','filter','schema','binding-type','contradictory-null']){
   const bad=structuredClone(input);bad.projectId='synthetic-bifocal-tableau-'+kind
   if(kind==='security')bad.tableau.files[0]={path:'sales.tdsx',content:Buffer.from(zipSync({'Data/Sales.tds':strToU8(tds.replace('</datasource>','<filter class="user"/></datasource>'))})).toString('base64')}
   if(kind==='missing-tds')bad.tableau.files[0].content=Buffer.from(zipSync({'Data/one.hyper':strToU8('synthetic-bifocal-1')})).toString('base64')
@@ -151,6 +151,7 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
   if(kind==='unsupported-aggregation'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.definition.json')))file.content=file.content.replace(/AGGREGATION_SUM|AGGREGATION_COUNT_DISTINCT/g,'AGGREGATION_MEDIAN')}
   if(kind==='incomplete-followers')bad.tableau.files.at(-1).content=JSON.stringify({subscriptions:[],next_page_token:'synthetic-bifocal-1'})
   if(kind==='filter'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.metric.json')))file.content=file.content.replace('OPERATOR_EQUAL','OPERATOR_NOT_EQUAL')}
+  if(kind==='contradictory-null')for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.metric.json'))){const value=JSON.parse(file.content);value.metric.specification.filters=[{field:'region',operator:'OPERATOR_EQUAL',categorical_values:[{null_value:'NULL_VALUE'}],include_null:false}];file.content=JSON.stringify(value)}
   if(kind==='binding-type')for(const binding of Object.values(bad.tableau.bindings))binding.columns.region='amount'
   if(kind==='schema'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.metric.json')))file.content=file.content.replace('1.0.0','2.0.0')}
   const rejected=await prepare(bad);assert.equal(rejected.counts.rejected,0,kind);assert.equal(rejected.project.tableau.drafts.length,0,kind);assert.ok(rejected.project.tableau.diagnostics.some(d=>d.blocksPreview),kind);await apply(rejected);const inert=await call('/migration-projects/'+bad.projectId);await call('/migration-projects/'+bad.projectId+'/tableau-review',{reviewedRevision:inert.revision,sourceMetric:'metric-sum',previousRevision:null},409)
