@@ -177,6 +177,33 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  assert.equal(answer.answer.totals.revenue.value,'100.05',JSON.stringify(answer))
  const board=await call('dashboards',{queryId:answer.queryId,title:'Smartsheet exact USD'},201)
  await page.locator('#compose-form input[value="'+answer.snapshotId+'"]').waitFor({state:'attached'});await proof('query')
+ // Revoke a real second owner session while a provider response is in flight.
+ // The original owner remains signed in to inspect the complete last-good data.
+ for(const boundary of ['page','version']) {
+  const reader=await context.browser().newContext()
+  try {
+   const owner=(await(await context.request.get(origin+'/auth/session')).json()).operator
+   const mailHeaders={Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'}
+   assert.equal((await reader.request.post(origin+'/auth/magic-link',{headers:mailHeaders,data:{email:owner.email,returnTo:'/app'}})).status(),202)
+   const messages=await(await context.request.get(origin+'/__analytics-mail')).json(),link=messages.at(-1).text.match(/https?:[^\s]+/)[0],token=new URL(link).searchParams.get('token')
+   assert.equal((await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0})).status(),303)
+   const session=await(await reader.request.get(origin+'/auth/session')).json()
+   assert.equal(session.operator.id,owner.id)
+   const beforeCalls=state.calls.length,beforePlans=await call('import'+'/'+'history',undefined,200,{'X-Import-Dataset':datasetId})
+   let revoked=false
+   state.beforeSmartsheetResponse=async url=>{
+    if(revoked||boundary==='version'&&!url.pathname.endsWith('/version'))return
+    revoked=true
+    assert.equal((await context.request.post(origin+'/auth/session/revoke',{headers:{Origin:origin},data:{sessionId:session.id}})).status(),204)
+   }
+   const response=await reader.request.post(origin+'/api/operator/smartsheet/preview',{headers:{Origin:origin},data:{...input,catchup:true}})
+   assert.equal(revoked,true)
+   assert.equal(state.calls.length-beforeCalls,boundary==='page'?1:3,'Revoked owner authority stops further provider reads')
+   assert.equal(response.status(),401,await response.text())
+   assert.deepEqual(await call('datasets/'+datasetId),current)
+   assert.deepEqual(await call('import'+'/'+'history',undefined,200,{'X-Import-Dataset':datasetId}),beforePlans,'Revoked capture creates no retained review')
+  } finally {state.beforeSmartsheetResponse=undefined;await reader.close()}
+ }
  for(const [phase,status,error] of [['schema-drift',409,'smartsheet_version_drift'],['column-missing',502,'smartsheet_selected_columns_missing'],['response-overflow',413,'provider_response_limit'],['snapshot-overflow',413,'smartsheet_snapshot_limit'],['page-drift',409,'smartsheet_version_drift'],['final-drift',409,'smartsheet_version_drift'],['missing-row',502,'smartsheet_incomplete_rows'],['duplicate-row',502,'smartsheet_incomplete_rows'],['row-overflow',413,'smartsheet_row_limit'],['unsafe-id',502,'smartsheet_unsafe_numeric_precision'],['unsafe-decimal',502,'smartsheet_unsafe_numeric_precision'],['complex-column',502,'smartsheet_unsupported_column_type'],['complex-cell',502,'smartsheet_unsupported_cell_value'],['cell-overflow',502,'smartsheet_text_required'],['money-precision',502,'smartsheet_usd_precision_required'],['empty',422,'smartsheet_empty_sheet'],['denied',502,'provider_request_failed'],['revoked',403,'provider_grant_refused'],['final-revoked',403,'provider_grant_refused'],['rate',503,'provider_rate_limited'],['redirect',502,'provider_redirect_refused'],['token-echo',502,'provider_credential_in_response']]) {
   state.smartsheet=phase;const refused=await read({catchup:true},status);assert.equal(refused.error,error,phase)
   if(phase==='complex-column')assert.deepEqual(refused.details,{columnId:'1001',sourceType:'MULTI_PICKLIST'})
@@ -190,6 +217,14 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true')
  assert.match(await page.locator('#status').innerText(),/provider_grant_refused/);assert.equal(await form.getByLabel('Smartsheet access token').inputValue(),'')
  await proof('refused');assert.deepEqual(await call('datasets/'+datasetId),current)
+ state.smartsheet='complex-column'
+ await form.getByLabel('Smartsheet access token').fill(grant);await form.getByRole('checkbox').check()
+ const complexResponse=page.waitForResponse(response=>response.url()===origin+'/api/operator/smartsheet/preview')
+ await form.getByRole('button',{name:'Preview Smartsheet snapshot'}).click();assert.equal((await complexResponse).status(),502)
+ await page.waitForFunction(()=>document.querySelector('#status').dataset.error==='true')
+ const diagnostic=await page.locator('#status').innerText()
+ assert.ok(diagnostic.includes('1001')&&diagnostic.includes('MULTI_PICKLIST'),'Unsupported column diagnostics expose the selected identity and actual provider type')
+ await proof('unsupported');assert.deepEqual(await call('datasets/'+datasetId),current)
  state.smartsheet='success'
  // A new exact read has its own consent and cannot revive an old approval.
  const changedReview=await read({catchup:true});await call('import'+'/'+'apply',{planId:changedReview.planId,reviewedFingerprint:preview.fingerprint},403,{'X-Import-Dataset':datasetId})
@@ -213,12 +248,23 @@ async function proveSmartsheet({origin,context,page,state,call,apply,shot}) {
  const release=await context.request.put(origin+'/api/operator/retention/'+datasetId,{headers:{Origin:origin},data:{confirmDataset:datasetId,reviewedDatasetRevision:fresh.revision,previousRevision,legalHold:false,minimumRetainUntil:null,releaseHold:true}});assert.equal(release.status(),200)
  const receipt=await erase();assert.equal(receipt.phase,'complete')
  for(const capture of [preview,reapplied])assert.ok((await original(capture.planId)).originals.every(item=>item.original.status==='unavailable'))
- for(const {name} of tables.results){const records=await database.prepare('SELECT * FROM '+name).all();const text=JSON.stringify(records.results);assert.ok(!text.includes('7000000000000001')&&!text.includes('=SUM([Amount]2:[Amount]3)'),name+' removes controlled Smartsheet values')}
+ const assertErased=async()=>{
+  for(const {name} of tables.results){
+   const records=await database.prepare('SELECT * FROM '+name).all(),contents=[JSON.stringify(records.results)]
+   for(const record of records.results)for(const value of Object.values(record)){
+    if(Array.isArray(value))contents.push(Buffer.from(value).toString())
+    else if(typeof value==='string'&&/^[A-Za-z0-9+/]*={0,2}$/.test(value))contents.push(Buffer.from(value,'base64').toString())
+   }
+   for(const text of contents)assert.ok(!text.includes('7000000000000001')&&!text.includes('=SUM([Amount]2:[Amount]3)'),name+' removes controlled Smartsheet values, including encoded originals')
+  }
+ }
+ await assertErased()
  assert.equal((await context.request.get(origin+'/api/operator/import/original/'+changedReview.planId,{headers:{'X-Import-Dataset':datasetId}})).status(),404,'A cancelled unapproved capture exposes no original')
  await call('datasets/'+datasetId,undefined,404);await call('queries/'+answer.queryId,undefined,404);await call('dashboards/'+board.id,undefined,404)
  await call('import'+'/'+'apply',{planId:reapplied.planId,reviewedFingerprint:reapplied.fingerprint},410,{'X-Import-Dataset':datasetId})
  const retired=await read({catchup:true},409);assert.equal(retired.error,'source_erased')
- console.log('Smartsheet: exact browser selection, same-version paging, full stable identities, null and empty text, inert formulas, USD 100.05, review and approval, reconciliation, Undo, scope and provider refusals, last-good preservation, protected retention and eligible erasure passed; 1440 and 390 screens, official-schema HTTPS edges only')
+ await assertErased()
+ console.log('Smartsheet: exact browser selection, same-version paging, full stable identities, null and empty text, inert formulas, USD 100.05, review and approval, reconciliation, Undo, revoked-session paging and staging fences, actionable unsupported types, scope and provider refusals, last-good preservation, protected retention and eligible erasure without replayed or encoded copies passed; 1440 and 390 screens, official-schema HTTPS edges only')
 }
 
 // The same public-door journey can run alone while iterating. CI invokes it

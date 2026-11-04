@@ -6,7 +6,6 @@ export class SmartsheetError extends AnalyticsError {
  constructor(code: string, readonly details: { columnId: string; sourceType?: string; rowId?: string }) { super(code, 502) }
 }
 const base = 'https://api.smartsheet.com/2.0/sheets/'
-const get = (path: string, grant: string) => providerJson(base+path, grant, undefined, preciseNumbers)
 const plainText = (value: unknown): value is string => typeof value === 'string' && value.length <= 4096 && !value.includes('\0')
 function scalar(cell: Record<string,unknown>, column: Snapshot['columns'][number], rowId: string): string | null {
  const fail = (code: string): never => { throw new SmartsheetError(code, { rowId, columnId:column.id, sourceType:column.sourceType }) }
@@ -29,11 +28,14 @@ function scalar(cell: Record<string,unknown>, column: Snapshot['columns'][number
  }
  return decimal as string
 }
-export async function readSheet(sheetId: string, selected: Selection[], grant: string) {
+export async function readSheet(sheetId: string, selected: Selection[], grant: string, authorize: () => Promise<void>) {
+ // Each page and the version check are separate outbound operations. A native
+ // session withdrawn during a response cannot authorize the next provider GET.
+ const get = async (path: string) => { await authorize(); return providerJson(base+path, grant, undefined, preciseNumbers) }
  const rows: (string|null)[][] = [], rowIds: string[] = [], seen = new Set<string>(), formulas: Snapshot['formulas'] = []
  let columns: Snapshot['columns'] = [], version = -1, total = -1, byteCount = 0
  for (let page=1; page<=limits.pages; page++) {
-  const result = await get(sheetId+'?'+new URLSearchParams({level:'2',include:'objectValue',columnIds:selected.map(column=>column.id).join(','),pageSize:String(limits.pageSize),page:String(page)}), grant)
+  const result = await get(sheetId+'?'+new URLSearchParams({level:'2',include:'objectValue',columnIds:selected.map(column=>column.id).join(','),pageSize:String(limits.pageSize),page:String(page)}))
   requireValue(providerId(result.id) === sheetId && Number.isSafeInteger(result.version) && Number(result.version) >= 0 && Number.isSafeInteger(result.totalRowCount) && Number(result.totalRowCount) >= 0 && Array.isArray(result.columns) && Array.isArray(result.rows), 'smartsheet_sheet_schema_mismatch', 502)
   requireValue(Number(result.totalRowCount) <= limits.rows, 'smartsheet_row_limit', 413)
   requireValue(Number(result.totalRowCount) > 0, 'smartsheet_empty_sheet', 422)
@@ -73,7 +75,7 @@ export async function readSheet(sheetId: string, selected: Selection[], grant: s
   if (rowIds.length === total) break
  }
  requireValue(rowIds.length === total, 'smartsheet_incomplete_rows', 502)
- const final = await get(sheetId+'/version',grant)
+ const final = await get(sheetId+'/version')
  requireValue(final.version === version, 'smartsheet_version_drift', 409)
  // Choose a collision-free null marker so a literal empty string stays text.
  let nullValue = '~bifocal-null~'
