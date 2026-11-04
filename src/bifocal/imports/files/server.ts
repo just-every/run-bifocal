@@ -50,7 +50,7 @@ export async function fileImportResponse(request: Request, original: Bindings, e
  if(modelImport)return modelImport
  if (path.startsWith('/api/rer/import/')) return refuseRequest(request, { error: 'not_found' }, 404)
  if (!path.startsWith('/api/operator/import/') && !path.startsWith('/api/operator/datasets/')) return null
- const env = runtimeBindings(original), owner = await fileOwner(request, env)
+ const env = runtimeBindings(original), owner = !request.headers.has('authorization') && await fileOwner(request, env)
  if (!owner) return refuseRequest(request, { error: 'owner_required', reason: 'Sign in as the current installation owner and use the same app origin.' }, 401)
  const dataset = path.startsWith('/api/operator/datasets/') ? path.split('/')[4] : request.headers.get('X-Import-Dataset') ?? ''
  if (!idPattern.test(dataset)) return refuseRequest(request, { error: 'dataset_required', reason: 'Use a stable dataset id: a letter followed by lowercase letters, digits or hyphens, at most 64 characters.' }, 400)
