@@ -1,5 +1,6 @@
 import { reconstructionRetentionAllowsErasure } from '../migrations/looker-studio/custody'
 import { eraseSourceReconstructions } from '../migrations/store.server'
+import { eraseSourceTableauProjects } from '../migrations/store.server'
 import { alertErasure, alertErasureCounts } from '../../alerts/erasure'
 import { rdlImportResponse } from '../../reports/rdl/door.server'
 import { preparationResponse } from '../../preparation/server'
@@ -107,6 +108,7 @@ export async function fileImportResponse(request: Request, original: Bindings, e
    const auditStatements=[sql("INSERT INTO bf_erasure_audit(id,actor_ref,subject_ref,recorded_at,kind) VALUES(?,?,?,?,'source_erasure')",auditId,randomUUID(),randomUUID(),new Date().toISOString()),sql('INSERT INTO bf_erasure_pending(destination,audit_id) VALUES(?,?)',destination,auditId),sql(`INSERT INTO bf_erasure_stores(audit_id,store,rows) SELECT ?,store,rows FROM (${counts.sql})`,auditId,...counts.params??[])]
    const reconstructions=await eraseSourceReconstructions(env,owner,dataset,match)
    const calculationLibraries=await eraseSourceCalculationLibraries(env,owner,dataset,match)
+   const tableauProjects=await eraseSourceTableauProjects(env,owner,dataset,match)
    const modelProjects=await eraseSourceModelProjects(env,owner,dataset,match,request,erasingProjects,activeDatasets)
    // Derivative erasure can initialize the journal. Bind the source checkpoint
    // to that same installation identity after those guarded retirements.
@@ -123,7 +125,7 @@ export async function fileImportResponse(request: Request, original: Bindings, e
     sql('INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM bf_query_sources WHERE dataset_id=?) THEN 1 ELSE 0 END', dataset), ...fileTargets.remove(destination, 'file-table', dataset), sql('DELETE FROM bf_file_reviews WHERE dataset_id=?', dataset),sql('DELETE FROM bf_source_retention WHERE dataset_id=?',dataset), sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_metric_revisions WHERE dataset_id=?)',dataset), sql('DELETE FROM bf_quality_rules WHERE dataset_id=?',dataset), goalErasure(dataset), sql('DELETE FROM ik_d1_assertions'),
    ], context(namespace), checkpoint)
    const nativeStores = (receipt.nativeResults[1] as {results: {store: string; rows: number}[]}).results.filter(store => store.rows > 0)
-   return json({ phase: receipt.phase, receiptId: receipt.receiptId, auditId, modelProjects, reconstructions, calculationLibraries, derivedReceipts, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
+   return json({ phase: receipt.phase, receiptId: receipt.receiptId, auditId, modelProjects, reconstructions, tableauProjects, calculationLibraries, derivedReceipts, stores: [...receipt.stores, ...nativeStores], reason: 'The dataset and all retained import content in its namespace were erased; unrelated datasets remain. Dependent query snapshots, report results, semantic definitions and controlled catalog metadata/search/usage were withdrawn in the same erasure batch. This dataset id is retired: later plans answer source_erased; use a new id for new data. Plan and read-consent ids, fingerprints, approving owner, times and dataset id remain as history. An earlier archive is refused only where this erasure journal is known; a fresh installation without the journal cannot detect this erasure.' })
   }
   if(request.method==='POST'&&path.startsWith('/api/operator/import/')&&await preparationOutput(env,dataset))return json({error:'preparation_output_immutable',reason:'Prepared outputs are immutable. Publish a reviewed preparation to a new dataset id.'},409)
   if (path === '/api/operator/import/history') {
