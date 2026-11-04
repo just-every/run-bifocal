@@ -23,6 +23,7 @@ export function sourceView(source, updatedAt, zone) {
  if (source.spreadsheet) entries.push(['Provider', source.spreadsheet.provider], ['Workbook', source.spreadsheet.workbook], ['Sheet', source.spreadsheet.sheet], ['Range', source.spreadsheet.range], ['Fetched', stamp(source.spreadsheet.fetchedAt, zone)])
  const container = element('div'); container.append(element('h3', 'Source lineage and interpretation'), metadata(entries))
  if(source.lineage){const line=source.lineage,link=element('a','Open source report or table');link.href=line.link;link.rel='noreferrer';container.append(metadata([['Source kind',line.kind],['Definition',line.description],['Window',line.from+' through '+line.to+' (end exclusive)'],['Reporting timezone',line.timezone],['Observed',stamp(line.observedAt,zone)],['Protocol',line.schema]]),link)}
+ if(source.lineage?.stripe){const read=source.lineage.stripe;container.append(metadata([['Account context (unverified)',read.accountContext],['Read completed',stamp(read.completedAt,zone)],['Observed pages',read.pages],['Observed movements',read.rows],['Response bytes',read.bytes],['Observation limits','20 pages; 2,000 movements; 2 MiB; 15 seconds overall; shared file bound'],['Source consistency','Paginated observation; no transactional source snapshot']]))}
  if (source.formulas?.length) container.append(table('Retained formulas (never evaluated)', ['Cell', 'Formula', 'Cached value'], source.formulas.map(row => [row.cell, row.formula, row.cached])))
  return container
 }

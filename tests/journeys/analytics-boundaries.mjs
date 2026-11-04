@@ -37,6 +37,7 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
   await call('analytics/vane/preview',{datasetId:'synthetic-bifocal-denied',siteId:'synthetic-bifocal-61',from:'2026-06-01',to:'2026-07-01',accessToken:grant,confirmRead:true},401,{Origin:'https://foreign.example.test'})
   assert.equal(state.calls.length,initialCalls)
   await call('calendars',{id:'synthetic-bifocal-market-calendar',previousVersion:null,definition:{name:'Business calendar',kind:'fiscal',startMonth:1}},201)
+  await proveStripeMovements({origin,context,page,edge,call,apply,shot})
   let lastBoard,apiDataset
   for(const width of [1440,390]) {
    await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import')
@@ -110,6 +111,110 @@ export async function proveAnalyticsBoundaries(original,context,page,persist) {
 // from runtime.mjs; this entry never substitutes for the push Verify wall.
 if(process.argv[1]===new URL(import.meta.url).pathname){
  const {chromium}=await import('@playwright/test'),{mkdtemp,rm}=await import('node:fs/promises'),{tmpdir}=await import('node:os'),{join}=await import('node:path')
- const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,args:['--use-mock-keychain','--password-store=basic']})
+ const persist=await mkdtemp(join(tmpdir(),'bifocal-analytics-')),browser=await chromium.launch({headless:true,...(process.env.BIFOCAL_CHROMIUM_PATH?{executablePath:process.env.BIFOCAL_CHROMIUM_PATH}:{}),args:['--use-mock-keychain','--password-store=basic','--no-sandbox']})
  try{const context=await browser.newContext(),page=await context.newPage();await proveAnalyticsBoundaries(null,context,page,persist)}finally{await browser.close();await rm(persist,{recursive:true,force:true})}
+}
+
+// One finance sanity flow inside the existing runtime registration: real
+// browser, native auth, migrated D1, query and import doors; only HTTPS is faked.
+async function proveStripeMovements({origin,context,page,edge,call,apply,shot}) {
+ const dataset='synthetic-bifocal-stripe',input={datasetId:dataset,from:'2026-06-01',to:'2026-07-01',accountContext:'Operating account',accessToken:grant,confirmRead:true}
+ const route='analytics/stripe/preview',history=()=>call('import/history',undefined,200,{'X-Import-Dataset':dataset})
+ const importCall=(action,data,status=200)=>call('import/'+action,data,status,{'X-Import-Dataset':dataset})
+ const screen=async name=>{for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await shot('stripe-'+name,width)}await page.setViewportSize({width:1440,height:1000})}
+ const initial=edge.state.calls.length
+ for(const refused of [{...input,confirmRead:false},{...input,from:'2026-02-30'},{...input,to:'2026-06-01'},{...input,accountContext:'untrusted'+String.fromCharCode(64)+'context'},{...input,datasetId:'../other'}])await call(route,refused,400)
+ await call(route,input,401,{Origin:'https://foreign.example.test'})
+ await call(route,input,401,{Authorization:'Bearer synthetic-bifocal-999'})
+ assert.equal((await fetch(origin+'/api/operator/'+route,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify(input)})).status,401)
+ assert.equal(edge.state.calls.length,initial,'denied consent, inputs and authority make no provider request')
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import')
+ await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByText('Read Stripe balance movements',{exact:true}).click()
+ const form=page.locator('#stripe-form')
+ await form.getByLabel('Stripe account context').fill(input.accountContext);await form.getByLabel('Stripe creation start (UTC)').fill(input.from);await form.getByLabel('Stripe creation end (exclusive, UTC)').fill(input.to);await form.getByLabel('Stripe read-only access token').fill(grant);await form.getByRole('checkbox').check()
+ assert.equal(await form.locator('button').evaluateAll(nodes=>nodes.filter(node=>!node.textContent.trim()).length),0)
+ assert.ok(await form.locator('input,button').evaluateAll(nodes=>nodes.every(node=>parseFloat(getComputedStyle(node).fontSize)>=13)))
+ await page.locator('.menu>summary').focus();assert.equal(await page.getByRole('tooltip',{name:'Open settings',exact:true}).isVisible(),true)
+ await form.getByLabel('Stripe account context').focus()
+ await page.locator('.menu>summary').hover();await page.getByRole('tooltip',{name:'Open settings',exact:true}).waitFor({state:'visible'})
+ await form.hover()
+ await screen('setup')
+ await form.getByRole('button',{name:'Preview Stripe movements',exact:true}).click()
+ await page.locator('#review:not([hidden])').waitFor()
+ assert.equal(await form.getByLabel('Stripe read-only access token').inputValue(),'');assert.equal(await form.getByRole('checkbox').isChecked(),false)
+ const planId=await page.locator('#review').getAttribute('data-plan-id')
+ const reviewText=await page.locator('#source').innerText()
+ assert.match(reviewText,/Stripe balance movements/);assert.match(reviewText,/identity unverified/);assert.match(reviewText,/not a transactional source snapshot/);assert.match(reviewText,/2,000 movements/)
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404,'reading and review do not publish')
+ await importCall('apply',{planId,reviewedFingerprint:'0'.repeat(64)},403)
+ await screen('review');await apply()
+ const published=await call('datasets/'+dataset),rows=published.table.rows,columns=published.table.columns.map(column=>column.name)
+ assert.deepEqual(columns,['transaction_id','account_context','created_at','available_at','created_on','available_on','currency','type','status','source','amount','fee','net'])
+ assert.deepEqual(rows,[
+  ['synthetic-bifocal-301','Operating account','2026-06-30T12:34:56.000Z','2026-07-02T00:00:00.000Z','2026-06-30','2026-07-02','USD','charge','available','synthetic-bifocal-401','123.45','3.45','120.00'],
+  ['synthetic-bifocal-302','Operating account','2026-06-29T00:00:00.000Z','2026-07-02T00:00:00.000Z','2026-06-29','2026-07-02','USD','refund','pending','synthetic-bifocal-402','-23.45','0.00','-23.45'],
+  ['synthetic-bifocal-303','Operating account','2026-06-28T00:00:00.000Z','2026-07-02T00:00:00.000Z','2026-06-28','2026-07-02','USD','stripe_fee','available',null,'-1.25','0.00','-1.25'],
+  ['synthetic-bifocal-304','Operating account','2026-06-27T00:00:00.000Z','2026-07-02T00:00:00.000Z','2026-06-27','2026-07-02','USD','adjustment','available',null,'0.00','0.00','0.00']
+ ])
+ assert.deepEqual(published.table.columns.filter(column=>['amount','fee','net'].includes(column.name)).map(column=>column.type),['money','money','money'])
+ assert.equal(published.table.key,'transaction_id');assert.equal(published.table.source.lineage.kind,'stripe-balance');assert.equal(published.table.source.lineage.timezone,'UTC');assert.equal(published.table.source.lineage.stripe.pages,2);assert.equal(published.table.source.lineage.stripe.rows,4)
+ await screen('current')
+ const original=await importCall('original/'+planId),envelope=JSON.parse(Buffer.from(original.originals[0].original.base64,'base64'))
+ assert.ok(!JSON.stringify(envelope).includes(grant));assert.match(envelope.data,/-23.45/);assert.equal(envelope.lineage.stripe.accountContext,'Operating account')
+ const query={version:1,dataset,joins:[],filters:[],groupBy:[],measures:['amount','fee','net'].map(column=>({id:column,op:'sum',column,unit:'money',scale:2,sourceCurrency:'USD'})),context:{modelVersion:'stripe-balance-v1',metricVersion:'balance-movements-v1',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-market-calendar',version:1},rounding:'half-even'}}
+ await page.goto(origin+'/app/queries');await page.getByText('New exact answer',{exact:true}).click();await page.getByLabel('Query definition (JSON)').fill(JSON.stringify(query))
+ const queried=page.waitForResponse(response=>response.url()===origin+'/api/operator/queries/run'&&response.request().method()==='POST');await page.getByRole('button',{name:'Run exact query',exact:true}).click()
+ const answer=await(await queried).json();assert.ok(answer.snapshotId,JSON.stringify(answer));assert.deepEqual(['amount','fee','net'].map(key=>answer.answer.totals[key].value),['98.75','3.45','95.30'])
+ await page.locator('#compose-form input[value="'+answer.snapshotId+'"]').waitFor({state:'attached'})
+ assert.match(await page.locator('main').innerText(),/95\.30/)
+ await screen('query')
+ const beforeHistory=await history()
+ const failures=[['first-401',403],['first-403',403],['first-429',503],['first-redirect',502],['later-401',403],['later-403',403],['later-429',503],['later-redirect',502],['duplicate',502],['empty-page',502],['currency',502],['net',502],['missing-net',502],['missing-source',502],['expanded-source',502],['unsafe',502],['precision',502],['outside',502],['out-of-order',502],['incomplete',502],['status',502],['credential',502],['escaped-credential',502],['malformed',502],['pages',413],['bytes',413],['deadline',502]]
+ for(const [phase,status] of failures) {
+  edge.state.stripePhase=phase
+  const result=await call(route,{...input,catchup:true},status)
+  assert.ok(result.error,'specific redacted diagnostic for '+phase)
+  assert.deepEqual(await call('datasets/'+dataset),published,'no partial publication for '+phase)
+  assert.deepEqual(await history(),beforeHistory,'no partial plan or retained source for '+phase)
+ }
+ edge.state.stripePhase='success'
+ // Real seeded member, admitted by the native credential verifier. No auth
+ // handler, session lookup, authority result or SQL response is replaced.
+ const {createOperatorAuth}=await import('../../src/modules/operator-auth/index.mjs')
+ const memberId='synthetic-bifocal-305',memberAddress=memberId+String.fromCharCode(64)+'example.test'
+ await edge.db.prepare("INSERT INTO oa_operators(id,email,display_name,role,status,version,created_at) SELECT ?,?,'Finance member','member','active',1,created_at FROM oa_operators WHERE role='owner' LIMIT 1").bind(memberId,memberAddress).run()
+ const auth=createOperatorAuth({db:edge.db,clientIp:()=> '127.0.0.1',config:{origin,local:true,OWNER_EMAIL:'synthetic-bifocal-1'+String.fromCharCode(64)+'example.test',SESSION_SECRET:'synthetic-bifocal-2'.repeat(3)}})
+ const admitted=await auth.admitVerifiedPassword(new Request(origin+'/auth/password',{method:'POST',headers:{Origin:origin,Host:new URL(origin).host}}),memberId)
+ const memberCookie=admitted.cookie.split(';')[0],calls=edge.state.calls.length
+ for(const [method,path,data] of [['POST','/api/operator/'+route,input],['GET','/api/operator/datasets/'+dataset],['GET','/api/operator/import/original/'+planId],['POST','/api/operator/import/apply',{planId,reviewedFingerprint:beforeHistory.history[0].fingerprint}]]) {
+  const response=await fetch(origin+path,{method,headers:{Origin:origin,Cookie:memberCookie,'X-Import-Dataset':dataset,...(data?{'Content-Type':'application/json'}:{})},...(data?{body:JSON.stringify(data)}:{})})
+  assert.equal(response.status,401,await response.text())
+ }
+ for(const path of ['/api/operator/'+route,'/api/operator/datasets/'+dataset,'/api/operator/import/original/'+planId]) {
+  const read=path.endsWith('/preview'),response=await fetch(origin+path,{method:read?'POST':'GET',headers:{Origin:origin,Authorization:'Bearer synthetic-bifocal-999','X-Import-Dataset':dataset,...(read?{'Content-Type':'application/json'}:{})},...(read?{body:JSON.stringify(input)}:{})})
+  assert.equal(response.status,401,await response.text())
+ }
+ assert.equal(edge.state.calls.length,calls)
+ await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(dataset);await page.getByRole('button',{name:'Load dataset',exact:true}).click();await page.getByRole('button',{name:'Undo import',exact:true}).waitFor()
+ await page.getByRole('button',{name:'Undo import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import undone'}).waitFor();await screen('undo')
+ await call('datasets/'+dataset,undefined,404)
+ await page.getByText('Read Stripe balance movements',{exact:true}).click()
+ await form.getByLabel('Stripe account context').fill(input.accountContext);await form.getByLabel('Stripe creation start (UTC)').fill(input.from);await form.getByLabel('Stripe creation end (exclusive, UTC)').fill(input.to);await form.getByLabel('Stripe read-only access token').fill(grant);await form.getByRole('checkbox').check()
+ const previewed=page.waitForResponse(response=>response.url()===origin+'/api/operator/analytics/stripe/preview')
+ await form.getByRole('button',{name:'Preview Stripe movements',exact:true}).click()
+ const next=await(await previewed).json();assert.ok(next.planId,JSON.stringify(next));await apply()
+ assert.equal((await importCall('reconcile',{planId:next.planId})).ok,true)
+ const current=await call('datasets/'+dataset)
+ const protection=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedDatasetRevision:current.revision,previousRevision:null,legalHold:false,minimumRetainUntil:null}});assert.equal(protection.status(),200,await protection.text())
+ const {proveRetentionHold}=await import('./erasure-receipts.mjs');await proveRetentionHold(origin,context,dataset,current.revision)
+ const erased=await call('datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:current.revision})
+ assert.ok(erased.stores.some(store=>store.store==='ik_door_plan_chunks'&&store.rows>0));assert.ok(erased.stores.some(store=>store.store==='bf_query_snapshots'&&store.rows>0))
+ await call('datasets/'+dataset,undefined,404);assert.ok((await importCall('original/'+planId)).originals.every(item=>item.original.status==='unavailable'))
+ const replay=await context.request.post(origin+'/api/operator/import/apply',{headers:{Origin:origin,'X-Import-Dataset':dataset},data:{planId:next.planId,reviewedFingerprint:next.fingerprint}});assert.equal(replay.status(),410,await replay.text())
+ const returned=await call(route,{...input,catchup:true},409);assert.equal(returned.error,'source_erased')
+ const audit=await edge.db.prepare('SELECT * FROM bf_analytics_reads WHERE dataset_id=?').bind(dataset).all()
+ assert.ok(audit.results.some(row=>row.event==='consented')&&audit.results.some(row=>row.event==='staged')&&audit.results.some(row=>row.event==='failed'));assert.ok(!JSON.stringify(audit.results).includes(grant));assert.ok(audit.results.every(row=>!Object.keys(row).some(key=>/token|response|payload/.test(key))))
+ assert.equal((await edge.db.prepare('SELECT count(*) AS count FROM bf_query_sources WHERE dataset_id=?').bind(dataset).first()).count,0)
+ assert.equal((await edge.db.prepare('SELECT count(*) AS count FROM bf_file_tables WHERE id=?').bind(dataset).first()).count,0)
+ console.log('PROBE BIF-039 bounded Stripe read: 2 pages, 4 exact movements; USD amount 98.75, fee 3.45, net 95.30; native review, Apply, reconciliation, query, Undo, retention hold, erasure and retired replay passed; owner, member and machine isolation, consent, 401/403/429/redirect, later-page, precision, net, duplicate, schema, byte/page and deadline refusals changed no data. Screens at 1440 and 390. Official-schema edge only; live grants and account identity unproved.')
 }

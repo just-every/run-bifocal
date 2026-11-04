@@ -5,7 +5,7 @@ import { resolve,join } from 'node:path'
 import { createServer } from 'node:net'
 import {execFileSync} from 'node:child_process'
 const exportFields=['artifact_id','snapshot_id','snapshot_digest','metric','dimensions_json','value','numerator','denominator','unit','state','source_json','observed_at']
-/** Only Vane/Google HTTPS are faked from the pinned published protocols in
+/** Only Vane, Google and Stripe HTTPS are faked from the pinned published protocols in
  * docs/ANALYTICS-HANDOFFS.md. The real emitted Worker, assets, D1 and auth run. */
 export async function analyticsEdge(persist) {
  const socket=createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
@@ -19,11 +19,13 @@ export async function analyticsEdge(persist) {
  const origin=`http://127.0.0.1:${port}`,vaneOrigin='https://synthetic-bifocal-vane.workers.dev'
  const require=createRequire(import.meta.url),wrangler=createRequire(require.resolve('wrangler')),{Miniflare,convertV4MiniflareOptions}=wrangler('miniflare')
  const modules=[{type:'ESModule',path:resolve('dist/server/index.js')},...(await readdir('dist/server/assets')).filter(name=>name.endsWith('.js')).map(name=>({type:'ESModule',path:resolve('dist/server/assets',name)}))]
- const state={phase:'success',calls:[],inserted:[]}
- const mf=new Miniflare(convertV4MiniflareOptions({name:'bifocal-analytics',host:'127.0.0.1',port,inspectorPort:0,cf:false,modulesRoot:resolve('dist/server'),modules,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],assets:{directory:resolve('dist/client'),binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true}},d1Databases:{DB:'local-foundation-only'},resourcePersistencePath:join(analyticsPersist,'v3'),bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'synthetic-bifocal-1@example.test',SESSION_SECRET:'synthetic-bifocal-2'.repeat(3),MAIL_FROM:'synthetic-bifocal-2@example.test',BIFOCAL_VANE_ORIGIN:vaneOrigin,SETUP_TOKEN:'synthetic-bifocal-1'.repeat(3)},outboundService:async request=>{
+ const state={phase:'success',stripePhase:'success',calls:[],inserted:[]}
+ const ownerAddress='synthetic-bifocal-1'+String.fromCharCode(64)+'example.test',mailAddress='synthetic-bifocal-2'+String.fromCharCode(64)+'example.test'
+ const mf=new Miniflare(convertV4MiniflareOptions({name:'bifocal-analytics',host:'127.0.0.1',port,inspectorPort:0,cf:false,modulesRoot:resolve('dist/server'),modules,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],assets:{directory:resolve('dist/client'),binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true}},d1Databases:{DB:'local-foundation-only'},resourcePersistencePath:join(analyticsPersist,'v3'),bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:ownerAddress,SESSION_SECRET:'synthetic-bifocal-2'.repeat(3),MAIL_FROM:mailAddress,BIFOCAL_VANE_ORIGIN:vaneOrigin,SETUP_TOKEN:'synthetic-bifocal-1'.repeat(3)},outboundService:async request=>{
   const url=new URL(request.url);state.calls.push({host:url.hostname,path:url.pathname,method:request.method})
   assert.equal(url.protocol,'https:');assert.equal(request.headers.get('authorization'),'Bearer synthetic-bifocal-60');assert.equal(request.headers.has('cookie'),false)
-  assert.ok([new URL(vaneOrigin).hostname,'bigquery.googleapis.com'].includes(url.hostname),'no arbitrary host or telemetry egress')
+  assert.ok([new URL(vaneOrigin).hostname,'bigquery.googleapis.com','api.stripe.com'].includes(url.hostname),'no arbitrary host or telemetry egress')
+  if(url.hostname==='api.stripe.com')return stripeResponse(request,url,state)
   if(url.hostname===new URL(vaneOrigin).hostname) {
    assert.equal(request.method,'GET');assert.equal(url.pathname,'/api/v1/stats');assert.equal(url.searchParams.get('site_id'),'synthetic-bifocal-61');assert.equal(url.searchParams.get('dimension'),'utm_campaign')
    if(state.phase==='revoked')return Response.json({error:'key_revoked'},{status:403})
@@ -47,5 +49,55 @@ export async function analyticsEdge(persist) {
   return Response.json({tableReference:{projectId:'synthetic-bifocal-62',datasetId:'business',tableId:usage?'usage':'reporting'},location:'US',type:'TABLE',schema:{fields:usage?[{name:'campaign',type:'STRING'},{name:'active_accounts',type:'INTEGER'},{name:'day',type:'DATE'},{name:'restricted_salary',type:'NUMERIC'}]:exportFields.map(name=>({name,type:'STRING'}))}})
  }}))
  await mf.ready
- return {origin,vaneOrigin,state,close:()=>mf.dispose()}
+ return {origin,vaneOrigin,state,db:await mf.getD1Database('DB'),close:()=>mf.dispose()}
+}
+
+// Self-authored specimens from Stripe's cited list and object schemas. They
+// qualify only this bounded HTTPS protocol edge, never a live grant or account.
+function stripeResponse(request,url,state) {
+ assert.equal(request.method,'GET');assert.equal(url.pathname,'/v1/balance_transactions')
+ assert.equal(request.headers.get('stripe-version'),'2026-10-28.endive')
+ assert.equal(request.headers.has('stripe-account'),false)
+ assert.deepEqual([...url.searchParams.keys()].sort(),['created[gte]','created[lt]','limit',...(url.searchParams.has('starting_after')?['starting_after']:[])].sort())
+ assert.equal(url.searchParams.get('created[gte]'),String(Date.parse('2026-06-01')/1000));assert.equal(url.searchParams.get('created[lt]'),String(Date.parse('2026-07-01')/1000));assert.equal(url.searchParams.get('limit'),'100')
+ const phase=state.stripePhase,after=url.searchParams.get('starting_after')
+ const base={object:'balance_transaction',currency:'usd',available_on:Date.parse('2026-07-02T00:00:00Z')/1000,status:'available',fee:0,source:null}
+ const fixtures=[
+  {...base,id:'synthetic-bifocal-301',created:Date.parse('2026-06-30T12:34:56Z')/1000,type:'charge',source:'synthetic-bifocal-401',amount:12345,fee:345,net:12000},
+  {...base,id:'synthetic-bifocal-302',created:Date.parse('2026-06-29T00:00:00Z')/1000,type:'refund',status:'pending',source:'synthetic-bifocal-402',amount:-2345,net:-2345},
+  {...base,id:'synthetic-bifocal-303',created:Date.parse('2026-06-28T00:00:00Z')/1000,type:'stripe_fee',amount:-125,net:-125},
+  {...base,id:'synthetic-bifocal-304',created:Date.parse('2026-06-27T00:00:00Z')/1000,type:'adjustment',amount:0,net:0}
+ ]
+ if((!after && phase.startsWith('first-')) || after) {
+  const status=Number(phase.replace(/^first-/,'').replace(/^later-/,''))
+  if([401,403,429].includes(status))return Response.json({error:{message:'Bearer synthetic-bifocal-60'}},{status})
+  if(phase.endsWith('redirect'))return new Response(null,{status:302,headers:{location:'https://foreign.example.test/private'}})
+ }
+ if(phase==='pages') {
+  const start=after?Number(after.split('-').at(-1))+1:1000
+  return Response.json({object:'list',url:'/v1/balance_transactions',has_more:true,data:Array.from({length:100},(_,i)=>({...fixtures[0],id:'synthetic-bifocal-'+(start+i)}))})
+ }
+ if(phase==='bytes')return Response.json({object:'list',url:'/v1/balance_transactions',has_more:true,data:[{...fixtures[0],id:'synthetic-bifocal-'+(after?Number(after.split('-').at(-1))+1:9000)}],ignored:'x'.repeat(800000)})
+ if(after)assert.equal(after,'synthetic-bifocal-302')
+ const body={object:'list',url:'/v1/balance_transactions',has_more:!after,data:after?fixtures.slice(2):fixtures.slice(0,2)}
+ if(after) {
+  if(phase==='duplicate')body.data[0]=fixtures[0]
+  if(phase==='empty-page')body.data=[]
+  if(phase==='currency')body.data[0].currency='eur'
+  if(phase==='net')body.data[0].net=-124
+  if(phase==='missing-net')delete body.data[0].net
+  if(phase==='missing-source')delete body.data[0].source
+  if(phase==='expanded-source')body.data[0].source={id:'synthetic-bifocal-403'}
+  if(phase==='unsafe')body.data[0].amount=9007199254740992
+  if(phase==='out-of-order')body.data[0].created=Date.parse('2026-06-30T13:00:00Z')/1000
+  if(phase==='outside')body.data[0].created=Date.parse('2026-07-01')/1000
+  if(phase==='incomplete')delete body.has_more
+  if(phase==='status')body.data[0].status='draft'
+  if(phase==='credential')body.data[0].description='Bearer synthetic-bifocal-60'
+  if(phase==='escaped-credential')return new Response(JSON.stringify(body).replace('"has_more"','"ignored":"synthetic-bifocal-\\u00360","has_more"'),{headers:{'content-type':'application/json'}})
+  if(phase==='precision')return new Response(JSON.stringify(body).replace('"amount":-125','"amount":9007199254740990.1'),{headers:{'content-type':'application/json'}})
+  if(phase==='malformed')return new Response('{"object":"list"',{headers:{'content-type':'application/json'}})
+  if(phase==='deadline')return new Promise(resolve=>setTimeout(()=>resolve(Response.json(body)),16000))
+ }
+ return Response.json(body)
 }

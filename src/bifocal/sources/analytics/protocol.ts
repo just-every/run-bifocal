@@ -23,16 +23,21 @@ export async function inputBody(request: Request): Promise<Record<string, unknow
 }
 /** Every destination is constructed from validated identifiers. No redirects,
  * native cookies, ambient grants, retries, provider error bodies or logging. */
-export async function providerJson(url: string, accessToken: string, data?: unknown): Promise<Record<string, unknown>> {
- const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 15000)
+export type ReadBounds = { deadline?:number; bytes?:number; headers?:Record<string,string>; inspect?:(text:string)=>void }
+export async function providerJson(url: string, accessToken: string, data?: unknown, bounds:ReadBounds = {}): Promise<Record<string, unknown>> {
+ const remaining = Math.min(15000, (bounds.deadline ?? Date.now()+15000)-Date.now())
+ requireValue(remaining > 0, 'provider_timeout', 502)
+ const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), remaining)
  try {
-  const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json', ...(data === undefined ? {} : {'content-type':'application/json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
+  const response = await fetch(url, { method: data === undefined ? 'GET' : 'POST', headers: { ...bounds.headers, authorization: `Bearer ${accessToken}`, accept: 'application/json', ...(data === undefined ? {} : {'content-type':'application/json'}) }, ...(data === undefined ? {} : {body:JSON.stringify(data)}), redirect:'manual', credentials:'omit', referrerPolicy:'no-referrer', signal:controller.signal })
   if (response.status !== 200) {
    await response.body?.cancel()
    throw new AnalyticsError([401,403].includes(response.status) ? 'provider_grant_refused' : response.status === 429 ? 'provider_rate_limited' : response.status >= 300 && response.status < 400 ? 'provider_redirect_refused' : 'provider_request_failed', response.status === 429 ? 503 : [401,403].includes(response.status) ? 403 : 502)
   }
   requireValue(/^application\/json(?:\s*;|$)/i.test(response.headers.get('content-type') ?? ''), 'provider_json_required', 502)
-  const text = await boundedText(response.body, 1048576, 'provider_response_limit')
+  const text = await boundedText(response.body, Math.min(1048576,bounds.bytes ?? 1048576), 'provider_response_limit')
+  requireValue(!controller.signal.aborted && (!bounds.deadline || Date.now()<bounds.deadline), 'provider_timeout',502)
+  bounds.inspect?.(text)
   const result: unknown = JSON.parse(text)
   requireValue(!text.includes(accessToken) && !JSON.stringify(result).includes(accessToken), 'provider_credential_in_response', 502)
   requireValue(object(result), 'provider_schema_mismatch', 502)

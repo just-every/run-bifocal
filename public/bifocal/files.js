@@ -1,3 +1,4 @@
+import { stripeRead } from './stripe.js'
 import './rdl-import.js'
 import './model-import.js'
 import { element, table, metadata, sourceView } from './file-view.js'
@@ -67,6 +68,7 @@ async function load(id = form.elements.dataset.value) {
   $('history-list').append(row)
  }
  if (!history.history.length) $('history-list').append(element('p', current?.preparation?'Prepared publication has no file import revisions. Its saved preparation version and pinned inputs are shown above.':'No approved versions.'))
+ return current
 }
 form.onsubmit = event => { event.preventDefault(); action(async () => {
  activeInput = await envelope(form); await load(activeInput.datasetId); $('resume').hidden = false
@@ -125,3 +127,5 @@ for(const [name,path] of [['vane','vane'],['product','product-table']]) {
 request('/api/operator/analytics/config',undefined,'').then(config=>{$('vane-configuration').textContent=config.vaneConfigured?'Configured Vane installation: '+config.vaneOrigin:'Vane is not connected. Configure your independent Vane installation before the API read. The Vane CSV export remains available above.'}).catch(error=>{$('vane-configuration').textContent=error.message})
 const initialDataset=new URL(location.href).searchParams.get('dataset')
 if(initialDataset){form.elements.dataset.value=initialDataset;action(()=>load(initialDataset))}
+
+stripeRead({action,load,call,request,renderPlan,form})

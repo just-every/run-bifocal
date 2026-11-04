@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4a09699a790d07ebf6dfafa01d5895e92ea709a7146e2bf47c4fb91c60f3088b",
+      "sha256": "dc33ce6b19fb3f706a6f10599bf43a56bab0f72016554bb171be86c57284b671",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -1050,11 +1050,11 @@
       "executable": false
     },
     "public/bifocal/file-view.js": {
-      "sha256": "e6f38c6f058a55dbaffd20cc1281b093c18a1e775bddf7a48a059cdb8f81f470",
+      "sha256": "6a8beab6d3d63c0d02a303d89547c7fedde14af6126457a2aa0223fe2eaff602",
       "executable": false
     },
     "public/bifocal/files.js": {
-      "sha256": "13a9dd792d3a5eccad83b4d8d8bf6e1cbbe4b6137c82343917e094733a859bbd",
+      "sha256": "b499c5d5c7e19566f16cb21950baca9e67137b17ad0364e80b71c38b0b933148",
       "executable": false
     },
     "public/bifocal/format.js": {
@@ -1151,6 +1151,10 @@
     },
     "public/bifocal/schedules.css": {
       "sha256": "a59ee1527a316215947ca71474c86db9e6165f949c3394b48c3dcca4d4a669d2",
+      "executable": false
+    },
+    "public/bifocal/stripe.js": {
+      "sha256": "f17d77de99b68171fbae322070a47a008aedd7843efca91f942d452c26b3714a",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -2954,7 +2958,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/page.server.ts": {
-      "sha256": "7ed549922f9e8bab2a8f728bc51464439823a30901211c80c9828ac855a99549",
+      "sha256": "9b896fd41a86a835f7e7cd52c589081e58188c7d17b695136f226b264bd688fc",
       "executable": false
     },
     "src/bifocal/imports/files/reviews.server.ts": {
@@ -3610,15 +3614,15 @@
       "executable": false
     },
     "src/bifocal/sources/analytics/door.server.ts": {
-      "sha256": "5128919ccccc7bc379f38a1296bc7e49294035f7fc8571a12818b7eb1413ea4b",
+      "sha256": "81bcf53d40a6b65013b1b332375c0e06b21662d6dec73e7d417d38dd7ddcbb16",
       "executable": false
     },
     "src/bifocal/sources/analytics/lineage.ts": {
-      "sha256": "9e80d349ce8862fcbf3c7e75807d911c32097cc64cded9682e06f0ff043f8bb7",
+      "sha256": "bf718c448cd4ba514906529afd951b4bf009dbb514881f78a48dab4380e783ef",
       "executable": false
     },
     "src/bifocal/sources/analytics/protocol.ts": {
-      "sha256": "a4403bb258e6b2a2909e621ceac175b66b8d6526847b16efa6318fb7ef618466",
+      "sha256": "79f13f3c286813307e32d11a609845788f9757b04ba1608c1206fb08894a9953",
       "executable": false
     },
     "src/bifocal/sources/analytics/server.ts": {
@@ -3631,6 +3635,22 @@
     },
     "src/bifocal/sources/databases/bigquery.ts": {
       "sha256": "5b8fca05220267fed88ed8edee5193399a4ba02c01a688e53f8eef60d476fb3b",
+      "executable": false
+    },
+    "src/bifocal/sources/finance/form.ts": {
+      "sha256": "5dd1d1696d68b281732a02d718d8d2591b2ad4418f1b44310248923066f715da",
+      "executable": false
+    },
+    "src/bifocal/sources/finance/server.ts": {
+      "sha256": "ec03fe73f461e8226d26f6f284f9b1cb59bcf0fbf4c2794446a5638ac0be9923",
+      "executable": false
+    },
+    "src/bifocal/sources/finance/STRIPE.md": {
+      "sha256": "e52083d2d78d07036b646784bc2080796fec9edbb843a41256c4a4d27269df02",
+      "executable": false
+    },
+    "src/bifocal/sources/finance/stripe.ts": {
+      "sha256": "40392d7ea2effd1abf792553f089ab68dc3432e4908a66448186f279d416e604",
       "executable": false
     },
     "src/bifocal/sources/siblings/vane.ts": {
@@ -5870,7 +5890,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "788a4f5631c6b8525b812214849559569a59e09f7d951df8055422b2dcee7182",
+      "sha256": "5017fad39bdda3b2c69d13a7680cf99fe3a880a2dd60746ec19025dd3d003b62",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -6114,11 +6134,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "9d73ef340d7cdf857aa1b403045e4c7f33808d1c0e15d653fb39f65537c1b9ca",
+      "sha256": "cbcca907d8834ed472bd3e6cc2fe8a0fb6d506e8428c03c4b859491bf332494f",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "79af15fc8e03c89a4e00ee3f20d5dd05ba0bd341e7a2c614ff9ad6dc9c036ed7",
+      "sha256": "3f42b9b6dcd57f9a7afdf151e23bda6de935bf71359a5db8f09235ea86f5facc",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {
