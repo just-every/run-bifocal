@@ -237,3 +237,67 @@ remain unresolved. The bounded dbt translator proves literal column projections
 through local dependency references and checks built-in column nullability and
 uniqueness against exact reviewed records. A failed quality check, mismatched
 alias mapping, unsupported SQL or test, or project hook blocks rebuilt export.
+
+## Guided Looker Studio reconstruction
+
+At `/app/import`, choose **Reconstruct a Looker Studio report**. This is an
+owner-supplied reconstruction format. The [Studio asset-management
+API](https://developers.google.com/looker-studio/integrate/api) provides asset
+and permission management; this workflow does not claim a full-report export
+endpoint or acquire provider credentials.
+
+1. Import the native source records through the existing file review and Apply
+   workflow. A report definition alone never imports or reconciles its source.
+2. Enter a project ID, the original Studio report link and the reviewed native
+   dataset ID. Choose Start reconstruction guide. Attach the authorized plain
+   text originals, keeping their original filenames and content.
+3. Inspect pages, data sources, fields, blends, calculations, parameters,
+   filters, layout, sharing and delivery settings. For every category, supply
+   its original definition and inspection location, or leave it inaccessible
+   or unsupported. Use the literal `none` only for an inspected absence of
+   blends or calculated fields. Omitted categories become explicit blocking
+   entries; they never disappear from the inventory.
+4. Complete the inactive native JSON document. It contains `sourceRevision`,
+   `definition` (one native semantic view and an empty quality list), explicit
+   `parameters` and an optional independently supplied `reference`. The guide
+   copies the current typed physical columns, but the owner must choose the
+   grain, grouping, supported measures, native calendar and filters. Each
+   parameter has an `id`, physical `column`, `type`, `op` and typed `value`.
+   Equality is supported for typed fields; date bounds use `gte` or `lte`.
+   Only physical grouping fields and sum or count-distinct measures are
+   supported. Blends and calculated expressions remain blocking gaps.
+5. Review and approve the exact shared-door plan. Apply retains an inactive
+   editable draft. Inspect retained originals and choose Review native preview,
+   then Confirm exact native preview. A source revision, convention, evidence
+   or native edit changes the review digest and requires fresh review.
+
+A reference has `rows` containing `dimensions` and a map of measure IDs to
+exact string values (or null), plus `totals` with the same measure IDs. Native
+values that match this separately supplied reference are labeled
+**independently-reconciled** for that draft only. Missing, changed, unsupported
+or mismatching evidence blocks the preview. This comparison does not establish
+live Studio output parity, complete report reconstruction or buyer cutover.
+Layout descriptions are retained evidence, not a claimed native layout
+translation. Imported sharing and delivery settings grant no authority and
+start no schedules.
+
+The shared migration API uses `X-Import-Kind: migration-project` and the project
+ID in `X-Import-Dataset`. Its JSON envelope uses `source: looker-studio`,
+`version: 1`, `projectId`, an ISO UTC `cutoff`, a `rollbackPlan`, `reportUrl`,
+`originals` (name and content), `evidence` and `drafts`. Each evidence item has
+`id`, `kind`, `sourceRevision`, `sourceLocation`, `status` and `original`.
+Accepted input states are `inaccessible`, `supplied` and `unsupported`;
+reconciliation is computed during review. Each draft has `id`,
+`sourceRevision` and its JSON `document` as a string. Bounds are 1 MiB per
+bundle, twelve original text files of at most 32 KiB each, seventy supplied
+evidence entries, twelve drafts and one hundred total inventory items.
+
+Current-owner routes under `/api/operator/migration-projects/<project-id>`
+provide retained reads, exact-revision `edit`, conflict `resolve`, `review`,
+exact-digest `preview` and explicit `erase`. Imported source changes preserve
+native edits as conflicts until the owner chooses which version to retain.
+Undo refuses intervening native edits. Eligible project or linked-source
+erasure withdraws originals, native drafts and edit history and retires the
+project ID; linked legal holds and minimum retention dates still prevent
+premature erasure. Installation archive and restore qualification, real source
+estates, managed connectors and governed delivery remain unfinished.
