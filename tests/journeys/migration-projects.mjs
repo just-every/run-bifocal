@@ -67,9 +67,9 @@ export async function proveMigrationProjects({origin,context,call,page,proveScre
 export async function proveTableauMigration({origin,context,call,page,proveScreen,upload}){
  const {tableauMigrationSpecimen}=await import('./model-import.mjs'),{zipSync,strToU8}=await import('fflate')
  await call('/calendars',{id:'synthetic-bifocal-tableau-calendar',previousVersion:null,definition:{name:'Tableau Gregorian calendar',kind:'fiscal',startMonth:1}})
- const dataset='synthetic-bifocal-tableau-sales',csv='id,amount,customer,date,region\n1,$10.01,A,07/01/2026,West\n2,$20.02,A,07/02/2026,West\n3,,B,07/03/2026,West\n4,$-4.00,,07/04/2026,West\n5,$0.00,C,07/31/2026,West\n6,$99.00,D,07/04/2026,East\n7,$200.00,E,08/01/2026,West\n'
+ const dataset='synthetic-bifocal-tableau-sales',csv='id,amount,customer,date,region\n1,$10.01,A,07/01/2026,West\n2,$20.02,A,07/02/2026,West\n3,,B,07/03/2026,West\n4,-$4.00,,07/04/2026,West\n5,$0.00,C,07/31/2026,West\n6,$99.00,D,07/04/2026,East\n7,$200.00,E,08/01/2026,West\n'
  await upload(dataset,csv)
- const source=await call('/datasets/'+dataset),{input,tds}=tableauMigrationSpecimen(dataset,source.revision),id=input.projectId
+ const source=await call('/datasets/'+dataset);assert.equal(source.table.columns.find(c=>c.name==='amount').type,'money');const {input,tds}=tableauMigrationSpecimen(dataset,source.revision),id=input.projectId
  const headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
  const post=async(action,data,status=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(r.status(),status,await r.text());return r.json()}
  let lastUpload
@@ -85,6 +85,13 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  assert.deepEqual(p.project.tableau.records.filter(r=>r.kind==='follower').map(r=>r.value.follower),[{user_id:'source-user'},{group_id:'source-group'}])
  assert.ok(p.project.tableau.records.some(r=>r.kind==='unsupported-package-item'&&r.file.endsWith('unsupported.txt')))
  assert.ok(p.project.tableau.records.filter(r=>r.kind==='pulse-metric').every(r=>r.dependencies.length===1))
+ assert.deepEqual(p.project.tableau.records.map(r=>r.id).sort(),[
+  'file:sales.tdsx','package:sales.tdsx/Data/Sales.tds','package:sales.tdsx/Data/one.hyper','package:sales.tdsx/Data/two.hyper','package:sales.tdsx/unsupported.txt',
+  'file:sum.definition.json','definition:definition-sum','file:distinct.definition.json','definition:definition-distinct','file:sum.metric.json','metric:metric-sum','file:distinct.metric.json','metric:metric-distinct','file:followers.json','follower:follower-1','follower:follower-2','source:published-sales',
+  'tds:published-sales:datasource.Sales','tds:published-sales:datasource.Sales.[id]','tds:published-sales:datasource.Sales.[amount]','tds:published-sales:datasource.Sales.[customer]','tds:published-sales:datasource.Sales.[date]','tds:published-sales:datasource.Sales.[region]'
+ ].sort())
+ assert.equal(p.project.tableau.models[0].project.tables[0].sourceTable,'sales.csv')
+ assert.equal(p.project.tableau.records.find(r=>r.kind==='tds').value.sha256,createHash('sha256').update(tds).digest('hex'))
  assert.ok(p.project.tableau.records.every(r=>/^[a-f0-9]{64}$/.test(r.digest)));assert.equal(p.project.tableau.input.publishedSources[0].refresh.mode,'incremental');assert.equal(p.project.tableau.records.find(r=>r.id==='metric:metric-sum').value.goals.threshold.value,25)
  await proveScreen('tableau-review',{widths:[1440,390]});await page.setViewportSize({width:1440,height:1000})
  await page.getByLabel('I reviewed this exact inactive inventory and all gaps',{exact:true}).check();await page.getByRole('button',{name:'Apply Tableau import',exact:true}).click();await page.locator('#tableau-status').filter({hasText:'applied and reconciled'}).waitFor()
@@ -93,12 +100,17 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  // Replay goes through a new retained plan after Undo, with the same source IDs.
  const again=await prepare(input);await apply(again);current=await call(base)
  await page.getByRole('button',{name:'Load Tableau project',exact:true}).click();await page.locator('#tableau-status').filter({hasText:'project loaded'}).waitFor()
+ const originalsResponse=await context.request.get(origin+'/api/operator/import/original/'+again.planId,{headers});assert.equal(originalsResponse.status(),200);assert.deepEqual(JSON.parse(Buffer.from((await originalsResponse.json()).originals[0].original.base64,'base64').toString('utf8')),input)
+ await page.getByRole('button',{name:'Inspect Tableau originals',exact:true}).click();await page.locator('#tableau-status').filter({hasText:'originals loaded'}).waitFor()
  const reviewResponse=page.waitForResponse(r=>r.url().endsWith('/tableau-review'));await page.getByRole('button',{name:'Preview native metric metric-sum',exact:true}).click();const previewResponse=await reviewResponse;assert.equal(previewResponse.status(),200,await previewResponse.text());const review=await previewResponse.json();assert.equal(review.after.value.value,'26.03');assert.equal(review.after.value.nulls,1);assert.equal(review.document.definition.unit,'money');assert.equal(review.productionSends,0);assert.equal(review.sourceWrites,0)
  await proveScreen('tableau-native-preview',{widths:[1440,390]});await page.setViewportSize({width:1440,height:1000})
  const exact={reviewedRevision:current.revision,sourceMetric:'metric-sum',previousRevision:null}
  await call(base+'/tableau-apply',{...exact,reviewedDigest:'0'.repeat(64)},409)
  await page.getByLabel('I reviewed this exact native metric draft and value',{exact:true}).check();await page.getByRole('button',{name:'Save reviewed metric draft',exact:true}).click();await page.locator('#tableau-status').filter({hasText:'uncertified draft'}).waitFor()
  const native=await call('/metric-definitions/'+review.document.id);assert.equal(native.certifiedRevision,null);await call('/metrics/'+review.document.id+'/run',{},409)
+ const certified=await call('/metrics/'+review.document.id+'/approve',{revision:1,digest:native.digest,annotation:'Current owner independently reviewed this native metric.',confirm:'approve'},200);assert.equal(certified.state,'certified')
+ const certifiedRun=await call('/metrics/'+review.document.id+'/run',{});assert.equal(certifiedRun.answer.totals.value.value,'26.03')
+ await call(base+'/erase',{confirmImport:id,reviewedRevision:current.revision},409)
  const distinct=await call(base+'/tableau-review',{reviewedRevision:current.revision,sourceMetric:'metric-distinct',previousRevision:null},200);assert.equal(distinct.after.value.value,'3');assert.equal(distinct.after.value.nulls,1)
  const distinctApply={reviewedRevision:current.revision,sourceMetric:'metric-distinct',previousRevision:null,reviewedDigest:distinct.digest}
  const winners=await Promise.all([1,2].map(()=>context.request.post(origin+'/api/operator'+base+'/tableau-apply',{headers:{Origin:origin},data:distinctApply})));assert.deepEqual(winners.map(r=>r.status()).sort(),[201,409])
@@ -131,7 +143,7 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
   for(const action of ['tableau-review','tableau-apply','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{...exact,reviewedDigest:review.digest,confirmImport:id}})).status(),401)
  }finally{await member.close()}
  // Security and incomplete content can be inspected but can never yield executable drafts.
- for(const kind of ['security','missing-tds','dependency','unsupported-aggregation','incomplete-followers','filter','schema']){
+ for(const kind of ['security','missing-tds','dependency','unsupported-aggregation','incomplete-followers','filter','schema','binding-type']){
   const bad=structuredClone(input);bad.projectId='synthetic-bifocal-tableau-'+kind
   if(kind==='security')bad.tableau.files[0]={path:'sales.tdsx',content:Buffer.from(zipSync({'Data/Sales.tds':strToU8(tds.replace('</datasource>','<filter class="user"/></datasource>'))})).toString('base64')}
   if(kind==='missing-tds')bad.tableau.files[0].content=Buffer.from(zipSync({'Data/one.hyper':strToU8('synthetic-bifocal-1')})).toString('base64')
@@ -139,6 +151,7 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
   if(kind==='unsupported-aggregation'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.definition.json')))file.content=file.content.replace(/AGGREGATION_SUM|AGGREGATION_COUNT_DISTINCT/g,'AGGREGATION_MEDIAN')}
   if(kind==='incomplete-followers')bad.tableau.files.at(-1).content=JSON.stringify({subscriptions:[],next_page_token:'synthetic-bifocal-1'})
   if(kind==='filter'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.metric.json')))file.content=file.content.replace('OPERATOR_EQUAL','OPERATOR_NOT_EQUAL')}
+  if(kind==='binding-type')for(const binding of Object.values(bad.tableau.bindings))binding.columns.region='amount'
   if(kind==='schema'){for(const file of bad.tableau.files.filter(f=>f.path.endsWith('.metric.json')))file.content=file.content.replace('1.0.0','2.0.0')}
   const rejected=await prepare(bad);assert.equal(rejected.counts.rejected,0,kind);assert.equal(rejected.project.tableau.drafts.length,0,kind);assert.ok(rejected.project.tableau.diagnostics.some(d=>d.blocksPreview),kind);await apply(rejected);const inert=await call('/migration-projects/'+bad.projectId);await call('/migration-projects/'+bad.projectId+'/tableau-review',{reviewedRevision:inert.revision,sourceMetric:'metric-sum',previousRevision:null},409)
  }
@@ -149,8 +162,8 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
   if(kind==='credential-xml')bad.tableau.files[0].content=Buffer.from(zipSync({'Data/Sales.tds':strToU8(tds.replace('class="textscan"','class="textscan" password="synthetic-bifocal-1"'))})).toString('base64')
   if(kind==='credential-json'){const parsed=JSON.parse(bad.tableau.files[1].content);parsed.definition.metadata.description='password=synthetic-bifocal-1';bad.tableau.files[1].content=JSON.stringify(parsed)}
   if(kind==='credential-archive')bad.tableau.files[0].content=Buffer.from(zipSync({'Data/Sales.tds':strToU8(tds),'private.txt':strToU8('password=synthetic-bifocal-1')})).toString('base64')
-  const refusal=await prepare(bad,false,kind.startsWith('credential')?422:200)
-  if(kind.startsWith('credential')){assert.equal(refusal.error,'source_credential');assert.ok(!JSON.stringify(refusal).includes('synthetic-bifocal-1'));const historyResponse=await context.request.get(origin+'/api/operator/import/history',{headers});assert.equal(historyResponse.status(),200);const history=await historyResponse.json();assert.equal(history.history.length,0);await post('uploads',{uploadId:lastUpload},404)}else assert.equal(refusal.counts.rejected,1)
+  const refusal=await prepare(bad,false,422)
+  if(kind.startsWith('credential')){assert.equal(refusal.error,'source_credential');assert.ok(!JSON.stringify(refusal).includes('synthetic-bifocal-1'));const historyResponse=await context.request.get(origin+'/api/operator/import/history',{headers});assert.equal(historyResponse.status(),200);const history=await historyResponse.json();assert.equal(history.history.length,0);await post('uploads',{uploadId:lastUpload},404)}else{assert.equal(refusal.error,'tableau_source_refused');await post('uploads',{uploadId:lastUpload},404)}
  }
  headers['X-Import-Dataset']=id
  // Source changes refuse both new preview and a previously reviewed native save.
@@ -158,9 +171,10 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  await upload(dataset,csv.replace('$10.01','$11.01'),true);await call('/migration-projects/'+clean.projectId+'/tableau-review',driftInput,409);await call('/migration-projects/'+clean.projectId+'/tableau-apply',{...driftInput,reviewedDigest:driftReview.digest},409)
  const changed=await call('/datasets/'+dataset)
  const policy=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedDatasetRevision:changed.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}});assert.equal(policy.status(),200);const policyValue=await policy.json()
- await call(base+'/erase',{confirmImport:id,reviewedRevision:current.revision},423);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision},423)
+ await call('/migration-projects/'+clean.projectId+'/erase',{confirmImport:clean.projectId,reviewedRevision:drift.revision},423);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision},423)
  const release=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedDatasetRevision:changed.revision,previousRevision:policyValue.revision,legalHold:false,minimumRetainUntil:null,releaseHold:true}});assert.equal(release.status(),200)
  const erased=await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:changed.revision},200);assert.ok(erased.tableauProjects.length>=2)
+ await call('/queries/'+certifiedRun.queryId,undefined,404)
  await call(base,undefined,404);assert.equal((await call('/metric-definitions/'+review.document.id)).document,null);assert.equal((await call('/metric-definitions/'+distinct.document.id)).document,null);await call(base+'/versions/'+current.history[0].revision,undefined,404)
  headers['X-Import-Dataset']=id
  const original=await context.request.get(origin+'/api/operator/import/original/'+again.planId,{headers});assert.equal(original.status(),200);assert.ok((await original.json()).originals.every(o=>o.original.status==='unavailable'&&!o.original.base64))
@@ -168,5 +182,6 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  console.log('PROBE BIF-084 package and Pulse intake: /app/import TDSX and original responses -> two extracts, two followers, dependency links, versions, digests and inactive references enumerated')
  console.log('PROBE BIF-084 native drafts: current-owner preview over reviewed snapshot -> USD 26.03 with one null, distinct 3 with one null, exact July and West filters, uncertified drafts')
  console.log('PROBE BIF-084 safety and drift: import plan, preview and draft Apply -> unsafe archive and XML, credentials, incomplete evidence, unresolved security, unsupported semantics, source drift, stale review and machine authority refused')
+ console.log('PROBE BIF-084 concurrency and authority: exact native draft Apply twice -> one 201 and one 409; member, foreign and bearer requests refused without mutation')
  console.log('PROBE BIF-084 custody: reviewed Undo and retained original read, held and eligible source erase -> Undo reconciled; hold refused; originals, history and derived drafts withdrawn; replay refused')
 }

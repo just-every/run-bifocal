@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "dad0701ca88a917a2dc27388e6ce0185036aa194db8df3ad77d6853815a044f7",
+      "sha256": "9c69e71c93932e02fca0c13f180748537eb08f2775969ea5f12237d5b4cb450f",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -550,7 +550,7 @@
       "executable": false
     },
     "docs/TABLEAU-MIGRATION.md": {
-      "sha256": "b33888df40b5075e9ab977ee7a09fb5a49d43cae43d62f8e342257653a75d5e7",
+      "sha256": "916611392d639332bf8926cc1e9fbce13674c84e82d0660d5ca92984e8a3804b",
       "executable": false
     },
     "docs/US-CONVENTIONS.md": {
@@ -1154,7 +1154,7 @@
       "executable": false
     },
     "public/bifocal/tableau-import.js": {
-      "sha256": "f79029cbdf6cc12102d73aee9f26b0bbb0b028378e10444e0555a175a8b69b12",
+      "sha256": "3c48d9b9942173f470d98bcb0dc892b723b3561a6ce82b9db01e14404c23f4df",
       "executable": false
     },
     "public/brand/favicon-16.png": {
@@ -2982,7 +2982,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
-      "sha256": "3ac64ae1c985d54137636ae84f24095e5d68a37a240959108faca045946b9355",
+      "sha256": "f869dd45865662b9d3830972c77d85394acae98f558975c77ac08cd5bb718181",
       "executable": false
     },
     "src/bifocal/imports/migrations/source.ts": {
@@ -2994,7 +2994,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/compile.ts": {
-      "sha256": "a36c62d77e935c57b9ffb079638440acfe5c7ffc29c330d4a1c24ca123d04450",
+      "sha256": "7a22801f5146caa3ac1847a5536f06e23024b66d1ab9c2e8bfd55d1b63b0b5e6",
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/drafts.server.ts": {
@@ -6266,7 +6266,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "42c2f6d2c25a75e9523abeab067f8ac15ead830b647ed7373612373263b02b3f",
+      "sha256": "5ae20d532fb123fe41b2d7aca2a31f18dcec61f8c51ae2418171847e93970991",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
