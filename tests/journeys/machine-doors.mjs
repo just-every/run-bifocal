@@ -1,3 +1,4 @@
+import {proveLegacyAuthority,proveLegacyMachineIsolation} from './file-import.mjs'
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
 
@@ -36,6 +37,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const text=await response.text();assert.equal(response.status,status,text);assert.ok(!text.includes(key.token),'Responses never disclose credential material');return text?JSON.parse(text):null
  }
  const first=await api('/api/v1/query',input)
+ await proveLegacyAuthority(origin,context)
+ await proveLegacyMachineIsolation(origin,context,key.token)
  assert.deepEqual(first.query.fiscal,{column:'date',asOf:'2026-08-15',window:'quarter-to-date'})
  assert.ok(!JSON.stringify(first).includes('Prior quarter'))
  assert.equal(first.rows.length,25);assert.equal(first.totalRows,31);assert.equal(first.nextOffset,25)

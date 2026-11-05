@@ -63,7 +63,7 @@ export async function proveFileImports(origin, context, page, restartWorker) {
   const response = await post('undo', { planId: preview.planId }, id)
   assert.equal(response.status(), 200, await response.text()); assert.equal((await response.json()).state, 'cancelled')
  }
- const anonymous = await fetch(`${origin}/api/operator/import/uploads`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', 'X-Import-Dataset': dataset }, body: '{}' })
+ const anonymous = await fetch(`${origin}/api/operator/import/uploads`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application'+'/json', 'X-Import-Dataset': dataset }, body: '{}' })
  assert.equal(anonymous.status, 401)
  assert.equal((await fetch(`${origin}/api/operator/datasets/${dataset}`)).status, 401)
  assert.equal((await post('uploads', {}, dataset, { Origin: 'https://foreign.example.test' })).status(), 401)
@@ -295,6 +295,7 @@ export async function proveFileImports(origin, context, page, restartWorker) {
  assert.equal(resurrect.status(), 410)
  assert.equal((await context.request.get(`${origin}/api/operator/datasets/${hostileId}`)).status(), 404)
  console.log('File safety: anonymous/origin/fingerprint denial, inert hostile text and formulas at 1440/390, protected originals, consented erasure and replay fence passed')
+ await proveLegacyFiles(origin,context,{plan,apply,read,undo,cancel},page)
  // A stale signed-out session cannot finish work planned while it was active.
  await proveFileBrowser(origin, context, page, syntheticWorkbook())
  await proveExactQueries(origin, context, { plan, apply, read, undo }, page)
@@ -325,4 +326,163 @@ function syntheticWorkbook({ macro = false, external = false, dtd = false, noCac
  if (macro) files['xl/vbaProject.bin'] = 'synthetic-bifocal-5'
  if (traversal) files['../synthetic-bifocal-6.xml'] = '<refused/>'
  return Buffer.from(zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))))
+}
+
+/** Value-only BIFF8 through the same public door, including unsafe attempts. */
+export async function proveLegacyFiles(origin,context,files,page) {
+ const {legacyWorkbook,malformedLegacy}=await import('./xls-fixtures.mjs')
+ const {plan,apply,read,undo,cancel}=files, dataset='synthetic-bifocal-legacy'
+ const bytes=legacyWorkbook(), input={version:1,datasetId:dataset,filename:'synthetic-bifocal-legacy.xls',encoding:'utf-8',delimiter:',',nullValue:'NULL',mode:'replace',key:'id',formulaTreatment:'values-only-refuse-formulas',sheet:'January',data:bytes.toString('base64')}
+ const headers={Origin:origin,'X-Import-Dataset':dataset}
+ const post=(action,body,extra={})=>context.request.post(origin+'/api/operator/import/'+action,{headers:{...headers,...extra},data:body})
+ const expected=[['1','2026-01-15','1234.56',true,''],['2','2026-01-16','-25.50',false,null]]
+ const initial=await plan(input,false,dataset)
+ assert.equal(initial.counts.rejected,0,JSON.stringify(initial.rejected))
+ assert.deepEqual(initial.preview.columns.map(c=>c.type),['number','date','money','boolean','text'])
+ assert.deepEqual(initial.preview.sample,expected)
+ assert.deepEqual(initial.preview.source.sheets,['January','February']);assert.equal(initial.preview.source.sheet,'January')
+ assert.equal(initial.preview.source.encoding,'XLS BIFF8 Unicode');assert.equal(initial.preview.source.formulaTreatment,'values-only-refuse-formulas')
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404)
+ assert.equal((await post('apply',{planId:initial.planId,reviewedFingerprint:'0'.repeat(64)})).status(),403)
+ assert.equal((await post('apply',{planId:initial.planId,reviewedFingerprint:initial.fingerprint},{Origin:'https://foreign.example.test'})).status(),401)
+ await apply(initial,dataset)
+ assert.deepEqual((await read(dataset)).table.rows,expected)
+ assert.equal((await(await post('reconcile',{planId:initial.planId})).json()).ok,true)
+ const original=await context.request.get(origin+'/api/operator/import/original/'+initial.planId,{headers})
+ assert.equal(original.status(),200)
+ const retained=JSON.parse(Buffer.from((await original.json()).originals[0].original.base64,'base64'))
+ const exact=Buffer.from(retained.data,'base64')
+ assert.deepEqual(exact,bytes);assert.equal((await read(dataset)).table.source.sha256,createHash('sha256').update(exact).digest('hex'))
+ // Native exact query values are checked against independently enumerated cents.
+ const calendar='synthetic-bifocal-legacy-calendar'
+ const created=await context.request.post(origin+'/api/operator/calendars',{headers:{Origin:origin},data:{id:calendar,previousVersion:null,definition:{name:'Legacy calendar',kind:'fiscal',startMonth:1}}})
+ assert.equal(created.status(),201,await created.text())
+ const definition={version:1,dataset,joins:[],filters:[],groupBy:[],measures:[{id:'amount',op:'sum',column:'amount',unit:'money',scale:2,sourceCurrency:'USD'}],context:{modelVersion:'synthetic-bifocal-legacy',metricVersion:'synthetic-bifocal-legacy',accountingBasis:'accrual',calendar:{id:calendar,version:1},rounding:'half-even'}}
+ const query=async expected=>{
+  const response=await context.request.post(origin+'/api/operator/queries/run',{headers:{Origin:origin},data:definition})
+  assert.equal(response.status(),201,await response.text());const answer=await response.json();assert.equal(answer.answer.totals.amount.value,expected);return answer
+ }
+ const answer=await query('1209.06')
+ const append=await plan({...input,sheet:'February',mode:'append'},true,dataset)
+ await apply(append,dataset);assert.deepEqual((await read(dataset)).table.rows,[...expected,['3','2026-02-01','100.00',true,'February values']]);await query('1309.06')
+ const stale=await plan({...input,mode:'keyed-update',data:legacyWorkbook({update:true}).toString('base64')},true,dataset)
+ const winnerInput={...input,filename:'synthetic-bifocal-winner.xls',mode:'keyed-update',data:legacyWorkbook({update:true}).toString('base64')}
+ const competingBytes=Buffer.from(JSON.stringify(winnerInput)),competingDigest=createHash('sha256').update(competingBytes).digest('hex')
+ const competingUpload=await post('uploads',{name:'synthetic-bifocal-competing.json',bundleSha256:competingDigest,totalBytes:competingBytes.length,totalChunks:1,index:0,chunkSha256:competingDigest,base64:competingBytes.toString('base64')})
+ assert.equal(competingUpload.status(),200,await competingUpload.text())
+ const competing=await post('plan',{uploadId:(await competingUpload.json()).uploadId,catchup:true})
+ assert.equal(competing.status(),409);assert.equal((await competing.json()).error,'namespace_has_pending_import')
+ await cancel(stale,dataset)
+ const winner=await plan(winnerInput,true,dataset)
+ const oldFingerprint=await post('apply',{planId:winner.planId,reviewedFingerprint:stale.fingerprint})
+ assert.equal(oldFingerprint.status(),403);assert.equal((await oldFingerprint.json()).error,'review_fingerprint_mismatch')
+ await apply(winner,dataset);await query('74.50')
+ const before=await read(dataset)
+ const staleApply=await post('apply',{planId:stale.planId,reviewedFingerprint:stale.fingerprint})
+ assert.equal(staleApply.status(),404,await staleApply.text());assert.equal((await staleApply.json()).error,'plan_not_found');assert.deepEqual(await read(dataset),before)
+ await undo(winner,dataset);await query('1309.06');await undo(append,dataset);assert.deepEqual((await read(dataset)).table.rows,expected)
+ const beforeRefusal=await read(dataset)
+ for(const [payload,reason] of [
+  ...['cycle','mini-cycle','overlap','record-length','stream-size','directory-cycle','unparsed'].map(kind=>[malformedLegacy(kind),/XLS_CFB|XLS_RECORD|XLS_BIFF/]),
+  ...[[{formula:true},/XLS_FORMULA/],[{macro:true},/XLS_ACTIVE_CONTENT/],[{object:true},/XLS_ACTIVE_CONTENT/],[{embedded:true},/XLS_ACTIVE_CONTENT/],[{encryption:true},/XLS_ENCRYPTION/],[{external:true},/XLS_EXTERNAL/],[{unsafe:true},/XLS_NUMBER/],[{precision:true},/XLS_MONEY/],[{nonfinite:true},/XLS_NUMBER/],[{format:true},/XLS_FORMAT/],[{incomplete:true},/XLS_RECORD/],[{oversized:true},/XLS_TABLE_LIMIT/]].map(([options,reason])=>[legacyWorkbook(options),reason]),
+ ]) {
+  const refused=await plan({...input,data:payload.toString('base64')},true,dataset)
+  assert.equal(refused.counts.rejected,1,JSON.stringify(refused));assert.match(refused.rejected[0].reason,reason)
+  assert.equal((await post('apply',{planId:refused.planId,reviewedFingerprint:refused.fingerprint})).status(),422)
+  assert.deepEqual(await read(dataset),beforeRefusal);await cancel(refused,dataset)
+ }
+ // The mini stream, v4 sectors, packed numeric cells, continued strings and the
+ // 1904 date system are accepted through the planner, never a private parser.
+ for(const options of [{mini:true},{version:4},{packed:true},{continued:true},{date1904:true}]){
+  const supported=await plan({...input,data:legacyWorkbook(options).toString('base64')},true,dataset)
+  assert.equal(supported.counts.rejected,0,JSON.stringify(supported.rejected));assert.deepEqual(supported.preview.sample,options.date1904?[[...expected[0].slice(0,1),'1904-01-01',...expected[0].slice(2)],[...expected[1].slice(0,1),'1904-01-02',...expected[1].slice(2)]]:expected)
+  await cancel(supported,dataset)
+ }
+ const unicode=await plan({...input,data:legacyWorkbook({unicodeText:true}).toString('base64')},true,dataset)
+ assert.equal(unicode.counts.rejected,0,JSON.stringify(unicode.rejected));assert.equal(unicode.preview.sample[0][4],'Résumé 🧾');await cancel(unicode,dataset)
+ const nullMarker=await plan({...input,nullValue:''},true,dataset)
+ assert.equal(nullMarker.counts.rejected,0);assert.equal(nullMarker.preview.sample[0][4],null);assert.equal(nullMarker.preview.sample[1][4],null);await cancel(nullMarker,dataset)
+ const wrongTreatment=await plan({...input,formulaTreatment:'cached-values-preserve-formulas'},true,dataset)
+ assert.equal(wrongTreatment.counts.rejected,1);assert.match(wrongTreatment.rejected[0].reason,/FORMULA_TREATMENT/);await cancel(wrongTreatment,dataset)
+ const wrongSheet=await plan({...input,sheet:'Absent'},true,dataset)
+ assert.equal(wrongSheet.counts.rejected,1);assert.match(wrongSheet.rejected[0].reason,/XLS_SHEET/);await cancel(wrongSheet,dataset)
+ assert.equal((await fetch(origin+'/api/operator/datasets/'+dataset,{headers:{Authorization:'Bearer synthetic-bifocal-legacy'}})).status,401)
+ assert.equal((await fetch(origin+'/api/operator/import/apply',{method:'POST',headers:{...headers,'Content-Type':'application'+'/json',Authorization:'Bearer synthetic-bifocal-legacy'},body:JSON.stringify({planId:initial.planId,reviewedFingerprint:initial.fingerprint})})).status,401)
+ const foreign=await context.request.get(origin+'/api/operator/import/original/'+initial.planId,{headers:{'X-Import-Dataset':'synthetic-bifocal-foreign'}})
+ assert.equal(foreign.status(),404)
+ // Hold and minimum-retention refusal precede actual withdrawal of originals,
+ // retained query derivatives and old approvals in this populated namespace.
+ const protection=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:beforeRefusal.revision,previousRevision:null,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
+ assert.equal(protection.status(),200,await protection.text())
+ await proveRetentionHold(origin,context,dataset,beforeRefusal.revision)
+ const erased=await context.request.post(origin+'/api/operator/datasets/'+dataset+'/erase',{headers,data:{confirmDataset:dataset,reviewedRevision:beforeRefusal.revision}})
+ assert.equal(erased.status(),200,await erased.text());assert.equal((await erased.json()).phase,'complete')
+ assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404)
+ assert.equal((await context.request.get(origin+'/api/operator/queries/'+answer.queryId)).status(),404)
+ const withdrawn=await context.request.get(origin+'/api/operator/import/original/'+initial.planId,{headers})
+ assert.equal(withdrawn.status(),200);assert.ok((await withdrawn.json()).originals.every(item=>item.original.status==='unavailable'))
+ assert.equal((await post('apply',{planId:initial.planId,reviewedFingerprint:initial.fingerprint})).status(),410)
+ console.log('PROBE BIF-003 XLS values: shared upload, plan, Apply, reconcile and query -> typed two-sheet values, USD 1209.06 and 1309.06, exact original digest')
+ console.log('PROBE BIF-003 XLS updates: shared keyed update and Undo -> USD 74.50, stale review refused, prior values restored')
+ console.log('PROBE BIF-003 XLS refusal: malformed chains and records, unsupported content, precision and bounds -> rejected, last-good unchanged')
+ console.log('PROBE BIF-003 XLS custody: legal hold and minimum retention -> refused erasure; eligible erasure -> original and query withdrawn, replay refused')
+}
+
+/** Native local test identity setup; all file operations use the real Worker. */
+export async function proveLegacyAuthority(origin,context) {
+ const {createHmac}=await import('node:crypto'),{legacyWorkbook}=await import('./xls-fixtures.mjs')
+ const dataset='synthetic-bifocal-legacy-authority',input={version:1,datasetId:dataset,filename:'synthetic-bifocal-authority.xls',encoding:'utf-8',delimiter:',',nullValue:'NULL',mode:'replace',key:'id',formulaTreatment:'values-only-refuse-formulas',sheet:'January',data:legacyWorkbook().toString('base64')}
+ const headers={Origin:origin,'X-Import-Dataset':dataset},bytes=Buffer.from(JSON.stringify(input)),digest=createHash('sha256').update(bytes).digest('hex')
+ const post=(who,action,data)=>who.request.post(origin+'/api/operator/import/'+action,{headers,data})
+ const upload=await post(context,'uploads',{name:'synthetic-bifocal-authority.json',bundleSha256:digest,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:digest,base64:bytes.toString('base64')})
+ assert.equal(upload.status(),200,await upload.text())
+ const planned=await post(context,'plan',{uploadId:(await upload.json()).uploadId});assert.equal(planned.status(),200,await planned.text());const plan=await planned.json()
+ assert.equal(plan.counts.rejected,0,JSON.stringify(plan.rejected))
+ const data={planId:plan.planId,reviewedFingerprint:plan.fingerprint}
+ const applied=await post(context,'apply',data);assert.equal(applied.status(),200,await applied.text());assert.equal((await applied.json()).job.state,'completed')
+ const url=origin+'/api/operator/datasets/'+dataset,before=await(await context.request.get(url)).json()
+ const member=await context.browser().newContext(),freshOwner=await context.browser().newContext()
+ try {
+  const address=['synthetic-bifocal-xls-member','example.test'].join('@')
+  const invite=await context.request.post(origin+'/auth/invite',{headers:{Origin:origin,'X-Bifocal-Test-Mail':'synthetic-bifocal-mail'},data:{email:address,displayName:'Legacy member',role:'member'}})
+  assert.equal(invite.status(),202,await invite.text())
+  const messages=await(await context.request.get(origin+'/__model-mail')).json(),link=messages.at(-1).text.match(/https?:\/\/\S+/)?.[0]
+  assert.ok(link);assert.equal(new URL(link).origin,origin)
+  const memberPage=await member.newPage();await memberPage.goto(link)
+  await Promise.all([memberPage.waitForURL(origin+'/app'),memberPage.getByRole('button',{name:'Confirm',exact:true}).click()]);await memberPage.close()
+  const memberSession=await member.request.get(origin+'/auth/session');assert.equal(memberSession.status(),200,await memberSession.text());assert.equal((await memberSession.json()).operator.role,'member')
+  const reads=[url,origin+'/api/operator/import/original/'+plan.planId,origin+'/api/operator/import/history',origin+'/api/operator/import/review/'+plan.planId]
+  for(const path of reads)assert.equal((await member.request.get(path,{headers})).status(),401)
+  for(const action of ['uploads','plan','apply','reconcile','undo'])assert.equal((await post(member,action,data)).status(),401)
+  assert.equal((await member.request.post(url+'/erase',{headers,data:{confirmDataset:dataset,reviewedRevision:before.revision}})).status(),401)
+  assert.deepEqual(await(await context.request.get(url)).json(),before)
+  const cli={'Origin':origin,'x-rer-local-cli':createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('local-cli'+String.fromCharCode(0)+'sign-in').digest('hex')}
+  const native=await freshOwner.request.post(origin+'/auth/local/cli-session',{headers:cli,data:{returnTo:'/app'},maxRedirects:0})
+  assert.equal(native.status(),303,await native.text())
+  assert.equal((await freshOwner.request.get(url)).status(),200)
+  const stale=(await freshOwner.cookies()).map(c=>c.name+'='+c.value).join('; ')
+  assert.equal((await freshOwner.request.post(origin+'/auth/signout',{headers:{Origin:origin},form:{},maxRedirects:0})).status(),303)
+  for(const path of reads){
+   assert.equal((await fetch(path,{headers:{...headers,Cookie:stale}})).status,401)
+   assert.equal((await fetch(path,{headers:{...headers,Authorization:'Bearer synthetic-bifocal-legacy'}})).status,401)
+  }
+  for(const action of ['apply','reconcile','undo'])assert.equal((await fetch(origin+'/api/operator/import/'+action,{method:'POST',headers:{...headers,Cookie:stale,'Content-Type':'application'+'/json'},body:JSON.stringify(data)})).status,401)
+  assert.deepEqual(await(await context.request.get(url)).json(),before)
+  context.legacyFileAuthority={dataset,plan,revision:before.revision}
+ } finally {await member.close();await freshOwner.close()}
+ console.log('PROBE BIF-003 XLS authority: native member, machine bearer and revoked owner session -> reads, originals and mutations refused; owner last-good unchanged')
+}
+
+
+export async function proveLegacyMachineIsolation(origin,context,token) {
+ const {dataset,plan,revision}=context.legacyFileAuthority
+ const headers={Origin:origin,'X-Import-Dataset':dataset,'Content-Type':'application'+'/json',Authorization:'Bearer '+token}
+ const url=origin+'/api/operator/datasets/'+dataset,before=await(await context.request.get(url)).json()
+ for(const path of [url,origin+'/api/operator/import/original/'+plan.planId,origin+'/api/operator/import/history',origin+'/api/operator/import/review/'+plan.planId])assert.equal((await fetch(path,{headers})).status,401)
+ for(const action of ['uploads','plan','apply','reconcile','undo'])assert.equal((await fetch(origin+'/api/operator/import/'+action,{method:'POST',headers,body:JSON.stringify({planId:plan.planId,reviewedFingerprint:plan.fingerprint})})).status,401)
+ assert.equal((await fetch(url+'/erase',{method:'POST',headers,body:JSON.stringify({confirmDataset:dataset,reviewedRevision:revision})})).status,401)
+ assert.deepEqual(await(await context.request.get(url)).json(),before)
+ const erased=await context.request.post(url+'/erase',{headers:{Origin:origin},data:{confirmDataset:dataset,reviewedRevision:revision}})
+ assert.equal(erased.status(),200,await erased.text());assert.equal((await erased.json()).phase,'complete')
+ console.log('PROBE BIF-003 XLS valid machine: issued and working read credential -> file reads and mutations refused, populated XLS unchanged')
 }

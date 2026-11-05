@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "51e6786b071599eac5d56fd9d0bc8abbba6b5396b1733b7c561ae03a2c5b00a5",
+      "sha256": "e0b093516bb5641e3e5ebfab36ede324e67e00456eb68dac2b8f9dae7e34352b",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "00a789af296bb2dba20987feae0c32f4c944af984c81214b1f8608c5540382cc",
+      "sha256": "0e637016f4c64a48fb3301f4c949d979dff54462eabaca4592c87e55306e49c9",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -1054,7 +1054,7 @@
       "executable": false
     },
     "public/bifocal/file-upload.js": {
-      "sha256": "0e72b400c7b67770074350769163eb4932cdae7a99d26087e716577077798ba9",
+      "sha256": "4629b087d743b7fc5e2ec6760d1366b95c2710514c27f7ccb8a84e597d26a07e",
       "executable": false
     },
     "public/bifocal/file-view.js": {
@@ -2994,11 +2994,11 @@
       "executable": false
     },
     "src/bifocal/imports/files/xls/biff.ts": {
-      "sha256": "4521005269c470eaa998c31d29f4aae3f400175752b3b0e3c74be83efc3216ab",
+      "sha256": "fb76f8cc7ff12b9ea9010bc382a6b6ac82e65f52d7d5487c3527d04ddd9b2938",
       "executable": false
     },
     "src/bifocal/imports/files/xls/compound.ts": {
-      "sha256": "c363dfddc54951aa7aebfa29a81b255602900389713fab604e65149c43e7615f",
+      "sha256": "25bfecd84a167836ea8f9acde1221b9208848e1693533aafcc9e917ab478f5e7",
       "executable": false
     },
     "src/bifocal/imports/files/xls/index.ts": {
@@ -6310,11 +6310,11 @@
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
-      "sha256": "12c9c85c02a6d2e123414b47f98c80f077d3191f920b527b9ac704ed2a78f524",
+      "sha256": "afe6b5cef9c479627d46d9fc36d652c99f75c60a8cbe04e05367580f7a8e6459",
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "0d1515e03f914d23b4be794f91b7b0c7febf6e4c93dc202d675f3a7f6235b1be",
+      "sha256": "befff2ce7a31bb1dcef9286291bd0df35cdd99ce333164d53554fd276709f14c",
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
@@ -6330,7 +6330,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "37a60df57903bafa947eebc6ed852eb117b307ed0f92b597bd59012b9e2ae967",
+      "sha256": "9c567739f1e32d464a6432027c1f49b19fadef483ca145e3de0d24bc9b377ad7",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
@@ -6430,7 +6430,7 @@
       "executable": false
     },
     "tests/journeys/xls-fixtures.mjs": {
-      "sha256": "a158a544b8667aa2170edbca071fd2d43c10e0c813aa7bdabcd2c6a86d82acef",
+      "sha256": "167830c4af4523f8b1b76f8ac0a2025adb33e3fae624d7d55a241e6ebeac431d",
       "executable": false
     },
     "tests/runtime.mjs": {
