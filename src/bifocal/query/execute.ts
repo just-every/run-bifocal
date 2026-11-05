@@ -142,5 +142,18 @@ export function execute(query: Query, sources: Source[], context: Context, captu
  const groups = new Map<string,{dimensions:Cell[];rows:Row[]}>()
  for (const row of rows) { const dimensions = query.groupBy.map(ref => get(row,ref)), k = key(dimensions.map((v,i)=> { if (v !== null && ['number','money'].includes(col(query.groupBy[i]).type)) { const x=decimal(v); return {numeric:[x.numerator.toString(),x.denominator.toString()]} } return v })), group = groups.get(k); if (group) group.rows.push(row); else groups.set(k,{dimensions,rows:[row]}) }
  if (!query.groupBy.length && !groups.size) groups.set('[]',{dimensions:[],rows:[]})
- return { rows:[...groups.entries()].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([,g])=>({dimensions:g.dimensions,values:values(g.rows)})), totals:values(rows),inputRows,filteredRows:rows.length,joinDiagnostics,commonSnapshot:sources.length === 1 ? 'single-source' : 'unavailable',certification:'unavailable',definitionHash:sha256(canonicalJson(query)),semanticsVersion:'exact-v1',sourceWatermarks:[...sources].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map(s=>({dataset:s.id,revision:s.revision,updatedAt:s.table.updatedAt,sha256:sha256(s.value_json)})) }
+ const orderedRows=[...groups.entries()].sort(([a],[b])=>a<b?-1:a>b?1:0).map(([,g])=>({dimensions:g.dimensions,values:values(g.rows)}))
+ if(query.orderBy?.length)orderedRows.sort((a,b)=>{
+  for(const order of query.orderBy!){
+   const index=query.groupBy.indexOf(order.column),left=a.dimensions[index],right=b.dimensions[index]
+   if(left===right)continue
+   if(left===null||right===null)return (left===null?-1:1)*(order.nulls==='first'?1:-1)
+   let compared:number
+   if(['number','money'].includes(col(order.column).type)){const x=decimal(left),y=decimal(right),difference=x.numerator*y.denominator-y.numerator*x.denominator;compared=difference<0n?-1:difference>0n?1:0}
+   else compared=left<right?-1:left>right?1:0
+   if(compared)return compared*(order.direction==='asc'?1:-1)
+  }
+  return 0
+ })
+ return { rows:orderedRows, totals:values(rows),inputRows,filteredRows:rows.length,joinDiagnostics,commonSnapshot:sources.length === 1 ? 'single-source' : 'unavailable',certification:'unavailable',definitionHash:sha256(canonicalJson(query)),semanticsVersion:'exact-v1',sourceWatermarks:[...sources].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).map(s=>({dataset:s.id,revision:s.revision,updatedAt:s.table.updatedAt,sha256:sha256(s.value_json)})) }
 }

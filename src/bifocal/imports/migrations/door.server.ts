@@ -1,3 +1,4 @@
+import { reviewLooker } from './looker/review.server'
 import { sourceLinkStatements } from './looker-studio/custody'
 import { reviewReconstruction } from './looker-studio/review.server'
 import { digest, text, type MigrationProject } from './compile'
@@ -32,7 +33,7 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    if(request.method!=='POST')fail('method_not_allowed',405)
    const input=await jsonBody(request);exactKeys(input,resource[3]==='review'?['reviewedRevision']:['reviewedRevision','reviewedDigest'])
    if(input.reviewedRevision!==current!.revision)fail('migration_review_stale',409)
-   const {review}=await reviewReconstruction(env,owner,ownerId,current!)
+   const {review}=await (current!.value.source==='looker'?reviewLooker:reviewReconstruction)(env,owner,ownerId,current!)
    if(resource[3]==='preview'&&(!review.compatible||input.reviewedDigest!==review.digest))fail('exact_reconstruction_review_required',409)
    return json(review)
   }
@@ -46,6 +47,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    else {
     if(!entry.conflict)fail('migration_conflict_required',409)
     if(input.choice!=='keep-native'&&input.choice!=='use-source')fail('migration_resolution_required',400)
+    if(value.source==='looker'&&input.choice==='keep-native'&&entry.source.kind==='dashboard'){
+     const document=JSON.parse(entry.native).document
+     entry.native=JSON.stringify({...JSON.parse(entry.conflict.original),document})
+    }
     entry.source=entry.conflict;entry.conflict=null
     if(input.choice==='use-source'){entry.native=entry.source.original;entry.edited=false}
    }
