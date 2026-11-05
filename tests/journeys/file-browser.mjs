@@ -110,6 +110,7 @@ export async function proveLegacyBrowser(origin,context,page) {
   assert.match(await page.locator('#source').innerText(),/values-only-refuse-formulas/)
   assert.match(await page.locator('#source').innerText(),/January, February/)
   assert.match(await page.locator('#mapping').innerText(),/boolean/)
+  if(width===1440)assert.match(await page.locator('#source').innerText(),/Workbook calendar\s+1900 date system/)
   await shot('review');await apply()
   const expected=[['1','2026-01-15','1234.56',true,''],['2','2026-01-16','-25.50',false,null]]
   assert.deepEqual((await read(id)).rows,expected);await shot('applied')
@@ -123,6 +124,13 @@ export async function proveLegacyBrowser(origin,context,page) {
   for(let i=0;i<2;i++){await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.getByRole('status').filter({hasText:'Import undone'}).waitFor()}
   assert.deepEqual((await read(id)).rows,expected);await shot('undone')
   await page.getByLabel('Import mode',{exact:true}).selectOption('replace')
+  if(width===1440){
+   await file.setInputFiles({name:'synthetic-bifocal-1904.xls',mimeType:'application/vnd.ms-excel',buffer:legacyWorkbook({date1904:true})})
+   await preview()
+   assert.match(await page.locator('#source').innerText(),/Workbook calendar\s+1904 date system/)
+   assert.match(await page.locator('#sample').innerText(),/1904-01-01/)
+   await page.getByRole('button',{name:'Cancel import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import cancelled'}).waitFor()
+  }
   await file.setInputFiles({name:'synthetic-bifocal-refused.xls',mimeType:'application/vnd.ms-excel',buffer:legacyWorkbook({formula:true})})
   await page.getByRole('button',{name:'Preview import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import blocked'}).waitFor()
   assert.match(await page.locator('#sample').innerText(),/XLS_FORMULA/)

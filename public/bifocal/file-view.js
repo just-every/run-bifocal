@@ -20,6 +20,7 @@ export function metadata(entries) {
 export function sourceView(source, updatedAt, zone) {
  const entries = [['Filename', source.filename], ['SHA-256', source.sha256], ['Encoding', source.encoding], ['Delimiter', source.delimiter === '\t' ? 'Tab' : source.delimiter], ['Null marker', JSON.stringify(source.nullValue)], ['Formula treatment', source.formulaTreatment], ['Plan prepared', stamp(updatedAt, zone)]]
  if (source.sheet) entries.push(['Sheet', source.sheet], ['Available sheets', source.sheets.join(', ')])
+ if (source.dateSystem) entries.push(['Workbook calendar', source.dateSystem+' date system'])
  if (source.spreadsheet) entries.push(['Provider', source.spreadsheet.provider], ['Workbook', source.spreadsheet.workbook], ['Sheet', source.spreadsheet.sheet], ['Range', source.spreadsheet.range], ['Fetched', stamp(source.spreadsheet.fetchedAt, zone)])
  const container = element('div'); container.append(element('h3', 'Source lineage and interpretation'), metadata(entries))
  if(source.lineage){const line=source.lineage,link=element('a','Open source report or table');link.href=line.link;link.rel='noreferrer';container.append(metadata([['Source kind',line.kind],['Definition',line.description],['Window',line.from+' through '+line.to+' (end exclusive)'],['Reporting timezone',line.timezone],['Observed',stamp(line.observedAt,zone)],['Protocol',line.schema]]),link)}

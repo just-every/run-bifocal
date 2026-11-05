@@ -119,7 +119,9 @@ export function biff(bytes: Buffer, selected: unknown) {
    sheets.push({name,offset:u32(data)})
   } else if (rec.id === 0x42) {
    length(data,2)
-   if (codepageSeen || u16(data)!==1200) fail('XLS_ENCODING: BIFF8 requires one Unicode code page; conflicting or unsupported declarations are refused.')
+   if (codepageSeen) fail('XLS_ENCODING: Duplicate workbook code-page declarations are refused.')
+   // BIFF8 cell strings carry their own Unicode width. A Windows code-page
+   // declaration never changes how those supported character runs are decoded.
    codepageSeen=true
   } else if (rec.id === 0x22) {
    length(data,2)
@@ -182,5 +184,5 @@ export function biff(bytes: Buffer, selected: unknown) {
   if (sheet.name===selected) result={rows,types:Array.from({length:width},(_,i)=>types[i]?.size===1?[...types[i]][0]:types[i]?.size?'mixed':null)}
  }
  if (bytes.subarray(at).some(Boolean)) fail('XLS_BIFF: Unparsed workbook content follows the last worksheet.')
- return {...result!,sheet:selected as string,sheets:sheets.map(sheet=>sheet.name),formulas:[] as {cell:string;formula:string;cached:string}[]}
+ return {...result!,dateSystem:(date1904?'1904':'1900') as '1900'|'1904',sheet:selected as string,sheets:sheets.map(sheet=>sheet.name),formulas:[] as {cell:string;formula:string;cached:string}[]}
 }

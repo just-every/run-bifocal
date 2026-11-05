@@ -12,13 +12,13 @@ function entry(name,type,start,size,child=free,left=free,right=free){
  const b=Buffer.alloc(128);Buffer.from(name+'\0','utf16le').copy(b);b.writeUInt16LE((name.length+1)*2,64);b[66]=type;b[67]=1
  b.writeUInt32LE(left,68);b.writeUInt32LE(right,72);b.writeUInt32LE(child,76);b.writeUInt32LE(start>>>0,116);b.writeUInt32LE(size,120);return b
 }
-export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,embedded=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false,precision=false,nonfinite=false,unicodeText=false,duplicateDate=false,codepage=1200,literalText=false,packedCells=false,customFormats=false}={}){
+export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,embedded=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false,precision=false,nonfinite=false,unicodeText=false,duplicateDate=false,duplicateCodepage=false,codepage=1200,literalText=false,packedCells=false,customFormats=false}={}){
  mini ||= incomplete
  const strings=['id','date','amount','active','note',unicodeText?'Résumé 🧾':'','February values']
  const sst=Buffer.concat([u32(12),u32(strings.length),...strings.map(unicode)])
  let shared=literalText?Buffer.alloc(0):rec(0xfc,sst)
  if(continued){const cut=8+3+2;shared=Buffer.concat([rec(0xfc,sst.subarray(0,cut)),rec(0x3c,Buffer.concat([Buffer.from([1]),sst.subarray(cut)]))])}
- const globals=Buffer.concat([bof(5),rec(0x42,u16(codepage)),rec(0x22,u16(date1904?1:0)),...(duplicateDate?[rec(0x22,u16(date1904?0:1))]:[]),...(customFormats?[rec(0x41e,Buffer.concat([u16(164),unicode('yyyy-mm-dd')])),rec(0x41e,Buffer.concat([u16(165),unicode('$0.00')]))]:[]),... [0,customFormats?164:14,customFormats?165:format?10:7].map(id=>{const b=Buffer.alloc(20);b.writeUInt16LE(id,2);return rec(0xe0,b)}),shared,...(external?[rec(0x1ae,Buffer.alloc(4))]:[]),...(encryption?[rec(0x2f,Buffer.alloc(6))]:[])])
+ const globals=Buffer.concat([bof(5),rec(0x42,u16(codepage)),...(duplicateCodepage?[rec(0x42,u16(1252))]:[]),rec(0x22,u16(date1904?1:0)),...(duplicateDate?[rec(0x22,u16(date1904?0:1))]:[]),...(customFormats?[rec(0x41e,Buffer.concat([u16(164),unicode('yyyy-mm-dd')])),rec(0x41e,Buffer.concat([u16(165),unicode('$0.00')]))]:[]),... [0,customFormats?164:14,customFormats?165:format?10:7].map(id=>{const b=Buffer.alloc(20);b.writeUInt16LE(id,2);return rec(0xe0,b)}),shared,...(external?[rec(0x1ae,Buffer.alloc(4))]:[]),...(encryption?[rec(0x2f,Buffer.alloc(6))]:[])])
  const sheet=(second)=>{
   const d=Buffer.alloc(14);d.writeUInt32LE(0);d.writeUInt32LE(oversized?200001:second?2:3,4);d.writeUInt16LE(5,10)
   const records=[bof(0x10),rec(0x200,d),...strings.slice(0,5).map((name,col)=>literalText?cell(0x204,0,col,0,unicode(name)):cell(0xfd,0,col,0,u32(col)))]

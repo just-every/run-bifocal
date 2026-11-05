@@ -347,8 +347,9 @@ The same file picker and exact sheet-name field accept `.xls` compound files
 containing BIFF8 ordinary worksheets. Set `encoding` to `utf-8` (the envelope
 label), put canonical original bytes in `data` as base64, and explicitly set
 `formulaTreatment` to `values-only-refuse-formulas`. The review shows BIFF8
-Unicode interpretation, exact original digest, selected sheet and complete sheet
-inventory. Original downloads return the uploaded bytes unchanged.
+Unicode interpretation, exact original digest, selected sheet, complete sheet
+inventory and the workbook's 1900 or 1904 calendar. The selected calendar stays
+with the retained table through Apply and Undo. Original downloads return the uploaded bytes unchanged.
 
 The reader follows Microsoft's published [MS-CFB compound-file specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b05-4f8d-829b-d08d6148375b)
 and [MS-XLS binary workbook specification](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/cd03cb5f-ca02-4934-a391-bb674cb8aa06).
@@ -363,7 +364,9 @@ fifteen significant decimal digits. Declared date formats 14 through 17 and
 explicit date-only custom formats use the workbook's 1900 or 1904 calendar;
 fractional dates and the fictitious 1900 leap day are refused. Duplicate date-system
 declarations are refused rather than choosing a different calendar silently.
-A declared BIFF8 code page must be Unicode and cannot be repeated. Built-in USD
+Duplicate workbook code-page declarations are also refused. Supported BIFF8
+cell strings carry their own Unicode width, including when the workbook declares
+a Windows code page; the reader does not reinterpret those characters by locale. Built-in USD
 formats 5 through 8 and 44 and the supported explicit dollar formats retain
 exact two-decimal values without rounding. Other numeric formats require an
 explicitly normalized source copy. No formula or imported code executes.

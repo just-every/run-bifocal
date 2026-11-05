@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "99db40c3294f4c56fd11cf63f41a709a8353366067d9ce390009ef31a72ed4ac",
+      "sha256": "239ec7ed85aaef3fdc579beccf37f081d56dab41580cf1aabd59b816bd8f6fbf",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "f3adb2172326ce20b9f2431e0112ca3ffd443b77e1d0ed14a53a7d41e273404c",
+      "sha256": "32e9c46fdde26b48d20e0dad4fa3b46dc37b2b679dbcb518f78f73976ad5f19d",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -1058,7 +1058,7 @@
       "executable": false
     },
     "public/bifocal/file-view.js": {
-      "sha256": "7bca84c64fdb67d9edaeea77735ce83f57f987953c90439be60c078f16db875f",
+      "sha256": "173071b3425a4863eddfa652986527c4eabfb71da251ad05cac9fdd0ffbd8f08",
       "executable": false
     },
     "public/bifocal/files.js": {
@@ -2962,7 +2962,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
-      "sha256": "c4bca7ac5bd0a640dbcdab91ff77cd437c1b0eb0fe5cf2a968262b6da48e928d",
+      "sha256": "f6232c3f8fd748509fea036ad2b568c81ce9950ecf4f85156887381ae5bfc87e",
       "executable": false
     },
     "src/bifocal/imports/files/interpretation.ts": {
@@ -2994,7 +2994,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/xls/biff.ts": {
-      "sha256": "d52959081f71e2ab859235122db35d7679c9c39b75900983ed7f9f071af8ccbb",
+      "sha256": "e58088224bc777ec88d14e821336e2f86403d0ac77b3b8838e20fe162a87ff5f",
       "executable": false
     },
     "src/bifocal/imports/files/xls/compound.ts": {
@@ -6310,11 +6310,11 @@
       "executable": false
     },
     "tests/journeys/file-browser.mjs": {
-      "sha256": "afe6b5cef9c479627d46d9fc36d652c99f75c60a8cbe04e05367580f7a8e6459",
+      "sha256": "16ef98728f456e81848f1509006f23b59e41bda641f80fadadfe920c9c226ae4",
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "970ad0efb378648da76b9ba5355419b0846b9128544354f7a215503f43ce70cd",
+      "sha256": "26f237447007290fb464e809df114c00fccd1a81907d279333befa284df0f659",
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
@@ -6430,7 +6430,7 @@
       "executable": false
     },
     "tests/journeys/xls-fixtures.mjs": {
-      "sha256": "80a0d005f93c07cc9c1c11af3e2f106fff697a1ef2eae0dce1717b27f68d4989",
+      "sha256": "a6791b9c6c58ffd67952ab3e948614b5427e3f73bdc0f98c5be98f5f336f5549",
       "executable": false
     },
     "tests/runtime.mjs": {
