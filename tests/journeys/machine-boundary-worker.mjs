@@ -49,7 +49,7 @@ export default {
       if(review.status!==200)throw Error('Boundary rotation review refused: '+review.status)
       const {reviewedAt,reviewedDigest}=await review.json();mutation.body={reviewedAt,reviewedDigest}
      }
-     const response=await fetch(new Request(url.origin+mutation.path,{method:'POST',headers,body:JSON.stringify(mutation.body)}))
+     const response=await fetch(new Request(url.origin+mutation.path,{method:mutation.method??'POST',headers,body:JSON.stringify(mutation.body)}))
      if(response.status!==(mutation.rotate?201:200)){console.error('Boundary fixture mutation refused',response.status,await response.text());throw Error('Boundary fixture public mutation refused: '+response.status)}
      completed=await response.json()
     }

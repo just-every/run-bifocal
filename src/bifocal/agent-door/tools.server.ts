@@ -1,6 +1,6 @@
 import { ToolRefusal, type ToolDefinition, type ToolContext } from '../../modules/agent-door/index.ts'
 import type { Bindings } from '../../auth.server'
-import { credentialOperation } from '../api/server'
+import { credentialOperation } from '../api/native-operation.server'
 import { credentialBindings } from '../credentials/bindings.server'
 import { reviewedCredential, toolScope } from './grants.server'
 import { outputSchemas } from './schemas'
@@ -10,7 +10,7 @@ import { QueryError } from '../query/types'
 
 export async function native<T>(fn: () => Promise<T>): Promise<T> {
  try { return await fn() } catch (error) {
-  if (error instanceof QueryError) throw new ToolRefusal(error.code)
+  if (error instanceof QueryError) throw new ToolRefusal(error.code,error.message,{status:error.status})
   for(let cause:unknown=error;cause instanceof Error;cause=cause.cause) if(cause.message.includes('IMPORT_ATOMIC_GUARD')) throw new ToolRefusal('native_state_conflict')
   throw error
  }
