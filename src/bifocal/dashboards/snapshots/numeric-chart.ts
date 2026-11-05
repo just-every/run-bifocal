@@ -1,4 +1,4 @@
-import {strToU8} from 'fflate'
+import {strFromU8,strToU8,unzipSync,zipSync} from 'fflate'
 import {exportTable} from '../../explore/table-export'
 import {fail} from '../../query/types'
 import type {ChartInput,ChartView} from '../../charts/view'
@@ -31,7 +31,15 @@ export function numericChart(chart:ChartInput&{title:string},view:ChartView):Num
  return result
 }
 export function numericWorkbook(chart:NumericChart){
- return new Uint8Array(exportTable([{name:chart.dimension,type:'text'},{name:chart.legend,type:'number'}],chart.rows.map(row=>[row.label,row.value]),'xlsx').body as ArrayBuffer)
+ const files=unzipSync(new Uint8Array(exportTable([{name:chart.dimension,type:'text'},{name:chart.legend,type:'number'}],chart.rows.map(row=>[row.label,row.value]),'xlsx').body as ArrayBuffer))
+ const ns='http://schemas.openxmlformats.org/',style='xl/styles.xml'
+ // The editable worksheet uses the same units as the chart, including blanks
+ // that an author may later fill. Headers and category text remain unformatted.
+ files['xl/worksheets/sheet1.xml']=strToU8(strFromU8(files['xl/worksheets/sheet1.xml']).replace(/<c r="B(\d+)"/g,(cell,row)=>Number(row)>1?cell+' s="1"':cell))
+ files[style]=strToU8('<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="'+ns+'spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="'+xml(chart.formatCode)+'"/></numFmts><fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>')
+ files['[Content_Types].xml']=strToU8(strFromU8(files['[Content_Types].xml']).replace('</Types>','<Override PartName="/'+style+'" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'))
+ files['xl/_rels/workbook.xml.rels']=strToU8(strFromU8(files['xl/_rels/workbook.xml.rels']).replace('</Relationships>','<Relationship Id="styles" Type="'+ns+'officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'))
+ return zipSync(files)
 }
 /** Internal worksheet references are chart bindings, never workbook formulas. */
 export function numericChartXml(chart:NumericChart):Uint8Array{
