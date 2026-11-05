@@ -2250,7 +2250,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/resources.server.ts": {
-      "sha256": "9e7c9d06e34c535c882ed374e2ad7a789b2d0f9514aa8ea21971d47ddd5cb0de",
+      "sha256": "b664854b159b93f2ecbc24ef3a19d26491f4e2c3c8ef7e7643f908f4c32cd086",
       "executable": false
     },
     "src/bifocal/agent-door/schemas.ts": {
@@ -6354,7 +6354,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "5829c55bdefa2fe4514eaa4e942e2d62718048e264aecb56b4721becf55312f3",
+      "sha256": "fd2b3f9157d2149946e545c4800bfccda5f536fb60fe6ab5f3e889231bd9811f",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
