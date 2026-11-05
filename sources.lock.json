@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b1cee890898925ab51dd83bea9980f8e9b8ac83f3363a96855d22c318ddeb167",
+      "sha256": "f14607b83dd8af8f6a32ec76456febd71a7a116e8cf4b90d6dca20653f046290",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -2738,7 +2738,7 @@
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/numeric-chart.ts": {
-      "sha256": "a74d4b84d04c80192df4ac4add932f95a13f298f1a0880954b5e6ebd1d261dca",
+      "sha256": "9b541eb7d1f81682af1b4e9e0ec77bdbaf8983f146dc2264c6c7330785c63881",
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/pdf.ts": {
@@ -2746,7 +2746,7 @@
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/pptx.ts": {
-      "sha256": "ffd290afbe34e2f0b3da07600c997128c8e2b397b46f32a1145c593ec349a8a3",
+      "sha256": "c30f9e397a010f35f7ad4848b097a4abeb62adc577e438ab9c2062a691f04484",
       "executable": false
     },
     "src/bifocal/dashboards/snapshots/response.server.ts": {
@@ -6210,7 +6210,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "00271e5049c9736067b3390593d8cbb8c1d55120c4ffd408d4607304231b5b1c",
+      "sha256": "01e035e7a0a16eaf74e29d6dc603a08a9c4e22c0ca6725ace3084dc410858639",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {

@@ -40,7 +40,7 @@ export function encodePptx(snapshot:PrintableSnapshot){
    files['ppt/charts/_rels/chart'+number+'.xml.rels']=strToU8(relationships([{id:'workbook',type:'package',target:'../embeddings/chart'+number+'.xlsx'}]))
    types.push({part:'/ppt/charts/chart'+number+'.xml',type:'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'},{part:'/ppt/embeddings/chart'+number+'.xlsx',type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
    rels.push({id:reference,type:'chart',target:'../charts/chart'+number+'.xml'})
-   const description=chart.title+'; '+chart.legend+'; '+chart.rows.map(row=>row.label+': '+(row.value===null?'NULL':row.value)).join('; ')
+   const description=chart.title+'; '+chart.legend+'; '+chart.rows.map(row=>row.label+': '+(row.value===null?'NULL':(chart.unit==='money'?'USD ':'')+row.value+(chart.unit==='percent'?' %':''))).join('; ')
    graphic='<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="'+(page.shapes.length+2)+'" name="'+xml(chart.title)+'" descr="'+xml(description)+'"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="'+chart.x*unit+'" y="'+chart.y*unit+'"/><a:ext cx="'+chart.w*unit+'" cy="'+chart.h*unit+'"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="'+reference+'"/></a:graphicData></a:graphic></p:graphicFrame>'
   }
   part('ppt/slides/slide'+number+'.xml','slide','<p:sld xmlns:a="'+a+'" xmlns:r="'+r+'" xmlns:p="'+p+'"><p:cSld name="'+xml(page.title)+'"><p:spTree>'+group+shapes+graphic+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')

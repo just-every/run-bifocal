@@ -52,7 +52,7 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
   await proveScreen('native-retained-chart',{widths:[width],resize:false})
  }
  await proveNumericChartSnapshots({origin,context,page,call,upload,proveScreen,directory,document})
- await proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document})
+ await proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document,numericChartId:chart.id})
  const writeConfig=async(digest)=>writeFile(tf,JSON.stringify({terraform:{required_providers:{bifocal:{source:'just-every/run-bifocal',version:'0.1.0'}}},provider:{bifocal:{origin}},resource:{bifocal_chart_snapshot:{main:{document:JSON.stringify(document),...(digest?{review_digest:digest}:{})}}}}))
  const terraform=async(args,ok=true)=>tfRun([args[0],'-state=chart.tfstate',...args.slice(1)],ok)
  await writeConfig()
@@ -93,7 +93,7 @@ export async function proveChartTooling({origin,context,page,call,upload,proveSc
 
 
 /** Native bounded specifications use only the retained authorized answer table. */
-async function proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document}) {
+async function proveDeclarativeCharts({origin,context,page,call,upload,proveScreen,directory,document,numericChartId}) {
  const dataset='synthetic-bifocal-declarative-chart'
  await upload(dataset,'id,segment,amount,target\n1,North,$12.00,$10.00\n2,East,$8.00,$9.00\n3,West,$5.00,$5.00\n')
  const definition={...document.definition,dataset,measures:[document.definition.measures[0],{...document.definition.measures[0],id:'target',column:'target'}]}
@@ -142,7 +142,7 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
    assert.equal((await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0})).status(),303)
    assert.equal((await(await reader.request.get(origin+'/auth/session')).json()).operator.role,role)
    assert.equal((await reader.request.get(origin+'/api/operator/charts/'+artifacts[0].id)).status(),401)
-   for(const action of ['review','download'])for(const data of [{format:'pdf'},{format:'pptx',rendition:'numeric'}])assert.equal((await reader.request.post(origin+'/api/operator/charts/'+artifacts[0].id+'/snapshot/'+action,{headers:{Origin:origin},data})).status(),401,'A signed-in non-owner cannot review or download a chart snapshot')
+   for(const action of ['review','download'])for(const data of [{format:'pdf'},{format:'pptx',rendition:'numeric'}])assert.equal((await reader.request.post(origin+'/api/operator/charts/'+(data.rendition==='numeric'?numericChartId:artifacts[0].id)+'/snapshot/'+action,{headers:{Origin:origin},data})).status(),401,'A signed-in non-owner cannot review or download a chart snapshot')
    assert.equal((await reader.request.post(origin+'/api/operator/chart-definitions/review',{headers:{Origin:origin},data:{document:chartDocument(vl)}})).status(),401)
   }finally{await reader.close()}
  }
@@ -269,9 +269,17 @@ async function proveNumericChartSnapshots({origin,context,page,call,upload,prove
   assert.deepEqual(rows.map(row=>values(row,sn,'c').map(cell=>cell.getAttribute('t')==='inlineStr'?values(cell,sn,'t')[0].textContent:values(cell,sn,'v')[0]?.textContent??null)),[['segment','amount'],...expected])
   assert.equal(values(sheet,sn,'f').length,0)
   assert.deepEqual(values(sheet,sn,'c').filter(cell=>cell.getAttribute('t')==='n').map(cell=>cell.getAttribute('r')),['B3','B4','B5'])
+  const workbookRels=parse(workbook['xl/_rels/workbook.xml.rels']),stylesRel=values(workbookRels,rn,'Relationship').find(rel=>rel.getAttribute('Type').endsWith('/styles'))
+  assert.ok(stylesRel&&!stylesRel.getAttribute('TargetMode'),'Number formats are embedded, with no external dependency')
+  const styles=parse(workbook['xl/'+stylesRel.getAttribute('Target')]),formats=values(styles,sn,'numFmt'),cellStyles=values(values(styles,sn,'cellXfs')[0],sn,'xf')
+  for(const cell of values(sheet,sn,'c').filter(cell=>/^B[2-5]$/.test(cell.getAttribute('r')))){
+   const format=formats.find(format=>format.getAttribute('numFmtId')===cellStyles[Number(cell.getAttribute('s'))].getAttribute('numFmtId'))
+   assert.equal(format?.getAttribute('formatCode'),'"USD "0.00;-"USD "0.00;"USD "0.00','Editing the numeric workbook preserves exact USD units, negative signs, zero and missing cells')
+  }
+  assert.ok(values(sheet,sn,'c').filter(cell=>cell.getAttribute('r').startsWith('A')||cell.getAttribute('r')==='B1').every(cell=>!cell.hasAttribute('s')),'Category labels and the measure header retain text semantics')
   const slide=parse(parts['ppt/slides/slide1.xml']),graphic=values(slide,ns+'presentationml/2006/main','graphicFrame')[0]
   assert.ok(graphic,'The numeric chart is editable DrawingML, not an image')
-  assert.match(values(graphic,ns+'presentationml/2006/main','cNvPr')[0].getAttribute('descr'),/Missing: NULL; Negative: -4.00; Positive: 12.00; Zero: 0.00/)
+  assert.match(values(graphic,ns+'presentationml/2006/main','cNvPr')[0].getAttribute('descr'),/Missing: NULL; Negative: USD -4.00; Positive: USD 12.00; Zero: USD 0.00/)
   const slideRels=parse(parts['ppt/slides/_rels/slide1.xml.rels'])
   assert.ok(values(slideRels,rn,'Relationship').some(rel=>rel.getAttribute('Type').endsWith('/chart')&&rel.getAttribute('Target')==='../charts/chart1.xml'))
   const cookies=(await context.cookies()).map(cookie=>cookie.value)
@@ -333,6 +341,13 @@ async function proveNumericChartSnapshots({origin,context,page,call,upload,prove
  await upload(supportedId,'id,segment,amount\n'+Array.from({length:40},(_,i)=>i+',Category '+i+',$1.00').join('\n')+'\n')
  const forty=await create({...document,definition:{...document.definition,dataset:supportedId}}),fortyReview=await call('/charts/'+forty.id+'/snapshot/review',{format:'pptx',rendition:'numeric'})
  assert.equal(fortyReview.pages[0].numericChart.rows.length,40,'The complete supported category boundary is retained')
+ const fortyFile=await post('/charts/'+forty.id+'/snapshot/download',{format:'pptx',rendition:'numeric',exportedAt:fortyReview.exportedAt,reviewedDigest:fortyReview.digest})
+ assert.equal(fortyFile.status(),200)
+ const fortyParts=unzipSync(await fortyFile.body()),fortyNative=parse(fortyParts['ppt/charts/chart1.xml']),fortyBook=unzipSync(fortyParts['ppt/embeddings/chart1.xlsx'])
+ const fortyLabels=Array.from({length:40},(_,i)=>'Category '+i).sort()
+ assert.deepEqual(values(values(fortyNative,cn,'cat')[0],cn,'v').map(value=>value.textContent),fortyLabels,'The downloaded chart keeps every category without truncation')
+ assert.deepEqual(values(values(fortyNative,cn,'val')[0],cn,'v').map(value=>value.textContent),Array(40).fill('1.00'))
+ assert.deepEqual(values(parse(fortyBook['xl/worksheets/sheet1.xml']),sn,'row').slice(1).map(row=>[values(row,sn,'t')[0].textContent,values(row,sn,'v')[0].textContent]),fortyLabels.map(label=>[label,'1.00']),'Every category has its independently typed numeric worksheet cell')
  const stateId='synthetic-bifocal-numeric-states';await upload(stateId,'id,segment,amount,quality\n1,Unknown,$1.00,unknown\n2,Suppressed,$2.00,suppressed\n3,Incomplete,$3.00,incomplete\n')
  const states=await create({...document,definition:{...document.definition,dataset:stateId,measures:[{...document.definition.measures[0],stateColumn:'quality'}]}}),refusedStates=await post('/charts/'+states.id+'/snapshot/review',{format:'pptx',rendition:'numeric'})
  assert.equal(refusedStates.status(),422);assert.equal((await refusedStates.json()).error,'chart_numeric_value_state_not_supported')
