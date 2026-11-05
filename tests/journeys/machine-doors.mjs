@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { proveProtectionAuthority } from './erasure-receipts.mjs'
 import {createHmac} from 'node:crypto'
 
 /** A credential is a bounded read grant, never a human approval or raw source key. */
@@ -367,6 +368,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  try{
   const entered=await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(memberAddress),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0})
   assert.equal(entered.status(),303,await entered.text())
+  const retentionSource=await call('/datasets/'+dataset)
+  await proveProtectionAuthority(origin,context,member,dataset,retentionSource.revision,winner.token)
   const deniedReview=await member.request.post(origin+'/api/operator/credentials/'+winner.id+'/rotate/review',{headers:{Origin:origin},data:{}})
   assert.equal(deniedReview.status(),401)
   const deniedRotation=await member.request.post(origin+'/api/operator/credentials/'+winner.id+'/rotate',{headers:{Origin:origin},data:{reviewedAt:concurrentReview.reviewedAt,reviewedDigest:concurrentReview.reviewedDigest}})
