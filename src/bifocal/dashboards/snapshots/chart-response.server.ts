@@ -19,11 +19,15 @@ export async function chartSnapshotResponse(request:Request,original:Bindings):P
  if(!match)return null
  const env=runtimeBindings(original)
  try{
+  if(request.headers.has('Authorization'))fail('owner_required',401)
   const owner=await fileOwner(request,env);if(!owner)return json({error:'owner_required'},401)
   if(request.method!=='POST')fail('method_not_allowed',405)
   if(url.search)fail('query_parameters_not_supported',400)
-  const input=await jsonBody(request);exactKeys(input,['format','selection','exportedAt','reviewedDigest'])
+  const input=await jsonBody(request);exactKeys(input,['format','rendition','selection','exportedAt','reviewedDigest'])
   if(input.format!=='pdf'&&input.format!=='pptx')fail('chart_snapshot_format_required',400)
+  if(input.rendition!==undefined&&input.rendition!=='static'&&input.rendition!=='numeric')fail('chart_snapshot_rendition_not_supported',400)
+  const rendition=input.rendition??'static'
+  if(rendition==='numeric'&&input.format!=='pptx')fail('chart_numeric_requires_pptx',400)
   if(input.selection!==undefined){
    if(!input.selection||typeof input.selection!=='object'||Array.isArray(input.selection))fail('chart_selection_required',400)
    const selected=input.selection as Record<string,unknown>;exactKeys(selected,['field','value'])
@@ -33,7 +37,7 @@ export async function chartSnapshotResponse(request:Request,original:Bindings):P
   if(input.exportedAt!==undefined&&(typeof input.exportedAt!=='string'||!Number.isFinite(Date.parse(input.exportedAt))||new Date(input.exportedAt).toISOString()!==input.exportedAt||Date.parse(input.exportedAt)>now||now-Date.parse(input.exportedAt)>600000))fail('chart_snapshot_review_expired',409)
   if(match[2]==='download'&&typeof input.exportedAt!=='string')fail('exact_chart_snapshot_review_required',409)
   const ownerId=await ownerIdentity(env,owner),chart=await readChart(env,owner,ownerId,match[1]),exportedAt=typeof input.exportedAt==='string'?input.exportedAt:new Date(now).toISOString()
-  const snapshot=chartSnapshotScene(chart,input.selection as ChartSelection|undefined,exportedAt,new URL('/app/charts/'+chart.id,url).href),digest=sha256(canonicalJson({format:input.format,snapshot,ownerId})),bytes=input.format==='pdf'?encodePdf(snapshot):encodePptx(snapshot)
+  const snapshot=chartSnapshotScene(chart,input.selection as ChartSelection|undefined,exportedAt,new URL('/app/charts/'+chart.id,url).href,rendition),digest=sha256(canonicalJson({format:input.format,snapshot,ownerId})),bytes=input.format==='pdf'?encodePdf(snapshot):encodePptx(snapshot)
   if(bytes.length>16_000_000)fail('chart_snapshot_size_limit',413)
   if(match[2]==='download'&&input.reviewedDigest!==digest)fail('exact_chart_snapshot_review_required',409)
   const {guard}=await readQuery(env,owner,ownerId,chart.queryId)
