@@ -12,9 +12,9 @@ function entry(name,type,start,size,child=free,left=free,right=free){
  const b=Buffer.alloc(128);Buffer.from(name+'\0','utf16le').copy(b);b.writeUInt16LE((name.length+1)*2,64);b[66]=type;b[67]=1
  b.writeUInt32LE(left,68);b.writeUInt32LE(right,72);b.writeUInt32LE(child,76);b.writeUInt32LE(start>>>0,116);b.writeUInt32LE(size,120);return b
 }
-export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false}={}){
+export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,embedded=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false,precision=false,nonfinite=false,unicodeText=false}={}){
  mini ||= incomplete
- const strings=['id','date','amount','active','note','','February values']
+ const strings=['id','date','amount','active','note',unicodeText?'Résumé 🧾':'','February values']
  const sst=Buffer.concat([u32(strings.length),u32(strings.length),...strings.map(unicode)])
  let shared=rec(0xfc,sst)
  if(continued){const cut=8+3+2;shared=Buffer.concat([rec(0xfc,sst.subarray(0,cut)),rec(0x3c,Buffer.concat([Buffer.from([1]),sst.subarray(cut)]))])}
@@ -24,7 +24,7 @@ export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,e
   const records=[bof(0x10),rec(0x200,d),...strings.slice(0,5).map((_,col)=>cell(0xfd,0,col,0,u32(col)))]
   if(packed)records.push(rec(0xbd,Buffer.concat([u16(1),u16(0),u16(0),u32((1<<2)|2),u16(0)])))
   else records.push(cell(0x27e,1,0,0,u32(((second?3:1)<<2)|2)))
-  records.push(numeric(1,1,1,date1904?0:second?46054:46037),numeric(1,2,2,unsafe?9007199254740992:second?100:update?0:1234.56),cell(0x205,1,3,0,Buffer.from([1,0])),cell(0xfd,1,4,0,u32(second?6:5)))
+  records.push(numeric(1,1,1,date1904?0:second?46054:46037),numeric(1,2,2,unsafe?9007199254740992:precision?100.001:nonfinite?NaN:second?100:update?0:1234.56),cell(0x205,1,3,0,Buffer.from([1,0])),cell(0xfd,1,4,0,u32(second?6:5)))
   if(!second)records.push(numeric(2,0,0,2),numeric(2,1,1,date1904?1:46038),numeric(2,2,2,-25.5),cell(0x205,2,3,0,Buffer.from([0,0])),cell(0x201,2,4,0,Buffer.alloc(0)))
   if(second&&formula)records.push(cell(0x6,1,4,0,Buffer.alloc(16)))
   records.push(rec(0xa));return Buffer.concat(records)
@@ -43,8 +43,8 @@ export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,e
  const data=Buffer.alloc(blocks*sectorSize);payload.copy(data)
  const dir=Buffer.alloc(sectorSize)
  entry('Root Entry',5,mini?0:end,mini?units*64:0,1).copy(dir)
- entry('Workbook',2,0,workbook.length,free,free,object?2:free).copy(dir,128)
- if(object)entry('_VBA_PROJECT_CUR',2,end,0).copy(dir,256)
+ entry('Workbook',2,0,workbook.length,free,free,object||embedded?2:free).copy(dir,128)
+ if(object||embedded)entry(embedded?'ObjectPool':'_VBA_PROJECT_CUR',embedded?1:2,end,0).copy(dir,256)
  const fat=Buffer.alloc(sectorSize,255)
  for(let i=0;i<blocks;i++)fat.writeUInt32LE(i===blocks-1?end:i+1,i*4)
  if(mini)fat.writeUInt32LE(end,miniId*4)

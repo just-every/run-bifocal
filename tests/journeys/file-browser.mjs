@@ -81,5 +81,58 @@ export async function proveFileBrowser(origin, context, page, workbookBytes) {
   await page.getByRole('button',{name:'Erase reviewed dataset',exact:true}).click();await page.getByRole('status').filter({hasText:'Dataset erased'}).waitFor()
 
  }
+ await proveLegacyBrowser(origin,context,page)
  console.log('File browser: upload/detection/review/apply/reconciliation/append/Undo/errors/consented erasure at 1440/390 passed')
+}
+
+export async function proveLegacyBrowser(origin,context,page) {
+ const {legacyWorkbook}=await import('./xls-fixtures.mjs')
+ const bytes=legacyWorkbook(),updated=legacyWorkbook({update:true})
+ const read=async id=>(await(await context.request.get(origin+'/api/operator/datasets/'+id)).json()).table
+ for(const width of [1440,390]) {
+  const id='synthetic-bifocal-xls-browser-'+width
+  await page.setViewportSize({width,height:1000});await page.goto(origin+'/app/import')
+  await page.getByLabel('Dataset id',{exact:true}).fill(id)
+  await page.getByLabel('Key column (optional)',{exact:true}).fill('id')
+  await page.getByLabel('Null marker',{exact:true}).fill('NULL')
+  const file=page.getByLabel('CSV or XLSX file',{exact:true}),sheet=page.getByLabel('Sheet name (XLSX)',{exact:true})
+  await sheet.fill('January')
+  await file.setInputFiles({name:'synthetic-bifocal-legacy.xls',mimeType:'application/vnd.ms-excel',buffer:bytes})
+  const preview=async()=>{await page.getByRole('button',{name:'Preview import',exact:true}).click();await page.getByRole('status').filter({hasText:'Plan ready'}).waitFor()}
+  const apply=async()=>{await page.getByLabel('I reviewed this exact plan and its fingerprint',{exact:true}).check();await page.getByRole('button',{name:'Apply import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import completed and reconciled'}).waitFor()}
+  const shot=async state=>{
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'XLS '+state+' reflows at '+width)
+   assert.equal(await page.locator('main button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()&&!b.getAttribute('aria-label')).length),0)
+   if(process.env.BIFOCAL_PROOF_DIR)await page.screenshot({path:`${process.env.BIFOCAL_PROOF_DIR}/xls-${state}-${width}.png`,fullPage:true})
+  }
+  await preview()
+  assert.match(await page.locator('#source').innerText(),/XLS BIFF8 Unicode/)
+  assert.match(await page.locator('#source').innerText(),/values-only-refuse-formulas/)
+  assert.match(await page.locator('#source').innerText(),/January, February/)
+  assert.match(await page.locator('#mapping').innerText(),/boolean/)
+  await shot('review');await apply()
+  const expected=[['1','2026-01-15','1234.56',true,''],['2','2026-01-16','-25.50',false,null]]
+  assert.deepEqual((await read(id)).rows,expected);await shot('applied')
+  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download original',exact:true}).first().click();const download=await downloadPromise
+  assert.equal(download.suggestedFilename(),'synthetic-bifocal-legacy.xls');assert.deepEqual(await readFile(await download.path()),bytes)
+  await page.getByLabel('Import mode',{exact:true}).selectOption('append');await sheet.fill('February');await preview();await apply()
+  assert.deepEqual((await read(id)).rows[2],['3','2026-02-01','100.00',true,'February values'])
+  await page.getByLabel('Import mode',{exact:true}).selectOption('keyed-update');await sheet.fill('January')
+  await file.setInputFiles({name:'synthetic-bifocal-update.xls',mimeType:'application/vnd.ms-excel',buffer:updated});await preview();await apply()
+  assert.equal((await read(id)).rows[0][2],'0.00')
+  for(let i=0;i<2;i++){await page.getByRole('button',{name:'Undo import',exact:true}).first().click();await page.getByRole('status').filter({hasText:'Import undone'}).waitFor()}
+  assert.deepEqual((await read(id)).rows,expected);await shot('undone')
+  await page.getByLabel('Import mode',{exact:true}).selectOption('replace')
+  await file.setInputFiles({name:'synthetic-bifocal-refused.xls',mimeType:'application/vnd.ms-excel',buffer:legacyWorkbook({formula:true})})
+  await page.getByRole('button',{name:'Preview import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import blocked'}).waitFor()
+  assert.match(await page.locator('#sample').innerText(),/XLS_FORMULA/)
+  assert.equal(await page.getByRole('button',{name:'Apply import',exact:true}).isDisabled(),true)
+  assert.deepEqual((await read(id)).rows,expected);await shot('refused')
+  await page.getByRole('button',{name:'Cancel import',exact:true}).click();await page.getByRole('status').filter({hasText:'Import cancelled'}).waitFor()
+  await page.getByText('Erase this dataset and retained imports',{exact:true}).click()
+  await page.getByLabel('Type dataset id to confirm',{exact:true}).fill(id)
+  await page.getByRole('button',{name:'Erase reviewed dataset',exact:true}).click();await page.getByRole('status').filter({hasText:'Dataset erased'}).waitFor()
+  assert.equal((await context.request.get(origin+'/api/operator/datasets/'+id)).status(),404);await shot('erased')
+ }
+ console.log('PROBE BIF-003 XLS browser: upload, review, Apply, append, keyed update, Undo, download, refusal and erasure at 1440 and 390 -> exact typed rows and original bytes, last-good preserved')
 }

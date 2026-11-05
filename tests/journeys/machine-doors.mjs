@@ -1,3 +1,4 @@
+import {proveLegacyAuthority,proveLegacyMachineIsolation} from './file-import.mjs'
 import assert from 'node:assert/strict'
 import { proveProtectionAuthority } from './erasure-receipts.mjs'
 import {createHmac} from 'node:crypto'
@@ -202,6 +203,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  console.log('PROBE BASE-AGENT-007 approval: exact human review, opaque continuation, changed arguments, foreign credentials, rejection, expiry and revoked native authority -> current authorized values only; withheld reads reserve zero')
  console.log('PROBE BASE-AGENT-007 response guards: Pause, policy revision and agent revocation before response commit -> no values through all three transports, one consumed reservation per actual execution, human administration usable')
  const first=await api('/api/v1/query',input)
+ await proveLegacyAuthority(origin,context)
+ await proveLegacyMachineIsolation(origin,context,key.token)
  assert.deepEqual(first.query.fiscal,{column:'date',asOf:'2026-08-15',window:'quarter-to-date'})
  assert.ok(!JSON.stringify(first).includes('Prior quarter'))
  assert.equal(first.rows.length,25);assert.equal(first.totalRows,31);assert.equal(first.nextOffset,25)

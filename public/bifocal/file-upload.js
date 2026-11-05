@@ -22,7 +22,7 @@ export async function envelope(form) {
  const file = form.elements.file.files[0], datasetId = form.elements.dataset.value
  if (!file) throw Error('Choose a CSV, XLSX or value-only XLS file.')
  const limits=fileLimits(form),workbook=/\.xlsx?$/i.test(file.name),bound=workbook?limits.xlsxBytes:limits.csvBytes
- if(file.size>bound)throw Error(`The selected ${workbook?'XLSX':'CSV'} file exceeds ${bound} bytes.`)
+ if(file.size>bound)throw Error(`The selected ${workbook?'workbook':'CSV'} file exceeds ${bound} bytes.`)
  const bytes = new Uint8Array(await file.arrayBuffer())
  if (!/\.(csv|xlsx|xls)$/i.test(file.name)) throw Error('Choose CSV, XLSX or value-only XLS. Macro-enabled workbooks are refused.')
  let encoding = form.elements.encoding.value, separator = form.elements.delimiter.value, data
@@ -33,7 +33,7 @@ export async function envelope(form) {
   if(new TextEncoder().encode(data).length>limits.csvBytes)throw Error(`Decoded CSV text exceeds ${limits.csvBytes} UTF-8 bytes.`)
   separator = separator === 'auto' ? delimiter(data) : separator === 'tab' ? '\t' : separator
  }
- const result = { version: 1, datasetId, filename: file.name, encoding, delimiter: separator, nullValue: form.elements.null.value, mode: form.elements.mode.value, formulaTreatment:  /\.xls$/i.test(file.name) ? 'values-only-refuse-formulas' : workbook ? 'cached-values-preserve-formulas' : 'literal-text', data }
+ const result = { version: 1, datasetId, filename: file.name, encoding, delimiter: separator, nullValue: form.elements.null.value, mode: form.elements.mode.value, formulaTreatment: /\.xls$/i.test(file.name) ? 'values-only-refuse-formulas' : workbook ? 'cached-values-preserve-formulas' : 'literal-text', data }
  if (form.elements.sourceKind?.value) result.lineage = {kind:form.elements.sourceKind.value,link:form.elements.sourceLink.value,description:form.elements.sourceDescription.value,from:form.elements.sourceFrom.value,to:form.elements.sourceTo.value,timezone:form.elements.sourceTimezone.value,observedAt:new Date().toISOString(),schema:form.elements.sourceKind.value === 'vane-export' ? 'run-vane report CSV v1 @ 8549e6e129e1725d8e85d8d25ca3814831f204da' : form.elements.sourceKind.value === 'easel-export' ? 'run-easel dataset CSV @ 277548b08ec1a0ebf588db971b099df865405f84' : 'owner-supplied business table export'}
  if (form.elements.key.value) result.key = form.elements.key.value
  if (form.elements.columns.value.trim()) { try { result.columns = JSON.parse(form.elements.columns.value) } catch { throw Error('Column mapping must be a JSON object mapping every column.') } }
