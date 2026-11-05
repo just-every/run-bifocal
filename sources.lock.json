@@ -6330,7 +6330,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "7ad84cf269cd40fa04a48bc335b8116cd46e74f5d7efdf72428e9a2f69d0a08c",
+      "sha256": "5b26c301648ccc299e2d1e92a32aea74fae12b6948bda7de27dd1063212101d9",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {
