@@ -1,4 +1,5 @@
 import { nativeApiResponse } from './native.server'
+import { analyticalReadPageSize } from '../agent-door/limits'
 import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
@@ -41,7 +42,7 @@ export async function credentialOperation(env:Bindings,admission:Awaited<ReturnT
   await reserve()
   const answer=execute(query,sources,context)
   if(Number(offset)>answer.rows.length)fail('invalid_page_offset',400)
-  result={rows:answer.rows.slice(Number(offset),Number(offset)+25),totals:answer.totals,totalRows:answer.rows.length,offset,nextOffset:Number(offset)+25<answer.rows.length?Number(offset)+25:null,
+  result={rows:answer.rows.slice(Number(offset),Number(offset)+analyticalReadPageSize),totals:answer.totals,totalRows:answer.rows.length,offset,nextOffset:Number(offset)+analyticalReadPageSize<answer.rows.length?Number(offset)+analyticalReadPageSize:null,
    citations:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,scopeDigest:c.digest,definitionHash:answer.definitionHash,semanticsVersion:answer.semanticsVersion,sourceWatermarks:answer.sourceWatermarks,companyRevision:context.company.revision,calendar:query.context.calendar,credentialId:c.id},
    query:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,groupBy:candidate.groupBy,filters:candidate.filters,measures:scope.measures,fiscal:query.fiscal??null}}
  }
@@ -63,7 +64,7 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
   if(new URL(request.url).search)fail('unsupported_input',400)
   // Even protocol discovery requires a current credential; cookies never substitute.
   await machineAuthority(request,env)
-  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:25,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersions:['2026-07-28','2025-11-25']}})
+  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:analyticalReadPageSize,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersions:['2026-07-28','2025-11-25']}})
   if(path==='/api/v1/definitions'&&request.method==='GET')return json(await machineOperation(request,env,'definitions'))
   if(path==='/api/v1/query'&&request.method==='POST')return json(await machineOperation(request,env,'query',await jsonBody(request)))
   if(path==='/api/v1/graphql'&&request.method==='POST'){

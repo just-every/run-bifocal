@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "af76a85202264dcd4a22da1c88c57e5db75a94ac8610cc413e526ff923eb4a22",
+      "sha256": "99966058e7002f7244594abc9e3bbc92aea30bb13fe6561d3ba6ac58830429c7",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -2238,11 +2238,15 @@
       "executable": false
     },
     "src/bifocal/agent-door/guide.server.ts": {
-      "sha256": "089cd4b10c6d559e0d5321f5ec85473026e29d6a6a66a6e2d122ad3b56e94acf",
+      "sha256": "7a72f6ba4c2e9001d53a4aa54a7f9293cfffb2e5a82e36d86a0c834cd6a5c131",
       "executable": false
     },
     "src/bifocal/agent-door/index.server.ts": {
       "sha256": "bf255ed891596a943e6157843a3bcfdbfa4680d3d3df2f5c95ab5f5aec6990dc",
+      "executable": false
+    },
+    "src/bifocal/agent-door/limits.ts": {
+      "sha256": "2dd4bcc43941bf489adf20c95dcd30450dacef943ba855b41d1316c2f58d2d4f",
       "executable": false
     },
     "src/bifocal/agent-door/prompt.ts": {
@@ -2290,7 +2294,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "fe4a774e61414ec45ed448caebae84e0b4f9aec9ef6391434d0536250937cc55",
+      "sha256": "743e9c14f04d50ee6d42ae72e38d26dd31c362beba3cfd578302a80ff6295bbe",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -6138,7 +6142,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "6aed778d8d1bbb1b5a14e4c7d1e10dc3262544da9bce42fc814d59c87094b9d5",
+      "sha256": "1ae89a4ca0602e3b25cb58122e89ad8869188ae3d475d1af9f253123ff75a6bf",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6330,7 +6334,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "524e549405f50dc48a5aab658d4584768e168ce0bf32401971fc65f581dee8bf",
+      "sha256": "1ef0f49ed4f74675e047f42fa4a5023891f8353e21e1ea52125b8e5bf5e330ed",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
