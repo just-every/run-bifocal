@@ -142,7 +142,7 @@ async function proveDeclarativeCharts({origin,context,page,call,upload,proveScre
    assert.equal((await reader.request.post(origin+'/auth/confirm',{headers:mailHeaders,data:{token},maxRedirects:0})).status(),303)
    assert.equal((await(await reader.request.get(origin+'/auth/session')).json()).operator.role,role)
    assert.equal((await reader.request.get(origin+'/api/operator/charts/'+artifacts[0].id)).status(),401)
-   for(const action of ['review','download'])for(const data of [{format:'pdf'},{format:'pptx',rendition:'numeric'}])assert.equal((await reader.request.post(origin+'/api/operator/charts/'+(data.rendition==='numeric'?numericChartId:artifacts[0].id)+'/snapshot/'+action,{headers:{Origin:origin},data})).status(),401,'A signed-in non-owner cannot review or download a chart snapshot')
+   for(const action of ['review','download'])for(const data of [{format:'pdf'},{format:'pptx',rendition:'numeric'}])for(const id of data.rendition==='numeric'?[artifacts[0].id,numericChartId]:[artifacts[0].id])assert.equal((await reader.request.post(origin+'/api/operator/charts/'+id+'/snapshot/'+action,{headers:{Origin:origin},data})).status(),401,'A signed-in non-owner cannot review or download a chart snapshot')
    assert.equal((await reader.request.post(origin+'/api/operator/chart-definitions/review',{headers:{Origin:origin},data:{document:chartDocument(vl)}})).status(),401)
   }finally{await reader.close()}
  }
