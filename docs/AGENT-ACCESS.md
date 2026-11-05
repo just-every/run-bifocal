@@ -32,8 +32,11 @@ Both wire protocol versions use these same limits.
 
 An exhausted minute returns HTTP 429 with `rate_limited` and a positive
 `Retry-After` in seconds until the next minute. Wait before retrying; changing
-the alias or restarting the Worker cannot reset capacity. An oversized body
-returns HTTP 413 before admission or execution, including streamed bodies.
+the alias or restarting the Worker cannot reset capacity. Oversized bodies
+refuse before execution. The shared local Worker returns HTTP 413 for an initial
+declared-length overrun, but repeated or streamed oversized uploads can instead
+fail with a transport error. Clean error responses for those paths remain
+unqualified. Reduce an oversized request before retrying.
 Neither capacity refusal consumes the separate native data-read allowance;
 successful definitions and query reads do consume that allowance, while status
 calls do not. Discovery and initialization do not consume authenticated capacity.

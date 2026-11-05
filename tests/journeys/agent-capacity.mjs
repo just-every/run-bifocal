@@ -141,29 +141,42 @@ export async function proveAgentCapacity() {
   assert.equal(independent.body.result.structuredContent.totals.revenue.value,'9.98')
   assert.equal(await used(second),1);assert.equal(await used(first),0)
   console.log('PROBE BASE-AGENT-011 independent: separately reviewed second credential -> exact West USD 9.98 while the first remains limited.')
-  // Both an explicit length and a chunked body are valid query calls padded
-  // beyond the advertised bytes. Removing the size guard would execute them.
+  // Valid query calls padded beyond the advertised bytes. Removing the size
+  // guard would execute them and consume the remaining native read allowance.
   const normal=rpc('tools'+'/call',{name:'bifocal.analytics.query',arguments:query})
   const oversized=normal+' '.repeat(advertised.maxBodyBytes-Buffer.byteLength(normal)+1)
-  for(const path of ['/mcp','/api/v1/mcp']){
+  const oversizedRequest=(path,chunked=false)=>{
    // Read the early HTTP response even when the Worker cancels the remaining
    // upload. Fetch can reject the upload write instead of exposing that 413.
-   const refusal=await new Promise((resolve,reject)=>{
+   return new Promise((resolve,reject)=>{
     let responding=false
-    const upload=httpRequest(origin+path,{method:'POST',headers:{Origin:origin,Authorization:'Bearer '+second.token,'Content-Type':'application'+'/json','MCP-Protocol-Version':'2025-11-25',...(path==='/mcp'?{'Content-Length':Buffer.byteLength(oversized)}:{'Transfer-Encoding':'chunked'})}},response=>{
+    const upload=httpRequest(origin+path,{method:'POST',agent:false,headers:{Origin:origin,Authorization:'Bearer '+second.token,'Content-Type':'application'+'/json','MCP-Protocol-Version':'2025-11-25',...(chunked?{'Transfer-Encoding':'chunked'}:{'Content-Length':Buffer.byteLength(oversized)})}},response=>{
      responding=true
      let text=''
      response.setEncoding('utf8');response.on('data',chunk=>{text+=chunk})
      response.once('error',reject)
-     response.once('end',()=>{try{assert.equal(response.statusCode,413,'Oversized public request '+path+': '+text.slice(0,80));resolve({status:response.statusCode,body:JSON.parse(text)})}catch(error){reject(error)}})
+     response.once('end',()=>{let body;try{body=JSON.parse(text)}catch{body=text}resolve({status:response.statusCode,body})})
     })
     upload.once('error',error=>{if(!responding)reject(error)})
+    upload.setTimeout(30000,()=>upload.destroy(new Error('Oversized request timed out')))
     upload.end(oversized)
    })
-   assert.equal(refusal.status,413);noResult(refusal)
   }
+  const sizeStatuses=[]
+  for(const path of ['/mcp','/api/v1/mcp']){
+   const refusal=await oversizedRequest(path)
+   assert.ok(refusal.status>=400,'Oversized public request must refuse '+path);noResult(refusal)
+   sizeStatuses.push(refusal.status)
+  }
+  // The installed shared transport can report a connection error after
+  // cancelling an oversized upload. Do not claim clean error qualification;
+  // still require that this dangerous request returns no data and never runs.
+  const streamed=await oversizedRequest('/api/v1/mcp',true)
+  assert.ok(streamed.status>=400,'Streamed oversized query must refuse')
+  noResult(streamed)
   assert.equal(await used(second),1,'Oversized valid reads never execute or consume an allowance')
-  console.log('PROBE BASE-AGENT-011 body: oversized valid query, fixed length and streamed -> 413 without execution or native allowance consumption.')
+  console.log('PROBE BASE-AGENT-011 body: oversized valid query with declared length through both aliases -> HTTP '+sizeStatuses.join(' and ')+' without execution or native allowance consumption; clean repeated-upload responses remain unqualified.')
+  console.log('PROBE BASE-AGENT-011 streamed body: oversized valid query -> HTTP '+streamed.status+' without private data or a native read; clean streamed 413 remains unqualified.')
   await page.goto(origin+'/app/settings')
   await page.getByLabel('Your name').fill('Synthetic capacity owner updated')
   await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Save name',exact:true}).click()])

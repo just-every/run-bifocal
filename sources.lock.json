@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "28cd34f6e6e645538b551092301f37bfe661aa485c4d888cb73fe07d78acd150",
+      "sha256": "a2cde462ced3d25130ea882d528e60f66fdb6d029319dbedb6a7b84cc388b04b",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "f6fa32419605d55f9827399765173f119d9c3a92322592b924da5548a1a083bf",
+      "sha256": "671101155668dcc812b0fbd05f69e42b66e2a61b1fa8e1c3de8efd5b1e414452",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -6186,7 +6186,7 @@
       "executable": false
     },
     "tests/journeys/agent-capacity.mjs": {
-      "sha256": "56d70f3d8e7b9d01c11122138293429b2f24eac9fca111ea37fc9fe863fff785",
+      "sha256": "78bda7a5c59a85df0e2fdf9b1309dd9b5f5ca5fc30f2857d8944a1046613cd79",
       "executable": false
     },
     "tests/journeys/alert-boundaries.mjs": {
