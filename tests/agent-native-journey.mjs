@@ -3,7 +3,12 @@ import assert from 'node:assert/strict'
 /** The specialist's real job: exact reviewed West answer, never East data or
  * source instructions. Conformance owns credentials, policy and audit. */
 export default async function ({tool,request,origin,cookie}) {
- const definitions=(await tool('bifocal.analytics.definitions',{})).result.structuredContent
+ const definitionResult=(await tool('bifocal.analytics.definitions',{})).result
+ const definitions=definitionResult.structuredContent
+ const links=definitionResult.content.filter(item=>item.type==='resource_link')
+ assert.equal(links.length,1)
+ assert.equal(links[0].uri,`bifocal://models/${encodeURIComponent(definitions.modelId)}/revisions/${encodeURIComponent(definitions.revision)}/views/${encodeURIComponent(definitions.viewId)}/definition`)
+ assert.equal(definitionResult._meta['com.runeditrun/untrusted'],true)
  assert.deepEqual(definitions.dimensions,['region'])
  const args={modelId:definitions.modelId,revision:definitions.revision,viewId:definitions.viewId,groupBy:['region'],filters:[]}
  const answer=(await tool('bifocal.analytics.query',args)).result.structuredContent

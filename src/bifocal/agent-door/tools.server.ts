@@ -5,6 +5,7 @@ import { credentialBindings } from '../credentials/bindings.server'
 import { reviewedCredential, toolScope } from './grants.server'
 import { outputSchemas } from './schemas'
 import { admissionAuthority } from './admission.server'
+import { definitionLinks } from './resources.server'
 import { assertion, transact } from '../../modules/import-kit/src/door/store.ts'
 import { QueryError } from '../query/types'
 
@@ -31,9 +32,9 @@ export function readTools(env: Bindings): ToolDefinition[] {
     const {fences}=await credentialBindings(env,admission.credential)
     await transact(env.DB,admission.authority,fences.map(assertion))
     const c=admission.credential
-    return {result:{credentialId:c.id,modelId:c.scope.modelId,revision:c.scope.revision,scopeDigest:c.digest,active:true}}
+    return {result:{credentialId:c.id,modelId:c.scope.modelId,revision:c.scope.revision,scopeDigest:c.digest,active:true},resources:definitionLinks(c)}
    }
-   return {result:await credentialOperation(env,admission,name,args,{agentId:ctx.agent.id,agentName:ctx.agent.name,sponsorName:ctx.person.name})}
+   return {result:await credentialOperation(env,admission,name,args,{agentId:ctx.agent.id,agentName:ctx.agent.name,sponsorName:ctx.person.name}),resources:definitionLinks(admission.credential)}
   }) },
  }))
 }

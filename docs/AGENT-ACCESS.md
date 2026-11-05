@@ -5,8 +5,8 @@ of the same handler. Both negotiated eras, `2026-07-28` and `2025-11-25`, use
 one registry, signed company policy, native approval, Pause and audit pipeline.
 Discovery uses MCP `server/discover` and canonical metadata at
 `/.well-known/oauth-protected-resource/mcp`; policy and named-person approval activity
-are at `/agents`. The runtime and manifest declare only tools, policy, pause,
-audit and idempotency. Events, public resources, prompts and subscriptions are
+are at `/agents`. The runtime and manifest declare tools, one private definition resource, policy,
+pause, audit and idempotency. Events, prompts and subscriptions are
 explicitly unavailable. This subset does not qualify queued work, multiple
 sponsors, hosted lifecycle timing or the full analytical agent product.
 
@@ -60,3 +60,17 @@ agent reads. The shared door records policy decisions, refusals, named approvers
 and read review evidence. Complete estate-wide retained-client custody/erasure,
 restore qualification and the advanced BIF-063–069 agent jobs remain unproved;
 this adoption does not promote their contract status.
+
+The resource template is
+`bifocal://models/{modelId}/revisions/{revision}/views/{viewId}/definition`.
+It transports the existing selected `definitions` read and grants no additional
+scope or tool. Only credentials that explicitly allow definitions discover this
+template or receive its matching links from tools. Reads return the identical
+permitted projection as REST and GraphQL definitions, with an untrusted content
+marker. Missing and out-of-scope record identifiers are equally unavailable.
+Classification and pending or blocked policy decisions consume no native read;
+each admitted read consumes one operation from the same lifetime allowance,
+including an admitted response withdrawn before release. Current owner, source,
+credential activation, rotation, revocation and Pause are rechecked at the native
+response boundary. Raw source text, originals and file bytes are unavailable;
+this resource does not qualify file-byte budgets or additional roles.

@@ -17,6 +17,14 @@ type QueryPage { rows: JSON!, totals: JSON!, totalRows: Int!, offset: Int!, next
 type Query { definitions: JSON!, query(input: QueryInput!): QueryPage! }`
 const schema=buildSchema(schemaText)
 const tool={name:'query',description:'Read one explicitly permitted published semantic view. Fixed source and row restrictions always intersect request filters.',inputSchema:{type:'object',properties:{modelId:{type:'string'},revision:{type:'string'},viewId:{type:'string'},groupBy:{type:'array',items:{type:'string'}},filters:{type:'array',items:{type:'object'}},offset:{type:'integer',minimum:0}},required:['modelId','revision','viewId','groupBy','filters'],additionalProperties:false}}
+/** The exact permitted definition projection, also used for resource classification.
+ * Reading this projection neither reserves an operation nor records success. */
+export async function credentialDefinitions(env:Bindings,c:Awaited<ReturnType<typeof machineAuthority>>['credential']) {
+ if(!c.scope.tools.includes('definitions'))fail('tool_not_permitted',403)
+ const {model,view,rules}=await credentialBindings(env,c),scope=c.scope
+ intersectSources({...view.query,groupBy:scope.dimensions,filters:[...view.query.filters,...view.rowRules,...scope.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))},rules)
+ return {modelId:model.id,revision:scope.revision,viewId:scope.viewId,dimensions:scope.dimensions,measures:view.query.measures.filter(m=>scope.measures.includes(m.id)).map(m=>({id:m.id,unit:m.unit})),scopeDigest:c.digest,tools:scope.tools}
+}
 export async function credentialOperation(env:Bindings,admission:Awaited<ReturnType<typeof machineAuthority>>,name:string,input:Record<string,unknown>={},attribution?:{agentId:string;agentName:string;sponsorName:string}){
  const {credential:c,authority}=admission,scope=c.scope
  if(!scope.tools.includes(name))fail('tool_not_permitted',403)
@@ -25,9 +33,8 @@ export async function credentialOperation(env:Bindings,admission:Awaited<ReturnT
  let result:unknown
  if(name==='definitions'){
   exactKeys(input,[])
-  intersectSources({...view.query,groupBy:scope.dimensions,filters:[...view.query.filters,...view.rowRules,...scope.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))},rules)
+  result=await credentialDefinitions(env,c)
   await reserve()
-  result={modelId:model.id,revision:scope.revision,viewId:scope.viewId,dimensions:scope.dimensions,measures:view.query.measures.filter(m=>scope.measures.includes(m.id)).map(m=>({id:m.id,unit:m.unit})),scopeDigest:c.digest,tools:scope.tools}
  }else{
   exactKeys(input,['modelId','revision','viewId','groupBy','filters','offset'])
   if(input.modelId!==scope.modelId||input.revision!==scope.revision||input.viewId!==scope.viewId)fail('scope_not_permitted',403)
