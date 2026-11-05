@@ -189,6 +189,7 @@ async function hubspotResponse(request,state){
   return Response.json({results,paging:{next:{after:String(page+1)}}})
  }
  let results=hubspotDeals().slice(page?2:0,page?5:2)
+ if(page&&phase==='deal-warnings')results[0].warnings=[{category:'SYNTHETIC_WARNING',message:'synthetic-bifocal-private-diagnostic',context:{}}]
  if(page&&phase==='duplicate')results[0]=hubspotDeals()[0]
  if(page&&phase==='conflict')results[0]={...hubspotDeals()[0],properties:{...hubspotDeals()[0].properties,amount:'999.00'}}
  if(page&&phase==='archived')results[0].archived=true
@@ -201,5 +202,5 @@ async function hubspotResponse(request,state){
  if(page&&phase==='credential')results[0].properties.private_note='synthetic-bifocal-60'
  if(page&&phase==='incomplete')results=[]
  if(page&&phase==='changed'){results[0].properties.amount='50.05';results[0].properties.dealstage='closedwon';results[0].updatedAt='2026-06-20T12:00:00.000Z'}
- return Response.json({results,...(!page||phase==='loop'||phase==='incomplete'?{paging:{next:{after:phase==='bad-cursor'?'invalid\ncursor':'NTI1Cg%3D%3D',link:'https://foreign.example.test/must-never-follow'}}}:{}),...(page&&phase==='warnings'?{warnings:[{message:'synthetic-bifocal-private-diagnostic'}]}:{}),...(page&&phase==='errors'?{errors:[{message:'synthetic-bifocal-private-diagnostic'}]}:{})})
+ return Response.json({results,...(!page||phase==='loop'||phase==='incomplete'?{paging:{next:{after:phase==='bad-cursor'?'invalid\ncursor':'NTI1Cg%3D%3D',link:'https://foreign.example.test/must-never-follow'}}}:phase==='empty-paging'?{paging:{}}:{}),...(page&&phase==='warnings'?{warnings:[{message:'synthetic-bifocal-private-diagnostic'}]}:{}),...(page&&phase==='errors'?{errors:[{message:'synthetic-bifocal-private-diagnostic'}]}:{})})
 }

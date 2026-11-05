@@ -44,12 +44,15 @@ export async function readHubspot(input: Record<string, unknown>, accessToken: s
   requireValue(pages === 1 || result.results.length > 0, 'hubspot_incomplete_page', 502)
   for (const deal of result.results) {
    requireValue(object(deal) && typeof deal.id === 'string' && /^[1-9]\d{0,39}$/.test(deal.id) && !ids.has(deal.id) && deal.archived === false && object(deal.properties), 'hubspot_invalid_or_duplicate_deal', 502)
+   requireValue(deal.warnings === undefined || (Array.isArray(deal.warnings) && deal.warnings.length === 0), 'hubspot_deal_warnings_refused', 502)
    ids.add(deal.id)
    const p = deal.properties, observed = text(p.amount), currency = text(p.deal_currency_code)
    values.push([deal.id, text(p.dealname), text(p.pipeline), text(p.dealstage), dated(deal.createdAt, true), dated(deal.updatedAt, true), dated(p.createdate), dated(p.hs_lastmodifieddate), dated(p.closedate), observed, currency, amount(observed, currency)])
   }
   if (result.paging === undefined) { complete = true; break }
-  requireValue(object(result.paging) && Object.keys(result.paging).every(k => k === 'next') && object(result.paging.next), 'hubspot_incomplete_paging', 502)
+  requireValue(object(result.paging) && Object.keys(result.paging).every(k => k === 'next'), 'hubspot_incomplete_paging', 502)
+  if (result.paging.next === undefined) { complete = true; break }
+  requireValue(object(result.paging.next), 'hubspot_incomplete_paging', 502)
   const next = result.paging.next
   requireValue(Object.keys(next).every(k => ['after', 'link'].includes(k)) && typeof next.after === 'string' && /^[A-Za-z0-9._~+/%=-]{1,2048}$/.test(next.after) && !cursors.has(next.after) && result.results.length > 0, 'hubspot_cursor_invalid_or_repeated', 502)
   // The optional provider link is never fetched or retained. Only a bounded

@@ -360,6 +360,7 @@ async function proveHubspot({origin,state,database,signInAs},context,page,call,s
  assert.equal(state.calls.length,noRead,'foreign, anonymous, member and machine requests never contact HubSpot')
  await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByLabel('Dataset id',{exact:true}).fill(id);await page.getByText('Read HubSpot deal pipeline',{exact:true}).click()
  const form=page.locator('#hubspot-form'),fill=async()=>{await form.getByLabel('HubSpot account context (unverified)').fill(input.accountContext);await form.getByLabel('HubSpot deals read access token').fill(grant);await form.getByRole('checkbox').check()}
+ state.hubspotPhase='empty-paging'
  await fill();await shot('hubspot-setup',1440);await form.getByRole('button',{name:'Preview HubSpot deals'}).click();await page.locator('#review:not([hidden])').waitFor()
  assert.equal(await form.getByLabel('HubSpot deals read access token').inputValue(),'');assert.equal(await form.getByRole('checkbox').isChecked(),false)
  await call('datasets/'+id,undefined,404);await shot('hubspot-review',1440);await apply();await shot('hubspot-applied',1440)
@@ -380,7 +381,7 @@ async function proveHubspot({origin,state,database,signInAs},context,page,call,s
  assert.deepEqual(Object.fromEntries(answer.answer.rows.map(r=>[r.dimensions[0],[r.values['pipeline-value'].value,r.values.deals.value]])),{qualifiedtobuy:['123.45','2'],closedlost:['-23.40','2'],presentationscheduled:[null,'1']})
  await page.locator('#answer:not([hidden])').waitFor();await shot('hubspot-answer',1440)
  const plansBefore=await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first()
- for(const [phase,status]of [['401',403],['403',403],['429',503],['redirect',502],['warnings',502],['errors',502],['duplicate',502],['conflict',502],['loop',502],['bad-cursor',502],['archived',502],['precision',502],['number',502],['unsafe',502],['currency',502],['ambiguous',502],['date',502],['credential',502],['incomplete',502],['missing',502],['rows',413],['pages',413],['bytes',413],['deadline',502],['empty',422]]){
+ for(const [phase,status]of [['401',403],['403',403],['429',503],['redirect',502],['warnings',502],['deal-warnings',502],['errors',502],['duplicate',502],['conflict',502],['loop',502],['bad-cursor',502],['archived',502],['precision',502],['number',502],['unsafe',502],['currency',502],['ambiguous',502],['date',502],['credential',502],['incomplete',502],['missing',502],['rows',413],['pages',413],['bytes',413],['deadline',502],['empty',422]]){
   state.hubspotPhase=phase;const start=state.calls.length,refused=await read({catchup:true},status)
   assert.ok(!JSON.stringify(refused).includes('synthetic-bifocal-private-diagnostic'));assert.ok(state.calls.slice(start).every(c=>c.host==='api.hubapi.com'&&c.path==='/crm/v3/objects/0-3'&&c.method==='GET'))
   assert.deepEqual(await call('datasets/'+id),current,phase+' preserves last-good values');assert.deepEqual(await database.prepare('SELECT count(*) AS n FROM ik_door_plans').first(),plansBefore,phase+' stages no partial capture')
