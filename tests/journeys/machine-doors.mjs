@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { proveProtectionAuthority } from './erasure-receipts.mjs'
 import {createHmac} from 'node:crypto'
+import AxeBuilder from '@axe-core/playwright'
 
 /** A credential is a bounded read grant, never a human approval or raw source key. */
 export async function proveMachineDoors({origin,context,page,call,upload,proveScreen}) {
@@ -266,6 +267,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='machine'&&h.action==='denied'))
  assert.ok(!JSON.stringify(inspected).includes(key.token));assert.ok(!JSON.stringify(inspected).includes('Ignore rules'))
  assert.deepEqual((await call('/models/'+created.modelId)).approvals.map(a=>a.digest),[review.digest],'No machine call creates an approval')
+ await proveAgentActivity({origin,context,page,call,issue,api,proveScreen})
  await call('/credentials/'+key.id+'/revoke',{},200)
  await api('/api/v1/query',input,401)
  await api('/api/v1/graphql',{query:document,variables:{input}},401)
@@ -375,6 +377,9 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const deniedRotation=await member.request.post(origin+'/api/operator/credentials/'+winner.id+'/rotate',{headers:{Origin:origin},data:{reviewedAt:concurrentReview.reviewedAt,reviewedDigest:concurrentReview.reviewedDigest}})
   assert.equal(deniedRotation.status(),401)
   assert.equal((await member.request.get(origin+'/app/settings/credentials')).status(),403)
+  for(const path of ['/app/settings/agent-activity','/app/settings/agent-activity/export']){
+   const denied=await member.request.get(origin+path);assert.equal(denied.status(),403);assert.deepEqual(await denied.json(),{code:'owner_session_required',complete:false})
+  }
   assert.equal((await call('/credentials')).credentials.filter(c=>c.predecessor_id===concurrentKey.id).length,1)
  }finally{await member.close()}
  const staleKey=await issue(),staleRotationReview=await rotationReview(staleKey)
@@ -523,6 +528,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const deactivate=await context.request.post(origin+'/auth/operator/status',{headers:{Origin:origin},data:{operatorId:sponsor.id,status:'inactive'}})
   assert.equal(deactivate.status(),200,await deactivate.text())
   await api('/api/v1/query',input,401,suspended.token)
+  for(const path of ['/app/settings/agent-activity','/app/settings/agent-activity/export'])assert.equal((await context.request.get(origin+path)).status(),403)
   await call('/credentials/'+suspended.id+'/rotate/review',{},401)
   // The supported local CLI now selects the remaining active owner.
   await nativeSignIn()
@@ -582,4 +588,161 @@ export async function prepareMachineRestore({origin,cookie}) {
  const active=await fetch(origin+'/api/v1/definitions',{headers:{Authorization:'Bearer '+replacement.token}})
  assert.equal(active.status,200);await active.arrayBuffer()
  return {...credential,predecessorToken:credential.token,token:replacement.token,replacementId:replacement.id,portalModel:model}
+}
+
+/** Current-owner activity over actual admitted MCP calls and the public person
+ * audit API. Expectations come from call receipts and independent enumeration. */
+async function proveAgentActivity({origin,context,page,call,issue,api,proveScreen}) {
+ const root='/app/settings/agent-activity',filler=await issue({purpose:'Activity earlier agent',maxOperations:1000})
+ const invoke=async(credential,name='status',args={},meta={})=>{
+  const result=await api('/api/v1/mcp',{jsonrpc:'2.0',id:70,method:'tools'+'/call',params:{name:'bifocal.analytics.'+name,arguments:args,_meta:meta}},200,credential.token)
+  assert.ok(result.result._meta['com.runeditrun/decision']?.id,'Public call has a distinct audit receipt')
+  return result.result
+ }
+ for(let i=0;i<220;i++)assert.equal((await invoke(filler)).isError,false)
+ const label='<img src=x onerror="alert(1)"> & synthetic-bifocal-activity'
+ const agent=await issue({purpose:label,maxOperations:1000}),agentId='native:'+agent.id,ids=[]
+ const record=async(name='status',args={},meta={})=>{const result=await invoke(agent,name,args,meta);ids.push(result._meta['com.runeditrun/decision'].id);return result}
+ await record('definitions',{}, {traceparent:'synthetic-bifocal-trace'})
+ await record('definitions')
+ await record()
+ const policy=async disposition=>{
+  const response=await context.request.put(origin+'/agents/api/policy',{headers:{Origin:origin},data:{document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'activity-native-reads',class:'*',do:disposition}],reviewers:['sponsor'],spend:{none:true}}}})
+  assert.equal(response.status(),200,await response.text())
+ }
+ await policy('review')
+ const reviewed=await record(),reviewId=reviewed._meta['com.runeditrun/review'].id
+ const marked=await context.request.post(origin+'/agents/api/reviews/'+reviewId+'/reviewed',{headers:{Origin:origin},data:{}})
+ assert.equal(marked.status(),200,await marked.text())
+ await policy('blocked');assert.equal((await record()).isError,true)
+ await policy('autonomous')
+ const enumerate=async()=>{
+  const records=[];let cursor=null
+  for(let page=0;;page++){
+   assert.ok(page<50)
+   const response=await context.request.get(origin+'/agents/api/audit'+(cursor?'?after='+cursor:''))
+   assert.equal(response.status(),200)
+   const result=await response.json();records.push(...result.rows)
+   if(result.cursor===null||result.cursor===cursor)return records
+   cursor=result.cursor
+  }
+ }
+ const all=await enumerate(),expected=all.filter(row=>row.agent.id===agentId)
+ assert.deepEqual(expected.map(row=>row.id),ids,'Independently enumerated audit IDs equal actual MCP receipts')
+ assert.ok(all.length>200)
+ const firstPage=await(await context.request.get(origin+'/agents/api/audit?agent='+encodeURIComponent(agentId))).json()
+ assert.deepEqual(firstPage.rows,[]);assert.ok(firstPage.cursor,'A filtered empty page still has a cursor')
+ const times=all.map(row=>Date.parse(row.at)),from=new Date(Math.min(...times)-3*86400000).toISOString().slice(0,10),through=new Date(Math.max(...times)+3*86400000).toISOString().slice(0,10)
+ const filters={from,through,agent:agentId,'class':''},path=(suffix='',input=filters)=>root+suffix+'?'+new URLSearchParams(input)
+ const exported=await context.request.get(origin+path('/export'))
+ assert.equal(exported.status(),200);assert.match(exported.headers()['cache-control'],/no-store/);assert.match(exported.headers()['content-disposition'],/attachment/)
+ const data=await exported.json()
+ assert.equal(data.complete,true);assert.equal(data.count,ids.length);assert.deepEqual(data.records,expected)
+ assert.deepEqual(data.counts,{classes:{sensitive:2,standard:3},decisions:{autonomous:3,review:1,blocked:1}})
+ const one=expected[0]
+ assert.equal(one.agent.name,label);assert.equal(one.agent.specialist,'analytics');assert.equal(one.client_id,'native:'+agent.id)
+ assert.equal(one.trace,'synthetic-bifocal-trace');assert.ok(one.operation_id);assert.ok(one.scopes.length);assert.ok(one.sponsor.name);assert.equal(one.resource.id,agent.scope.modelId)
+ assert.ok(one.revision);assert.ok(one.rules.length);assert.equal(one.outcome,'done')
+ assert.ok(data.records.find(row=>row.review?.id===reviewId).review.by)
+ for(const field of ['consent','approval','idempotency_key','replay_of','ignored_arguments','code'])assert.ok(Object.hasOwn(one,field),'Export retains recorded '+field)
+ for(const forbidden of [agent.token,filler.token,'Ignore rules','Secret stage','900.00','Stage 01'])assert.ok(!JSON.stringify(data).includes(forbidden),'Audit excludes credential material and source rows')
+ const sensitive=await(await context.request.get(origin+path('/export',{...filters,'class':'sensitive'}))).json()
+ assert.deepEqual(sensitive.records.map(row=>row.id),ids.slice(0,2));assert.equal(sensitive.count,2)
+ assert.deepEqual(sensitive.counts,{classes:{sensitive:2},decisions:{autonomous:2}})
+ const removed=await context.request.post(origin+'/agents/api/agents/'+encodeURIComponent(agentId)+'/revoke',{headers:{Origin:origin},data:{}})
+ assert.equal(removed.status(),200)
+ assert.deepEqual((await(await context.request.get(origin+path('/export'))).json()).records,expected,'Agent removal retains names and all recorded fields')
+ const cookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+ for(const suffix of ['', '/export']){
+  const anonymous=await fetch(origin+path(suffix));assert.equal(anonymous.status,403);assert.deepEqual(await anonymous.json(),{code:'owner_session_required',complete:false})
+  const machine=await fetch(origin+path(suffix),{headers:{Authorization:'Bearer '+filler.token,cookie}});assert.equal(machine.status,403);assert.deepEqual(await machine.json(),{code:'owner_session_required',complete:false})
+ }
+ await page.setViewportSize({width:1440,height:1000})
+ await page.goto(origin+'/app/settings/credentials');await page.getByRole('link',{name:'Browse agent activity'}).click()
+ await page.getByLabel('From (UTC)').fill(from);await page.getByLabel('Through (UTC)').fill(through);await page.getByLabel('Agent ID',{exact:true}).fill(agentId)
+ await page.getByLabel('Class',{exact:true}).selectOption('sensitive')
+ await page.getByRole('button',{name:'Apply filters'}).focus();await page.keyboard.press('Enter')
+ await page.getByRole('status').filter({hasText:'2 matching actions'}).waitFor()
+ assert.deepEqual(await page.locator('[data-audit-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.auditId)),ids.slice(0,2))
+ await page.getByLabel('Class',{exact:true}).selectOption('')
+ await page.getByRole('button',{name:'Apply filters'}).focus();await page.keyboard.press('Enter')
+ await page.getByRole('status').filter({hasText:'5 matching actions'}).waitFor()
+ assert.deepEqual(await page.locator('[data-audit-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.auditId)),ids)
+ assert.equal(await page.locator('article img').count(),0,'Untrusted agent name is text, never markup')
+ assert.ok((await page.locator('main').innerText()).includes(label+' for '))
+ await page.locator('summary').filter({hasText:'Recorded fields'}).first().focus();await page.keyboard.press('Enter')
+ assert.deepEqual(JSON.parse(await page.locator('article pre').first().innerText()),expected[0])
+ const shownCounts=async heading=>Object.fromEntries(await page.locator('section').filter({has:page.getByRole('heading',{name:heading,exact:true})}).locator('li').evaluateAll(nodes=>nodes.map(node=>[node.querySelector('span').textContent,Number(node.querySelector('strong').textContent)])))
+ assert.deepEqual(await shownCounts('Counts by class'),{sensitive:2,standard:3})
+ assert.deepEqual(await shownCounts('Counts by decision'),{autonomous:3,blocked:1,review:1})
+ const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:'Export complete JSON',exact:true}).click()])
+ const downloadBytes=[]
+ for await(const chunk of await download.createReadStream())downloadBytes.push(chunk)
+ assert.deepEqual(JSON.parse(Buffer.concat(downloadBytes).toString('utf8')).records,expected,'Browser download contains every selected field')
+ await page.locator('summary[aria-label="Settings"]').focus()
+ await page.getByRole('tooltip',{name:'Open settings'}).waitFor({state:'visible'})
+ await proveScreen('agent-activity-filtered')
+ await page.setViewportSize({width:1440,height:1000})
+ const axe=await new AxeBuilder({page}).analyze()
+ assert.deepEqual(axe.violations.filter(v=>['serious','critical'].includes(v.impact)).map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[])
+ const pageIds=[]
+ const browseAll=path('',{from,through,agent:'','class':''})
+ await page.goto(origin+browseAll)
+ while(true){
+  pageIds.push(...await page.locator('[data-audit-id]').evaluateAll(nodes=>nodes.map(node=>node.dataset.auditId)))
+  const next=page.getByRole('link',{name:'Next actions',exact:true})
+  if(!await next.count())break
+  const nextUrl=new URL(await next.getAttribute('href'),origin).href
+  await next.focus();await Promise.all([page.waitForURL(nextUrl),page.keyboard.press('Enter')])
+ }
+ assert.deepEqual(pageIds,all.map(row=>row.id),'Browser paging covers every matching action once')
+ await page.goto(origin+path('',{...filters,from:'2000-01-01',through:'2000-01-07'}))
+ await page.getByRole('status').filter({hasText:'0 matching actions'}).waitFor();assert.equal(await page.locator('[data-audit-id]').count(),0)
+ await proveScreen('agent-activity-empty')
+ const empty=await(await context.request.get(origin+path('/export',{...filters,from:'2000-01-01',through:'2000-01-07'}))).json()
+ assert.equal(empty.complete,true);assert.equal(empty.count,0);assert.deepEqual(empty.records,[]);assert.deepEqual(empty.counts,{classes:{},decisions:{}})
+ await page.setViewportSize({width:1440,height:1000})
+ await page.getByLabel('From (UTC)').fill('2000-01-08');await page.getByRole('button',{name:'Apply filters'}).focus();await page.keyboard.press('Enter')
+ await page.getByRole('alert').waitFor();assert.equal(await page.getByLabel('From (UTC)').inputValue(),'2000-01-08')
+ await proveScreen('agent-activity-invalid')
+ const arm=async input=>{const r=await context.request.post(origin+'/__machine-boundary',{data:input});assert.equal(r.status(),200)}
+ await arm({auditFailure:true})
+ const failed=await page.goto(origin+path());assert.equal(failed.status(),503)
+ await page.getByRole('alert').waitFor();assert.equal(await page.locator('[data-audit-id]').count(),0)
+ await proveScreen('agent-activity-unavailable')
+ await page.setViewportSize({width:1440,height:1000})
+ await page.getByRole('button',{name:'Apply filters'}).focus();await page.keyboard.press('Enter')
+ await page.getByRole('status').filter({hasText:'5 matching actions'}).waitFor()
+ await proveScreen('agent-activity-recovered')
+ // Withdraw the real current session just before the last authority read.
+ for(const suffix of ['', '/export']){
+  const session=await(await context.request.get(origin+'/auth/session')).json()
+  const sessionCookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+  await arm({activity:true,path:'/auth/session/revoke',cookie:sessionCookie,body:{sessionId:session.id}})
+  const withdrawn=await context.request.get(origin+path(suffix));assert.equal(withdrawn.status(),403);assert.deepEqual(await withdrawn.json(),{code:'owner_session_required',complete:false})
+  const entered=await context.request.post(origin+'/auth/local/cli-session',{headers:{Origin:origin,'x-rer-local-cli':createHmac('sha256','synthetic-bifocal-2'.repeat(3)).update('local-cli'+String.fromCharCode(0)+'sign-in').digest('hex')},data:{returnTo:'/app'},maxRedirects:0})
+  assert.equal(entered.status(),303)
+ }
+ // Cross the published selected-record capacity with actual calls. Separate
+ // agents stay below each agent's minute capacity; no capacity guard is changed.
+ for(let group=0;group<3;group++){
+  const credential=await issue({purpose:'Activity capacity '+group,maxOperations:1000})
+  for(let i=0;i<340;i++)assert.equal((await invoke(credential)).isError,false)
+ }
+ const overflow=await context.request.get(origin+root+'/export?'+new URLSearchParams({from,through}))
+ assert.equal(overflow.status(),413);assert.equal(overflow.headers()['content-disposition'],undefined)
+ assert.deepEqual(await overflow.json(),{code:'activity_capacity',complete:false})
+ const overflowPage=await page.goto(origin+root+'?'+new URLSearchParams({from,through}))
+ assert.equal(overflowPage.status(),413);await page.getByRole('alert').waitFor()
+ assert.equal(await page.getByRole('link',{name:'Export complete JSON'}).count(),0);assert.equal(await page.locator('[data-audit-id]').count(),0)
+ await proveScreen('agent-activity-capacity')
+ await page.goto(origin+path());await page.getByRole('status').filter({hasText:'5 matching actions'}).waitFor()
+ await api('/api/v1/mcp',{jsonrpc:'2.0',id:71,method:'tools'+'/call',params:{name:'bifocal.analytics.status',arguments:{}}},401,agent.token)
+ const afterRevocation=(await(await context.request.get(origin+path('/export'))).json()).records
+ assert.deepEqual(afterRevocation.slice(0,ids.length),expected,'Refused replay cannot alter retained audit rows')
+ assert.equal(afterRevocation.length,ids.length+1);assert.equal(afterRevocation.at(-1).code,'unauthenticated');assert.equal(afterRevocation.at(-1).agent.name,label)
+ console.log('PROBE BASE-AGENT-009 browsing: real MCP history past 200 records and empty filtered pages -> exact receipt IDs, selected counts, all export fields and retained revoked-agent names')
+ console.log('PROBE BASE-AGENT-009 protection: anonymous, member, machine with owner cookie and session withdrawn at response boundary -> refusal without history')
+ console.log('PROBE BASE-AGENT-009 capacity: more than 1000 real actions -> 413, complete false, no truncated export or counts; narrowing recovers')
+ console.log('PROBE BASE-AGENT-009 screens: keyboard filtering, full paging, escaped text, empty, invalid, unavailable, recovered and capacity states -> inspected at 1440 and 390, no serious or critical axe findings at 1440')
 }

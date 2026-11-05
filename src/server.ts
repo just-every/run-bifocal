@@ -1,6 +1,7 @@
 import { crmSourceResponse } from './bifocal/sources/crm/server'
 import { commerceSourceResponse } from './bifocal/sources/commerce/server'
 import { smartsheetResponse } from './bifocal/sources/smartsheet/server'
+import { activityPage } from './bifocal/agent-door/activity.page.server'
 import { agentDoorResponse } from './bifocal/agent-door/index.server'
 import { businessSettings } from './auth.server'
 import { agentBindingResponse } from './bifocal/agent-door/grants.server'
@@ -85,6 +86,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const bindings = runtimeBindings(env)
+    const activity = await activityPage(request, bindings)
+    if (activity) return activity
     const agent = await agentDoorResponse(request, bindings)
     if (agent) return agent
     const business = await businessSettings(bindings).handle(request)
