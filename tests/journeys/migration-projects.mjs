@@ -358,6 +358,13 @@ export async function proveLookMLDashboards({origin,context,call,page,upload,pro
  await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:editedReview.digest},409)
  current=await call(base+'/resolve',{reviewedRevision:current.revision,itemId:entry.source.id,choice:'keep-native'},200)
  review=await call(base+'/review',{reviewedRevision:current.revision},200);assert.equal(review.compatible,true,JSON.stringify(review.issues));assert.equal(review.drafts[0].definition.title,JSON.parse(current.items.find(i=>i.source.id===entry.source.id).native).document.title)
+ // An inert legacy inventory cannot impersonate authenticated original files.
+ const forgedId=id+'-forged',forged={version:1,projectId:forgedId,source:'looker',cutoff:current.cutoff,rollbackPlan:input.rollbackPlan,items:current.items.map(i=>structuredClone(i.source))}
+ const fabricated=forged.items.find(i=>i.kind==='dashboard'),fabricatedDocument=JSON.parse(fabricated.original);fabricatedDocument.source.title='Fabricated source title';fabricated.original=JSON.stringify(fabricatedDocument);fabricated.sourceRevision='synthetic-bifocal-fabricated'
+ headers['X-Import-Dataset']=forgedId;const forgedPlan=await prepare(forged);await apply(forgedPlan)
+ const forgedCurrent=await call('/migration-projects/'+forgedId),forgedReview=await call('/migration-projects/'+forgedId+'/review',{reviewedRevision:forgedCurrent.revision},200)
+ assert.ok(forgedReview.issues.some(i=>i.code==='original_dashboard_mismatch'));assert.deepEqual(forgedReview.drafts[0].answers,[]);await call('/migration-projects/'+forgedId+'/preview',{reviewedRevision:forgedCurrent.revision,reviewedDigest:forgedReview.digest},409)
+ console.log('PROBE BIF-025 provenance: edited inventory claiming a different original dashboard -> original mismatch and preview 409; original file bytes remain authoritative')
  // A clean second import supports exact Undo; held erasure preserves originals.
  const undoInput={...structuredClone(input),projectId:id+'-undo'};headers['X-Import-Dataset']=undoInput.projectId;const undoPlan=await prepare(undoInput);await apply(undoPlan)
  await page.getByLabel('LookML migration ID',{exact:true}).fill(undoInput.projectId);await page.getByRole('button',{name:'Load LookML project',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Inactive LookML project loaded'}).waitFor()
@@ -378,7 +385,7 @@ export async function proveLookMLDashboards({origin,context,call,page,upload,pro
  const changedReview=await call('/migration-projects/'+staleId+'/review',{reviewedRevision:stale.revision},200);assert.ok(changedReview.issues.some(i=>i.code==='source_evidence_changed'));assert.deepEqual(changedReview.drafts[0].answers,[])
  const fresh=await call('/datasets/'+dataset),released=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{...policy,reviewedDatasetRevision:fresh.revision,previousRevision:hold.revision,legalHold:false,releaseHold:true}});assert.equal(released.status(),200)
  await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:fresh.revision},200)
- for(const projectId of [id,bad.projectId,staleId,fourId,limitedId,overlapId])await call('/migration-projects/'+projectId,undefined,404)
+ for(const projectId of [id,bad.projectId,staleId,fourId,limitedId,overlapId,forgedId])await call('/migration-projects/'+projectId,undefined,404)
  await call(base+'/versions/'+current.revision,undefined,404);assert.equal((await original(stalePlan.planId))[0].original.status,'unavailable');await post('apply',{planId:stalePlan.planId,reviewedFingerprint:stalePlan.fingerprint},410)
  assert.deepEqual(await call('/schedules'),beforeSchedules)
  console.log('PROBE BIF-025 authority and erasure: owner-only reads, member, machine and foreign refusals -> 401 unchanged; held erase -> 423; source drift -> 409; eligible erase -> originals unavailable, drafts and history 404, replay 410; schedules unchanged')

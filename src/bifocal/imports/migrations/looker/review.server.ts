@@ -9,16 +9,31 @@ import { dashboardDocument, type DashboardDocument } from '../../../dashboards/a
 import { digest, object } from '../compile'
 import { importGuard, type MigrationRow } from '../store.server'
 import { QueryError, type Query, type Answer, type Cell } from '../../../query/types'
-import { dashboardIssues, stableId, type LookerDashboard, type LookerIssue } from './reader'
+import { dashboardIssues, lookerItems, stableId, type LookerDashboard, type LookerIssue } from './reader'
 
 type Draft={item:string;sourceId:string;elements:{id:string;title:string;key:string;fields:unknown;filters:unknown;expression:unknown;dependencies:string[]}[];definition:DashboardDocument|null;answers:{key:string;answer:Answer}[]}
 export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'>,ownerId:string,current:MigrationRow){
  const actor:Authority={...owner,id:ownerId,role:'owner'},guards=[importGuard(current)],issues:(LookerIssue&{item:string})[]=[],drafts:Draft[]=[]
+ // Re-read the original files, rather than trusting a caller-supplied inventory
+ // or mutable native evidence to authenticate its source definitions.
+ try{
+  const manifestEntry=current.value.items.find(i=>i.source.id==='looker-originals'&&i.source.kind==='schema')
+  if(!manifestEntry)throw Error('originals')
+  const manifest=JSON.parse(manifestEntry.source.original)
+  const expected=lookerItems({version:1,projectId:current.id,source:'looker',cutoff:current.value.cutoff,rollbackPlan:current.value.rollbackPlan,files:manifest.files.map((f:{path:string;content:string})=>({path:f.path,content:f.content})),bindings:manifest.bindings})
+  if(digest(manifest.files)!==digest(JSON.parse(expected[0].original).files))throw Error('file digests')
+  for(const item of current.value.items){
+   const original=expected.find(e=>e.id===item.source.id)
+   if(!original||item.source.kind==='dashboard'&&original.original!==item.source.original)issues.push({item:item.source.id,location:item.source.id,code:'original_dashboard_mismatch',expression:'null',resolution:'Reimport the original dashboard files with their exact mappings; an inventory description cannot replace them.'})
+   if(item.conflict)issues.push({item:item.source.id,location:item.source.id,code:'source_conflict',expression:'null',resolution:'Resolve every retained source conflict before preview.'})
+   if(item.source.kind==='schema'&&item.native!==item.source.original)issues.push({item:item.source.id,location:item.source.id,code:'original_evidence_changed',expression:'null',resolution:'Use a reviewed original-file delta to change source evidence.'})
+  }
+  if(expected.some(e=>!current.value.items.some(i=>i.source.id===e.id)))throw Error('inventory')
+ }catch{issues.push({item:'looker-originals',location:'project',code:'verified_original_files_required',expression:'null',resolution:'Supply complete original dashboard files and explicit model mappings through the original LookML intake.'})}
  for(const entry of current.value.items.filter(i=>i.source.kind==='dashboard')){
   const local:LookerIssue[]=[],add=(location:string,code:string,expression:unknown,resolution='Resolve this dependency and review again.')=>local.push({location,code,expression:JSON.stringify(expression??null),resolution})
   const draft:Draft={item:entry.source.id,sourceId:'',elements:[],definition:null,answers:[]};drafts.push(draft)
   try{
-   if(entry.conflict)add(entry.source.id,'source_conflict',entry.conflict)
    const original=JSON.parse(entry.source.original) as LookerDashboard,doc=JSON.parse(entry.native) as LookerDashboard
    // Native edits may change the native title and layout, never erase source
    // obligations or silently replace model, field and security mappings.
@@ -82,6 +97,7 @@ export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'
   issues.push(...local.map(issue=>({...issue,item:entry.source.id})))
  }
  if(!drafts.length)issues.push({item:'project',location:'project',code:'dashboard_required',expression:'null',resolution:'Supply original dashboard definitions.'})
+ if(issues.length)for(const draft of drafts){draft.definition=null;draft.answers=[]}
  const review={revision:current.revision,label:'Original LookML dashboard review',drafts,issues,compatible:issues.length===0,state:'inactive',grants:'none',dispatch:'unavailable',sourceParity:'unproved',cutover:false}
  await transact(env.DB,owner,guards.map(assertion))
  return {review:{...review,digest:digest(review)},guards}
