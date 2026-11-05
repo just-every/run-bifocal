@@ -4,7 +4,7 @@ import { WORKBOOK_LIMITS, originalBase64Limit } from '../limits'
 
 export const fail = (message: string): never => { throw new WorkbookError(message) }
 const FREE = 0xffffffff, END = 0xfffffffe, FAT = 0xfffffffd
-/** MS-CFB v3/v4, bounded before allocation. All reachable chains have exclusive
+/** MS-CFB v3 and v4, bounded before allocation. All reachable chains have exclusive
  * ownership; unused allocated sectors and additional storage trees are refused.
  * Small Workbook streams use the root mini stream and its separately checked FAT. */
 export function compound(base64: string): { bytes: Buffer; workbook: Buffer } {
