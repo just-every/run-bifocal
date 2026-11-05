@@ -33,6 +33,17 @@ export default {
   const wrap=(statement,query,args=[])=>{
    const proxy=new Proxy(statement,{get(target,key){
     if(key==='bind')return(...values)=>wrap(target.bind(...values),query,values)
+    if(key==='all'&&query.startsWith('SELECT sequence,row,evidence FROM agent_door_audit'))return async(...values)=>{
+     if(pending?.auditFailure){pending=null;throw Error('Synthetic audit storage unavailable')}
+     return target.all(...values)
+    }
+    if(key==='first'&&pending?.activity&&url.pathname.startsWith('/app/settings/agent-activity')&&query.startsWith('SELECT 1 WHERE (EXISTS(SELECT 1 FROM oa_sessions'))return async(...values)=>{
+     const mutation=pending;pending=null
+     const response=await fetch(new Request(url.origin+mutation.path,{method:'POST',headers:{cookie:mutation.cookie,Origin:url.origin,'content-type':'application'+'/json'},body:JSON.stringify(mutation.body)}))
+     if(response.status!==204)throw Error('Activity boundary public session withdrawal refused: '+response.status)
+     await response.arrayBuffer()
+     return target.first(...values)
+    }
     const value=target[key];return typeof value==='function'?value.bind(target):value
    }})
    statements.set(proxy,{statement,query,args});return proxy
