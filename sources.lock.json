@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "be5f462a187a1be44a573a5116fae0c8feb64bb637de920138da7decb91b15b6",
+      "sha256": "e6529792af9442f956482f35de3cfbc40fe45f9398ae8cde80c49499c9387093",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -502,7 +502,7 @@
       "executable": false
     },
     "docs/MACHINE-API.md": {
-      "sha256": "033df626bc1e36fa46703bcfae13f3047fcc52db5bab752921cd719890407e5d",
+      "sha256": "00498d4695b1983d4ad0844500d1c15919868a40dd7d10aa67f3c9c4ff82106b",
       "executable": false
     },
     "docs/MIGRATION-PROJECTS.md": {
@@ -6342,7 +6342,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "1ad7f95d3560a8a07444eb8869603698eca5c2ee0a6b04e256cc1b010b19ad52",
+      "sha256": "fd161a4c237f050356d55c3691d0bb29043e20fc48a085ad45da4c6976eaa146",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

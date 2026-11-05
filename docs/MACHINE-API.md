@@ -139,6 +139,13 @@ one read when approved; its continuation performs one fresh authorized read
 before releasing values. Each actual execution consumes exactly one lifetime
 operation. Transport adaptation never executes a second native read.
 
+An approved continuation also checks current policy, Pause, agent revocation
+and native credential authority in its response transaction. Withdrawal at that
+boundary releases neither the earlier approved values nor newly computed values.
+Its one reserved read remains consumed. Concurrent continuations compete for
+the same original allowance; an approval or its replay cannot replenish it.
+Changing arguments or credentials remains invalid after human approval too.
+
 The request limit is 65536 bytes; GraphQL source is limited to 8192 characters.
 Errors contain a stable code without stack, bearer, source-cell contents or
 hidden-object metadata. Invalid authority returns 401, disallowed tools or fields

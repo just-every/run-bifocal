@@ -291,6 +291,50 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(state.history.some(h=>h.credential_id===credential.id&&h.action==='read-reserved'))
   assert.ok(!state.history.some(h=>h.credential_id===credential.id&&['query','definitions'].includes(h.action)),'Withdrawn response never commits successful use')
  }
+ // A completed human approval is never a retained-data read grant. Repeat the
+ // final-transaction withdrawal with its opaque state, through every wire.
+ for(const guard of ['pause','policy','agent','credential'])for(const name of operations)for(const transport of transports){
+  await setPolicy('approval')
+  const credential=await issue({purpose:'Approved response guard '+guard}),held=await policyRead(transport,name,input,credential)
+  assert.equal(held.pending,true);withheld(held);assert.equal(await usage(credential),0)
+  const detail=(await ownerRequest('/agents/api/approvals/'+held.approval.id)).approval
+  const approved=await ownerRequest('/agents/api/approvals/'+detail.id+'/approve',{revision:detail.revision,summary_sha256:detail.summary_sha256})
+  assert.equal(approved.approval.state,'executed');assert.equal(await usage(credential),1)
+  for(const [changedName,changedInput,changedCredential] of [[name==='definitions'?'query':name,{...input,offset:25},credential],[name,input,foreignContinuation]]){
+   const changed=await policyRead(transport,changedName,changedInput,changedCredential,held.requestState)
+   assert.equal(changed.code,'invalid_arguments');withheld(changed)
+  }
+  assert.equal(await usage(credential),1,'Completed approval cannot authorize changed inputs or a foreign credential')
+  const mutation=guard==='pause'?{path:'/agents/api/pause',body:{paused:true}}:guard==='policy'?{path:'/agents/api/policy',method:'PUT',body:{document:policyDocument('approval')}}:guard==='agent'?{path:'/agents/api/agents/'+encodeURIComponent('native:'+credential.id)+'/revoke',body:{}}:{path:'/api/operator/credentials/'+credential.id+'/revoke',body:{}}
+  const armed=await fetch(origin+'/__machine-boundary',{method:'POST',headers:{'Content-Type':'application'+'/json'},body:JSON.stringify({...mutation,cookie:boundaryCookie})})
+  assert.equal(armed.status,200);await armed.arrayBuffer()
+  const refused=await policyRead(transport,name,input,credential,held.requestState)
+  assert.equal(refused.code,'native_state_conflict');withheld(refused)
+  assert.equal(await usage(credential),2,'Approved continuation reserves once even when its response is withdrawn')
+  const state=await call('/credentials')
+  assert.equal(state.history.filter(row=>row.credential_id===credential.id&&row.action===name).length,1,'Only the earlier authorized approval execution completed')
+  assert.equal((await ownerRequest('/agents/api/state')).policy.complete,true,'Human administration stays usable after continuation withdrawal')
+  if(guard==='pause')await ownerRequest('/agents/api/pause',{paused:false})
+ }
+ // All continuations compete for the original lifetime allowance. Human approval
+ // consumes one read; only one concurrent retry can consume the remaining read.
+ for(const name of operations){
+  await setPolicy('approval')
+  const credential=await issue({purpose:'Approved shared lifetime allowance',maxOperations:2}),held=await policyRead('rest',name,input,credential)
+  const detail=(await ownerRequest('/agents/api/approvals/'+held.approval.id)).approval
+  assert.equal((await ownerRequest('/agents/api/approvals/'+detail.id+'/approve',{revision:detail.revision,summary_sha256:detail.summary_sha256})).approval.state,'executed')
+  assert.equal(await usage(credential),1)
+  const responses=await Promise.all(transports.map(transport=>policyRead(transport,name,input,credential,held.requestState)))
+  const accepted=responses.filter(response=>response.code===undefined)
+  assert.equal(accepted.length,1,'Exactly one concurrent approved continuation fits the remaining shared allowance')
+  if(name==='query')assert.equal(accepted[0].value.totals.revenue.value,'31.31');else assert.deepEqual(accepted[0].value.dimensions,['region','stage'])
+  for(const response of responses.filter(response=>response.code!==undefined))withheld(response)
+  assert.equal(await usage(credential),2)
+  for(const transport of transports){const exhausted=await policyRead(transport,name,input,credential,held.requestState);assert.equal(exhausted.code,'native_state_conflict');withheld(exhausted)}
+  assert.equal(await usage(credential),2,'Replayed approval never renews a spent lifetime allowance')
+ }
+ await setPolicy('autonomous')
+ console.log('PROBE BASE-AGENT-007 approved continuation: Pause, policy change, agent and native credential revocation at response commit -> no retained or fresh values across all three transports; changed or foreign retries refuse; one concurrent retry consumes the final shared read and later replays release nothing')
  // Rotate through the native Settings forms, then use every machine transport.
  const rotationReview=async credential=>call('/credentials/'+credential.id+'/rotate/review',{},200)
  const rotate=async(credential,review,status=201)=>call('/credentials/'+credential.id+'/rotate',{reviewedAt:review.reviewedAt,reviewedDigest:review.reviewedDigest},status)
