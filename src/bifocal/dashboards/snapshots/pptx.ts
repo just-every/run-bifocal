@@ -2,6 +2,7 @@ import {strToU8,zipSync} from 'fflate'
 import {canonicalJson} from '../../../modules/import-kit/src/provenance/identity.ts'
 import {imageBytes,pdfImage,imageType} from './images.ts'
 import {WIDTH,HEIGHT,type PrintableSnapshot} from './scene.ts'
+import {numericChartXml,numericWorkbook} from './numeric-chart'
 const a='http://schemas.openxmlformats.org/drawingml/2006/main',p='http://schemas.openxmlformats.org/presentationml/2006/main',r='http://schemas.openxmlformats.org/officeDocument/2006/relationships',rel='http://schemas.openxmlformats.org/package/2006/relationships'
 const xml=(v:string)=>v.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!))
 const doc=(v:string)=>'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+v
@@ -31,7 +32,18 @@ export function encodePptx(snapshot:PrintableSnapshot){
    const link=shape.link?'link'+id:'';if(link)rels.push({id:link,type:'hyperlink',target:shape.link!,external:true})
    return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+name+'" descr="'+name+'"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr>'+transform(shape.x,shape.y,shape.w,shape.h,unit)+'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="0" rIns="0" tIns="0" bIns="0"/><a:lstStyle/>'+shape.lines.map(line=>'<a:p><a:pPr><a:lnSpc><a:spcPct val="125000"/></a:lnSpc></a:pPr><a:r><a:rPr lang="en-US" sz="'+Math.round(shape.size*fontUnit)+'"><a:solidFill><a:srgbClr val="14212C"/></a:solidFill><a:latin typeface="Arial"/>'+(link?'<a:hlinkClick r:id="'+link+'"/>':'')+'</a:rPr><a:t xml:space="preserve">'+xml(line)+'</a:t></a:r><a:endParaRPr lang="en-US"/></a:p>').join('')+'</p:txBody></p:sp>'
   }).join('')
-  part('ppt/slides/slide'+number+'.xml','slide','<p:sld xmlns:a="'+a+'" xmlns:r="'+r+'" xmlns:p="'+p+'"><p:cSld name="'+xml(page.title)+'"><p:spTree>'+group+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')
+  let graphic=''
+  if(page.numericChart){
+   const chart=page.numericChart,reference='chart'+number
+   files['ppt/charts/chart'+number+'.xml']=numericChartXml(chart)
+   files['ppt/embeddings/chart'+number+'.xlsx']=numericWorkbook(chart)
+   files['ppt/charts/_rels/chart'+number+'.xml.rels']=strToU8(relationships([{id:'workbook',type:'package',target:'../embeddings/chart'+number+'.xlsx'}]))
+   types.push({part:'/ppt/charts/chart'+number+'.xml',type:'application/vnd.openxmlformats-officedocument.drawingml.chart+xml'},{part:'/ppt/embeddings/chart'+number+'.xlsx',type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})
+   rels.push({id:reference,type:'chart',target:'../charts/chart'+number+'.xml'})
+   const description=chart.title+'; '+chart.legend+'; '+chart.rows.map(row=>row.label+': '+(row.value===null?'NULL':row.value)).join('; ')
+   graphic='<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="'+(page.shapes.length+2)+'" name="'+xml(chart.title)+'" descr="'+xml(description)+'"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="'+chart.x*unit+'" y="'+chart.y*unit+'"/><a:ext cx="'+chart.w*unit+'" cy="'+chart.h*unit+'"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="'+reference+'"/></a:graphicData></a:graphic></p:graphicFrame>'
+  }
+  part('ppt/slides/slide'+number+'.xml','slide','<p:sld xmlns:a="'+a+'" xmlns:r="'+r+'" xmlns:p="'+p+'"><p:cSld name="'+xml(page.title)+'"><p:spTree>'+group+shapes+graphic+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')
   files['ppt/slides/_rels/slide'+number+'.xml.rels']=strToU8(relationships(rels))
   const note=xml(canonicalJson({exportedAt:snapshot.exportedAt,backLink:snapshot.backLink,...snapshot.provenance as object}))
   part('ppt/notesSlides/notesSlide'+number+'.xml','notesSlide','<p:notes xmlns:a="'+a+'" xmlns:r="'+r+'" xmlns:p="'+p+'"><p:cSld><p:spTree>'+group+'<p:sp><p:nvSpPr><p:cNvPr id="2" name="Exact selected snapshot provenance"/><p:cNvSpPr txBox="1"/><p:nvPr><p:ph type="body" idx="1"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>'+note+'</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>')
