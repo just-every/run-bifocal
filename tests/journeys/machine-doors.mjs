@@ -71,6 +71,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.equal(response.meta['com.runeditrun/error'].setup_url,origin+'/agents')
  }
  assert.equal(await usage(policyKey),0,'Unset policy reserves no native operation')
+ await page.setViewportSize({width:1440,height:1000})
  await page.goto(origin+'/agents')
  assert.deepEqual(await page.locator('[data-policy-class]').evaluateAll(fields=>fields.map(field=>field.value)),['',''])
  await proveScreen('machine-policy-unset')
@@ -110,7 +111,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  }
  await setPolicy('approval')
  const foreignContinuation=await issue({purpose:'Foreign continuation',maxOperations:1000})
- let approvalScreen=false
+ const approvalScreens=new Set()
  for(const name of operations)for(const transport of transports){
   const before=await usage(policyKey),held=await policyRead(transport,name)
   assert.equal(held.pending,true);assert.equal(typeof held.requestState,'string');assert.notEqual(held.requestState,held.approval.id)
@@ -128,10 +129,21 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const self=await fetch(origin+'/agents/api/approvals/'+detail.id+'/approve',{method:'POST',headers,body:JSON.stringify({revision:detail.revision,summary_sha256:detail.summary_sha256})})
   assert.equal(self.status,403);await self.arrayBuffer()
   assert.equal(await usage(policyKey),before)
-  if(!approvalScreen){await page.goto(held.approval.url);await proveScreen('machine-policy-approval');approvalScreen=true}
-  const approved=await ownerRequest('/agents/api/approvals/'+detail.id+'/approve',{revision:detail.revision,summary_sha256:detail.summary_sha256})
+  let approved
+  if(!approvalScreens.has(name)){
+   await page.goto(held.approval.url)
+   await page.getByText('Details',{exact:true}).click()
+   await proveScreen('machine-policy-approval-'+name)
+   const submitted=page.waitForResponse(response=>response.url()===origin+'/agents/api/approvals/'+detail.id+'/approve')
+   await page.getByRole('button',{name:'Approve',exact:true}).focus();await page.keyboard.press('Enter')
+   const response=await submitted;assert.equal(response.status(),200)
+   await page.locator('[data-approval-state="executed"]').waitFor()
+   approved=await ownerRequest('/agents/api/approvals/'+detail.id)
+   approvalScreens.add(name)
+  }else approved=await ownerRequest('/agents/api/approvals/'+detail.id+'/approve',{revision:detail.revision,summary_sha256:detail.summary_sha256})
   assert.equal(approved.approval.state,'executed');assert.equal(await usage(policyKey),before+1,'Human approval executes exactly one native read')
-  const resumed=await policyRead(transport,name,input,policyKey,held.requestState)
+  const continuationTransport=transports[(transports.indexOf(transport)+1)%transports.length]
+  const resumed=await policyRead(continuationTransport,name,input,policyKey,held.requestState)
   assert.equal(resumed.status,200);assert.equal(resumed.code,undefined)
   assert.equal(resumed.meta['com.runeditrun/receipt'].approval_id,detail.id)
   assert.equal(await usage(policyKey),before+2,'The pinned shared read continuation performs one fresh authorized read')
@@ -145,13 +157,15 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   const rejected=await policyRead(transport,name,input,policyKey,held.requestState)
   assert.equal(rejected.code,'approval_rejected');withheld(rejected);assert.equal(await usage(policyKey),before)
  }
- await setPolicy('approval','PT1S')
+ await setPolicy('approval','PT1H')
  const expiring=[]
  for(const name of operations)for(const transport of transports)expiring.push({name,transport,held:await policyRead(transport,name)})
  const beforeExpiry=await usage(policyKey)
- await new Promise(resolve=>setTimeout(resolve,1100))
+ const clock=async advanceMs=>{const response=await fetch(origin+'/__machine-clock',{method:'POST',headers:{'Content-Type':'application'+'/json'},body:JSON.stringify({advanceMs})});assert.equal(response.status,200);await response.arrayBuffer()}
+ await clock(3600001)
  for(const {name,transport,held} of expiring){const expired=await policyRead(transport,name,input,policyKey,held.requestState);assert.equal(expired.code,'approval_expired');withheld(expired)}
  assert.equal(await usage(policyKey),beforeExpiry)
+ await clock(0)
  await setPolicy('approval')
  for(const transport of transports){
   const credential=await issue({purpose:'Current authority after human approval'}),held=await policyRead(transport,'query',input,credential)

@@ -19,6 +19,18 @@ same counter and native query engine. Data reads reserve before execution and
 recheck native owner membership, source, model, credential and policy state
 inside the response transaction.
 
+Native bearer REST and GraphQL reads enter the same registered definitions and
+query tools through the shared handler. Their original success bodies remain
+unchanged, with decision, review and receipt metadata in response headers.
+Policy setup, review, approval and refusal therefore apply equally to these
+integration reads. Pending reads return the human approval URL and opaque
+`requestState`; an identical native retry supplies `X-Bifocal-Request-State`.
+See [Native policy continuation](MACHINE-API.md#one-policy-decision-for-native-reads)
+for response shapes and lifetime accounting. The transport adapter does not
+execute the native operation itself. Pause, changed policy, agent revocation
+and current native authority fence the final response transaction for every
+transport, including an approved continuation.
+
 A company token alone opens no analytical data. With a current native owner
 session, POST `{agentId}` to
 `/api/operator/credentials/<credential-id>/agent-review`; inspect the returned

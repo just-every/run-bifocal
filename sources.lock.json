@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "54a2d7619b73443b26352f5424f083192d581faa0db151a7e1929ac7b05e9420",
+      "sha256": "be5f462a187a1be44a573a5116fae0c8feb64bb637de920138da7decb91b15b6",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "ac6964f8c1b7a0fb971966ac39c3909315bf11a863959f48b7cae63015a2ea5b",
+      "sha256": "c7ba2e1c452ca17245acc500601c6b702a570393d467fef428381247d96efdc1",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -502,7 +502,7 @@
       "executable": false
     },
     "docs/MACHINE-API.md": {
-      "sha256": "2d2341538c02ee654cee93a2f7d6f8e086e2216ba65c6c9598314e03c6a5aabb",
+      "sha256": "033df626bc1e36fa46703bcfae13f3047fcc52db5bab752921cd719890407e5d",
       "executable": false
     },
     "docs/MIGRATION-PROJECTS.md": {
@@ -2290,7 +2290,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "2052464dcca21a9f0a929da181ef842a996010f12fefd6cc5a24b7c242eb2456",
+      "sha256": "bd13bd4bf37093ebfffd93bb3a56efedf58f905356c2856fbeb6bbbaac0c65f6",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -6150,7 +6150,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "8eff336d932dbec61bab2c2012b04838fbb5423d15b10f9a283b25dcbcfa46f4",
+      "sha256": "1fd32b534feefcc56d211434896a03422fef5b1a4e4f15e9ade08e2279842806",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6338,11 +6338,11 @@
       "executable": false
     },
     "tests/journeys/machine-boundary-worker.mjs": {
-      "sha256": "689b8652f99aadd50bd16b807f33879b5a2411b51eb3aa3be1a2f61dd479999a",
+      "sha256": "f02c08c35bcbb38162a4e01b739149eb70a537cd865ee1c2f70f3e06ebe44f1d",
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "c9d6f2fbd233aca4ba8603065abc268cb446156c7438c1dca5effeccebc44a92",
+      "sha256": "1ad7f95d3560a8a07444eb8869603698eca5c2ee0a6b04e256cc1b010b19ad52",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

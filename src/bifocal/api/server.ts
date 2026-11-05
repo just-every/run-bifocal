@@ -39,9 +39,17 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
    let meta:Record<string,unknown>={}
    const operation=async(name:'definitions'|'query',args:Record<string,unknown>={})=>{const read=await agentRead(request,env,name,args);meta=read.meta;return read.value}
    const result=await graphql({schema,source:input.query,variableValues:input.variables as Record<string,unknown>|undefined,operationName:input.operationName as string|undefined,rootValue:{definitions:()=>operation('definitions'),query:({input}:{input:Record<string,unknown>})=>operation('query',input)}})
-   if(result.errors){await recordMachineRefusal(request,env).catch(()=>{});const error=result.errors[0].originalError,code=error instanceof QueryError?error.code:'operation_refused',status=error instanceof QueryError?error.status:409;return json({errors:[{message:code,extensions:{code,...error instanceof AgentReadRefusal?error.details:{}}}]},status)}
+   if(result.errors){
+    const error=result.errors[0].originalError,code=error instanceof QueryError?error.code:'operation_refused',status=error instanceof QueryError?error.status:409
+    if(status!==202)await recordMachineRefusal(request,env).catch(()=>{})
+    return json({errors:[{message:code,extensions:{code,...(error instanceof AgentReadRefusal?error.details:{})}}]},status)
+   }
    return agentReadResponse(result,meta)
   }
   fail('not_found',404)
- }catch(error){await recordMachineRefusal(request,env).catch(()=>{});if(error instanceof QueryError)return json({error:error.code,...error instanceof AgentReadRefusal?error.details:{}},error.status);return json({error:'operation_refused',reason:'Check current authority, scope and remaining operation budget.'},409)}finally{await discardBody(request)}
+ }catch(error){
+  if(!(error instanceof AgentReadRefusal&&error.status===202))await recordMachineRefusal(request,env).catch(()=>{})
+  if(error instanceof QueryError)return json({error:error.code,...(error instanceof AgentReadRefusal?error.details:{})},error.status)
+  return json({error:'operation_refused',reason:'Check current authority, scope and remaining operation budget.'},409)
+ }finally{await discardBody(request)}
 }

@@ -10,6 +10,11 @@ const local=withDevIdentity(worker,{config:env=>({dependencies:true,origin:env.A
 // The model import journey uses the unchanged native handlers with a mail
 // delivery sink. Sessions, invitation consumption and application checks are real.
 const mail=[]
+// Only this disposable test Worker advances the approval clock. Native SQL
+// authority and lifetime counters still use the real D1 transactions.
+const systemNow=Date.now
+let clockOffset=0
+Date.now=()=>systemNow()+clockOffset
 let pending
 let completed
 const statements=new WeakMap()
@@ -17,6 +22,12 @@ export default {
  async fetch(request,env,execution){
   const url=new URL(request.url)
   if(url.pathname==='/__model-mail')return Response.json(mail)
+  if(url.pathname==='/__machine-clock'&&request.method==='POST'){
+   const {advanceMs}=await request.json()
+   if(!Number.isSafeInteger(advanceMs)||advanceMs<0||advanceMs>7200000)return new Response(null,{status:400})
+   clockOffset=advanceMs
+   return Response.json({advanced:true})
+  }
   if(request.headers.get('X-Bifocal-Test-Mail')==='synthetic-bifocal-mail'&&['/auth/invite','/auth/confirm'].includes(url.pathname)){
    const auth=createOperatorAuth({db:env.DB,clientIp:()=>'127.0.0.1',config:{dependencies:true,origin:env.AUTH_ORIGIN,local:true,OWNER_EMAIL:env.OWNER_EMAIL,SESSION_SECRET:env.SESSION_SECRET,INSTALLATION_KEY:env.INSTALLATION_KEY,MAIL_FROM:env.MAIL_FROM},mailSender:{async send(message){mail.push(message);return {status:'accepted',provider:'resend',providerMessageId:'synthetic-bifocal-mail'}}}})
    return createAuthHandler(auth)(request)
