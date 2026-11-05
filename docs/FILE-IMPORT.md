@@ -361,7 +361,9 @@ The explicit marker still matches an entire text cell. Headers must be text.
 General and fixed-decimal numbers must be finite, safe in magnitude and at most
 fifteen significant decimal digits. Declared date formats 14 through 17 and
 explicit date-only custom formats use the workbook's 1900 or 1904 calendar;
-fractional dates and the fictitious 1900 leap day are refused. Built-in USD
+fractional dates and the fictitious 1900 leap day are refused. Duplicate date-system
+declarations are refused rather than choosing a different calendar silently.
+A declared BIFF8 code page must be Unicode and cannot be repeated. Built-in USD
 formats 5 through 8 and 44 and the supported explicit dollar formats retain
 exact two-decimal values without rounding. Other numeric formats require an
 explicitly normalized source copy. No formula or imported code executes.

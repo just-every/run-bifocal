@@ -30,6 +30,7 @@ export function compound(base64: string): { bytes: Buffer; workbook: Buffer } {
   claim(id,'fat'); const data = sector(id)
   for (let at=0;at<data.length;at+=4) fat.push(data.readUInt32LE(at))
  }
+ for (let id=count;id<fat.length;id++) if (fat[id] !== FREE) fail('XLS_CFB_CHAIN: FAT claims sectors outside the original file.')
  for (const id of owners.keys()) if (fat[id] !== FAT) fail('XLS_CFB_CHAIN: FAT sector is not marked as FAT.')
  const chain = (start: number, owner: string, size?: number) => {
   const ids: number[] = []; let id = start

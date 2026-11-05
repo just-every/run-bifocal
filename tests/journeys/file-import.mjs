@@ -383,8 +383,8 @@ export async function proveLegacyFiles(origin,context,files,page) {
  await undo(winner,dataset);await query('1309.06');await undo(append,dataset);assert.deepEqual((await read(dataset)).table.rows,expected)
  const beforeRefusal=await read(dataset)
  for(const [payload,reason] of [
-  ...['cycle','mini-cycle','overlap','record-length','stream-size','directory-cycle','unparsed'].map(kind=>[malformedLegacy(kind),/XLS_CFB|XLS_RECORD|XLS_BIFF/]),
-  ...[[{formula:true},/XLS_FORMULA/],[{macro:true},/XLS_ACTIVE_CONTENT/],[{object:true},/XLS_ACTIVE_CONTENT/],[{embedded:true},/XLS_ACTIVE_CONTENT/],[{encryption:true},/XLS_ENCRYPTION/],[{external:true},/XLS_EXTERNAL/],[{unsafe:true},/XLS_NUMBER/],[{precision:true},/XLS_MONEY/],[{nonfinite:true},/XLS_NUMBER/],[{format:true},/XLS_FORMAT/],[{incomplete:true},/XLS_RECORD/],[{oversized:true},/XLS_TABLE_LIMIT/]].map(([options,reason])=>[legacyWorkbook(options),reason]),
+  ...['cycle','mini-cycle','overlap','record-length','stream-size','directory-cycle','unparsed','fat-tail'].map(kind=>[malformedLegacy(kind),/XLS_CFB|XLS_RECORD|XLS_BIFF/]),
+  ...[[{formula:true},/XLS_FORMULA/],[{macro:true},/XLS_ACTIVE_CONTENT/],[{object:true},/XLS_ACTIVE_CONTENT/],[{embedded:true},/XLS_ACTIVE_CONTENT/],[{encryption:true},/XLS_ENCRYPTION/],[{external:true},/XLS_EXTERNAL/],[{unsafe:true},/XLS_NUMBER/],[{precision:true},/XLS_MONEY/],[{nonfinite:true},/XLS_NUMBER/],[{format:true},/XLS_FORMAT/],[{incomplete:true},/XLS_RECORD/],[{oversized:true},/XLS_TABLE_LIMIT/],[{duplicateDate:true},/XLS_DATE/],[{codepage:1252},/XLS_ENCODING/]].map(([options,reason])=>[legacyWorkbook(options),reason]),
  ]) {
   const refused=await plan({...input,data:payload.toString('base64')},true,dataset)
   assert.equal(refused.counts.rejected,1,JSON.stringify(refused));assert.match(refused.rejected[0].reason,reason)
@@ -393,11 +393,19 @@ export async function proveLegacyFiles(origin,context,files,page) {
  }
  // The mini stream, v4 sectors, packed numeric cells, continued strings and the
  // 1904 date system are accepted through the planner, never a private parser.
- for(const options of [{mini:true},{version:4},{packed:true},{continued:true},{date1904:true}]){
+ for(const options of [{mini:true},{version:4},{packed:true},{continued:true},{date1904:true},{literalText:true},{packedCells:true},{customFormats:true}]){
   const supported=await plan({...input,data:legacyWorkbook(options).toString('base64')},true,dataset)
   assert.equal(supported.counts.rejected,0,JSON.stringify(supported.rejected));assert.deepEqual(supported.preview.sample,options.date1904?[[...expected[0].slice(0,1),'1904-01-01',...expected[0].slice(2)],[...expected[1].slice(0,1),'1904-01-02',...expected[1].slice(2)]]:expected)
   await cancel(supported,dataset)
  }
+ // Different supported record families must also survive actual publication,
+ // exact querying and Undo, rather than only appearing in a preview.
+ const alternateExpected=structuredClone(expected);alternateExpected[0][4]='Résumé 🧾'
+ const alternate=await plan({...input,data:legacyWorkbook({literalText:true,packedCells:true,customFormats:true,unicodeText:true}).toString('base64')},true,dataset)
+ assert.equal(alternate.counts.rejected,0,JSON.stringify(alternate.rejected))
+ await apply(alternate,dataset);assert.deepEqual((await read(dataset)).table.rows,alternateExpected);await query('1209.06')
+ await undo(alternate,dataset);assert.deepEqual(await read(dataset),beforeRefusal)
+ console.log('PROBE BIF-003 XLS record families: LABEL, MULRK, MULBLANK and explicit date and USD formats -> applied exact Unicode and typed rows, USD 1209.06, Undo restored prior revision')
  const unicode=await plan({...input,data:legacyWorkbook({unicodeText:true}).toString('base64')},true,dataset)
  assert.equal(unicode.counts.rejected,0,JSON.stringify(unicode.rejected));assert.equal(unicode.preview.sample[0][4],'Résumé 🧾');await cancel(unicode,dataset)
  const nullMarker=await plan({...input,nullValue:''},true,dataset)

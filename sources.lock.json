@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "e0b093516bb5641e3e5ebfab36ede324e67e00456eb68dac2b8f9dae7e34352b",
+      "sha256": "99db40c3294f4c56fd11cf63f41a709a8353366067d9ce390009ef31a72ed4ac",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "0e637016f4c64a48fb3301f4c949d979dff54462eabaca4592c87e55306e49c9",
+      "sha256": "f3adb2172326ce20b9f2431e0112ca3ffd443b77e1d0ed14a53a7d41e273404c",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -2994,11 +2994,11 @@
       "executable": false
     },
     "src/bifocal/imports/files/xls/biff.ts": {
-      "sha256": "fb76f8cc7ff12b9ea9010bc382a6b6ac82e65f52d7d5487c3527d04ddd9b2938",
+      "sha256": "d52959081f71e2ab859235122db35d7679c9c39b75900983ed7f9f071af8ccbb",
       "executable": false
     },
     "src/bifocal/imports/files/xls/compound.ts": {
-      "sha256": "25bfecd84a167836ea8f9acde1221b9208848e1693533aafcc9e917ab478f5e7",
+      "sha256": "e1d8d55cd427ff1d1a45c5ab57570769b503f0823b0d68dbab79ec4772d20d13",
       "executable": false
     },
     "src/bifocal/imports/files/xls/index.ts": {
@@ -6314,7 +6314,7 @@
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "befff2ce7a31bb1dcef9286291bd0df35cdd99ce333164d53554fd276709f14c",
+      "sha256": "970ad0efb378648da76b9ba5355419b0846b9128544354f7a215503f43ce70cd",
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
@@ -6430,7 +6430,7 @@
       "executable": false
     },
     "tests/journeys/xls-fixtures.mjs": {
-      "sha256": "167830c4af4523f8b1b76f8ac0a2025adb33e3fae624d7d55a241e6ebeac431d",
+      "sha256": "80a0d005f93c07cc9c1c11af3e2f106fff697a1ef2eae0dce1717b27f68d4989",
       "executable": false
     },
     "tests/runtime.mjs": {

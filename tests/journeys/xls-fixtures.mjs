@@ -12,20 +12,24 @@ function entry(name,type,start,size,child=free,left=free,right=free){
  const b=Buffer.alloc(128);Buffer.from(name+'\0','utf16le').copy(b);b.writeUInt16LE((name.length+1)*2,64);b[66]=type;b[67]=1
  b.writeUInt32LE(left,68);b.writeUInt32LE(right,72);b.writeUInt32LE(child,76);b.writeUInt32LE(start>>>0,116);b.writeUInt32LE(size,120);return b
 }
-export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,embedded=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false,precision=false,nonfinite=false,unicodeText=false}={}){
+export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,external=false,encryption=false,object=false,embedded=false,unsafe=false,format=false,incomplete=false,oversized=false,continued=false,update=false,packed=false,date1904=false,precision=false,nonfinite=false,unicodeText=false,duplicateDate=false,codepage=1200,literalText=false,packedCells=false,customFormats=false}={}){
  mini ||= incomplete
  const strings=['id','date','amount','active','note',unicodeText?'Résumé 🧾':'','February values']
- const sst=Buffer.concat([u32(strings.length),u32(strings.length),...strings.map(unicode)])
- let shared=rec(0xfc,sst)
+ const sst=Buffer.concat([u32(12),u32(strings.length),...strings.map(unicode)])
+ let shared=literalText?Buffer.alloc(0):rec(0xfc,sst)
  if(continued){const cut=8+3+2;shared=Buffer.concat([rec(0xfc,sst.subarray(0,cut)),rec(0x3c,Buffer.concat([Buffer.from([1]),sst.subarray(cut)]))])}
- const globals=Buffer.concat([bof(5),rec(0x42,u16(1200)),rec(0x22,u16(date1904?1:0)),... [0,14,format?10:7].map(id=>{const b=Buffer.alloc(20);b.writeUInt16LE(id,2);return rec(0xe0,b)}),shared,...(external?[rec(0x1ae,Buffer.alloc(4))]:[]),...(encryption?[rec(0x2f,Buffer.alloc(6))]:[])])
+ const globals=Buffer.concat([bof(5),rec(0x42,u16(codepage)),rec(0x22,u16(date1904?1:0)),...(duplicateDate?[rec(0x22,u16(date1904?0:1))]:[]),...(customFormats?[rec(0x41e,Buffer.concat([u16(164),unicode('yyyy-mm-dd')])),rec(0x41e,Buffer.concat([u16(165),unicode('$0.00')]))]:[]),... [0,customFormats?164:14,customFormats?165:format?10:7].map(id=>{const b=Buffer.alloc(20);b.writeUInt16LE(id,2);return rec(0xe0,b)}),shared,...(external?[rec(0x1ae,Buffer.alloc(4))]:[]),...(encryption?[rec(0x2f,Buffer.alloc(6))]:[])])
  const sheet=(second)=>{
   const d=Buffer.alloc(14);d.writeUInt32LE(0);d.writeUInt32LE(oversized?200001:second?2:3,4);d.writeUInt16LE(5,10)
-  const records=[bof(0x10),rec(0x200,d),...strings.slice(0,5).map((_,col)=>cell(0xfd,0,col,0,u32(col)))]
-  if(packed)records.push(rec(0xbd,Buffer.concat([u16(1),u16(0),u16(0),u32((1<<2)|2),u16(0)])))
+  const records=[bof(0x10),rec(0x200,d),...strings.slice(0,5).map((name,col)=>literalText?cell(0x204,0,col,0,unicode(name)):cell(0xfd,0,col,0,u32(col)))]
+  if(packedCells){
+   const values=[second?3:1,date1904?0:second?46054:46037,second?10000:update?0:123456]
+   records.push(rec(0xbd,Buffer.concat([u16(1),u16(0),...values.map((n,i)=>Buffer.concat([u16(i),u32((n<<2)|(i===2?3:2))])),u16(2)])))
+  }else if(packed)records.push(rec(0xbd,Buffer.concat([u16(1),u16(0),u16(0),u32((1<<2)|2),u16(0)])))
   else records.push(cell(0x27e,1,0,0,u32(((second?3:1)<<2)|2)))
-  records.push(numeric(1,1,1,date1904?0:second?46054:46037),numeric(1,2,2,unsafe?9007199254740992:precision?100.001:nonfinite?NaN:second?100:update?0:1234.56),cell(0x205,1,3,0,Buffer.from([1,0])),cell(0xfd,1,4,0,u32(second?6:5)))
-  if(!second)records.push(numeric(2,0,0,2),numeric(2,1,1,date1904?1:46038),numeric(2,2,2,-25.5),cell(0x205,2,3,0,Buffer.from([0,0])),cell(0x201,2,4,0,Buffer.alloc(0)))
+  if(!packedCells)records.push(numeric(1,1,1,date1904?0:second?46054:46037),numeric(1,2,2,unsafe?9007199254740992:precision?100.001:nonfinite?NaN:second?100:update?0:1234.56))
+  records.push(cell(0x205,1,3,0,Buffer.from([1,0])),literalText?cell(0x204,1,4,0,unicode(strings[second?6:5])):cell(0xfd,1,4,0,u32(second?6:5)))
+  if(!second)records.push(numeric(2,0,0,2),numeric(2,1,1,date1904?1:46038),numeric(2,2,2,-25.5),cell(0x205,2,3,0,Buffer.from([0,0])),packedCells?rec(0xbe,Buffer.concat([u16(2),u16(4),u16(0),u16(4)])):cell(0x201,2,4,0,Buffer.alloc(0)))
   if(second&&formula)records.push(cell(0x6,1,4,0,Buffer.alloc(16)))
   records.push(rec(0xa));return Buffer.concat(records)
  }
@@ -56,7 +60,8 @@ export function legacyWorkbook({mini=false,version=3,formula=false,macro=false,e
 export function malformedLegacy(kind){
  const b=legacyWorkbook({mini:kind==='mini-cycle'})
  const sectorSize=512,fat=(b.readUInt32LE(76)+1)*sectorSize,dir=(b.readUInt32LE(48)+1)*sectorSize
- if(kind==='cycle')b.writeUInt32LE(0,fat)
+ if(kind==='fat-tail')b.writeUInt32LE(0,fat+(b.length/sectorSize-1)*4)
+ else if(kind==='cycle')b.writeUInt32LE(0,fat)
  else if(kind==='mini-cycle'){const mf=(b.readUInt32LE(60)+1)*sectorSize;b.writeUInt32LE(0,mf)}
  else if(kind==='overlap')b.writeUInt32LE(b.readUInt32LE(48),dir+128+116)
  else if(kind==='record-length')b.writeUInt16LE(8225,sectorSize+2)

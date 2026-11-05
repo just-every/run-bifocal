@@ -106,7 +106,7 @@ function unsafe(id: number) {
 }
 export function biff(bytes: Buffer, selected: unknown) {
  const bof = (start: number, type: number) => { const rec = record(bytes,start); length(rec.data,16); if (rec.id !== 0x809 || u16(rec.data) !== 0x600 || u16(rec.data,2) !== type) fail('XLS_BIFF: Only BIFF8 ordinary worksheet workbooks are supported.'); return rec.end }
- let at = bof(0,5), date1904 = false, eof = false, sstSeen = false
+ let at = bof(0,5), date1904 = false, dateSystemSeen = false, codepageSeen = false, eof = false, sstSeen = false
  const sheets: {name:string;offset:number}[] = [], styles: number[] = [], formats = new Map<number,string>(); let strings: string[] = []
  while (at < bytes.length) {
   const rec = record(bytes,at), data = rec.data; at = rec.end; unsafe(rec.id)
@@ -117,7 +117,15 @@ export function biff(bytes: Buffer, selected: unknown) {
    const name = text(data.subarray(6),true)
    if (!name || sheets.some(sheet=>sheet.name===name) || sheets.length >= 32) fail('XLS_SHEET: Invalid or excessive sheet inventory.')
    sheets.push({name,offset:u32(data)})
-  } else if (rec.id === 0x22) { length(data,2); if (u16(data)>1) fail('XLS_DATE: Invalid date system.'); date1904=!!u16(data) }
+  } else if (rec.id === 0x42) {
+   length(data,2)
+   if (codepageSeen || u16(data)!==1200) fail('XLS_ENCODING: BIFF8 requires one Unicode code page; conflicting or unsupported declarations are refused.')
+   codepageSeen=true
+  } else if (rec.id === 0x22) {
+   length(data,2)
+   if (dateSystemSeen || u16(data)>1) fail('XLS_DATE: Duplicate or invalid date system; no calendar interpretation is chosen silently.')
+   dateSystemSeen=true; date1904=!!u16(data)
+  }
   else if (rec.id === 0xe0) { length(data,20); styles.push(u16(data,2)) }
   else if (rec.id === 0x41e) { length(data,5,8224); const id=u16(data); if (id<164 || formats.has(id)) fail('XLS_FORMAT: Duplicate or invalid custom format.'); formats.set(id,text(data.subarray(2))) }
   else if (rec.id === 0xfc) {
