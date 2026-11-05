@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "54a2d7619b73443b26352f5424f083192d581faa0db151a7e1929ac7b05e9420",
+      "sha256": "28cd34f6e6e645538b551092301f37bfe661aa485c4d888cb73fe07d78acd150",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "ac6964f8c1b7a0fb971966ac39c3909315bf11a863959f48b7cae63015a2ea5b",
+      "sha256": "f6fa32419605d55f9827399765173f119d9c3a92322592b924da5548a1a083bf",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -2242,7 +2242,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/index.server.ts": {
-      "sha256": "96f92384ec9c1a154e9d90286e820a13f70a940a1896049f1be58ceaa23e09b7",
+      "sha256": "cbe5320e5e2697f5a020bc61dac129901b5690afa0b0cacd4517cb9158bd9c7b",
       "executable": false
     },
     "src/bifocal/agent-door/schemas.ts": {
@@ -6142,7 +6142,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "8eff336d932dbec61bab2c2012b04838fbb5423d15b10f9a283b25dcbcfa46f4",
+      "sha256": "fb7da1dfffaaeeed1e76270fb91cae971d7e2f3adca7e88c121e376076f8d0f7",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6183,6 +6183,10 @@
     },
     "tests/incremental-typecheck.test.mjs": {
       "sha256": "a11d6b89e7219137540c7052683c5f4d9ba7ddf16f66d34c1f56ae34029c0a95",
+      "executable": false
+    },
+    "tests/journeys/agent-capacity.mjs": {
+      "sha256": "56d70f3d8e7b9d01c11122138293429b2f24eac9fca111ea37fc9fe863fff785",
       "executable": false
     },
     "tests/journeys/alert-boundaries.mjs": {

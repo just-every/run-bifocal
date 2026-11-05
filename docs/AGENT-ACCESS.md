@@ -19,6 +19,28 @@ same counter and native query engine. Data reads reserve before execution and
 recheck native owner membership, source, model, credential and policy state
 inside the response transaction.
 
+## Installation capacity
+
+Discovery advertises the effective capacity in `com.runeditrun/limits`:
+600 authenticated MCP requests per agent in each fixed UTC minute and at most
+1,048,576 request-body bytes. These explicit limits protect installation
+capacity; they are not company policy, daily business-volume limits, monetary
+budgets or provider-spend enforcement. The minute counter is persisted, shared
+by `/mcp` and `/api/v1/mcp`, and survives Worker restarts. Each separately
+reviewed native credential identifies a distinct agent with its own counter.
+Both wire protocol versions use these same limits.
+
+An exhausted minute returns HTTP 429 with `rate_limited` and a positive
+`Retry-After` in seconds until the next minute. Wait before retrying; changing
+the alias or restarting the Worker cannot reset capacity. An oversized body
+returns HTTP 413 before admission or execution, including streamed bodies.
+Neither capacity refusal consumes the separate native data-read allowance;
+successful definitions and query reads do consume that allowance, while status
+calls do not. Discovery and initialization do not consume authenticated capacity.
+Signed-in owner Settings and the native Pause and Resume controls remain usable
+when an agent is rate limited. Pause remains in force across the minute reset;
+an agent bearer cannot resume access.
+
 A company token alone opens no analytical data. With a current native owner
 session, POST `{agentId}` to
 `/api/operator/credentials/<credential-id>/agent-review`; inspect the returned

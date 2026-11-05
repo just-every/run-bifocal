@@ -17,6 +17,7 @@ export function bifocalAgentDoor(env:Bindings) {
  people.businessRole=person=>person.role === 'owner' ? 'owner' : null
  return createAgentDoor({seed:'bifocal',name:'Bifocal',specialist:'analytics',db:env.DB,origin:env.AUTH_ORIGIN,trust,
   capabilities:['tools','policy','pause','audit','idempotency'],people,tools:readTools(env),paths:['/api/v1/mcp'],
+  limits:{requestsPerMinute:600,maxBodyBytes:1048576},
   notTools:[{clauses:['BIF-003','BIF-025','BIF-057'],reason:'import-door'},{clauses:['BIF-033'],reason:'installation'},
    {clauses:['BIF-019','BIF-032','BIF-035','BIF-053'],reason:'screen'},{clauses:['BIF-004'],reason:'connector'}],
   async localCredentials(request) {

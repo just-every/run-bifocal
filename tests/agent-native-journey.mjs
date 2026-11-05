@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {proveAgentCapacity} from './journeys/agent-capacity.mjs'
 
 /** The specialist's real job: exact reviewed West answer, never East data or
  * source instructions. Conformance owns credentials, policy and audit. */
@@ -21,4 +22,5 @@ export default async function ({tool,request,origin,cookie}) {
  const state=await audit.json()
  assert.ok(state.history.some(row=>row.agent_id && row.agent_name && row.sponsor_name && row.action==='query'))
  console.log('Bifocal agent journey: exact USD 9.98 West answer, intersected East refusal, hidden field refusal and native agent/sponsor attribution passed.')
+ await proveAgentCapacity()
 }
