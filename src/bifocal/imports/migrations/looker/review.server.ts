@@ -43,7 +43,8 @@ export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'
    const limits=new Map<string,number>()
    if(Array.isArray(doc.source.elements))for(const [index,value] of doc.source.elements.entries()){
     const e=object(value),key=stableId('element',String(e.name)),at=doc.file+':elements.'+index
-    draft.elements.push({id:String(e.name),title:String(e.title??e.name),key,fields:e.fields,filters:e.filters??{},expression:e,dependencies:[String(e.model)+'.'+String(e.explore),...Array.isArray(e.fields)?e.fields.map(String):[]]})
+    const declaredFields=[...Array.isArray(e.fields)?e.fields.map(String):[],...e.filters&&typeof e.filters==='object'&&!Array.isArray(e.filters)?Object.keys(e.filters):[],...Array.isArray(e.sorts)?e.sorts.map(value=>String(value).split(/\s+/)[0]):[],...e.listen&&typeof e.listen==='object'&&!Array.isArray(e.listen)?Object.values(e.listen).map(String):[]]
+    draft.elements.push({id:String(e.name),title:String(e.title??e.name),key,fields:e.fields,filters:e.filters??{},expression:e,dependencies:[...new Set([String(e.model)+'.'+String(e.explore),...declaredFields])]})
     try{
      const binding=doc.bindings[String(e.model)+'.'+String(e.explore)];if(!binding)continue
      const model=await readModel(env,ownerId,binding.modelId);guards.push(modelGuard(model))
