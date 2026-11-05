@@ -406,7 +406,7 @@
       "executable": false
     },
     "agent-surface.json": {
-      "sha256": "740174a7cda6310c1a08e3a2175d322f9f1f61e1b1cb84eb191a725c0dfb627c",
+      "sha256": "caa8928bf2f731d9db7db92ccf232e205ad42d1dff8368d1fea64d5969025108",
       "executable": false
     },
     "AGENTS.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "c7ba2e1c452ca17245acc500601c6b702a570393d467fef428381247d96efdc1",
+      "sha256": "87f61abd819a3da6f92bdd8441ce33c0810e532d77ed04591c3b53259a4d55e2",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -2062,7 +2062,7 @@
       "executable": false
     },
     "src/app/docs.ts": {
-      "sha256": "6d9e992b7efbf54c7b3d3f1a68f08b4da6ff33b850890f7058de24c631f2c5c0",
+      "sha256": "cfb2de2a76c74b294775e452ee0249ba24b5bee5f878e0948e4659177e9c4098",
       "executable": false
     },
     "src/app/figure.ts": {
@@ -2245,8 +2245,20 @@
       "sha256": "44a13070d3a224bbcc0fc4480b459e13de079372b3ea5ea9eb31ba3d3f96a23b",
       "executable": false
     },
+    "src/bifocal/agent-door/guide.server.ts": {
+      "sha256": "089cd4b10c6d559e0d5321f5ec85473026e29d6a6a66a6e2d122ad3b56e94acf",
+      "executable": false
+    },
     "src/bifocal/agent-door/index.server.ts": {
-      "sha256": "96f92384ec9c1a154e9d90286e820a13f70a940a1896049f1be58ceaa23e09b7",
+      "sha256": "bf255ed891596a943e6157843a3bcfdbfa4680d3d3df2f5c95ab5f5aec6990dc",
+      "executable": false
+    },
+    "src/bifocal/agent-door/prompt.ts": {
+      "sha256": "0598d1ab20c9596b3cbedc7697b2524e000ccd6903dc2fb1e35979de5cdcff14",
+      "executable": false
+    },
+    "src/bifocal/agent-door/registry.server.ts": {
+      "sha256": "7107cc673b8ec97fab2ad3114d8bf8b5bb7a1f862b61a5edbcef481ae899276a",
       "executable": false
     },
     "src/bifocal/agent-door/schemas.ts": {
@@ -2254,7 +2266,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/tools.server.ts": {
-      "sha256": "fc3659c966e7c42368b74718cef1b5e0ffd29889f84cfd08c17c38483f24dafe",
+      "sha256": "9a7d0132c0c37d96e3a86628c1a1d41433b15e2eefe0856100691e53c3f544ce",
       "executable": false
     },
     "src/bifocal/alerts/erasure.ts": {
@@ -5966,7 +5978,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "4bb02527a87f44192f9d67c88b151234cd71f9c6885c6bfa5fc18d19067fead8",
+      "sha256": "983b7e67974d6a7a73dfdd90ae948d5a56ceeb8fff9ffdf7dd95ca62c57b7baa",
       "executable": false
     },
     "src/site/base-pages.tsx": {
@@ -6158,7 +6170,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "1fd32b534feefcc56d211434896a03422fef5b1a4e4f15e9ade08e2279842806",
+      "sha256": "856ef399206cc007401d83e205e4d2b341c8013d2a3c9ed4f52d8ca4cddedf5e",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6350,7 +6362,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "51d114d263d6effc636d425dfa777a2a6fa7882fa043f88411548cd7f2e33200",
+      "sha256": "a1c3795c3b218f8fbf49afdf28bc51d1cde0a657089dc6c50ae04f970523506c",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

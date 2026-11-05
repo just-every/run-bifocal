@@ -2,7 +2,7 @@ import {createAgentDoor,operatorAuthPeople,type Trust} from '../../modules/agent
 import {operatorAuth,authConfig,type Bindings} from '../../auth.server'
 import {machineAuthority} from '../credentials/store.server'
 import {reviewedCredential,toolScope} from './grants.server'
-import {readTools} from './tools.server'
+import {analyticsRegistry} from './registry.server'
 
 export function bifocalAgentDoor(env:Bindings) {
  let trust:Trust|null=null
@@ -15,8 +15,8 @@ export function bifocalAgentDoor(env:Bindings) {
  people.sponsor=async claims=>{const person=await mappedSponsor(claims);return person?.role === 'owner' && person.active ? person : null}
  // Local native promotions never confer Business editor authority.
  people.businessRole=person=>person.role === 'owner' ? 'owner' : null
- return createAgentDoor({seed:'bifocal',name:'Bifocal',specialist:'analytics',db:env.DB,origin:env.AUTH_ORIGIN,trust,
-  capabilities:['tools','policy','pause','audit','idempotency'],people,tools:readTools(env),paths:['/api/v1/mcp'],
+ return createAgentDoor({seed:'bifocal',name:'Bifocal',db:env.DB,origin:env.AUTH_ORIGIN,trust,
+  ...analyticsRegistry(env),people,paths:['/api/v1/mcp'],
   notTools:[{clauses:['BIF-003','BIF-025','BIF-057'],reason:'import-door'},{clauses:['BIF-033'],reason:'installation'},
    {clauses:['BIF-019','BIF-032','BIF-035','BIF-053'],reason:'screen'},{clauses:['BIF-004'],reason:'connector'}],
   async localCredentials(request) {

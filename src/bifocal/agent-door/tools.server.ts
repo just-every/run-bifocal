@@ -15,12 +15,15 @@ export async function native<T>(fn: () => Promise<T>): Promise<T> {
   throw error
  }
 }
-export function readTools(env: Bindings): ToolDefinition[] {
- return ['status','definitions','query'].map((name): ToolDefinition => ({
+export type ReviewedReadTool = ToolDefinition & {job:string; classifierTests:Record<string,string[]>}
+export function readTools(env: Bindings): ReviewedReadTool[] {
+ return ['status','definitions','query'].map((name): ReviewedReadTool => ({
+  job:'Read and explain a reviewed view',
+  classifierTests:{[name === 'status' ? 'standard' : 'sensitive']:['tests/agent-native-journey.mjs: afterStep',`BASE-AGENT-006.2.autonomous.${name}`,`BASE-AGENT-006.2.held.${name}`]},
   name:`bifocal.analytics.${name}`,title:name === 'query' ? 'Query reviewed view' : 'Read reviewed definitions',
   description:'Read only the current native owner’s exactly reviewed published view, source bindings, fields, restrictions and lifetime allowance.',
   scope:toolScope(name === 'status' ? 'definitions' : name),readOnly:true,classes:name === 'status' ? ['standard'] : ['sensitive'],clauses:['BIF-027','BIF-035','BASE-AGENT-002','BASE-AGENT-006'],untrusted:name !== 'status',
-  inputSchema:name !== 'query' ? {type:'object',properties:{},additionalProperties:false} : {type:'object',properties:{modelId:{type:'string'},revision:{type:'string'},viewId:{type:'string'},groupBy:{type:'array',items:{type:'string'}},filters:{type:'array',items:{type:'object'}},offset:{type:'integer',minimum:0}},required:['modelId','revision','viewId','groupBy','filters'],additionalProperties:false},
+  inputSchema:name !== 'query' ? {type:'object',properties:{},required:[],additionalProperties:false} : {type:'object',properties:{modelId:{type:'string'},revision:{type:'string'},viewId:{type:'string'},groupBy:{type:'array',items:{type:'string'}},filters:{type:'array',items:{type:'object'}},offset:{type:'integer',minimum:0}},required:['modelId','revision','viewId','groupBy','filters'],additionalProperties:false},
   outputSchema:outputSchemas[name],
   async classify(_args,ctx) { return native(async () => { const admission=await reviewedCredential(env,ctx); await credentialBindings(env,admission.credential); return name === 'status' ? [{class:'standard',facts:{measure:1}}] : [{class:'sensitive',facts:{measure:1,kind:'reviewed-analytical-answer'}}] }) },
   async target(_args,ctx) { return native(async () => ({kind:'model',id:(await reviewedCredential(env,ctx)).credential.scope.modelId})) },
