@@ -1,4 +1,4 @@
-# CSV and XLSX import HTTP backend
+# CSV, XLSX and bounded XLS import HTTP backend
 
 The owner browser file workflow is at `/app/import`. This document describes
 the implemented HTTP backend; it is not a claim that
@@ -339,3 +339,49 @@ The self-authored source-format specimens in
 Real buyer-authorized model and workbook estates, general content and rendering,
 new user and tenant grants, delivery, source deltas and approved cutover remain
 unqualified. No original Omni SQL or workbook code executes.
+
+
+## Value-only legacy XLS
+
+The same file picker and exact sheet-name field accept `.xls` compound files
+containing BIFF8 ordinary worksheets. Set `encoding` to `utf-8` (the envelope
+label), put canonical original bytes in `data` as base64, and explicitly set
+`formulaTreatment` to `values-only-refuse-formulas`. The review shows BIFF8
+Unicode interpretation, exact original digest, selected sheet and complete sheet
+inventory. Original downloads return the uploaded bytes unchanged.
+
+The reader follows Microsoft's published [MS-CFB compound-file specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/53989ce4-7b05-4f8d-829b-d08d6148375b)
+and [MS-XLS binary workbook specification](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/cd03cb5f-ca02-4934-a391-bb674cb8aa06).
+It supports v3 and v4 sector containers, regular and mini streams, shared Unicode
+strings including simple continuations, plain LABEL text, NUMBER, RK, MULRK,
+BOOLERR booleans, BLANK and MULBLANK. Missing or blank cells become null;
+an explicit empty text cell stays empty when the chosen null marker is nonempty.
+The explicit marker still matches an entire text cell. Headers must be text.
+
+General and fixed-decimal numbers must be finite, safe in magnitude and at most
+fifteen significant decimal digits. Declared date formats 14 through 17 and
+explicit date-only custom formats use the workbook's 1900 or 1904 calendar;
+fractional dates and the fictitious 1900 leap day are refused. Built-in USD
+formats 5 through 8 and 44 and the supported explicit dollar formats retain
+exact two-decimal values without rounding. Other numeric formats require an
+explicitly normalized source copy. No formula or imported code executes.
+
+Every worksheet is inspected before any table is proposed, including unselected
+sheets. Formula records, encryption, VBA, XLM, embedded objects, named formulas,
+external references, hidden or non-worksheet sheets, rich or phonetic strings,
+unsupported records and unsupported numeric formats are refused. This strict
+profile may refuse otherwise valid Excel workbooks; diagnostics identify the
+unsupported record or content rather than silently dropping it.
+
+Original bytes share the 512 KiB workbook bound, at most 32 sheets and 64 columns;
+BIFF8 itself allows at most 65,536 row positions including the header. The
+existing complete-table byte and cell bounds also apply. Compound sector chains,
+exclusive ownership, directory reachability, stream lengths, BIFF lengths and
+declared worksheet dimensions are checked before dependent allocations. No
+partial or oversized rectangle publishes. Refusals leave last-good data intact.
+
+`tests/journeys/xls-fixtures.mjs` contains disclosed self-authored specimens
+assembled from these specifications. They establish bounded parser behavior,
+not real Excel-saved client qualification or complete Excel compatibility.
+XLSB, macro-enabled values, formula-bearing legacy workbooks, broader legacy
+workbook formats and production large-file qualification remain unproved.
