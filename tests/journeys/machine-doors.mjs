@@ -211,7 +211,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  // One definition resource is another transport of the selected native read.
  const resourceUri=value=>`bifocal://models/${encodeURIComponent(value.modelId)}/revisions/${encodeURIComponent(value.revision)}/views/${encodeURIComponent(value.viewId)}/definition`
  const uri=resourceUri(definitions)
- const rpc=(method,params={},token=key.token,extra={})=>api('/api/v1/mcp',{jsonrpc:'2.0',id:30,method,params},200,token,extra)
+ const rpc=(method,params={},token=key.token,extra={})=>api('/api/v1/mcp',{jsonrpc:'2.0',id:30,method,params:extra['MCP-Protocol-Version']==='2026-07-28'?{...params,_meta:{'io.modelcontextprotocol/protocolVersion':'2026-07-28'}}:params},200,token,extra)
  const resource=(token=key.token,target=uri,extra={})=>rpc('resources'+'/read',{uri:target},token,extra)
  const used=async credential=>(await call('/credentials')).credentials.find(c=>c.id===credential.id).used_operations
  const templates=await rpc('resources'+'/templates'+'/list')
@@ -272,7 +272,7 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.equal(approved.status(),200,await approved.text());assert.equal((await approved.json()).approval.state,'executed')
  assert.equal(await used(held),1,'Human approval executes one native read')
  const replayed=await rpc('resources'+'/read',{uri,requestState:pending.error.data.requestState},held.token)
- assert.deepEqual(JSON.parse(replayed.result.contents[0].text),definitions)
+ assert.deepEqual(JSON.parse(replayed.result.contents[0].text),{...definitions,scopeDigest:held.digest})
  assert.equal(await used(held),2,'Approved retry reads current data and consumes one fresh operation')
  await definitionPolicy('autonomous')
  const pause=async paused=>{const r=await context.request.post(origin+'/agents/api/pause',{headers:{Origin:origin},data:{paused}});assert.equal(r.status(),200,await r.text())}
@@ -328,7 +328,9 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.deepEqual((await rpc('resources'+'/templates'+'/list',{},queryOnly.token)).result.resourceTemplates,[])
  await api('/api/v1/mcp',{jsonrpc:'2.0',id:32,method:'resources'+'/read',params:{uri}},403,queryOnly.token)
  assert.deepEqual((await api('/api/v1/mcp',{jsonrpc:'2.0',id:10,method:'tools'+'/list',params:{}},200,queryOnly.token)).result.tools.map(t=>t.name),['bifocal.analytics.definitions','bifocal.analytics.query','bifocal.analytics.status'])
- const queryOnlyRead=await rpc('tools'+'/call',{name:'bifocal.analytics.query',arguments:input},queryOnly.token)
+ await api('/api/v1/query',input,200,queryOnly.token)
+ const queryOnlyLinks=await issue({tools:['query'],maxOperations:1})
+ const queryOnlyRead=await rpc('tools'+'/call',{name:'bifocal.analytics.query',arguments:input},queryOnlyLinks.token)
  assert.ok(queryOnlyRead.result.structuredContent.rows.length)
  assert.equal(queryOnlyRead.result.content.filter(item=>item.type==='resource_link').length,0)
  await api('/api/v1/query',input,409,queryOnly.token)
@@ -632,6 +634,20 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
   assert.ok(history.history.some(h=>h.credential_id===id&&h.action==='activation-retired'),'Durable attributed retirement for '+id)
  }
  assert.ok(!JSON.stringify(history).includes('Ignore rules'))
+ // Source-policy drift inside an admitted resource response cannot release data.
+ const drifting=await issue({maxOperations:2})
+ const currentSourcePolicy=await call('/credentials/sources/'+dataset)
+ const driftBody={previousVersion:currentSourcePolicy.version,...currentSourcePolicy.definition,filters:[]}
+ const driftReview=await call('/credentials/sources/'+dataset+'/review',driftBody,200)
+ const currentCookie=(await context.cookies(origin)).map(c=>c.name+'='+c.value).join(';')
+ const driftArm=await fetch(origin+'/__machine-boundary',{method:'POST',headers:{'Content-Type':'application'+'/json'},body:JSON.stringify({path:'/api/operator/credentials/sources/'+dataset,cookie:currentCookie,body:{...driftBody,reviewedDigest:driftReview.reviewedDigest}})})
+ assert.equal(driftArm.status,200);await driftArm.arrayBuffer()
+ const drifted=await resource(drifting.token)
+ assert.ok(drifted.error);assert.equal(drifted.result,undefined);assert.equal(await used(drifting),1)
+ await api('/api/v1/mcp',{jsonrpc:'2.0',id:36,method:'resources'+'/read',params:{uri}},401,drifting.token)
+ await sourcePolicy(dataset,currentSourcePolicy.definition,currentSourcePolicy.version+1)
+ await api('/api/v1/mcp',{jsonrpc:'2.0',id:37,method:'resources'+'/read',params:{uri}},401,drifting.token)
+ console.log('PROBE BASE-AGENT-003 withdrawal: admitted resource responses interrupted by revocation, rotation, Pause and source drift -> no content, one retained reservation; retirement never revives after rollback or erasure')
  const erased=await issue()
  assert.equal((await api('/api/v1/query',input,200,erased.token)).totals.revenue.value,'2.02')
  const erasedReview=await rotationReview(erased),erasedSource=await call('/datasets/'+joined)
