@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {createHmac} from 'node:crypto'
+import {proveAgentGuide} from '../agent-native-journey.mjs'
 
 /** A credential is a bounded read grant, never a human approval or raw source key. */
 export async function proveMachineDoors({origin,context,page,call,upload,proveScreen}) {
@@ -47,6 +48,25 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.deepEqual([...first.rows,...last.rows],native.answer.rows)
  const schema=await api('/api/v1/schema');assert.match(schema.graphql,/type Query/)
  const definitions=await api('/api/v1/definitions');assert.deepEqual(definitions.dimensions,['region','stage']);assert.ok(!JSON.stringify(definitions).includes('note'))
+ const guide=await proveAgentGuide({origin,request:fetch,rpc:(method,params={})=>api('/api/v1/mcp',{jsonrpc:'2.0',id:40,method,params})})
+ // Existing installed guide styling and native details controls work without JS.
+ await page.setViewportSize({width:1440,height:1000})
+ await page.goto(origin+'/docs')
+ await page.getByRole('link',{name:'Analytics agent guide',exact:true}).focus()
+ await page.keyboard.press('Enter');await page.waitForURL(origin+'/docs/agents')
+ assert.deepEqual(await page.locator('[data-agent-tool]').evaluateAll(elements=>elements.map(element=>element.dataset.agentTool)),guide.tools.map(tool=>tool.name))
+ const schemas=page.getByText('bifocal.analytics.query schemas',{exact:true})
+ await schemas.focus();await page.keyboard.press('Enter')
+ assert.equal(await schemas.locator('..').getByRole('heading',{name:'Input schema',exact:true}).isVisible(),true)
+ await proveScreen('agent-installed-guide')
+ await page.setViewportSize({width:1440,height:1000})
+ await page.getByRole('link',{name:'Refusal reference',exact:true}).focus();await page.keyboard.press('Enter')
+ const refusals=page.getByText('Read refusal codes and recovery',{exact:true})
+ await refusals.focus();await page.keyboard.press('Enter')
+ assert.equal(await page.getByText('dimension_not_permitted',{exact:true}).isVisible(),true)
+ assert.equal(await page.getByText('agents_paused',{exact:true}).isVisible(),true)
+ assert.ok((await page.locator('main').innerText()).includes(guide.refusals.dimension_not_permitted))
+ await proveScreen('agent-installed-refusals')
  const document='query Pipeline($input: QueryInput!) { query(input: $input) { rows totals totalRows offset nextOffset citations query } }'
  const gql=await api('/api/v1/graphql',{query:document,variables:{input}})
  assert.deepEqual(gql.data.query,first)
