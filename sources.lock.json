@@ -6178,7 +6178,7 @@
       "executable": false
     },
     "tests/bifocal-semantic-model.mjs": {
-      "sha256": "1b0acefdbed19d544e4cb0e6ff1ad2c5f32b17b757d8ef542ae49958e993232e",
+      "sha256": "e712e3ad4344e48bfdc33d293be7cd46e52595fc755cb8aec772e56344ffdc5b",
       "executable": false
     },
     "tests/demo-owner-claim.test.mjs": {
@@ -6258,7 +6258,7 @@
       "executable": false
     },
     "tests/journeys/conventions.mjs": {
-      "sha256": "543889cd9548cffef50f2f4179194c118dbd0ad3892ac2f3662834114d88717d",
+      "sha256": "19d9e64d25be5c2ca120e807896713aeab40220d847cab4f74bf4d3887fbd28d",
       "executable": false
     },
     "tests/journeys/cost-controls.mjs": {
