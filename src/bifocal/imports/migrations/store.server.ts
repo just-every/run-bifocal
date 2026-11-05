@@ -16,12 +16,12 @@ export async function readMigrationProject(env:Bindings,ownerId:string,id:string
 export const importGuard=(row:ImportRow)=>sql('EXISTS(SELECT 1 FROM bf_migration_workspaces WHERE id=? AND owner_id=? AND revision=? AND value_json=?)',row.id,row.owner_id,row.revision,row.value_json)
 export const migrationImportContext=(env:Bindings,owner:Owner,id:string):D1ImportContext=>({destination:migrationImportDestination(id),namespace:'migration-projects:'+id,mappingVersion:'migration-project-v1',storage:{database:env.DB,targets:migrationImportTargets},authorization:{principalId:'role:owner',predicate:()=>owner}})
 export async function eraseMigrationProject(env:Bindings,owner:Owner,id:string,guards:D1Sql[]=[]){
- const sources=(await env.DB.prepare('SELECT dataset_id FROM bf_looker_sources WHERE project_id=?').bind(id).all<{dataset_id:string}>()).results
+ const sources=(await env.DB.prepare('SELECT dataset_id FROM bf_looker_sources WHERE project_id=? UNION SELECT dataset_id FROM bf_tableau_migration_sources WHERE project_id=?').bind(id,id).all<{dataset_id:string}>()).results
  const retention=sources.map(s=>retentionAllowsErasure(s.dataset_id))
  for(const check of retention){const result=await env.DB.prepare('SELECT ('+check.sql+') AS allowed').bind(...check.params??[]).first<{allowed:number}>();if(!result?.allowed)fail('retention_hold',423)}
  const state=await env.DB.prepare('SELECT source_identity FROM rer_portability_state WHERE id=1').first<{source_identity:string}>(),identity=state?.source_identity??crypto.randomUUID()
  const checkpoint=[sql('INSERT OR IGNORE INTO rer_portability_state(id,source_identity) VALUES(1,?)',identity),assertion(sql('EXISTS(SELECT 1 FROM rer_portability_state WHERE id=1 AND source_identity=?)',identity)),sql('INSERT OR IGNORE INTO rer_portability_journal(source,tombstone) VALUES(?,?)',identity,sha256(canonicalJson([identity,'rer_portability_state',{id:1}]))),sql('UPDATE rer_portability_state SET epoch=epoch+1 WHERE id=1'),sql('INSERT INTO rer_portability_epochs SELECT source_identity,epoch FROM rer_portability_state WHERE id=1 ON CONFLICT(source) DO UPDATE SET epoch=MAX(epoch,excluded.epoch)')]
- return retireD1ImportCustody({target:{kind:'migration-project',id}},[...guards.map(assertion),...retention.map(assertion),sql('DELETE FROM bf_looker_sources WHERE project_id=?',id),sql('DELETE FROM bf_migration_projects WHERE id=?',id)],migrationImportContext(env,owner,id),checkpoint)
+ return retireD1ImportCustody({target:{kind:'migration-project',id}},[...guards.map(assertion),...retention.map(assertion),sql('DELETE FROM bf_looker_sources WHERE project_id=?',id),sql('DELETE FROM bf_metrics WHERE id IN (SELECT metric_id FROM bf_tableau_migration_drafts WHERE project_id=?)',id),sql('DELETE FROM bf_migration_projects WHERE id=?',id),sql('DELETE FROM bf_tableau_migration_sources WHERE project_id=?',id)],migrationImportContext(env,owner,id),checkpoint)
 }
 
 export async function eraseSourceReconstructions(env:Bindings,owner:Owner,dataset:string,guard:D1Sql){
@@ -29,5 +29,14 @@ export async function eraseSourceReconstructions(env:Bindings,owner:Owner,datase
  if(rows.length>100)fail('looker_erasure_limit',413)
  const receipts=[]
  for(const row of rows)receipts.push(await eraseMigrationProject(env,owner,row.project_id,[guard]))
+ return receipts
+}
+
+/** A separately reviewed source owns custody of every planned Tableau version. */
+export async function eraseSourceTableauProjects(env:Bindings,owner:Owner,dataset:string,sourceGuard:D1Sql){
+ const rows=(await env.DB.prepare('SELECT DISTINCT project_id FROM bf_tableau_migration_sources WHERE dataset_id=? ORDER BY project_id LIMIT 101').bind(dataset).all<{project_id:string}>()).results
+ if(rows.length>100)fail('tableau_project_erasure_limit',413)
+ const receipts=[]
+ for(const row of rows)receipts.push(await eraseMigrationProject(env,owner,row.project_id,[sourceGuard]))
  return receipts
 }

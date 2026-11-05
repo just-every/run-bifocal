@@ -1,12 +1,14 @@
 import { lookerItems } from './looker/reader'
 import { reconstructionItems } from './looker-studio/manifest'
+import { compileTableau, type TableauMigration } from './tableau/compile'
+import type { Source } from '../../query/types'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { exactKeys } from '../../models/validation/transport'
 import { fail } from '../../query/types'
 export type InventoryItem={id:string;kind:string;sourceRevision:string;original:string;mapping:string;gap:string}
 export type Item={source:InventoryItem;native:string;edited:boolean;conflict:InventoryItem|null}
-export type MigrationProject={id:string;ownerId:string;source:string;cutoff:string;rollbackPlan:string;items:Item[];state:'inactive';dispatch:'unavailable';grants:'none';expectedWorkspace:string|null}
-const sources=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex','looker-studio']
+export type MigrationProject={id:string;ownerId:string;source:string;cutoff:string;rollbackPlan:string;items:Item[];state:'inactive';dispatch:'unavailable';grants:'none';expectedWorkspace:string|null;tableau?:TableauMigration}
+const sourceKinds=['spreadsheet','databox','zoho','klipfolio','qlik','power-bi','tableau','looker','metabase','omni','sigma','hex','looker-studio']
 export function object(value:unknown):Record<string,unknown>{if(!value||typeof value!=='object'||Array.isArray(value))fail('migration_object_required',400);return value as Record<string,unknown>}
 export function text(value:unknown,max=8192):string{if(typeof value!=='string'||value.length>max||value.includes('\u0000'))fail('migration_text_required',400);return value}
 export function item(value:unknown):InventoryItem{
@@ -18,9 +20,11 @@ export function item(value:unknown):InventoryItem{
  return {id:v.id as string,kind:v.kind as string,sourceRevision,original:text(v.original,v.kind==='schema'?786432:8192),mapping:text(v.mapping,2048),gap:text(v.gap,2048)}
 }
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
-export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null):MigrationProject{
- const raw=object(value),v=raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw.source==='looker'&&raw.files!==undefined?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:lookerItems(raw)}:raw;exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items'])
- if(v.version!==1||v.projectId!==id||!sources.includes(String(v.source)))fail('migration_envelope_required',400)
+export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null,sources:Source[]=[]):MigrationProject{
+ const raw=object(value),tableau=raw.source==='tableau'&&raw.tableau?compileTableau(raw.tableau,id,sources):undefined
+ const v=tableau?{...raw,items:tableau.records.map(record=>({id:'item-'+digest(record.id).slice(0,24),kind:record.kind==='pulse-metric'?'metric':record.kind==='follower'?'identity':'data',sourceRevision:record.digest,original:JSON.stringify({id:record.id,kind:record.kind,file:record.file,digest:record.digest,dependencies:record.dependencies}),mapping:'Inactive Tableau inventory',gap:tableau.diagnostics.filter(d=>d.object===record.id).map(d=>d.code).join('; ')}))}:raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw.source==='looker'&&raw.files!==undefined?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:lookerItems(raw)}:raw
+ exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items',...tableau?['tableau']:[]])
+ if(v.version!==1||v.projectId!==id||!sourceKinds.includes(String(v.source)))fail('migration_envelope_required',400)
  const cutoff=text(v.cutoff,32);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(cutoff)||!Number.isFinite(Date.parse(cutoff)))fail('migration_cutoff_required',400)
  const rollbackPlan=text(v.rollbackPlan,2048);if(!rollbackPlan.trim())fail('migration_rollback_plan_required',400)
  if(current&&(current.ownerId!==ownerId||current.source!==v.source))fail('migration_identity_changed',409)
@@ -39,5 +43,5 @@ export function compileMigration(value:unknown,id:string,ownerId:string,current?
  }
  if(items.length>100)fail('migration_inventory_limit',413)
  // A reconstruction description never establishes translated behavior or parity.
- return {id,ownerId,source:v.source as string,cutoff,rollbackPlan,items:items.sort((a,b)=>a.source.id.localeCompare(b.source.id)),state:'inactive',dispatch:'unavailable',grants:'none',expectedWorkspace}
+ return {id,ownerId,source:v.source as string,cutoff,rollbackPlan,items:items.sort((a,b)=>a.source.id.localeCompare(b.source.id)),state:'inactive',dispatch:'unavailable',grants:'none',expectedWorkspace,...tableau?{tableau}:{}}
 }
