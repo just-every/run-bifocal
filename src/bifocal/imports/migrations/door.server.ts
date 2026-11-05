@@ -47,6 +47,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    else {
     if(!entry.conflict)fail('migration_conflict_required',409)
     if(input.choice!=='keep-native'&&input.choice!=='use-source')fail('migration_resolution_required',400)
+    if(value.source==='looker'&&input.choice==='keep-native'&&entry.source.kind==='dashboard'){
+     const document=JSON.parse(entry.native).document
+     entry.native=JSON.stringify({...JSON.parse(entry.conflict.original),document})
+    }
     entry.source=entry.conflict;entry.conflict=null
     if(input.choice==='use-source'){entry.native=entry.source.original;entry.edited=false}
    }

@@ -11,7 +11,7 @@ import { importGuard, type MigrationRow } from '../store.server'
 import { QueryError, type Query, type Answer, type Cell } from '../../../query/types'
 import { dashboardIssues, stableId, type LookerDashboard, type LookerIssue } from './reader'
 
-type Draft={item:string;sourceId:string;elements:{id:string;key:string;fields:unknown;filters:unknown;expression:unknown;dependencies:string[]}[];definition:DashboardDocument|null;answers:{key:string;answer:Answer}[]}
+type Draft={item:string;sourceId:string;elements:{id:string;title:string;key:string;fields:unknown;filters:unknown;expression:unknown;dependencies:string[]}[];definition:DashboardDocument|null;answers:{key:string;answer:Answer}[]}
 export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'>,ownerId:string,current:MigrationRow){
  const actor:Authority={...owner,id:ownerId,role:'owner'},guards=[importGuard(current)],issues:(LookerIssue&{item:string})[]=[],drafts:Draft[]=[]
  for(const entry of current.value.items.filter(i=>i.source.kind==='dashboard')){
@@ -28,7 +28,7 @@ export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'
    const limits=new Map<string,number>()
    if(Array.isArray(doc.source.elements))for(const [index,value] of doc.source.elements.entries()){
     const e=object(value),key=stableId('element',String(e.name)),at=doc.file+':elements.'+index
-    draft.elements.push({id:String(e.name),key,fields:e.fields,filters:e.filters??{},expression:e,dependencies:[String(e.model)+'.'+String(e.explore),...Array.isArray(e.fields)?e.fields.map(String):[]]})
+    draft.elements.push({id:String(e.name),title:String(e.title??e.name),key,fields:e.fields,filters:e.filters??{},expression:e,dependencies:[String(e.model)+'.'+String(e.explore),...Array.isArray(e.fields)?e.fields.map(String):[]]})
     try{
      const binding=doc.bindings[String(e.model)+'.'+String(e.explore)];if(!binding)continue
      const model=await readModel(env,ownerId,binding.modelId);guards.push(modelGuard(model))
@@ -49,15 +49,17 @@ export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'
      // Native tables retain their deterministic physical text order. Other sort
      // and null-order semantics are refused, never approximated.
      const sourceDimensions=fields.filter(f=>groupBy.includes(binding.fields[f]))
-     if(groupBy.length>1||groupBy.some(name=>sources[0].table.columns.find(c=>c.name===name)?.type!=='text')||digest(e.sorts??null)!==digest(sourceDimensions.map(f=>f+' asc')))add(at+'.sorts','unsupported_sort',e.sorts,'Supply explicit ascending order for at most one physical text grouping field; scalar tables use an empty sort list.')
-     query.groupBy=groupBy;query.measures=measures
+     if(digest(e.sorts??null)!==digest(sourceDimensions.map(f=>f+' asc')))add(at+'.sorts','unsupported_sort',e.sorts,'Supply explicit ascending order for every physical grouping field; scalar tables use an empty sort list.')
+     query.groupBy=groupBy;query.measures=measures;delete query.orderBy
+     if(groupBy.length)query.orderBy=groupBy.map(column=>({column,direction:'asc',nulls:'last'}))
      for(const [field,expression] of Object.entries(e.filters&&typeof e.filters==='object'&&!Array.isArray(e.filters)?e.filters:{})){
-      const mapped=binding.fields[field],column=sources[0].table.columns.find(c=>c.name===mapped)
+      const mapped=binding.fields[field],column=sources[0].table.columns.find(c=>c.name===mapped&&query.semantic?.dimensions.some(d=>d.column===c.name))
       let literal:Cell|undefined
       if(column?.type==='text'&&typeof expression==='string'&&/^"[^"\\]*"$/.test(expression))literal=expression.slice(1,-1)
       if(column&&['number','money'].includes(column.type)&&typeof expression==='string'&&/^-?\d+(?:\.\d+)?$/.test(expression))literal=expression
+      if(column?.type==='date'&&typeof expression==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(expression))literal=expression
       if(column?.type==='boolean'&&['yes','no'].includes(String(expression)))literal=expression==='yes'
-      if(literal===undefined)add(at+'.filters.'+field,'unsupported_filter',expression,'Map a physical field and use an explicit literal equality; dynamic, date, wildcard and expression filters require implementation.')
+      if(literal===undefined)add(at+'.filters.'+field,'unsupported_filter',expression,'Map a physical field and use an explicit literal equality; dynamic, relative-date, wildcard and expression filters require implementation.')
       else query.filters.push({column:mapped,op:'eq',value:literal})
      }
      cards.push({key,definition:query});desktop.push({key,x:Number(e.col)/2,y:Number(e.row),w:Number(e.width)/2,h:Number(e.height)});phone.push({key,x:0,y:index*Number(e.height),w:1,h:Number(e.height)});limits.set(key,Number(e.limit))
@@ -71,7 +73,7 @@ export async function reviewLooker(env:Bindings,owner:Omit<Authority,'id'|'role'
     if(digest(edited.cards)!==digest(compiled.cards)||edited.interactions!==undefined)add(entry.source.id,'native_query_changed',null,'Only native title and placements are editable in this bounded draft; query changes need a reviewed source mapping.')
     if(!local.length){
      const preview=await previewInactiveDashboard(env,actor,edited);guards.push(...preview.guards);draft.definition=edited
-     for(const value of preview.answers){if(value.answer.rows.length>limits.get(value.key)!)add(value.key,'source_limit_would_truncate',limits.get(value.key));if(value.answer.rows.some(r=>r.dimensions.some(d=>d===null||typeof d!=='string'||/[^\x20-\x7e]/.test(d))))add(value.key,'unresolved_collation_or_null_order',null)}
+     for(const value of preview.answers){if(value.answer.rows.length>limits.get(value.key)!)add(value.key,'source_limit_would_truncate',limits.get(value.key));if(value.answer.rows.some(r=>r.dimensions.some(d=>d===null||typeof d==='string'&&/[^\x20-\x7e]/.test(d))))add(value.key,'unresolved_collation_or_null_order',null)}
      if(!local.length)draft.answers=preview.answers
     }
    }

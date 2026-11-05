@@ -1,0 +1,41 @@
+const form=document.querySelector('#lookml-form')
+if(form){
+ const el=id=>document.getElementById('lookml-'+id),field=name=>form.elements.namedItem(name),status=value=>el('status').textContent=value
+ let current,plan,review
+ const request=async(path,data,headers={})=>{const response=await fetch('/api/operator'+path,{method:data===undefined?'GET':'POST',headers:{...headers,...data===undefined?{}:{'content-type':['application','json'].join('/')}},...data===undefined?{}:{body:JSON.stringify(data)}}),value=await response.json();if(!response.ok)throw Error(value.error??'Request refused');return value}
+ const headers=()=>({'X-Import-Kind':'migration-project','X-Import-Dataset':field('project').value}),base=()=>'/migration-projects/'+field('project').value
+ const run=fn=>async event=>{event?.preventDefault();try{await fn()}catch(error){status(error.message)}}
+ const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=value;return node}
+ const invalidate=()=>{review=null;el('preview').disabled=true}
+ const selected=()=>current.items.find(i=>i.source.id===el('item').value)
+ const select=()=>{const item=selected();el('document').value=JSON.stringify(JSON.parse(item.native).document,null,2);invalidate()}
+ const load=async()=>{current=await request(base());el('current').hidden=false;el('plan').hidden=true;el('results').replaceChildren();el('item').replaceChildren(...current.items.filter(i=>i.source.kind==='dashboard').map(i=>new Option(JSON.parse(i.native).source.dashboard+(i.conflict?' · source conflict':''),i.source.id)));select();status('Inactive LookML project loaded. Review to build native documents.')}
+ el('load').onclick=run(load);el('item').onchange=select;el('document').oninput=invalidate
+ field('project').oninput=()=>{current=null;plan=null;el('plan').hidden=true;el('current').hidden=true;invalidate()}
+ form.onsubmit=run(async()=>{
+  invalidate();plan=null;el('plan').hidden=true
+  const files=await Promise.all([...field('files').files].map(async file=>{if(file.size>32768)throw Error('Each LookML original must be at most 32 KiB');return {path:file.name,content:await file.text()}}))
+  const input={version:1,source:'looker',projectId:field('project').value,cutoff:new Date().toISOString().slice(0,19)+'Z',rollbackPlan:field('rollbackPlan').value,files,bindings:JSON.parse(field('bindings').value)},bytes=new TextEncoder().encode(JSON.stringify(input))
+  if(bytes.length>1048576)throw Error('LookML bundle exceeds 1 MiB')
+  const hash=async part=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',part))].map(v=>v.toString(16).padStart(2,'0')).join(''),bundleSha256=await hash(bytes),totalChunks=Math.ceil(bytes.length/65536);let upload
+  for(let index=0;index<totalChunks;index++){const part=bytes.subarray(index*65536,(index+1)*65536);upload=await request('/import/uploads',{...upload?{uploadId:upload.uploadId}:{},name:'original-lookml.json',bundleSha256,totalBytes:bytes.length,totalChunks,index,chunkSha256:await hash(part),base64:btoa(String.fromCharCode(...part))},headers())}
+  plan=await request('/import/plan',{uploadId:upload.uploadId,...current?{catchup:true}:{}},headers());el('plan-text').textContent=JSON.stringify({fingerprint:plan.fingerprint,counts:plan.counts,project:plan.project},null,2);el('plan').hidden=false;el('confirm').checked=false;el('apply').disabled=true;status('Review every original, mapping and exact LookML fingerprint.')
+ })
+ el('confirm').onchange=()=>el('apply').disabled=!el('confirm').checked
+ el('apply').onclick=run(async()=>{if(!plan||!el('confirm').checked)throw Error('Exact review required');for(let i=0;i<20;i++){const applied=await request('/import/apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint},headers());if(applied.job.state==='completed'){const reconciled=await request('/import/reconcile',{planId:plan.planId},headers());if(!reconciled.ok)throw Error('Reconciliation refused');await load();status('LookML drafts applied inactive; originals reconciled.');return}}throw Error('Resume the incomplete import')})
+ function show(value){
+  el('results').replaceChildren(text('p',value.compatible?'Supported native dashboards reviewed; source parity and cutover remain unproved.':'Unresolved LookML behavior blocks preview.'))
+  for(const issue of value.issues)el('results').append(text('p',issue.location+': '+issue.code+' · '+issue.resolution))
+  for(const draft of value.drafts){el('results').append(text('h4',draft.definition?.title??draft.sourceId));for(const element of draft.elements)el('results').append(text('p',element.id+' · '+element.dependencies.join(', ')))
+   const grid=document.createElement('div');grid.className='lookml-draft-grid';el('results').append(grid)
+   for(const card of draft.answers){const table=document.createElement('table');table.setAttribute('aria-label','LookML native values '+draft.elements.find(e=>e.key===card.key)?.id);const head=document.createElement('thead'),headRow=document.createElement('tr'),query=draft.definition.cards.find(c=>c.key===card.key).definition;for(const label of [...query.groupBy,...query.measures.map(m=>m.id+(m.unit==='money'?' · '+(m.sourceCurrency??'money'):''))])headRow.append(text('th',label));head.append(headRow);table.append(head);const body=document.createElement('tbody');for(const row of card.answer.rows){const tr=document.createElement('tr');for(const cell of [...row.dimensions,...Object.values(row.values).map(v=>v.value)])tr.append(text('td',cell===null?'NULL':String(cell)));body.append(tr)}const total=document.createElement('tr');total.append(text('th','Total'));for(const v of Object.values(card.answer.totals))total.append(text('td',v.value??'NULL'));body.append(total);table.append(body);const scroll=document.createElement('section');scroll.className='lookml-native-tile';scroll.dataset.key=card.key;for(const mode of ['desktop','phone']){const p=draft.definition.layout[mode].find(p=>p.key===card.key);for(const name of ['x','y','w','h'])scroll.style.setProperty('--'+mode+'-'+name,String(p[name]))}scroll.append(text('h5',draft.elements.find(e=>e.key===card.key)?.title??card.key),table);grid.append(scroll)}
+  }
+  const nativeDocument=value.drafts.find(d=>d.item===el('item').value)?.definition;if(nativeDocument)el('document').value=JSON.stringify(nativeDocument,null,2)
+ }
+ el('review').onclick=run(async()=>{review=await request(base()+'/review',{reviewedRevision:current.revision});show(review);el('preview').disabled=!review.compatible;status('Current LookML definitions and source dependencies reviewed.')})
+ el('preview').onclick=run(async()=>{if(!review)throw Error('Review current definitions first');show(await request(base()+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest}));status('Exact current-owner LookML preview confirmed; nothing published.')})
+ el('save').onclick=run(async()=>{const item=selected(),native={...JSON.parse(item.native),document:JSON.parse(el('document').value)};current=await request(base()+'/edit',{reviewedRevision:current.revision,itemId:item.source.id,native:JSON.stringify(native)});invalidate();status('Inactive native dashboard edit saved; review again.')})
+ el('originals').onclick=run(async()=>{const history=await request('/import/history',undefined,headers()),originals=[];for(const entry of history.history){const retained=await request('/import/original/'+entry.planId,undefined,headers());for(const item of retained.originals)if(item.original.status==='retained')originals.push(JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(item.original.base64),c=>c.charCodeAt(0)))).files)}el('original-view').hidden=false;el('original-view').open=true;el('original-text').textContent=JSON.stringify(originals,null,2);status('Original LookML files inspected.')})
+ el('undo').onclick=run(async()=>{if(!plan)throw Error('Only this session’s exact import can be undone');await request('/import/undo',{planId:plan.planId},headers());current=null;el('current').hidden=true;invalidate();status('LookML import undone; originals retained until eligible erasure.')})
+ el('erase').onclick=run(async()=>{await request(base()+'/erase',{confirmImport:el('erase-id').value,reviewedRevision:current?.revision??null});current=null;el('current').hidden=true;invalidate();status('LookML originals, native drafts and history withdrawn.')})
+}

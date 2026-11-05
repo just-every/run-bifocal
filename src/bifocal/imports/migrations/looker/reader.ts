@@ -57,6 +57,7 @@ export function dashboardIssues(document:LookerDashboard):LookerIssue[]{
   keys(e,['name','title','model','explore','type','fields','filters','sorts','limit','row','col','width','height'],at)
   if(typeof e.name!=='string'||!e.name||e.name.length>128||names.has(e.name))add(at+'.name','stable_element_id_required',e.name,'Supply a unique source element name.')
   names.add(String(e.name))
+  if(e.title!==undefined&&(typeof e.title!=='string'||!e.title.trim()||e.title.length>160))add(at+'.title','element_title_required',e.title,'Supply a bounded table title.')
   if(e.type!=='looker_grid')add(at+'.type','unsupported_visual',e.type,'Implement this visual; only looker_grid tables are rebuilt.')
   if(typeof e.model!=='string'||typeof e.explore!=='string'||!document.bindings[e.model+'.'+e.explore])add(at+'.model','explicit_model_mapping_required',[e.model,e.explore],'Map this exact source model and Explore to an existing reviewed native view.')
   if(!Array.isArray(e.fields)||!e.fields.length||e.fields.length>12||e.fields.some(f=>typeof f!=='string')||new Set(e.fields).size!==e.fields.length)add(at+'.fields','physical_fields_required',e.fields,'Select unique explicitly mapped physical fields and measures.')
