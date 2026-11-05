@@ -19,7 +19,7 @@ export type ReviewedReadTool = ToolDefinition & {job:string; classifierTests:Rec
 export function readTools(env: Bindings): ReviewedReadTool[] {
  return ['status','definitions','query'].map((name): ReviewedReadTool => ({
   job:'Read and explain a reviewed view',
-  classifierTests:{[name === 'status' ? 'standard' : 'sensitive']:['tests/agent-native-journey.mjs: afterStep',`BASE-AGENT-006.2.autonomous.${name}`,`BASE-AGENT-006.2.held.${name}`]},
+  classifierTests:{[name === 'status' ? 'standard' : 'sensitive']:['tests/agent-native-journey.mjs: afterStep','src/modules/agent-door/conformance/journey.mjs: checkClasses',`BASE-AGENT-006.2.autonomous.${name}`,`BASE-AGENT-006.2.held.${name}`]},
   name:`bifocal.analytics.${name}`,title:name === 'query' ? 'Query reviewed view' : 'Read reviewed definitions',
   description:'Read only the current native owner’s exactly reviewed published view, source bindings, fields, restrictions and lifetime allowance.',
   scope:toolScope(name === 'status' ? 'definitions' : name),readOnly:true,classes:name === 'status' ? ['standard'] : ['sensitive'],clauses:['BIF-027','BIF-035','BASE-AGENT-002','BASE-AGENT-006'],untrusted:name !== 'status',
