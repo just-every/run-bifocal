@@ -402,7 +402,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "74773a3f575199cd4f373089d022e2adc3e456c266b7522ce9237ccbaf02dd9f",
+      "sha256": "9c28c70eb59acf59b40af5fa829513917fdb2a59d30a8dc302ecf309a0681917",
       "executable": false
     },
     "agent-surface.json": {
@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ce215c720578403f025a175da96b3f017c45030226c4ff98eef64145a8e8ab0d",
+      "sha256": "54a2d7619b73443b26352f5424f083192d581faa0db151a7e1929ac7b05e9420",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -550,7 +550,7 @@
       "executable": false
     },
     "docs/SMARTSHEET.md": {
-      "sha256": "12a508d5e88fd0446526ffdd68502b56f45ff80734ba0d4e388172c46eff978f",
+      "sha256": "3b35c2fe5afc9d29bde74df9d80046b8acce58ae6c78fe9c079a6943aa4fbdff",
       "executable": false
     },
     "docs/SPREADSHEET-RANGES.md": {
@@ -3710,11 +3710,11 @@
       "executable": false
     },
     "src/bifocal/sources/smartsheet/read.ts": {
-      "sha256": "a6f8e555202d25040f0fdac878fe0a18cbb175a1e8fb122eef60ece1ba78efc0",
+      "sha256": "f1bbbd64e8b7c25a156d282a754c503be10c7740d5426a542df65e7a92c49576",
       "executable": false
     },
     "src/bifocal/sources/smartsheet/server.ts": {
-      "sha256": "a0a016248106cf22989f0f5c3ceb9f08bbad411d9d8c640a757a8eec58fed021",
+      "sha256": "10079097894b083a196715587fca951deff33b756a31f7243395295228363a87",
       "executable": false
     },
     "src/bifocal/sources/spreadsheets/consent.server.ts": {
@@ -6194,11 +6194,11 @@
       "executable": false
     },
     "tests/journeys/analytics-boundaries.mjs": {
-      "sha256": "7a3269ec5ca048b0915b5652ed4bf131e253cd4d7f85611b3c9bf7822b670028",
+      "sha256": "848fdf0e5fe5e089b911a87bb357432507fff584dbfea21c3d86839e6d4c2335",
       "executable": false
     },
     "tests/journeys/analytics-edge.mjs": {
-      "sha256": "9948b5d5be945b3dac311efcddd8f3f77aa120a1db4dbd66bfb8be386ed411f6",
+      "sha256": "9809193534fb2a59cbf33f8eb71678c92257fe2cea8937668b37b9e3844f60d3",
       "executable": false
     },
     "tests/journeys/board-tooling.mjs": {

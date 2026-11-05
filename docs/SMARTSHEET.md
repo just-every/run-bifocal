@@ -38,6 +38,13 @@ form and supplied only for this operation, never retained in originals,
 normalized data, history, consent records or browser storage. Approve each read
 explicitly; changing the selected sheet, mapping or dataset clears consent.
 A failed read leaves the complete last committed dataset intact.
+Current native owner authority is checked before each provider GET and again
+before staging the review. Revoking that session during a page response stops
+subsequent reads; revocation during the final version response also refuses
+staging. The existing current-session file guards still apply to approval,
+Apply, reconciliation, original reads, Undo and erasure.
+Unsupported column and cell refusals identify the selected column, its provider
+type and, where applicable, the stable row ID in the browser status message.
 
 The adapter uses GET `/2.0/sheets/{sheetId}` with `columnIds`, `level=2`,
 `include=objectValue`, `pageSize=100` and sequential `page` values. It requires
