@@ -486,7 +486,7 @@
       "executable": false
     },
     "docs/FILE-IMPORT.md": {
-      "sha256": "9b2dbf4eabbdaace73265bbcc30bf1664729d69e20c6ad90551649df204eb6c4",
+      "sha256": "00a789af296bb2dba20987feae0c32f4c944af984c81214b1f8608c5540382cc",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -1062,7 +1062,7 @@
       "executable": false
     },
     "public/bifocal/file-upload.js": {
-      "sha256": "a90d72b999b1a65a93c37d1e201f8b974dd005297a768c09f05a15ffc071de27",
+      "sha256": "0e72b400c7b67770074350769163eb4932cdae7a99d26087e716577077798ba9",
       "executable": false
     },
     "public/bifocal/file-view.js": {
@@ -2990,7 +2990,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/csv.ts": {
-      "sha256": "65b4bf2386d657121573e5181865e479fb0ff663fcf8fe35f9e632bf631741d8",
+      "sha256": "c4bca7ac5bd0a640dbcdab91ff77cd437c1b0eb0fe5cf2a968262b6da48e928d",
       "executable": false
     },
     "src/bifocal/imports/files/interpretation.ts": {
@@ -3006,7 +3006,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/page.server.ts": {
-      "sha256": "d309af010ff3755657a83ef74df2d0fd966f2d813058902267a7d17e400aacb1",
+      "sha256": "6eafabf183b859a2c2eca7bda64a7ec0f710588cedbe235adedadf222d00aacc",
       "executable": false
     },
     "src/bifocal/imports/files/reviews.server.ts": {
@@ -3019,6 +3019,18 @@
     },
     "src/bifocal/imports/files/targets.ts": {
       "sha256": "6f7f09bf5bb5597ac89594b809ff8ca4232e08a1c5981ed02c911588658733b5",
+      "executable": false
+    },
+    "src/bifocal/imports/files/xls/biff.ts": {
+      "sha256": "4521005269c470eaa998c31d29f4aae3f400175752b3b0e3c74be83efc3216ab",
+      "executable": false
+    },
+    "src/bifocal/imports/files/xls/compound.ts": {
+      "sha256": "c363dfddc54951aa7aebfa29a81b255602900389713fab604e65149c43e7615f",
+      "executable": false
+    },
+    "src/bifocal/imports/files/xls/index.ts": {
+      "sha256": "96c6b8c5b7bcb09eea26e5e9b856fd5c7bc244f514c11cfaa3832c35176e5b7d",
       "executable": false
     },
     "src/bifocal/imports/files/xlsx.ts": {
@@ -6459,6 +6471,10 @@
     },
     "tests/journeys/spreadsheet-edge.mjs": {
       "sha256": "4cfe2030050a85e75ff05de5aee97a411374bc2c49582efb88f9b9c0300d8d48",
+      "executable": false
+    },
+    "tests/journeys/xls-fixtures.mjs": {
+      "sha256": "a158a544b8667aa2170edbca071fd2d43c10e0c813aa7bdabcd2c6a86d82acef",
       "executable": false
     },
     "tests/runtime.mjs": {
