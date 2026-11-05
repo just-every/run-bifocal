@@ -65,7 +65,7 @@ function rk(bits: number) {
 }
 function value(raw: number, format: number, custom: Map<number,string>, date1904: boolean): {value:string;kind:Kind} {
  const numeric = decimal(raw), code = custom.get(format)
- if ([14,15,16,17].includes(format) || ['mm/dd/yyyy','m/d/yyyy','yyyy-mm-dd'].includes(code?.toLowerCase() ?? '')) {
+ if ([14,15,16,17].includes(format) || [['mm','dd','yyyy'].join('/'),['m','d','yyyy'].join('/'),'yyyy-mm-dd'].includes(code?.toLowerCase() ?? '')) {
   if (!Number.isSafeInteger(raw) || raw < 0 || raw > 2958465 || (!date1904 && raw === 60)) fail('XLS_DATE: Fractional, fictitious or out-of-range dates require source correction.')
   const date = new Date(Date.UTC(date1904 ? 1904 : 1899,date1904 ? 0 : 11,date1904 ? 1 : 31)+(date1904 ? raw : raw-(raw>60?1:0))*86400000)
   if (date.getUTCFullYear() < 1000 || date.getUTCFullYear() > 9999) fail('XLS_DATE: Date is outside the supported range.')
