@@ -10,19 +10,27 @@ import { execute } from '../query/execute'
 import { fail } from '../query/types'
 import { exactKeys } from '../models/validation/transport'
 
+/** The exact permitted definition projection, also used for resource classification.
+ * Reading this projection neither reserves an operation nor records success. */
+export async function credentialDefinitions(env:Bindings,c:Awaited<ReturnType<typeof machineAuthority>>['credential']) {
+ if(!c.scope.tools.includes('definitions'))fail('tool_not_permitted',403)
+ const {model,view,rules}=await credentialBindings(env,c),scope=c.scope
+ intersectSources({...view.query,groupBy:scope.dimensions,filters:[...view.query.filters,...view.rowRules,...scope.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))},rules)
+ return {modelId:model.id,revision:scope.revision,viewId:scope.viewId,dimensions:scope.dimensions,measures:view.query.measures.filter(m=>scope.measures.includes(m.id)).map(m=>({id:m.id,unit:m.unit})),scopeDigest:c.digest,tools:scope.tools}
+}
+
 /** Native execution only. Transport adapters enter the registered policy door;
  * its read tools call this service once for each actual execution. */
 export async function credentialOperation(env:Bindings,admission:Awaited<ReturnType<typeof machineAuthority>>,name:string,input:Record<string,unknown>={},attribution?:{agentId:string;agentName:string;sponsorName:string}){
  const {credential:c,authority}=admission,scope=c.scope
  if(!scope.tools.includes(name))fail('tool_not_permitted',403)
- const {model,view,sources,rules,fences}=await credentialBindings(env,c)
+ const {view,sources,rules,fences}=await credentialBindings(env,c)
  const reserve=()=>transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine','read-reserved')])
  let result:unknown
  if(name==='definitions'){
   exactKeys(input,[])
-  intersectSources({...view.query,groupBy:scope.dimensions,filters:[...view.query.filters,...view.rowRules,...scope.filters],measures:view.query.measures.filter(m=>scope.measures.includes(m.id))},rules)
+  result=await credentialDefinitions(env,c)
   await reserve()
-  result={modelId:model.id,revision:scope.revision,viewId:scope.viewId,dimensions:scope.dimensions,measures:view.query.measures.filter(m=>scope.measures.includes(m.id)).map(m=>({id:m.id,unit:m.unit})),scopeDigest:c.digest,tools:scope.tools}
  }else{
   exactKeys(input,['modelId','revision','viewId','groupBy','filters','offset'])
   if(input.modelId!==scope.modelId||input.revision!==scope.revision||input.viewId!==scope.viewId)fail('scope_not_permitted',403)

@@ -29,6 +29,7 @@ export default async function ({agentId,request,origin}) {
  const review=await op(path+'/validate',{},200)
  await op(path+'/approve',{digest:review.digest},200)
  for(const environment of ['staging','production'])await op(path+'/promote',{environment,digest:review.digest},200)
+ // Definitions explicitly selected here also authorize its single resource transport.
  const scope={purpose:'Reviewed West company agent',modelId:model.modelId,revision:model.revision,viewId:'pipeline',filters:[{column:'region',op:'eq',value:'West'}],dimensions:['region'],measures:['revenue'],tools:['query','definitions'],expiresAt:new Date(Date.now()+3600000).toISOString(),maxOperations:1000}
  const grantReview=await op('/credentials/review',scope,200)
  const grant=await op('/credentials',{...scope,reviewedDigest:grantReview.digest})

@@ -1,6 +1,7 @@
 // Test-only scheduler around the emitted Worker and real local D1. It inserts
 // an actual authenticated public mutation immediately before a read's final
-// response transaction. No application authorization or SQL result is mocked.
+// response transaction, including admitted definition resources. No application
+// authorization or SQL result is mocked.
 import worker from '../../dist/server/index.js'
 import { withDevIdentity } from '../../src/modules/operator-auth/dev/index.mjs'
 import { createOperatorAuth, createAuthHandler } from '../../src/modules/operator-auth/index.mjs'
