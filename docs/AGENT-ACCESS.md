@@ -85,8 +85,8 @@ Tool listings require current company policy; resources additionally apply
 current scopes. The public guide describes the configured registry, not an
 authorization decision for its reader.
 
-After MCP discovery and initialization, call `prompts/list`, then
-`prompts/get` with name `bifocal.analytics.reviewed-answer`. The prompt takes
+After MCP discovery and initialization, call `prompts / list`, then
+`prompts / get` with name `bifocal.analytics.reviewed-answer`. The prompt takes
 no job arguments and describes only status, reviewed definitions and exact
 aggregate queries. Read definitions first; use their exact model, revision,
 view, dimensions and measures. Query with explicit filters, then follow

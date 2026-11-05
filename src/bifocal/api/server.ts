@@ -1,3 +1,4 @@
+import { analyticalReadPageSize } from '../agent-door/limits'
 import { nativeApiResponse } from './native.server'
 import { buildSchema, graphql } from 'graphql'
 import { runtimeBindings, type Bindings } from '../../auth.server'
@@ -21,7 +22,7 @@ export async function publicApiResponse(request:Request,original:Bindings):Promi
   if(new URL(request.url).search)fail('unsupported_input',400)
   // Even protocol discovery requires a current credential; cookies never substitute.
   await machineAuthority(request,env)
-  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:25,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersions:['2026-07-28','2025-11-25']}})
+  if(path==='/api/v1/schema'&&request.method==='GET')return json({version:1,graphql:schemaText,rest:{definitions:{method:'GET',path:'/api/v1/definitions'},query:{method:'POST',path:'/api/v1/query',input:tool.inputSchema}},limits:{pageSize:analyticalReadPageSize,maxBodyBytes:65536},mcp:{path:'/api/v1/mcp',protocolVersions:['2026-07-28','2025-11-25']}})
   if(path==='/api/v1/definitions'&&request.method==='GET'){const read=await agentRead(request,env,'definitions');return agentReadResponse(read.value,read.meta)}
   if(path==='/api/v1/query'&&request.method==='POST'){const read=await agentRead(request,env,'query',await jsonBody(request));return agentReadResponse(read.value,read.meta)}
   if(path==='/api/v1/graphql'&&request.method==='POST'){

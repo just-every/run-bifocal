@@ -1,3 +1,4 @@
+import { analyticalReadPageSize } from '../agent-door/limits'
 import type { Bindings } from '../../auth.server'
 import { assertion, sql, transact } from '../../modules/import-kit/src/door/store.ts'
 import { machineAuthority, machineAudit } from '../credentials/store.server'
@@ -36,7 +37,7 @@ export async function credentialOperation(env:Bindings,admission:Awaited<ReturnT
   await reserve()
   const answer=execute(query,sources,context)
   if(Number(offset)>answer.rows.length)fail('invalid_page_offset',400)
-  result={rows:answer.rows.slice(Number(offset),Number(offset)+25),totals:answer.totals,totalRows:answer.rows.length,offset,nextOffset:Number(offset)+25<answer.rows.length?Number(offset)+25:null,
+  result={rows:answer.rows.slice(Number(offset),Number(offset)+analyticalReadPageSize),totals:answer.totals,totalRows:answer.rows.length,offset,nextOffset:Number(offset)+analyticalReadPageSize<answer.rows.length?Number(offset)+analyticalReadPageSize:null,
    citations:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,scopeDigest:c.digest,definitionHash:answer.definitionHash,semanticsVersion:answer.semanticsVersion,sourceWatermarks:answer.sourceWatermarks,companyRevision:context.company.revision,calendar:query.context.calendar,credentialId:c.id},
    query:{modelId:model.id,revision:scope.revision,viewId:scope.viewId,groupBy:candidate.groupBy,filters:candidate.filters,measures:scope.measures,fiscal:query.fiscal??null}}
  }

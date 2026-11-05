@@ -450,7 +450,7 @@
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
-      "sha256": "87f61abd819a3da6f92bdd8441ce33c0810e532d77ed04591c3b53259a4d55e2",
+      "sha256": "0d45ff34804f63c29dd730107d0c2af7668fdd06b958d3fcc57238353362f465",
       "executable": false
     },
     "docs/ANALYTICS-HANDOFFS.md": {
@@ -2246,11 +2246,15 @@
       "executable": false
     },
     "src/bifocal/agent-door/guide.server.ts": {
-      "sha256": "089cd4b10c6d559e0d5321f5ec85473026e29d6a6a66a6e2d122ad3b56e94acf",
+      "sha256": "7a72f6ba4c2e9001d53a4aa54a7f9293cfffb2e5a82e36d86a0c834cd6a5c131",
       "executable": false
     },
     "src/bifocal/agent-door/index.server.ts": {
       "sha256": "bf255ed891596a943e6157843a3bcfdbfa4680d3d3df2f5c95ab5f5aec6990dc",
+      "executable": false
+    },
+    "src/bifocal/agent-door/limits.ts": {
+      "sha256": "2dd4bcc43941bf489adf20c95dcd30450dacef943ba855b41d1316c2f58d2d4f",
       "executable": false
     },
     "src/bifocal/agent-door/prompt.ts": {
@@ -2298,7 +2302,7 @@
       "executable": false
     },
     "src/bifocal/api/native-operation.server.ts": {
-      "sha256": "5df8b1d946a952dc5e5535d29fea652b5cc014457a9fb3ef1118a37644c9c294",
+      "sha256": "73d44687948da0f59ae0ef876c7ad0c4325877c0ec13a3cc2e8281282652841a",
       "executable": false
     },
     "src/bifocal/api/native.server.ts": {
@@ -2306,7 +2310,7 @@
       "executable": false
     },
     "src/bifocal/api/server.ts": {
-      "sha256": "bd13bd4bf37093ebfffd93bb3a56efedf58f905356c2856fbeb6bbbaac0c65f6",
+      "sha256": "ee28a265e949ebbb29d91fb39766cb258c4da0ff03c4ce6f45f875836ecde966",
       "executable": false
     },
     "src/bifocal/apps/content.server.ts": {
@@ -6170,7 +6174,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "6e3135c90c2bfce2a7a15ace59a04f61c7ed6dab6c275520d820ff7b7c3b3f1e",
+      "sha256": "131fe07582b13a908ef0543ac49ccb3d029c4bbfa243f8a512b2e2a295d55a89",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6362,7 +6366,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "ef1d56f45f41f62ae76c323368fa879cfc40f55eb7089d3fdc39b22868d9b621",
+      "sha256": "d11aaceb378accdb9df751139a26967405ab9e73c7ebd0e600a369e33396753e",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {

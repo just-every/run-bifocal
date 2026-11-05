@@ -210,6 +210,8 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  const schema=await api('/api/v1/schema');assert.match(schema.graphql,/type Query/)
  const definitions=await api('/api/v1/definitions');assert.deepEqual(definitions.dimensions,['region','stage']);assert.ok(!JSON.stringify(definitions).includes('note'))
  const guide=await proveAgentGuide({origin,request:fetch,privateValues:[key.token,created.modelId,dataset,'Secret stage'],rpc:(method,params={})=>api('/api/v1/mcp',{jsonrpc:'2.0',id:40,method,params})})
+ assert.equal(guide.queryLimits.pageSize,schema.limits.pageSize)
+ assert.equal(guide.queryLimits.pageSize,first.rows.length)
  // Existing installed guide styling and native details controls work without JS.
  await page.setViewportSize({width:1440,height:1000})
  await page.goto(origin+'/docs')
