@@ -1,5 +1,5 @@
 import type { Bindings } from '../../auth.server'
-import type { ResourceDefinition } from '../../modules/agent-door/index.ts'
+import type { ResourceContext, ResourceDefinition } from '../../modules/agent-door/index.ts'
 import type { Credential } from '../credentials/store.server'
 import { credentialDefinitions, credentialOperation } from '../api/native-operation.server'
 import { reviewedCredential, toolScope } from './grants.server'
@@ -12,21 +12,25 @@ export const definitionLinks = (c: Credential) => c.scope.tools.includes('defini
 
 /** Each door request gets its own adapter. The shared door calls read for pure
  * classification, then classify, then read again only after policy admission.
- * Remember that classified operation, rather than charging preview or discovery.
+ * Remember the classified principal, rather than charging preview or discovery.
+ * Approved retries retain their original operation ID after classification;
+ * principal identity stays fixed across that admitted read.
  * The native service still fences admission and reserves exactly one lifetime read. */
 export function definitionResources(env: Bindings): ResourceDefinition[] {
- const classified = new Set<string>()
+ let classified: string | null = null
+ const identity=(ctx: ResourceContext) => JSON.stringify([ctx.person.id,ctx.agent.id,ctx.clientId??null,ctx.consent??null])
  return [{
   uriTemplate:definitionTemplate,name:'Reviewed view definition',
   description:'Only the explicitly selected published model and view definition with permitted fields.',
   mimeType:'application/json',scope:toolScope('definitions'),classes:['sensitive'],
   classify(_record,ctx) {
-   if(ctx.operationId) classified.add(ctx.operationId)
+   classified=identity(ctx)
    return [{class:'sensitive',facts:{measure:1,kind:'reviewed-analytical-answer'}}]
   },
   async read(uri,ctx) {
    return native(async () => {
-    const admitted=ctx.operationId !== undefined && classified.delete(ctx.operationId)
+    const admitted=ctx.operationId !== undefined && classified===identity(ctx)
+    classified=null
     const admission=await reviewedCredential(env,ctx),c=admission.credential
     if(!c.scope.tools.includes('definitions') || uri!==definitionUri(c)) return null
     if(!admitted) return {json:await credentialDefinitions(env,c),untrusted:true}
