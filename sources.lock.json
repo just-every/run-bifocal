@@ -6210,7 +6210,7 @@
       "executable": false
     },
     "tests/journeys/chart-tooling.mjs": {
-      "sha256": "01e035e7a0a16eaf74e29d6dc603a08a9c4e22c0ca6725ace3084dc410858639",
+      "sha256": "2ce34d08a8db8bafade03c861909ce5d0acce7cad9bc7438df84269d36e094e8",
       "executable": false
     },
     "tests/journeys/collaboration.mjs": {
