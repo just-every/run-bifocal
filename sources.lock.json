@@ -426,7 +426,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9747bac416b027c2a5703b2685476fcb6d99f2e8eaf60c367455953d2470e12c",
+      "sha256": "1104b612d16e070d2ac6b1cfce0ab9cc4aa59f8e59deec0baf3d507b1a5eec7f",
       "executable": false
     },
     "COST-CONTROLS.md": {
@@ -2258,7 +2258,7 @@
       "executable": false
     },
     "src/bifocal/agent-door/tools.server.ts": {
-      "sha256": "db56cea80abc701d7ee3b9907e9e6db551d2a14c06d223a0de2ec26d27a19dd0",
+      "sha256": "a70681cfa3bb293f9fbbc34ab2ce1754cae0209968a05a61ad4080189e03ddf0",
       "executable": false
     },
     "src/bifocal/alerts/erasure.ts": {
@@ -6138,7 +6138,7 @@
       "executable": false
     },
     "tests/agent-native-journey.mjs": {
-      "sha256": "4b30be7ca37b89d1905bb61234a4f5d3c4a313260c1238b3d3a8d27a0bd34ca9",
+      "sha256": "6aed778d8d1bbb1b5a14e4c7d1e10dc3262544da9bce42fc814d59c87094b9d5",
       "executable": false
     },
     "tests/bifocal-certified-metrics.mjs": {
@@ -6330,7 +6330,7 @@
       "executable": false
     },
     "tests/journeys/machine-doors.mjs": {
-      "sha256": "8695c8d2128e849fce1205e4e922011df9d1c13bf3424fcb3d5e724aa2ea63bc",
+      "sha256": "524e549405f50dc48a5aab658d4584768e168ce0bf32401971fc65f581dee8bf",
       "executable": false
     },
     "tests/journeys/metric-tooling.mjs": {
