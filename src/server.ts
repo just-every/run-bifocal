@@ -80,7 +80,7 @@ function noTransform(response: Response): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
-export default withDemo<Bindings, ExportedHandler<Bindings>>({
+const routes = {
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
@@ -205,6 +205,14 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (state) return state
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    return dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request)))
+  },
+} satisfies ExportedHandler<Bindings>
+
+export default withDemo<Bindings, ExportedHandler<Bindings>>({
+  async fetch(request, env, execution) {
+    // Every route must finish unread input before workerd reuses the connection,
+    // including early method, path and authority refusals above the dispatcher.
+    return rejectedResponse(request, await routes.fetch(request, env, execution))
   },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

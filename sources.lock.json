@@ -5978,7 +5978,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "4bb02527a87f44192f9d67c88b151234cd71f9c6885c6bfa5fc18d19067fead8",
+      "sha256": "47da2f971a2bd8f0d10241bc5b586619de6d3e60d82b508af6a9b8c85d1772e9",
       "executable": false
     },
     "src/site/base-pages.tsx": {
