@@ -62,6 +62,7 @@ export async function proveMigrationProjects({origin,context,call,page,upload,pr
  await post('apply',{planId:fresh.planId,reviewedFingerprint:fresh.fingerprint},410)
  await proveLookerReconstruction({origin,context,call,page,upload,proveScreen})
  await proveTableauMigration({origin,context,call,page,proveScreen,upload})
+ await proveLookMLDashboards({origin,context,call,page,upload,proveScreen})
  console.log('Migration projects: shared retained plans, exact approval, idempotent resume, deltas, native conflicts, both resolutions, original history, stale and foreign refusal, erasure and inert reconstruction inventories passed')
 }
 
@@ -141,7 +142,9 @@ export async function proveLookerReconstruction({origin,context,page,call,upload
  assert.deepEqual(gaps.issues.filter(i=>i.code==='missing_physical_field').map(i=>i.location).sort(),['missing-a','missing-b'])
  assert.ok(gaps.issues.some(i=>i.item==='evidence-blend'&&i.code==='unsupported_evidence'));assert.equal(gaps.drafts[0].answer,null)
  await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
- await page.getByRole('button',{name:'Load reconstruction',exact:true}).click();await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-results').filter({hasText:'missing-b'}).waitFor();assert.match(await page.locator('#looker-inventory summary').filter({hasText:'evidence-blend'}).innerText(),/unsupported/);await capture('looker-reconstruction-blocked')
+ await page.getByRole('button',{name:'Load reconstruction',exact:true}).click()
+ await page.locator('#looker-status').filter({hasText:'Retained reconstruction loaded'}).waitFor()
+ await page.getByRole('button',{name:'Review native preview',exact:true}).click();await page.locator('#looker-results').filter({hasText:'missing-b'}).waitFor();assert.match(await page.locator('#looker-inventory summary').filter({hasText:'evidence-blend'}).innerText(),/unsupported/);await capture('looker-reconstruction-blocked')
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'native-page',native:JSON.stringify(document)},200)
  current=await call(base+'/edit',{reviewedRevision:current.revision,itemId:'evidence-blend',native:blend.native},200)
  const priorEvidenceReview=await call(base+'/review',{reviewedRevision:current.revision},200)
@@ -409,4 +412,108 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  console.log('PROBE BIF-084 safety and drift: import plan, preview and draft Apply -> unsafe archive and XML, credentials, incomplete evidence, unresolved security, unsupported semantics, source drift, stale review and machine authority refused')
  console.log('PROBE BIF-084 concurrency and authority: exact native draft Apply twice -> one 201 and one 409; member, foreign and bearer requests refused without mutation')
  console.log('PROBE BIF-084 custody: reviewed Undo and retained original read, held and eligible source erase -> Undo reconciled; hold refused; originals, history and derived drafts withdrawn; replay refused')
+}
+
+/** Self-authored Google-documented specimens prove bounded native rebuilding. */
+export async function proveLookMLDashboards({origin,context,call,page,upload,proveScreen}){
+ const {prepareLookerDashboardModel}=await import('./model-import.mjs'),{assertLookerDashboardDraft}=await import('./dashboard-authoring.mjs'),{dump}=await import('js-yaml')
+ const id='synthetic-bifocal-lookml-dashboard',dataset=id+'-data',base='/migration-projects/'+id
+ const csv='invoice,region,revenue,person\n1,West,$10.01,A\n2,West,-$0.03,A\n10,East,$20.02,B\n4,Missing,,\n5,North,$0.00,C\n'
+ await upload(dataset,csv)
+ const binding=await prepareLookerDashboardModel({call,dataset}),bindings={'retail.orders':binding}
+ const elements=['regional','west'].map((name,index)=>({name,title:name,model:'retail',explore:'orders',type:'looker_grid',fields:['orders.region','orders.revenue','orders.people'],filters:index?{'orders.region':'"West"'}:{},sorts:['orders.region asc'],limit:500,row:0,col:index*12,width:12,height:4}))
+ const dashboard={dashboard:'regional_operating',title:'Original LookML operating tables',layout:'newspaper',elements},file={path:'regional.dashboard.lookml',content:dump([dashboard],{noRefs:true})}
+ const input={version:1,projectId:id,source:'looker',cutoff:'2026-11-04T12:00:00Z',rollbackPlan:'Keep the incumbent active; Undo this exact import.',files:[file],bindings},headers={Origin:origin,'X-Import-Kind':'migration-project','X-Import-Dataset':id}
+ const post=async(action,data,status=200)=>{const r=await context.request.post(origin+'/api/operator/import/'+action,{headers,data});assert.equal(r.status(),status,await r.text());return r.json()}
+ const prepare=async(value,catchup=false)=>{const bytes=Buffer.from(JSON.stringify(value)),hash=createHash('sha256').update(bytes).digest('hex'),u=await post('uploads',{name:'documented-lookml.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:1,index:0,chunkSha256:hash,base64:bytes.toString('base64')});return post('plan',{uploadId:u.uploadId,...catchup?{catchup:true}:{}})}
+ const apply=async plan=>{assert.equal(plan.counts.rejected,0,JSON.stringify(plan));for(let i=0;i<20;i++){const a=await post('apply',{planId:plan.planId,reviewedFingerprint:plan.fingerprint});if(a.job.state==='completed'){assert.equal((await post('reconcile',{planId:plan.planId})).ok,true);return}}assert.fail('LookML import incomplete')}
+ const original=async planId=>{const r=await context.request.get(origin+'/api/operator/import/original/'+planId,{headers});assert.equal(r.status(),200);return (await r.json()).originals}
+ const beforeSchedules=await call('/schedules')
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/app/import');await page.getByText('Import original LookML dashboards',{exact:true}).click()
+ await page.getByLabel('LookML migration ID',{exact:true}).fill(id);await page.getByLabel('Exact model and field mappings (JSON)',{exact:true}).fill(JSON.stringify(bindings))
+ await page.getByLabel('Original dashboard files',{exact:true}).setInputFiles({name:file.path,mimeType:['text','plain'].join('/'),buffer:Buffer.from(file.content)})
+ await page.getByRole('button',{name:'Review LookML import',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Review every original'}).waitFor()
+ await page.getByLabel('I reviewed this exact LookML fingerprint',{exact:true}).check();await page.getByRole('button',{name:'Apply inactive LookML drafts',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'LookML drafts applied inactive'}).waitFor()
+ let current=await call(base),entry=current.items.find(i=>i.source.kind==='dashboard')
+ const manifest=JSON.parse(current.items.find(i=>i.source.id==='looker-originals').native);assert.equal(manifest.files[0].path,file.path);assert.equal(manifest.files[0].content,file.content);assert.equal(manifest.files[0].sha256,createHash('sha256').update(file.content).digest('hex'))
+ await page.getByRole('button',{name:'Review LookML native preview',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Current LookML definitions'}).waitFor()
+ let review=await call(base+'/review',{reviewedRevision:current.revision},200);await assertLookerDashboardDraft({page,review})
+ await page.getByRole('button',{name:'Confirm LookML preview',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Exact current-owner LookML preview confirmed'}).waitFor()
+ await page.getByRole('button',{name:'Inspect LookML originals',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Original LookML files inspected'}).waitFor();assert.match(await page.locator('#lookml-original-text').innerText(),/regional\.dashboard\.lookml/)
+ const tiles=page.locator('#lookml-results .lookml-native-tile'),left=await tiles.nth(0).boundingBox(),right=await tiles.nth(1).boundingBox()
+ assert.ok(left.x<right.x);assert.equal(left.y,right.y)
+ await proveScreen('lookml-native-dashboard-preview')
+ await page.getByText('Undo or erase LookML import',{exact:true}).click();await page.getByRole('button',{name:'Undo LookML import',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'LookML import undone'}).waitFor();await call(base,undefined,404)
+ await page.getByRole('button',{name:'Review LookML import',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Review every original'}).waitFor();await page.getByLabel('I reviewed this exact LookML fingerprint',{exact:true}).check();await page.getByRole('button',{name:'Apply inactive LookML drafts',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'LookML drafts applied inactive'}).waitFor();current=await call(base);entry=current.items.find(i=>i.source.kind==='dashboard')
+ await page.getByRole('button',{name:'Review LookML native preview',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Current LookML definitions'}).waitFor()
+ const edited=JSON.parse(await page.getByLabel('Editable native dashboard document (JSON)',{exact:true}).inputValue());edited.title='Edited inactive operating draft'
+ await page.getByLabel('Editable native dashboard document (JSON)',{exact:true}).fill(JSON.stringify(edited));assert.equal(await page.getByRole('button',{name:'Confirm LookML preview',exact:true}).isDisabled(),true)
+ await page.getByRole('button',{name:'Save native dashboard edit',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Inactive native dashboard edit saved'}).waitFor();current=await call(base)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:review.digest},409)
+ const editedReview=await call(base+'/review',{reviewedRevision:current.revision},200);assert.equal(editedReview.drafts[0].definition.title,edited.title)
+ const concurrent=await Promise.all(['First title','Second title'].map(title=>context.request.post(origin+'/api/operator'+base+'/edit',{headers:{Origin:origin},data:{reviewedRevision:current.revision,itemId:entry.source.id,native:JSON.stringify({...JSON.parse(entry.native),document:{...edited,title}})}})))
+ assert.deepEqual(concurrent.map(r=>r.status()).sort(),[200,409]);current=await call(base)
+ console.log('PROBE BIF-025 custody and concurrency: browser original upload, review, Apply, exact native preview and title edit -> inactive drafts; stale preview -> 409; concurrent edits -> one 200 and one 409')
+ // One complete diagnostic covers every unresolved source semantic; hostile
+ // markup remains text and is never executed, fetched or inferred as authority.
+ const broken=structuredClone(dashboard);broken.access_filters=[{field:'orders.region',user_attribute:'region'}];broken.filters=[{name:'dynamic',type:'field_filter'}];broken.refresh='1 minute';broken.elements[0].sorts=['orders.revenue desc'];broken.elements[0].limit=0;broken.elements[0].dynamic_fields='dangerous expression';broken.elements[0].fields.push('orders.missing');broken.elements[0].filters={'orders.region':'West%'};broken.elements[1].type='looker_line';broken.elements[1].listen={dynamic:'orders.region'};broken.elements[1].html='<img src=x onerror="globalThis.lookmlExecuted=true">';broken.elements[1].row=0;broken.elements[1].col=0
+ const bad={...structuredClone(input),projectId:id+'-unsupported',files:[{...file,content:dump([broken])}]};headers['X-Import-Dataset']=bad.projectId
+ const badPlan=await prepare(bad);await apply(badPlan);const badBase='/migration-projects/'+bad.projectId,badCurrent=await call(badBase),badReview=await call(badBase+'/review',{reviewedRevision:badCurrent.revision},200)
+ assert.equal(badReview.compatible,false);assert.equal(badReview.drafts[0].definition,null);assert.deepEqual(badReview.drafts[0].answers,[])
+ assert.deepEqual(badReview.issues.filter(i=>i.code==='unsupported_property').map(i=>i.location.split('.').at(-1)).sort(),['access_filters','dynamic_fields','filters','html','listen','refresh'])
+ assert.ok(badReview.issues.some(i=>i.code==='unresolved_field'));assert.ok(badReview.issues.some(i=>i.code==='unsupported_filter'));assert.ok(badReview.issues.some(i=>i.code==='unsupported_visual'));assert.ok(badReview.issues.some(i=>i.code==='unsupported_sort'));assert.ok(badReview.issues.some(i=>i.code==='explicit_limit_required'))
+ await call(badBase+'/preview',{reviewedRevision:badCurrent.revision,reviewedDigest:badReview.digest},409)
+ await page.getByLabel('LookML migration ID',{exact:true}).fill(bad.projectId);await page.getByRole('button',{name:'Load LookML project',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Inactive LookML project loaded'}).waitFor();await page.getByRole('button',{name:'Review LookML native preview',exact:true}).click();await page.locator('#lookml-results').filter({hasText:'unsupported_visual'}).waitFor();assert.equal(await page.evaluate(()=>globalThis.lookmlExecuted),undefined);assert.equal(await page.locator('#lookml-results img').count(),0);await proveScreen('lookml-unsupported-dashboard')
+ console.log('PROBE BIF-025 unsupported: original security, filters, refresh, calculations, sorting and visual properties -> complete blocking diagnostics with no preview or script execution')
+ // Explicit row limits never truncate, and every supported element is rebuilt.
+ const four=structuredClone(dashboard);four.elements.push(...elements.map((e,index)=>({...e,name:'extra-'+index,row:4})));four.elements[2].fields=['orders.invoice','orders.revenue','orders.people'];four.elements[2].sorts=['orders.invoice asc'];four.elements[3].fields=['orders.revenue','orders.people'];four.elements[3].sorts=[]
+ const fourId=id+'-four';headers['X-Import-Dataset']=fourId;const fourPlan=await prepare({...input,projectId:fourId,files:[{...file,content:dump([four])}]});await apply(fourPlan)
+ const fourCurrent=await call('/migration-projects/'+fourId),fourReview=await call('/migration-projects/'+fourId+'/review',{reviewedRevision:fourCurrent.revision},200)
+ assert.equal(fourReview.compatible,true,JSON.stringify(fourReview.issues));assert.deepEqual(fourReview.drafts[0].elements.map(e=>e.id),['regional','west','extra-0','extra-1']);assert.equal(fourReview.drafts[0].answers.length,4);assert.deepEqual(fourReview.drafts[0].answers[2].answer.rows.map(r=>r.dimensions),[['1'],['2'],['4'],['5'],['10']]);assert.deepEqual(fourReview.drafts[0].elements[3].dependencies,['retail.orders','orders.revenue','orders.people','orders.region']);assert.deepEqual(fourReview.drafts[0].answers[3].answer.rows.map(r=>r.dimensions),[[]]);assert.equal(fourReview.drafts[0].answers[3].answer.totals.revenue.value,'9.98')
+ const limited=structuredClone(dashboard);limited.elements[0].limit=1
+ const limitedId=id+'-limited';headers['X-Import-Dataset']=limitedId;const limitedPlan=await prepare({...input,projectId:limitedId,files:[{...file,content:dump([limited])}]});await apply(limitedPlan)
+ const limitedCurrent=await call('/migration-projects/'+limitedId),limitedReview=await call('/migration-projects/'+limitedId+'/review',{reviewedRevision:limitedCurrent.revision},200)
+ assert.ok(limitedReview.issues.some(i=>i.code==='source_limit_would_truncate'));assert.deepEqual(limitedReview.drafts[0].answers,[])
+ const overlap=structuredClone(dashboard);overlap.elements[1].col=0
+ const overlapId=id+'-overlap';headers['X-Import-Dataset']=overlapId;const overlapPlan=await prepare({...input,projectId:overlapId,files:[{...file,content:dump([overlap])}]});await apply(overlapPlan)
+ const overlapCurrent=await call('/migration-projects/'+overlapId),overlapReview=await call('/migration-projects/'+overlapId+'/review',{reviewedRevision:overlapCurrent.revision},200)
+ assert.ok(overlapReview.issues.some(i=>i.code==='dashboard_layout_overlap'));assert.deepEqual(overlapReview.drafts[0].answers,[])
+ console.log('PROBE BIF-025 rebuild bounds: four independently named elements -> four native tables; truncating limit and overlapping placement -> refused without partial values')
+ // Source delta keeps an owner's native edit as an explicit conflict.
+ headers['X-Import-Dataset']=id;const delta={...structuredClone(input),cutoff:new Date(Date.parse(current.cutoff)+60000).toISOString().slice(0,19)+'Z'};delta.files[0].content=file.content.replace('Original LookML operating tables','Changed source title')
+ const deltaPlan=await prepare(delta,true);await apply(deltaPlan);current=await call(base);assert.ok(current.items.find(i=>i.source.id===entry.source.id).conflict)
+ await call(base+'/preview',{reviewedRevision:current.revision,reviewedDigest:editedReview.digest},409)
+ current=await call(base+'/resolve',{reviewedRevision:current.revision,itemId:entry.source.id,choice:'keep-native'},200)
+ review=await call(base+'/review',{reviewedRevision:current.revision},200);assert.equal(review.compatible,true,JSON.stringify(review.issues));assert.equal(review.drafts[0].definition.title,JSON.parse(current.items.find(i=>i.source.id===entry.source.id).native).document.title)
+ // An inert legacy inventory cannot impersonate authenticated original files.
+ const forgedId=id+'-forged',forged={version:1,projectId:forgedId,source:'looker',cutoff:current.cutoff,rollbackPlan:input.rollbackPlan,items:current.items.map(i=>structuredClone(i.source))}
+ const fabricated=forged.items.find(i=>i.kind==='dashboard'),fabricatedDocument=JSON.parse(fabricated.original);fabricatedDocument.source.title='Fabricated source title';fabricated.original=JSON.stringify(fabricatedDocument);fabricated.sourceRevision='synthetic-bifocal-fabricated'
+ headers['X-Import-Dataset']=forgedId;const forgedPlan=await prepare(forged);await apply(forgedPlan)
+ const forgedCurrent=await call('/migration-projects/'+forgedId),forgedReview=await call('/migration-projects/'+forgedId+'/review',{reviewedRevision:forgedCurrent.revision},200)
+ assert.ok(forgedReview.issues.some(i=>i.code==='original_dashboard_mismatch'));assert.deepEqual(forgedReview.drafts[0].answers,[]);await call('/migration-projects/'+forgedId+'/preview',{reviewedRevision:forgedCurrent.revision,reviewedDigest:forgedReview.digest},409)
+ console.log('PROBE BIF-025 provenance: edited inventory claiming a different original dashboard -> original mismatch and preview 409; original file bytes remain authoritative')
+ // A clean second import supports exact Undo; held erasure preserves originals.
+ const undoInput={...structuredClone(input),projectId:id+'-undo'};headers['X-Import-Dataset']=undoInput.projectId;const undoPlan=await prepare(undoInput);await apply(undoPlan)
+ await page.getByLabel('LookML migration ID',{exact:true}).fill(undoInput.projectId);await page.getByRole('button',{name:'Load LookML project',exact:true}).click();await page.locator('#lookml-status').filter({hasText:'Inactive LookML project loaded'}).waitFor()
+ // The public shared Undo is also what the browser button uses.
+ await post('undo',{planId:undoPlan.planId});await call('/migration-projects/'+undoInput.projectId,undefined,404);assert.equal((await original(undoPlan.planId))[0].original.status,'retained')
+ const source=await call('/datasets/'+dataset),policy={confirmDataset:dataset,reviewedDatasetRevision:source.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}
+ const holdResponse=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:policy});assert.equal(holdResponse.status(),200);const hold=await holdResponse.json()
+ headers['X-Import-Dataset']=id;await call(base+'/erase',{confirmImport:id,reviewedRevision:current.revision},423);await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},423)
+ const beforeAuthority=await call(base)
+ for(const path of [base,base+'/versions/'+current.revision])assert.equal((await context.request.get(origin+'/api/operator'+path,{headers:{Authorization:'Bearer synthetic-bifocal-machine'}})).status(),401)
+ for(const action of ['review','preview','edit','erase'])for(const extra of [{Origin:origin,Authorization:'Bearer synthetic-bifocal-machine'},{Origin:'https://synthetic-bifocal.invalid'}])assert.equal((await context.request.post(origin+'/api/operator'+base+'/'+action,{headers:extra,data:{}})).status(),401)
+ const memberName=['synthetic-bifocal-lookml-member','example.test'].join('@');assert.equal((await context.request.post(origin+'/auth/invite',{headers:{Origin:origin},data:{email:memberName,displayName:'LookML member',role:'member'}})).status(),202)
+ const member=await context.browser().newContext();try{await member.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(memberName),{headers:{'x-rer-dev-key':'synthetic-bifocal-9'.repeat(3)},maxRedirects:0});assert.equal((await member.request.get(origin+'/api/operator'+base)).status(),401);for(const action of ['review','preview','edit','erase'])assert.equal((await member.request.post(origin+'/api/operator'+base+'/'+action,{headers:{Origin:origin},data:{}})).status(),401)}finally{await member.close()}
+ assert.deepEqual(await call(base),beforeAuthority)
+ // A separately changed source invalidates a previously reviewed clean draft.
+ const staleId=id+'-stale';headers['X-Import-Dataset']=staleId;const stalePlan=await prepare({...input,projectId:staleId});await apply(stalePlan);const stale=await call('/migration-projects/'+staleId),staleReview=await call('/migration-projects/'+staleId+'/review',{reviewedRevision:stale.revision},200);assert.equal(staleReview.compatible,true)
+ await upload(dataset,csv.replace('$10.01','$11.01'),true);await call('/migration-projects/'+staleId+'/preview',{reviewedRevision:stale.revision,reviewedDigest:staleReview.digest},409)
+ const changedReview=await call('/migration-projects/'+staleId+'/review',{reviewedRevision:stale.revision},200);assert.ok(changedReview.issues.some(i=>i.code==='source_evidence_changed'));assert.deepEqual(changedReview.drafts[0].answers,[])
+ const fresh=await call('/datasets/'+dataset),released=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers:{Origin:origin},data:{...policy,reviewedDatasetRevision:fresh.revision,previousRevision:hold.revision,legalHold:false,releaseHold:true}});assert.equal(released.status(),200)
+ await call('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:fresh.revision},200)
+ for(const projectId of [id,bad.projectId,staleId,fourId,limitedId,overlapId,forgedId])await call('/migration-projects/'+projectId,undefined,404)
+ await call(base+'/versions/'+current.revision,undefined,404);assert.equal((await original(stalePlan.planId))[0].original.status,'unavailable');await post('apply',{planId:stalePlan.planId,reviewedFingerprint:stalePlan.fingerprint},410)
+ assert.deepEqual(await call('/schedules'),beforeSchedules)
+ console.log('PROBE BIF-025 authority and erasure: owner-only reads, member, machine and foreign refusals -> 401 unchanged; held erase -> 423; source drift -> 409; eligible erase -> originals unavailable, drafts and history 404, replay 410; schedules unchanged')
 }

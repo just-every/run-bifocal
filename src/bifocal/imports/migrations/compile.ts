@@ -1,3 +1,4 @@
+import { lookerItems } from './looker/reader'
 import { reconstructionItems } from './looker-studio/manifest'
 import { compileTableau, type TableauMigration } from './tableau/compile'
 import type { Source } from '../../query/types'
@@ -21,7 +22,7 @@ export function item(value:unknown):InventoryItem{
 export const digest=(value:unknown)=>sha256(canonicalJson(value))
 export function compileMigration(value:unknown,id:string,ownerId:string,current?:MigrationProject,expectedWorkspace:string|null=null,sources:Source[]=[]):MigrationProject{
  const raw=object(value),tableau=raw.source==='tableau'&&raw.tableau?compileTableau(raw.tableau,id,sources):undefined
- const v=tableau?{...raw,items:tableau.records.map(record=>({id:'item-'+digest(record.id).slice(0,24),kind:record.kind==='pulse-metric'?'metric':record.kind==='follower'?'identity':'data',sourceRevision:record.digest,original:JSON.stringify({id:record.id,kind:record.kind,file:record.file,digest:record.digest,dependencies:record.dependencies}),mapping:'Inactive Tableau inventory',gap:tableau.diagnostics.filter(d=>d.object===record.id).map(d=>d.code).join('; ')}))}:raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw
+ const v=tableau?{...raw,items:tableau.records.map(record=>({id:'item-'+digest(record.id).slice(0,24),kind:record.kind==='pulse-metric'?'metric':record.kind==='follower'?'identity':'data',sourceRevision:record.digest,original:JSON.stringify({id:record.id,kind:record.kind,file:record.file,digest:record.digest,dependencies:record.dependencies}),mapping:'Inactive Tableau inventory',gap:tableau.diagnostics.filter(d=>d.object===record.id).map(d=>d.code).join('; ')}))}:raw.source==='looker-studio'?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:reconstructionItems(raw)}:raw.source==='looker'&&raw.files!==undefined?{version:raw.version,projectId:raw.projectId,source:raw.source,cutoff:raw.cutoff,rollbackPlan:raw.rollbackPlan,items:lookerItems(raw)}:raw
  exactKeys(v,['version','projectId','source','cutoff','rollbackPlan','items','tableau'])
  if(v.version!==1||v.projectId!==id||!sourceKinds.includes(String(v.source)))fail('migration_envelope_required',400)
  const cutoff=text(v.cutoff,32);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(cutoff)||!Number.isFinite(Date.parse(cutoff)))fail('migration_cutoff_required',400)

@@ -6,6 +6,7 @@ export function readLookML(p:Project, files:ProjectFile[]) {
  const roots:{file:ProjectFile;nodes:LookNode[]}[]=[]
  for(const file of files){
   const at={file:file.path,sourceExpression:file.content}
+  if(/\.dashboard\.lookml$/i.test(file.path)){issue(p,at,file.path,'dashboard_import_required','Use original LookML dashboard intake on the shared import page and map its existing model views.');continue}
   if(!/\.lkml$/i.test(file.path)){issue(p,at,file.path,'lookml_file_required','Supply LookML text files; other project assets need explicit translation.');continue}
   try{roots.push({file,nodes:parseLookML(file.content)})}catch{issue(p,at,file.path,'invalid_lookml','Malformed or excessive LookML syntax; nothing in this file was translated.')}
  }

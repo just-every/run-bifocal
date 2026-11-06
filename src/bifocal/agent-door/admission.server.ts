@@ -5,7 +5,7 @@ import type { Authority } from '../catalog/authority.server'
 
 /** The public door retains admission before entering the native service. Fence
  * its policy revision, agent and consent alongside the native response commit. */
-export async function admissionAuthority(env: Bindings, ctx: ToolContext, native: Authority): Promise<Authority> {
+export async function admissionAuthority(env: Bindings, ctx: Pick<ToolContext, 'operationId' | 'person' | 'agent' | 'consent'>, native: Authority): Promise<Authority> {
  const state=await env.DB.prepare('SELECT envelope,local_document,local_revision,local_paused FROM agent_door_state WHERE id=1').first<{envelope:string|null;local_document:string|null;local_revision:number;local_paused:number}>()
  const admission=await env.DB.prepare('SELECT row FROM agent_door_audit WHERE id=?').bind(ctx.operationId).first<{row:string}>()
  if(!state || !admission) throw new ToolRefusal('operation_mismatch')

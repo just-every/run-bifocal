@@ -938,3 +938,14 @@ export function tableauMigrationSpecimen(dataset,revision){
  const context={modelVersion:'tableau-draft-v1',metricVersion:'pulse-v1',accountingBasis:'accrual',calendar:{id:'synthetic-bifocal-tableau-calendar',version:1},rounding:'half-even'}
  return {tds,input:{version:1,projectId:'synthetic-bifocal-tableau',source:'tableau',cutoff:'2026-07-31T12:00:00Z',rollbackPlan:'Retain incumbent until independent source parity, current security and delivery are proved.',tableau:{siteId:'source-cloud-site',apiVersion:'3.21',files:[{path:'sales.tdsx',content:Buffer.from(zip).toString('base64')},...definitions,...metrics,{path:'followers.json',content:JSON.stringify({subscriptions:[{id:'follower-1',metric_id:'metric-sum',follower:{user_id:'source-user'}},{id:'follower-2',metric_id:'metric-distinct',follower:{group_id:'source-group'}}]})}],publishedSources:[{id:'published-sales',file:'sales.tdsx/Data/Sales.tds',owner:{id:'source-owner'},refresh:{mode:'incremental',scheduleId:'source-schedule'},dependencies:[]}],bindings:Object.fromEntries(['sum','distinct'].map(kind=>['metric-'+kind,{dataset,revision,columns:{id:'id',amount:'amount',customer:'customer',date:'date',region:'region'},grain:['id'],timezone:['America','New_York'].join('/'),context}]))}}}
 }
+
+/** Separately reviewed native model, never inferred from a dashboard filename. */
+export async function prepareLookerDashboardModel({call,dataset}){
+ const source=await call('/datasets/'+dataset)
+ const query={version:1,dataset,joins:[],filters:[],groupBy:[],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'},{id:'people',op:'count-distinct',column:'person',unit:'count',scale:0}],context:{modelVersion:'looker-mapped-model',metricVersion:'reviewed-measures',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-july',version:1},rounding:'half-even'},semantic:{grain:['invoice'],dimensions:source.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
+ const document=dump({views:[{id:'orders',kind:'chart',query,rowRules:[]}],quality:[]}),review=await call('/model-authoring/review',{document},200)
+ assert.equal(review.compatible,true)
+ const model=await call('/model-authoring/create',{document,reviewedDigest:review.digest}),path='/models/'+model.modelId+'/branches/'+model.branchId,publication=await call(path+'/validate',{},200)
+ await call(path+'/approve',{digest:publication.digest},200);await call(path+'/promote',{environment:'staging',digest:publication.digest},200);await call(path+'/promote',{environment:'production',digest:publication.digest},200)
+ return {modelId:model.modelId,revision:model.revision,viewId:'orders',dataset,sourceRevision:source.revision,fields:{'orders.invoice':'invoice','orders.region':'region','orders.revenue':'revenue','orders.people':'people'}}
+}

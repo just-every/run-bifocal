@@ -284,7 +284,7 @@ try {
       ['report custody provider', () => proveReportProvider(persist)],
       ['analytics boundaries', () => proveAnalyticsBoundaries(origin, context, page, persist)],
       ['spreadsheet edges', () => proveSpreadsheetEdges(origin, context, persist)],
-      ['file and exact-answer journeys', () => proveFileImports(origin, context, page, restartWorker)],
+      ['file and exact-answer journeys', () => proveFileImports(origin, context, page, restartWorker, persist)],
     ]) {
       try { await run() } catch (error) { journeyErrors.push(error); console.error(`Failed ${name}:`, error.message) }
     }
@@ -301,6 +301,8 @@ try {
     await Promise.all([page.waitForURL(/\/signin/), page.getByRole('button', { name: 'Sign out', exact: true }).click()])
     assert.equal((await context.request.get(`${origin}/auth/session`)).status(), 401)
     assert.equal((await fetch(`${origin}/auth/session`, { headers: { cookie: staleCookie } })).status, 401)
+    for(const suffix of ['', '/history'])assert.equal((await fetch(origin+'/api/operator/retention/'+context.retentionActiveDataset+suffix,{headers:{cookie:staleCookie}})).status,401)
+    assert.equal((await fetch(origin+'/api/operator/retention/'+context.retentionActiveDataset,{method:'PUT',headers:{cookie:staleCookie,Origin:origin,'content-type':'application'+'/'+'json'},body:JSON.stringify({})})).status,401)
     for(const path of [`/api/operator/queries/${context.exactAnswerAuth.query}`,`/api/operator/reports/${context.exactAnswerAuth.report}`])assert.equal((await fetch(origin+path,{headers:{cookie:staleCookie}})).status,401)
     assert.equal((await context.request.get(`${origin}/app`, { maxRedirects: 0 })).status(), 303)
     assert.equal((await context.request.get(`${origin}/app/people`, { maxRedirects: 0 })).status(), 303)
