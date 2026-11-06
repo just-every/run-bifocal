@@ -28,6 +28,10 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  await call('/credentials/review',{...scope,expiresAt:'2000-01-01T00:00:00.000Z'},400)
  const expired=await issue({expiresAt:new Date(Date.now()+1000).toISOString()})
  const key=await issue(),headers={Authorization:'Bearer '+key.token,'Content-Type':'application'+'/json',Origin:origin}
+ // Inspect issuance before the combined policy/resource journey fills the
+ // native history door's bounded recent-activity window.
+ const issuedHistory=await call('/credentials')
+ assert.ok(issuedHistory.history.some(h=>h.credential_id===key.id&&h.actor_kind==='human'&&h.action==='issued-exact-review'))
  const input={modelId:created.modelId,revision:created.revision,viewId:'pipeline',groupBy:['stage'],filters:[]}
  const api=async(path,data,status=200,token=key.token,extra={})=>{
   const protocol=path==='/api/v1/mcp'?{'MCP-Protocol-Version':'2025-11-25'}:{}
@@ -338,7 +342,6 @@ export async function proveMachineDoors({origin,context,page,call,upload,proveSc
  assert.equal(inspected.credentials.find(c=>c.id===budget.id).used_operations,1)
  assert.equal(inspected.credentials.find(c=>c.id===lifetime.id).used_operations,3)
  assert.equal(inspected.credentials.find(c=>c.id===queryOnly.id).used_operations,1)
- assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='human'&&h.action==='issued-exact-review'))
  assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='machine'&&h.action==='query'))
  assert.ok(inspected.history.some(h=>h.credential_id===key.id&&h.actor_kind==='machine'&&h.action==='denied'))
  assert.ok(!JSON.stringify(inspected).includes(key.token));assert.ok(!JSON.stringify(inspected).includes('Ignore rules'))
