@@ -1,0 +1,10 @@
+/home/agent/rer-consolidation/work/sx-bifocal-f54fix-1/resolver-input.bundle is okay
+The bundle contains these 6 refs:
+689433b700f7377ade76ddb036c0e2d61e7f949c refs/heads/cloud/sx-bifocal-f54fix-1
+0833c79f906b73e0d6cdf966b57e962bd3a0827e refs/heads/main
+0833c79f906b73e0d6cdf966b57e962bd3a0827e refs/remotes/origin/HEAD
+0833c79f906b73e0d6cdf966b57e962bd3a0827e refs/remotes/origin/main
+689433b700f7377ade76ddb036c0e2d61e7f949c HEAD
+0833c79f906b73e0d6cdf966b57e962bd3a0827e worktrees/bifocal-main/HEAD
+The bundle records a complete history.
+The bundle uses this hash algorithm: sha1

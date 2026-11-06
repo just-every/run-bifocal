@@ -1,0 +1,59 @@
+{
+  "result": "passed",
+  "checks": [
+    {
+      "method": "PUT",
+      "suffix": "",
+      "authorization": "bearer",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": true
+    },
+    {
+      "method": "GET",
+      "suffix": "/history",
+      "authorization": "bearer",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": false
+    },
+    {
+      "method": "PUT",
+      "suffix": "",
+      "authorization": "present-empty",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": true
+    }
+  ],
+  "humanSessionControl": {
+    "nativeSessionReads": 1,
+    "errorPropagates": true
+  }
+}
+{
+  "refusalDrainChecks": "passed",
+  "checks": [
+    {
+      "method": "PUT",
+      "suffix": "/history",
+      "status": 405,
+      "bodyConsumed": true,
+      "nativeSessionReads": 2
+    },
+    {
+      "method": "PUT",
+      "suffix": "/unknown",
+      "status": 404,
+      "bodyConsumed": true,
+      "nativeSessionReads": 2
+    },
+    {
+      "method": "POST",
+      "suffix": "",
+      "status": 405,
+      "bodyConsumed": true,
+      "nativeSessionReads": 2
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "responses": 24,
+  "statusCounts": {
+    "401": 23,
+    "500": 1
+  },
+  "failure": {
+    "head": "0833c79f906b73e0d6cdf966b57e962bd3a0827e",
+    "dataset": "synthetic-bifocal-legacy",
+    "status": 500,
+    "body": "Error: Network connection lost.\n    at async Object.fetch (file:///workspace/run-bifocal/node_modules/.pnpm/miniflare@5.20260907.0-alpha_@types+node@22.18.6/node_modules/miniflare/dist/src/workers/core/entry.worker.js:5204:22)"
+  }
+}

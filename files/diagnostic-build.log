@@ -1,0 +1,47 @@
+Heavy job admitted: Bifocal build:workflow [db83e2e20ac0]
+Checking pinned pnpm
+10.12.4
+Building your application
+build:app
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 140 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore               0.02 kB
+dist/client/assets/index-vWFm1OVg.js  313.65 kB │ gzip: 101.79 kB
+
+✓ built in 685ms
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 1128 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/server/wrangler.json                                      1.51 kB │ gzip:   0.78 kB
+dist/server/.vite/manifest.json                                4.71 kB │ gzip:   0.84 kB
+dist/server/assets/empty-plugin-adapters-D_0twvAa.js           0.28 kB │ gzip:   0.18 kB
+dist/server/assets/start-D8qDT34V.js                           0.28 kB │ gzip:   0.21 kB
+dist/server/assets/_tanstack-start-manifest_v-CxmJzWgk.js      0.35 kB │ gzip:   0.26 kB
+dist/server/assets/identity-BCF_bruZ.js                        2.57 kB │ gzip:   1.23 kB
+dist/server/assets/drafts.server-COkECz4a.js                   3.48 kB │ gzip:   1.40 kB
+dist/server/assets/rotation.server-1XeCNSLZ.js                 3.67 kB │ gzip:   1.47 kB
+dist/server/assets/series.server-CN5BLitd.js                   3.70 kB │ gzip:   1.63 kB
+dist/server/assets/protocol-Cq9EtO7r.js                       17.93 kB │ gzip:   4.75 kB
+dist/server/assets/bindings.server-C2F5Sroe.js                17.96 kB │ gzip:   5.40 kB
+dist/server/assets/router-CYxFfQh7.js                         40.31 kB │ gzip:  10.85 kB
+dist/server/assets/Match-dKVNiwFS.js                         161.09 kB │ gzip:  40.31 kB
+dist/server/assets/undo-snapshot-D9M1LT5G.js                 424.46 kB │ gzip: 106.87 kB
+dist/server/assets/server-Bxlv6qma.js                        812.32 kB │ gzip: 209.99 kB
+dist/server/assets/auth.server-fstKedZ4.js                 1,074.17 kB │ gzip: 273.73 kB
+dist/server/index.js                                       2,104.37 kB │ gzip: 491.94 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] node_modules/.pnpm/graphql@16.11.0/node_modules/graphql/index.mjs is dynamically imported by src/bifocal/api/server.ts but also statically imported by src/bifocal/api/native.server.ts, src/bifocal/api/server.ts, dynamic import will not move module into another chunk.
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/bifocal/imports/files/server.ts is dynamically imported by src/bifocal/imports/models/store.server.ts but also statically imported by src/bifocal/sources/analytics/door.server.ts, src/bifocal/sources/spreadsheets/door.server.ts, src/demo/door.ts, src/server.ts, dynamic import will not move module into another chunk.
+
+✓ built in 1.75s
+Your application is built
+build: complete (exit 0)

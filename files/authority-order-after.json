@@ -1,0 +1,33 @@
+{
+  "result": "passed",
+  "checks": [
+    {
+      "method": "PUT",
+      "suffix": "",
+      "authorization": "bearer",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": true
+    },
+    {
+      "method": "GET",
+      "suffix": "/history",
+      "authorization": "bearer",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": false
+    },
+    {
+      "method": "PUT",
+      "suffix": "",
+      "authorization": "present-empty",
+      "status": 401,
+      "nativeSessionReads": 0,
+      "bodyConsumed": true
+    }
+  ],
+  "humanSessionControl": {
+    "nativeSessionReads": 1,
+    "errorPropagates": true
+  }
+}

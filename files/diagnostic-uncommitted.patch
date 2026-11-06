@@ -1,0 +1,45 @@
+diff --git a/sources.lock.json b/sources.lock.json
+index cc9231b..7d1916a 100644
+--- a/sources.lock.json
++++ b/sources.lock.json
+@@ -3662,7 +3662,7 @@
+       "executable": false
+     },
+     "src/bifocal/retention/policy.server.ts": {
+-      "sha256": "5678ee8ca85b680caf5464c5dc2403b66855c97d5fb0da8bd5c33e37dc49b363",
++      "sha256": "64ce7c166b133fc87f3cd901fde1791ca175fcc6b79986203964f6a25a41fb6c",
+       "executable": false
+     },
+     "src/bifocal/retention/server.ts": {
+diff --git a/src/bifocal/retention/policy.server.ts b/src/bifocal/retention/policy.server.ts
+index 47d2cbb..f16c620 100644
+--- a/src/bifocal/retention/policy.server.ts
++++ b/src/bifocal/retention/policy.server.ts
+@@ -11,20 +11,22 @@ export async function retentionPolicyResponse(request:Request,original:Bindings)
+  const path=new URL(request.url).pathname
+  if(!path.startsWith('/api/operator/retention/'))return null
+  const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}})
+- const env=runtimeBindings(original),owner=await fileOwner(request,env)
+- if(!owner||request.headers.has('authorization'))return rejectedResponse(request,json({error:'owner_required'},401))
++ // Machine credentials never inherit cookie authority, even if session lookup fails.
++ const env=runtimeBindings(original),owner=!request.headers.has('authorization')&&await fileOwner(request,env)
++ if(!owner)return rejectedResponse(request,json({error:'owner_required'},401))
+  try{
+   const parts=path.slice('/api/operator/retention/'.length).split('/'),dataset=identifier(parts[0])
++  // Refused uploads must finish before a keep-alive connection is reused.
+   if(parts.length>1){
+-   if(parts.length!==2||parts[1]!=='history')return json({error:'not_found'},404)
+-   if(request.method!=='GET')return json({error:'method_not_allowed'},405)
++   if(parts.length!==2||parts[1]!=='history')return rejectedResponse(request,json({error:'not_found'},404))
++   if(request.method!=='GET')return rejectedResponse(request,json({error:'method_not_allowed'},405))
+    return json(await protectionHistory(env,owner,dataset))
+   }
+   if(request.method==='GET'){
+    const [rows,sources]=await guarded<{revision:string}>(env,owner,[sql('SELECT revision,legal_hold,minimum_retain_until FROM bf_source_retention WHERE dataset_id=?',dataset),sql('SELECT revision FROM bf_file_tables WHERE id=?',dataset)])
+    return json({dataset,reviewedDatasetRevision:sources[0]?.revision??null,policy:rows[0]??null,semantics:'Minimum retention and legal holds prevent explicit source erasure. No rule automatically expires or purges any content. Existing content remains until an explicit reviewed owner erasure after all holds are released.'})
+   }
+-  if(request.method!=='PUT')return json({error:'method_not_allowed'},405)
++  if(request.method!=='PUT')return rejectedResponse(request,json({error:'method_not_allowed'},405))
+   const input=object(await body(request),['confirmDataset','reviewedDatasetRevision','previousRevision','legalHold','minimumRetainUntil','releaseHold'])
+   requireValue(input.confirmDataset===dataset&&typeof input.legalHold==='boolean','exact_retention_confirmation_required')
+   requireValue(input.previousRevision===null||typeof input.previousRevision==='string','previous_revision_required')

@@ -1,0 +1,1 @@
+{"call": 1, "command": "gh run view --job 128205236614 --repo just-every/run-bifocal --log-failed", "purpose": "original failure log; only GitHub API/CLI read"}

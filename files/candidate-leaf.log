@@ -1,0 +1,5 @@
+{"head":"689433b700f7377ade76ddb036c0e2d61e7f949c","dataset":"synthetic-bifocal-sales","status":401,"body":"{\"error\":\"owner_required\"}"}
+{"head":"689433b700f7377ade76ddb036c0e2d61e7f949c","dataset":"synthetic-bifocal-legacy","status":401,"body":"{\"error\":\"owner_required\"}"}
+Leaf authority requests passed
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-sales 401 Unauthorized (7ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-legacy 401 Unauthorized (6ms)

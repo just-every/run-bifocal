@@ -1,0 +1,128 @@
+(node:9951) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Cost controls: public owner-entered reference quote, exact numeric totals, workload recomputation, all four cumulative budget scopes, atomic competing reservations, warnings, estimate holds, actual overage, owner increase, stale revision and duplicate settlement refusal passed
+Company browser: keyboard company, fiscal, working-day, rate and conversion recovery; unchanged refused revisions; independent holiday and USD results; 1440 assertions and 390 smoke passed
+Native conventions: durable US defaults, fiscal leap/53-week calendars, holidays, DST resolution and exact versioned currency rounding passed
+File import: reviewed CSV versions, exact money/date/null preview, append/keyed update, Undo, validation and atomic chunk resume passed
+File custody: rejected-only, first-import Undo, superseded and undone originals erased; exact reviewed state, retired id and approval history passed
+Workbook import: two-sheet XLSX values, dates/USD, formula cache/original custody, append/Undo and macro/external-link/DTD/traversal/expansion refusals passed
+PROBE BIF-034 acknowledgment: native Settings and retention HTTP saved exact owner, source, before and after protection and policy revisions; stale and missing acknowledgment refused; concurrent replacements had one winner.
+PROBE BIF-034 source drift: actual reviewed file publication invalidated null-revision protection review without policy or acknowledgment writes; fresh exact source review succeeded.
+File safety: anonymous/origin/fingerprint denial, inert hostile text and formulas at 1440/390, protected originals, consented erasure and replay fence passed
+[wrangler:info] GET /api/operator/costs/budgets 401 Unauthorized (3ms)
+[wrangler:info] PUT /api/operator/costs/budgets 401 Unauthorized (3ms)
+[wrangler:info] GET /api/operator/company 401 Unauthorized (5ms)
+[wrangler:info] GET /bifocal/company-errors.js 200 OK (3ms)
+[wrangler:info] GET /bifocal/company-errors.js 304 Not Modified (6ms)
+[wrangler:info] POST /api/operator/import/uploads 401 Unauthorized (5ms)
+[wrangler:info] GET /api/operator/datasets/synthetic-bifocal-sales 401 Unauthorized (7ms)
+[wrangler:info] POST /api/operator/import/uploads 401 Unauthorized (3ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 401 Unauthorized (3ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile/history 405 Method Not Allowed (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 401 Unauthorized (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 401 Unauthorized (10ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (14ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (11ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (12ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (9ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (10ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (9ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (8ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (11ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (8ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (8ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (9ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (13ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 422 Unprocessable Entity (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (7ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (12ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-no-published 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-retention-unpublished 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished/history 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 401 Unauthorized (3ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] GET /bifocal/preparation-errors.js 200 OK (9ms)
+[wrangler:info] GET /bifocal/preparation-errors.js 304 Not Modified (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (10ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 422 Unprocessable Entity (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 200 OK (6ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-no-published 200 OK (6ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-no-published/history 200 OK (9ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-no-published 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-no-published/history 200 OK (14ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (13ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (15ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (12ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished 200 OK (7ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished/history 200 OK (6ms)
+[wrangler:info] GET /api/operator/datasets/synthetic-bifocal-retention-unpublished 200 OK (6ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-retention-unpublished 422 Unprocessable Entity (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished/history 200 OK (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-retention-unpublished 200 OK (5ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-retention-unpublished/history 200 OK (4ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-hostile/history 200 OK (5ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-hostile 409 Conflict (6ms)
+[wrangler:info] GET /api/operator/erasure-receipts/57e3c7ed-38fb-4be6-b45a-b6d8b083e4d2 401 Unauthorized (2ms)
+[wrangler:info] POST /api/operator/import/apply 401 Unauthorized (3ms)
+[wrangler:info] GET /api/operator/datasets/synthetic-bifocal-legacy 401 Unauthorized (3ms)
+[wrangler:info] POST /api/operator/import/apply 401 Unauthorized (2ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-legacy/history 200 OK (15ms)
+[wrangler:info] GET /api/operator/retention/synthetic-bifocal-legacy/history 401 Unauthorized (4ms)
+[wrangler:info] PUT /api/operator/retention/synthetic-bifocal-legacy/history 405 Method Not Allowed (6ms)
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mError inside ProxyWorker (the affected request failed; the dev server continues): PUT http://127.0.0.1:36921/api/operator/retention/synthetic-bifocal-legacy (failed after 1 attempt): Network connection lost.[0m
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: A machine bearer with owner cookies cannot approve protection
+
+500 !== 401
+
+    at proveRetentionHold (file:///workspace/run-bifocal/tests/journeys/erasure-receipts.mjs:43:9)
+    at async proveLegacyFiles (file:///workspace/run-bifocal/tests/journeys/file-import.mjs:416:2)
+    at async proveFileImports (file:///workspace/run-bifocal/tests/journeys/file-import.mjs:299:2)
+    at async file:///tmp/bifocal-file-group.mjs:44:2 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 500,
+  expected: 401,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.20.0

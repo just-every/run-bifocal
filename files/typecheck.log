@@ -1,0 +1,4 @@
+
+> @just-every/bifocal@0.1.3 typecheck /workspace/run-bifocal
+> tsc --build --incremental
+
