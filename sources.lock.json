@@ -6326,7 +6326,7 @@
       "executable": false
     },
     "tests/journeys/erasure-receipts.mjs": {
-      "sha256": "07ea5f5def5cf3ba2e49bf72c3664cf63b90397840611953727e1b77e64c3a30",
+      "sha256": "f2348881a7c7a84fa40aec31b9ab141fff384396cda1fbdb8cc4bbfb6cb6ecfc",
       "executable": false
     },
     "tests/journeys/exact-browser.mjs": {
@@ -6346,7 +6346,7 @@
       "executable": false
     },
     "tests/journeys/file-import.mjs": {
-      "sha256": "44e069ec262e8f27d00fef3b2cbcab212034da8788de3cf85d843fd4c43bd0fe",
+      "sha256": "8dc3015599fa75e21aab35faf8a199928cb93d6b3321223778ab9dc596499131",
       "executable": false
     },
     "tests/journeys/input-templates.mjs": {
