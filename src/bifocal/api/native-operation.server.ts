@@ -24,7 +24,7 @@ export async function credentialDefinitions(env:Bindings,c:Awaited<ReturnType<ty
 export async function credentialOperation(env:Bindings,admission:Awaited<ReturnType<typeof machineAuthority>>,name:string,input:Record<string,unknown>={},attribution?:{agentId:string;agentName:string;sponsorName:string}){
  const {credential:c,authority}=admission,scope=c.scope
  if(!scope.tools.includes(name))fail('tool_not_permitted',403)
- const {view,sources,rules,fences}=await credentialBindings(env,c)
+ const {model,view,sources,rules,fences}=await credentialBindings(env,c)
  const reserve=()=>transact(env.DB,authority,[...fences.map(assertion),assertion(sql('EXISTS(SELECT 1 FROM bf_machine_credentials WHERE id=? AND used_operations<max_operations)',c.id)),sql('UPDATE bf_machine_credentials SET used_operations=used_operations+1 WHERE id=?',c.id),machineAudit(c.id,c.owner_id,'machine','read-reserved')])
  let result:unknown
  if(name==='definitions'){
