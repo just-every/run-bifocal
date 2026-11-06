@@ -123,6 +123,8 @@ export async function proveInputTables(origin,context,page,custody) {
  await refuse(reader)
  const scope={purpose:'Input authority boundary',modelId:model.modelId,revision:model.revision,viewId:'forecast',filters,dimensions:['region'],measures:['amount'],tools:['query'],expiresAt:new Date(Date.now()+300000).toISOString(),maxOperations:10}
  const credentialReview=await call('/credentials/review',scope),credential=await call('/credentials',{...scope,reviewedDigest:credentialReview.digest},201)
+ const policy=await context.request.put(origin+'/agents/api/policy',{headers,data:{document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'input-read-boundary',class:'*',do:'autonomous'}],spend:{none:true}}}})
+ assert.equal(policy.status(),200,await policy.text())
  const machineHeaders={...headers,Authorization:'Bearer '+credential.token}
  const machine=await fetch(origin+'/api/v1/query',{method:'POST',headers:{...machineHeaders,'content-type':'application'+'/json'},body:JSON.stringify(parameters)})
  assert.equal(machine.status,200);assert.equal((await machine.json()).totals.amount.value,'100.00')

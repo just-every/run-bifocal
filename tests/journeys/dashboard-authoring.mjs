@@ -85,3 +85,20 @@ export async function proveDashboardAuthoring({origin,context,page,upload,proveS
  const source=await api('/datasets/'+dataset);await api('/datasets/'+dataset+'/erase',{confirmDataset:dataset,reviewedRevision:source.revision},200);await api('/dashboard-authoring/'+id,undefined,404)
  console.log('Dashboard authoring: independent desktop and phone placement, reviewed versioned publication, concurrent refusal, rollback, real CLI and Terraform and estate lifecycle, immutable history and source withdrawal passed')
 }
+
+/** Native migration documents retain typed values and independent placements. */
+export async function assertLookerDashboardDraft({page,review}){
+ assert.equal(review.compatible,true,JSON.stringify(review.issues))
+ assert.equal(review.state,'inactive');assert.equal(review.grants,'none');assert.equal(review.dispatch,'unavailable');assert.equal(review.cutover,false)
+ const draft=review.drafts[0]
+ assert.deepEqual(draft.elements.map(e=>e.id),['regional','west'])
+ assert.deepEqual(draft.definition.cards.map(c=>c.key),draft.elements.map(e=>e.key))
+ assert.deepEqual(draft.elements.map(e=>draft.definition.layout.desktop.find(p=>p.key===e.key)).map(p=>[p.x,p.y,p.w,p.h]),[[0,0,6,4],[6,0,6,4]])
+ const [all,west]=draft.answers.map(c=>c.answer)
+ const rows=answer=>answer.rows.map(row=>({dimensions:row.dimensions,values:Object.fromEntries(Object.entries(row.values).map(([key,value])=>[key,value.value]))}))
+ assert.deepEqual(rows(all),[{dimensions:['East'],values:{revenue:'20.02',people:'1'}},{dimensions:['Missing'],values:{revenue:null,people:'0'}},{dimensions:['North'],values:{revenue:'0.00',people:'1'}},{dimensions:['West'],values:{revenue:'9.98',people:'1'}}])
+ assert.deepEqual(Object.fromEntries(Object.entries(all.totals).map(([key,value])=>[key,value.value])),{revenue:'30.00',people:'3'})
+ assert.equal(all.totals.revenue.unit,'money');assert.equal(all.totals.revenue.nulls,1);assert.equal(all.totals.people.nulls,1)
+ assert.deepEqual(rows(west),[{dimensions:['West'],values:{revenue:'9.98',people:'1'}}]);assert.equal(west.totals.revenue.value,'9.98')
+ if(page){assert.match(await page.locator('#lookml-results').innerText(),/30\.00/);assert.match(await page.locator('#lookml-results').innerText(),/NULL/)}
+}

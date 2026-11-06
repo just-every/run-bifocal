@@ -3,6 +3,7 @@ import {chartView} from '../../charts/view'
 import {chartPlot} from '../../charts/plot'
 import {fail,type Cell,type Value} from '../../query/types'
 import type {Scene,Snapshot} from './scene'
+import {numericChart} from './numeric-chart'
 
 type Chart=Awaited<ReturnType<typeof readChart>>
 export type ChartSelection={field:string;value:Cell}
@@ -15,7 +16,7 @@ const wrapped=(value:string,size=16)=>{
  return lines
 }
 /** The browser and native files consume the same permitted, computed view. */
-export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefined,exportedAt:string,backLink:string):Snapshot{
+export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefined,exportedAt:string,backLink:string,rendition:'static'|'numeric'='static'):Snapshot{
  const view=chartView(chart,selection),pages:Scene[]=[],columns=view.columns.map(c=>c.id)
  const plot=chartPlot(view)
  const add=(scene:Scene,name:string,value:string,y:number,size=16)=>{const lines=wrapped(value,size);scene.shapes.push({kind:'text',label:name,x:32,y,w:1216,h:lines.length*size*1.25,size,lines});return lines.length*size*1.25}
@@ -26,6 +27,14 @@ export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefine
   for(const [name,value,size] of [['Chart title',chart.title,25],['Snapshot state','Retained chart · '+chart.createdAt+' · Exported '+exportedAt,14],['Effective chart selection',selection?'Selection '+selection.field+' = '+label(selection.value):'All permitted result groups',14],['Source query filters',JSON.stringify(chart.definition.filters),14],['Exact chart columns',[view.dimension,...columns].join(' | '),16]] as const)top+=add(scene,name,value,top,size)+12
   if(top>500)fail('chart_snapshot_context_does_not_fit',422)
   add(scene,'Open authenticated chart',backLink,858,14);y=top;return scene
+ }
+ if(rendition==='numeric'){
+  const numeric=numericChart(chart,view)
+  pages.push({title:chart.title,tab:'chart',numericChart:numeric,shapes:[
+   {kind:'text',label:'Chart title',x:32,y:20,w:1216,h:64,size:25,lines:wrapped(chart.title,25)},
+   {kind:'text',label:'Numeric rendition',x:32,y:92,w:1216,h:40,size:14,lines:['Editable numeric horizontal bars · '+exportedAt,'Missing values are gaps. Exact text alternatives follow.']},
+   {kind:'text',label:'Open authenticated chart',x:32,y:858,w:1216,h:24,size:14,lines:[backLink]}
+  ]})
  }
  let scene=page()
  for(const [index,row] of view.rows.entries()){
@@ -45,6 +54,6 @@ export function chartSnapshotScene(chart:Chart,selection:ChartSelection|undefine
  const totals=(selection?'Full query totals | ':'Total | ')+columns.map(id=>id+': '+shown(view.totals[id],chart.context.currency)).join(' | ')
  if(y+wrapped(totals).length*20>810){scene=page();if(y+wrapped(totals).length*20>810)fail('chart_snapshot_totals_do_not_fit',422)}
  add(scene,'Exact retained query totals',totals,y)
- const provenance={chartId:chart.id,queryId:chart.queryId,definition:chart.definition,visual:chart.visual,context:chart.context,selection:selection??null,view,createdAt:chart.createdAt,exportedAt,backLink}
+ const provenance={chartId:chart.id,queryId:chart.queryId,definition:chart.definition,visual:chart.visual,context:chart.context,selection:selection??null,rendition,view,createdAt:chart.createdAt,exportedAt,backLink}
  return {version:1,id:chart.id,title:chart.title,revision:1,filterState:'current',selection:{tab:'chart',filters:[],fields:{},fiscal:{},whatIf:{}},inherited:{filters:[],fiscal:{}},tabs:['chart'],layout:'readable',exportedAt,backLink,pages,provenance}
 }

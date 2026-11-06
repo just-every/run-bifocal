@@ -1,0 +1,7 @@
+#lookml-dashboards pre,#lookml-dashboards textarea{max-width:100%;box-sizing:border-box;font-size:14px}
+#lookml-results p{overflow-wrap:anywhere}
+.lookml-draft-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;align-items:start}
+.lookml-native-tile{min-width:0;max-width:100%;padding:12px;border:1px solid var(--border,#d1d5db);border-radius:8px;overflow:auto;grid-column:calc(var(--desktop-x) + 1) / span var(--desktop-w);grid-row:calc(var(--desktop-y) + 1) / span var(--desktop-h)}
+.lookml-native-tile h5{font-size:15px;margin:0 0 12px}
+.lookml-native-tile th,.lookml-native-tile td{font-size:14px;white-space:nowrap;padding:8px}
+@media(max-width:700px){.lookml-draft-grid{grid-template-columns:minmax(0,1fr)}.lookml-native-tile{grid-column:1;grid-row:calc(var(--phone-y) + 1) / span var(--phone-h)}}

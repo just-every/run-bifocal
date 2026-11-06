@@ -48,7 +48,7 @@ export async function browseBigQuery(input: Record<string, unknown>, grant: stri
  const common = {project,observedAt,freshness:'unknown',schemaRevision:'20261009'}
  if (action === 'schema') {
   await checkpoint()
-  const metadata = await providerJson(root + project + '/datasets/' + encodeURIComponent(dataset) + '/tables/' + encodeURIComponent(table) + '?' + new URLSearchParams({fields:projection.schema}), grant, undefined, true)
+  const metadata = await providerJson(root + project + '/datasets/' + encodeURIComponent(dataset) + '/tables/' + encodeURIComponent(table) + '?' + new URLSearchParams({fields:projection.schema}), grant, undefined, {catalog:true})
   const ref = metadata.tableReference
   requireValue(object(ref) && ref.projectId === project && ref.datasetId === dataset && ref.tableId === table, 'bigquery_object_mismatch', 502)
   requireValue(metadata.location === 'US', 'bigquery_us_location_required', 422)
@@ -70,7 +70,7 @@ export async function browseBigQuery(input: Record<string, unknown>, grant: stri
   if (cursor) query.set('pageToken', cursor)
   const path = root + project + '/datasets' + (action === 'tables' ? '/' + encodeURIComponent(dataset) + '/tables' : '')
   await checkpoint()
-  const response = await providerJson(path + '?' + query, grant, undefined, true)
+  const response = await providerJson(path + '?' + query, grant, undefined, {catalog:true})
   const items = response[String(action)] ?? []
   requireValue(Array.isArray(items) && items.length <= pageSize, 'bigquery_catalog_page_limit', 413)
   const rows = items.map(item => {

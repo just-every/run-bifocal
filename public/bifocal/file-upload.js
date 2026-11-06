@@ -62,6 +62,7 @@ export function originalFile(originals) {
  const decode=value=>Uint8Array.from(atob(value),character=>character.charCodeAt(0))
  const envelope=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(decode(retained.original.base64)))
  if(envelope.version!==1 || typeof envelope.filename!=='string' || typeof envelope.data!=='string')throw Error('Original custody format is not a file envelope.')
+ if(envelope.smartsheet)return {name:'smartsheet-snapshot.json',bytes:new TextEncoder().encode(JSON.stringify(envelope))}
  if(envelope.spreadsheet)return {name:'spreadsheet-range-snapshot.json',bytes:new TextEncoder().encode(JSON.stringify(envelope))}
  return {name:envelope.filename,bytes:envelope.originalBase64?decode(envelope.originalBase64):/\.xlsx$/i.test(envelope.filename)?decode(envelope.data):new TextEncoder().encode(envelope.data)}
 }

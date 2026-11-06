@@ -928,3 +928,14 @@ export function assertLookerNativePreview(review,{total='9.98',distinct='1',rows
  assert.equal(draft.answer.totals.people.value,distinct)
  assert.equal(draft.reconciliation,'independently-reconciled')
 }
+
+/** Separately reviewed native model, never inferred from a dashboard filename. */
+export async function prepareLookerDashboardModel({call,dataset}){
+ const source=await call('/datasets/'+dataset)
+ const query={version:1,dataset,joins:[],filters:[],groupBy:[],measures:[{id:'revenue',op:'sum',column:'revenue',unit:'money',scale:2,sourceCurrency:'USD'},{id:'people',op:'count-distinct',column:'person',unit:'count',scale:0}],context:{modelVersion:'looker-mapped-model',metricVersion:'reviewed-measures',accountingBasis:'not-applicable',calendar:{id:'synthetic-bifocal-july',version:1},rounding:'half-even'},semantic:{grain:['invoice'],dimensions:source.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}}
+ const document=dump({views:[{id:'orders',kind:'chart',query,rowRules:[]}],quality:[]}),review=await call('/model-authoring/review',{document},200)
+ assert.equal(review.compatible,true)
+ const model=await call('/model-authoring/create',{document,reviewedDigest:review.digest}),path='/models/'+model.modelId+'/branches/'+model.branchId,publication=await call(path+'/validate',{},200)
+ await call(path+'/approve',{digest:publication.digest},200);await call(path+'/promote',{environment:'staging',digest:publication.digest},200);await call(path+'/promote',{environment:'production',digest:publication.digest},200)
+ return {modelId:model.modelId,revision:model.revision,viewId:'orders',dataset,sourceRevision:source.revision,fields:{'orders.invoice':'invoice','orders.region':'region','orders.revenue':'revenue','orders.people':'people'}}
+}

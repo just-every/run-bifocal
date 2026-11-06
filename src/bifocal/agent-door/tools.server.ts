@@ -1,16 +1,17 @@
 import { ToolRefusal, type ToolDefinition, type ToolContext } from '../../modules/agent-door/index.ts'
 import type { Bindings } from '../../auth.server'
-import { credentialOperation } from '../api/server'
+import { credentialOperation } from '../api/native-operation.server'
 import { credentialBindings } from '../credentials/bindings.server'
 import { reviewedCredential, toolScope } from './grants.server'
 import { outputSchemas } from './schemas'
 import { admissionAuthority } from './admission.server'
+import { definitionLinks } from './resources.server'
 import { assertion, transact } from '../../modules/import-kit/src/door/store.ts'
 import { QueryError } from '../query/types'
 
 export async function native<T>(fn: () => Promise<T>): Promise<T> {
  try { return await fn() } catch (error) {
-  if (error instanceof QueryError) throw new ToolRefusal(error.code)
+  if (error instanceof QueryError) throw new ToolRefusal(error.code,error.message,{status:error.status})
   for(let cause:unknown=error;cause instanceof Error;cause=cause.cause) if(cause.message.includes('IMPORT_ATOMIC_GUARD')) throw new ToolRefusal('native_state_conflict')
   throw error
  }
@@ -31,9 +32,9 @@ export function readTools(env: Bindings): ToolDefinition[] {
     const {fences}=await credentialBindings(env,admission.credential)
     await transact(env.DB,admission.authority,fences.map(assertion))
     const c=admission.credential
-    return {result:{credentialId:c.id,modelId:c.scope.modelId,revision:c.scope.revision,scopeDigest:c.digest,active:true}}
+    return {result:{credentialId:c.id,modelId:c.scope.modelId,revision:c.scope.revision,scopeDigest:c.digest,active:true},resources:definitionLinks(c)}
    }
-   return {result:await credentialOperation(env,admission,name,args,{agentId:ctx.agent.id,agentName:ctx.agent.name,sponsorName:ctx.person.name})}
+   return {result:await credentialOperation(env,admission,name,args,{agentId:ctx.agent.id,agentName:ctx.agent.name,sponsorName:ctx.person.name}),resources:definitionLinks(admission.credential)}
   }) },
  }))
 }

@@ -6,8 +6,13 @@ const ref = (v: unknown): v is string => typeof v === 'string' && v.length > 0 &
 function keys(v: Record<string, unknown>, allowed: string[]) { if (Object.keys(v).some(k => !allowed.includes(k))) fail('unsupported_query_field', 400) }
 export function queryInput(v: unknown): Query {
  if (!obj(v)) fail('query_object_required', 400)
- keys(v, ['version','dataset','joins','filters','groupBy','measures','context','semantic','fiscal'])
+ keys(v, ['version','dataset','joins','filters','groupBy','measures','context','semantic','fiscal','orderBy'])
  if (v.version !== 1 || !id(v.dataset) || !Array.isArray(v.joins) || v.joins.length > 2 || !Array.isArray(v.filters) || v.filters.length > 20 || !Array.isArray(v.groupBy) || v.groupBy.length > 4 || !v.groupBy.every(ref) || new Set(v.groupBy).size !== v.groupBy.length || !Array.isArray(v.measures) || !v.measures.length || v.measures.length > 12 || !obj(v.context)) fail('invalid_query_shape', 400)
+ if(v.orderBy!==undefined){
+  if(!Array.isArray(v.orderBy)||!v.orderBy.length||v.orderBy.length>v.groupBy.length)fail('physical_group_order_required',400)
+  const ordered=new Set<string>()
+  for(const value of v.orderBy){if(!obj(value))fail('physical_group_order_required',400);keys(value,['column','direction','nulls']);if(typeof value.column!=='string'||!v.groupBy.includes(value.column)||ordered.has(value.column)||!['asc','desc'].includes(String(value.direction))||!['first','last'].includes(String(value.nulls)))fail('physical_group_order_required',400);ordered.add(value.column)}
+ }
  const aliases = new Set(['base'])
  for (const j of v.joins) {
   if (!obj(j)) fail('invalid_join', 400)

@@ -1,3 +1,4 @@
+import { snapshotMetadata, type Snapshot } from '../../sources/smartsheet/protocol'
 import { lineage, type Lineage } from '../../sources/analytics/lineage'
 import { Buffer } from 'node:buffer'
 import { csvOriginal, candidateKeys, spreadsheetMetadata, type Spreadsheet, type RowErrors } from './interpretation'
@@ -8,7 +9,7 @@ import { FILE_LIMITS } from './limits'
 
 export { FILE_LIMITS } from './limits'
 export type Column = { name: string; type: 'text' | 'number' | 'money' | 'date' | 'boolean' }
-export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; preparation?:{id:string;version:number;digest:string;lineage:Record<string,{dataset:string;revision:string;column:string}[]>}; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
+export type Table = { columns: Column[]; rows: Json[][]; key: string | null; keyCandidates?: string[]; source: { filename: string; sha256: string; delimiter: string; encoding: string; nullValue: string; formulaTreatment: string; lineage?: Lineage; smartsheet?: Snapshot; preparation?:{id:string;version:number;digest:string;lineage:Record<string,{dataset:string;revision:string;column:string}[]>}; spreadsheet?: Spreadsheet; sheet?: string; sheets?: string[]; formulas?: { cell: string; formula: string; cached: string }[] }; updatedAt: string }
 class InvalidFile extends Error {}
 function refuse(message: string): never { throw new InvalidFile(message) }
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -66,12 +67,14 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
   let review: Json = null
   const invalid = (reason: string): ParsedRecord => ({ kind: 'invalid-file', sourceId: datasetId, payload: { reason, review } })
   try {
-   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet','lineage'].includes(key))
+   if (!object(input) || Object.keys(input).some(key => !['version','datasetId','filename','data','delimiter','encoding','nullValue','mode','key','columns','formulaTreatment','sheet','originalBase64','spreadsheet','lineage','smartsheet'].includes(key))
      || input.version !== 1 || input.datasetId !== datasetId) refuse('FILE_SCHEMA: Supply the documented version-1 file envelope for this dataset.')
    if (typeof input.filename !== 'string' || !/^[^/\\\x00-\x1f]{1,120}\.(csv|xlsx)$/i.test(input.filename)) refuse('FILE_TYPE: Choose CSV or XLSX; macro-enabled workbooks, templates and archives are refused.')
    if (![',',';','\t','|'].includes(String(input.delimiter)) || typeof input.nullValue !== 'string' || input.nullValue.length > 32) refuse('INTERPRETATION: Choose a supported delimiter and an explicit null marker.')
    let sourceLineage: Lineage | undefined
    try { sourceLineage = lineage(input.lineage) } catch { refuse('SOURCE_LINEAGE: Supply a credential-free source link, explicit date window, timezone and description.') }
+   let smartsheet: Snapshot | undefined
+   try { smartsheet = snapshotMetadata(input.smartsheet) } catch { refuse('SMARTSHEET_METADATA: Invalid inert snapshot provenance.') }
    const isWorkbook = String(input.filename).toLowerCase().endsWith('.xlsx')
    let spreadsheet: Spreadsheet | undefined
    try { spreadsheet = spreadsheetMetadata(input.spreadsheet) } catch (error) { refuse((error as Error).message) }
@@ -110,13 +113,14 @@ export function fileSource(datasetId: string, current: TargetRow | undefined, no
     try { return typed(value, columns[colIndex].type) } catch { let bad = rowErrors.at(-1); if (bad?.row !== rowIndex + 2) rowErrors.push(bad = { row: rowIndex + 2, columns: [] }); bad.columns.push(colIndex + 1); if (errors.length < 20) errors.push(`row ${rowIndex + 2}, column ${colIndex + 1}: expected ${columns[colIndex].type}`); return null }
    }))
    review = { columns, rowCount: records.length, rowErrors, widthErrors, errorCount: widthErrors.length + rowErrors.reduce((count, row) => count + row.columns.length, 0) } as unknown as Json
+   if (smartsheet && (isWorkbook || spreadsheet || columns[0]?.name !== 'smartsheet_row_id' || input.key !== 'smartsheet_row_id' || columns.length !== smartsheet.columns.length+1 || smartsheet.columns.some((column,index)=>column.name !== columns[index+1].name || column.type !== columns[index+1].type) || rows.length !== smartsheet.rowIds.length || rows.some((row,index)=>row[0] !== smartsheet.rowIds[index]))) refuse('SMARTSHEET_METADATA: Snapshot rows and mappings must match their provenance.')
    if (widthErrors.length) refuse(`ROW_WIDTH: ${widthErrors.length} rows do not match the header column count. Inspect the complete retained error inventory; no rows will publish.`)
    if (errors.length) refuse(`TYPE_MISMATCH: ${errors.join('; ')}. No rows will publish. Correct the file or explicitly map a replacement schema.`)
    const key = input.key === undefined ? previous?.key ?? null : input.key
    if (key !== null && (typeof key !== 'string' || !headers.includes(key))) refuse('KEY: Choose one existing column, or null.')
    if (previous && input.mode !== 'replace' && key !== previous.key) refuse('KEY_CHANGED: Changing the key requires an explicitly reviewed replace.')
    if (input.mode === 'keyed-update' && !key) refuse('KEY_REQUIRED: Keyed update needs an explicit unique key.')
-   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(sourceLineage ? {lineage:sourceLineage} : {}), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
+   const table: Table = { columns, rows, key: key as string | null, source: { filename: input.filename as string, sha256: workbook?.sha256 ?? original!.sha256, delimiter: workbook ? 'not-applicable' : String(input.delimiter), encoding: workbook ? 'XLSX UTF-8 XML' : original!.encoding, nullValue: input.nullValue as string, formulaTreatment: String(input.formulaTreatment), ...(sourceLineage ? {lineage:sourceLineage} : {}), ...(smartsheet ? {smartsheet,formulas:smartsheet.formulas.map(item=>({cell:item.rowId+':'+item.columnId,formula:item.formula,cached:item.cached ?? 'NULL'}))} : {}), ...(spreadsheet ? { spreadsheet, formulas: spreadsheet.formulas } : {}), ...(workbook ? { sheet: workbook.sheet, sheets: workbook.sheets, formulas: workbook.formulas } : {}) }, updatedAt: '' }
    return { kind: 'file-table', sourceId: datasetId, payload: { table: table as unknown as Json, mode: input.mode, contentHash: sha256(canonicalJson(input)) } }
   } catch (error) { if (error instanceof InvalidFile || error instanceof WorkbookError) return invalid(error.message); throw error }
  }
