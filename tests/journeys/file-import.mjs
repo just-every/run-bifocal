@@ -296,7 +296,7 @@ export async function proveFileImports(origin, context, page, restartWorker, per
  assert.equal(resurrect.status(), 410)
  assert.equal((await context.request.get(`${origin}/api/operator/datasets/${hostileId}`)).status(), 404)
  console.log('File safety: anonymous/origin/fingerprint denial, inert hostile text and formulas at 1440/390, protected originals, consented erasure and replay fence passed')
- await proveLegacyFiles(origin,context,{plan,apply,read,undo,cancel},page)
+ await proveLegacyFiles(origin,context,{plan,apply,read,undo,cancel},page,persist)
  // A stale signed-out session cannot finish work planned while it was active.
  await proveFileBrowser(origin, context, page, syntheticWorkbook())
  await proveExactQueries(origin, context, { plan, apply, read, undo }, page)
@@ -330,7 +330,7 @@ function syntheticWorkbook({ macro = false, external = false, dtd = false, noCac
 }
 
 /** Value-only BIFF8 through the same public door, including unsafe attempts. */
-export async function proveLegacyFiles(origin,context,files,page) {
+export async function proveLegacyFiles(origin,context,files,page,persist) {
  const {legacyWorkbook,malformedLegacy}=await import('./xls-fixtures.mjs')
  const {plan,apply,read,undo,cancel}=files, dataset='synthetic-bifocal-legacy'
  const bytes=legacyWorkbook(), input={version:1,datasetId:dataset,filename:'synthetic-bifocal-legacy.xls',encoding:'utf-8',delimiter:',',nullValue:'NULL',mode:'replace',key:'id',formulaTreatment:'values-only-refuse-formulas',sheet:'January',data:bytes.toString('base64')}
@@ -413,9 +413,10 @@ export async function proveLegacyFiles(origin,context,files,page) {
  assert.equal(foreign.status(),404)
  // Hold and minimum-retention refusal precede actual withdrawal of originals,
  // retained query derivatives and old approvals in this populated namespace.
- const protection=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:beforeRefusal.revision,previousRevision:null,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
+ await proveRetentionHold(origin,context,dataset,beforeRefusal.revision,page,persist,'synthetic-bifocal-legacy-unpublished')
+ const policy=(await(await context.request.get(origin+'/api/operator/retention/'+dataset)).json()).policy
+ const protection=await context.request.put(origin+'/api/operator/retention/'+dataset,{headers,data:{confirmDataset:dataset,reviewedDatasetRevision:beforeRefusal.revision,previousRevision:policy.revision,legalHold:false,minimumRetainUntil:null,releaseHold:true}})
  assert.equal(protection.status(),200,await protection.text())
- await proveRetentionHold(origin,context,dataset,beforeRefusal.revision)
  const erased=await context.request.post(origin+'/api/operator/datasets/'+dataset+'/erase',{headers,data:{confirmDataset:dataset,reviewedRevision:beforeRefusal.revision}})
  assert.equal(erased.status(),200,await erased.text());assert.equal((await erased.json()).phase,'complete')
  assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404)
