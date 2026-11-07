@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import { proveErasureReceipt, proveRetentionHold } from './erasure-receipts.mjs'
+import { proveErasureReceipt, proveRetentionHold, proveRetentionSourceDrift } from './erasure-receipts.mjs'
 import { createHash } from 'node:crypto'
 import { zipSync, strToU8 } from 'fflate'
 import { proveExactQueries } from './exact-queries.mjs'
 import { proveFileBrowser } from './file-browser.mjs'
 
-export async function proveFileImports(origin, context, page, restartWorker) {
+export async function proveFileImports(origin, context, page, restartWorker, persist) {
  const savedUploads = new Map()
  const digest = bytes => createHash('sha256').update(bytes).digest('hex')
  const dataset = 'synthetic-bifocal-sales'
@@ -276,13 +276,14 @@ export async function proveFileImports(origin, context, page, restartWorker) {
  assert.ok((await history.json()).history.some(entry => entry.planId === initial.planId && entry.reviewer === 'operator' && entry.owner === 'synthetic-bifocal-1@example.test'))
  // Explicit current-revision consent withdraws originals, staged uploads and
  // plans. It must leave an unrelated native dataset intact and fence replay.
- await proveRetentionHold(origin,context,hostileId,nativeHostile.revision,page)
+ await proveRetentionHold(origin,context,hostileId,nativeHostile.revision,page,persist)
+ await proveRetentionSourceDrift(origin,context,{plan,apply,read})
  const erasureUrl = `${origin}/api/operator/datasets/${hostileId}/erase`
  assert.equal((await context.request.post(erasureUrl, { headers: { Origin: origin }, data: { confirmDataset: hostileId, reviewedRevision: 'stale' } })).status(), 409)
  const erased = await context.request.post(erasureUrl, { headers: { Origin: origin }, data: { confirmDataset: hostileId, reviewedRevision: nativeHostile.revision } })
  assert.equal(erased.status(), 200, await erased.text())
  const receipt = await erased.json(); assert.equal(receipt.phase, 'complete'); assert.ok(receipt.stores.length)
- await proveErasureReceipt(origin,context,receipt.auditId,hostileId,nativeHostile.revision)
+ await proveErasureReceipt(origin,context,receipt.auditId,hostileId,nativeHostile.revision,persist)
  assert.equal((await context.request.get(`${origin}/api/operator/datasets/${hostileId}`)).status(), 404)
  assert.deepEqual((await read()).table.rows, beforeRefusal.table.rows)
  const unrelatedOriginal = await context.request.get(`${origin}/api/operator/import/original/${initial.planId}`, { headers: { 'X-Import-Dataset': dataset } })

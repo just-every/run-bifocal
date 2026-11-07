@@ -5,7 +5,7 @@ import { resolve,join } from 'node:path'
 import { createServer } from 'node:net'
 import {execFileSync} from 'node:child_process'
 const exportFields=['artifact_id','snapshot_id','snapshot_digest','metric','dimensions_json','value','numerator','denominator','unit','state','source_json','observed_at']
-/** Only Vane, Google, Smartsheet and Square HTTPS are faked from published
+/** Only Vane, Google, Smartsheet, Square and HubSpot HTTPS are faked from published
  * protocols. The emitted Worker, assets, D1 and native authorization run. */
 export async function analyticsEdge(persist) {
  const socket=createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve))
@@ -35,11 +35,12 @@ export async function analyticsEdge(persist) {
   return worker.fetch(request,env,execution);
  }};`,resolveDir:resolve('.')},bundle:true,write:false,format:'esm',platform:'neutral',external:['node:*','cloudflare:*'],mainFields:['module','main'],conditions:['workerd','worker','browser']})
  const modules=[{type:'ESModule',path:resolve('dist/server/analytics-test.mjs'),contents:wrapper.outputFiles[0].text},{type:'ESModule',path:resolve('dist/server/index.js')},...(await readdir('dist/server/assets')).filter(name=>name.endsWith('.js')).map(name=>({type:'ESModule',path:resolve('dist/server/assets',name)}))]
- const state={phase:'success',smartsheet:'success',squarePhase:'success',squareCalls:[],calls:[],inserted:[]}
+ const state={phase:'success',smartsheet:'success',squarePhase:'success',squareCalls:[],hubspotPhase:'success',hubspotCalls:[],calls:[],inserted:[]}
  const mf=new Miniflare(convertV4MiniflareOptions({name:'bifocal-analytics',host:'127.0.0.1',port,inspectorPort:0,cf:false,modulesRoot:resolve('dist/server'),modules,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],assets:{directory:resolve('dist/client'),binding:'ASSETS',run_worker_first:true,routerConfig:{has_user_worker:true}},d1Databases:{DB:'local-foundation-only'},resourcePersistencePath:join(analyticsPersist,'v3'),bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'synthetic-bifocal-1@example.test',SESSION_SECRET:'synthetic-bifocal-2'.repeat(3),MAIL_FROM:'synthetic-bifocal-2@example.test',BIFOCAL_VANE_ORIGIN:vaneOrigin,SETUP_TOKEN:'synthetic-bifocal-1'.repeat(3)},outboundService:async request=>{
   const url=new URL(request.url);state.calls.push({host:url.hostname,path:url.pathname,method:request.method,search:url.search})
   assert.equal(url.protocol,'https:');assert.equal(request.headers.get('authorization'),'Bearer synthetic-bifocal-60');assert.equal(request.headers.has('cookie'),false)
-  assert.ok([new URL(vaneOrigin).hostname,'bigquery.googleapis.com','api.smartsheet.com','connect.squareup.com','connect.squareupsandbox.com'].includes(url.hostname),'no arbitrary host or telemetry egress')
+  assert.ok([new URL(vaneOrigin).hostname,'bigquery.googleapis.com','api.smartsheet.com','connect.squareup.com','connect.squareupsandbox.com','api.hubapi.com'].includes(url.hostname),'no arbitrary host or telemetry egress')
+  if(url.hostname==='api.hubapi.com')return hubspotResponse(request,state)
   if(['connect.squareup.com','connect.squareupsandbox.com'].includes(url.hostname))return squareResponse(request,state)
   if(url.hostname==='api.smartsheet.com') {
    // Self-authored responses from the pinned Sheet, Row, Column, Cell and
@@ -158,4 +159,49 @@ async function squareResponse(request,state){
  if(page&&phase==='incomplete')orders=[]
  if(page&&phase==='changed')orders[1].total_money=usd(2300)
  return Response.json({orders,...(!page||phase==='loop'||phase==='incomplete'?{cursor:'synthetic-bifocal-cursor-1'}:{})})
+}
+
+// Self-authored specimens of the documented legacy CRM v3 deal-list response.
+// They prove the bounded native read, never a live HubSpot authorization receipt.
+const hubspotDeals=()=>[
+ {id:'9007199254740993',createdAt:'2026-06-01T12:00:00.000Z',updatedAt:'2026-06-11T12:00:00.000Z',archived:false,properties:{dealname:'Synthetic pipeline A',pipeline:'default',dealstage:'qualifiedtobuy',createdate:'2026-06-01T12:00:00.000Z',hs_lastmodifieddate:'2026-06-11T12:00:00.000Z',closedate:'2026-07-31T00:00:00.000Z',amount:'123.45',deal_currency_code:'USD',private_note:'synthetic-bifocal-private-contact'}},
+ {id:'9007199254740995',createdAt:'2026-06-02T12:00:00.000Z',updatedAt:'2026-06-12T12:00:00.000Z',archived:false,properties:{dealname:'',pipeline:'default',dealstage:'closedlost',amount:'-23.4',deal_currency_code:'USD',closedate:null}},
+ {id:'9007199254740997',createdAt:'2026-06-03T12:00:00.000Z',updatedAt:'2026-06-13T12:00:00.000Z',archived:false,properties:{dealname:'Zero',pipeline:'default',dealstage:'qualifiedtobuy',amount:'0',deal_currency_code:'USD'}},
+ {id:'9007199254740999',createdAt:'2026-06-04T12:00:00.000Z',updatedAt:'2026-06-14T12:00:00.000Z',archived:false,properties:{pipeline:'default',dealstage:'closedlost',amount:null}},
+ {id:'9007199254741001',createdAt:'2026-06-05T12:00:00.000Z',updatedAt:'2026-06-15T12:00:00.000Z',archived:false,properties:{dealname:'Unknown amount',pipeline:'synthetic-bifocal-second',dealstage:'presentationscheduled',amount:'',deal_currency_code:'USD'}}
+]
+async function hubspotResponse(request,state){
+ const url=new URL(request.url),phase=state.hubspotPhase
+ assert.equal(request.method,'GET');assert.equal(url.pathname,'/crm/v3/objects/0-3');assert.equal(await request.text(),'')
+ assert.deepEqual([...url.searchParams.keys()].sort(),url.searchParams.has('after')?['after','archived','limit','properties']:['archived','limit','properties'])
+ assert.equal(url.searchParams.get('limit'),'100');assert.equal(url.searchParams.get('archived'),'false')
+ assert.deepEqual(url.searchParams.get('properties').split(','),['dealname','pipeline','dealstage','createdate','hs_lastmodifieddate','closedate','amount','deal_currency_code'])
+ const after=url.searchParams.get('after'),page=after==='NTI1Cg%3D%3D'?2:after?Number(after):0
+ if(after&&!['pages','bytes','deadline','rows'].includes(phase))assert.equal(after,'NTI1Cg%3D%3D','the documented opaque cursor is encoded once as a query value, never interpreted as a URL')
+ state.hubspotCalls.push({path:url.pathname,search:url.search,method:request.method})
+ if(page&&['401','403','429'].includes(phase))return Response.json({message:'synthetic-bifocal-private-diagnostic'},{status:Number(phase)})
+ if(page&&phase==='redirect')return new Response(null,{status:302,headers:{location:'https://foreign.example.test/deals'}})
+ if(page&&state.hubspotPause)await state.hubspotPause()
+ if(page&&phase==='missing')return Response.json({})
+ if(phase==='empty')return Response.json({results:[]})
+ if(['pages','bytes','deadline','rows'].includes(phase)){
+  if(phase==='deadline')await new Promise(resolve=>setTimeout(resolve,8000))
+  const results=Array.from({length:phase==='rows'?101:1},(_,i)=>({...hubspotDeals()[0],id:String(100000+page*1000+i),properties:{...hubspotDeals()[0].properties,...(phase==='bytes'?{unselected:'x'.repeat(800000)}:{})}}))
+  return Response.json({results,paging:{next:{after:String(page+1)}}})
+ }
+ let results=hubspotDeals().slice(page?2:0,page?5:2)
+ if(page&&phase==='deal-warnings')results[0].warnings=[{category:'SYNTHETIC_WARNING',message:'synthetic-bifocal-private-diagnostic',context:{}}]
+ if(page&&phase==='duplicate')results[0]=hubspotDeals()[0]
+ if(page&&phase==='conflict')results[0]={...hubspotDeals()[0],properties:{...hubspotDeals()[0].properties,amount:'999.00'}}
+ if(page&&phase==='archived')results[0].archived=true
+ if(page&&phase==='precision')results[0].properties.amount='1.234'
+ if(page&&phase==='number')results[0].properties.amount=0.01
+ if(page&&phase==='unsafe')results[0].properties.amount='99999999999999.99'
+ if(page&&phase==='currency')results[0].properties.deal_currency_code='CAD'
+ if(page&&phase==='ambiguous')delete results[0].properties.deal_currency_code
+ if(page&&phase==='date')results[0].properties.closedate='2026-02-30T00:00:00.000Z'
+ if(page&&phase==='credential')results[0].properties.private_note='synthetic-bifocal-60'
+ if(page&&phase==='incomplete')results=[]
+ if(page&&phase==='changed'){results[0].properties.amount='50.05';results[0].properties.dealstage='closedwon';results[0].updatedAt='2026-06-20T12:00:00.000Z'}
+ return Response.json({results,...(!page||phase==='loop'||phase==='incomplete'?{paging:{next:{after:phase==='bad-cursor'?'invalid\ncursor':'NTI1Cg%3D%3D',link:'https://foreign.example.test/must-never-follow'}}}:phase==='empty-paging'?{paging:{}}:{}),...(page&&phase==='warnings'?{warnings:[{message:'synthetic-bifocal-private-diagnostic'}]}:{}),...(page&&phase==='errors'?{errors:[{message:'synthetic-bifocal-private-diagnostic'}]}:{})})
 }
