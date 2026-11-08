@@ -1,5 +1,7 @@
+import { crmSourceResponse } from './bifocal/sources/crm/server'
 import { commerceSourceResponse } from './bifocal/sources/commerce/server'
 import { smartsheetResponse } from './bifocal/sources/smartsheet/server'
+import { activityPage } from './bifocal/agent-door/activity.page.server'
 import { agentDoorResponse } from './bifocal/agent-door/index.server'
 import { businessSettings } from './auth.server'
 import { agentBindingResponse } from './bifocal/agent-door/grants.server'
@@ -79,11 +81,13 @@ function noTransform(response: Response): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 
-export default withDemo<Bindings, ExportedHandler<Bindings>>({
+const routes = {
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const bindings = runtimeBindings(env)
+    const activity = await activityPage(request, bindings)
+    if (activity) return activity
     const agent = await agentDoorResponse(request, bindings)
     if (agent) return agent
     const business = await businessSettings(bindings).handle(request)
@@ -184,6 +188,8 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (query) return query
     const warehouse = await warehouseResponse(request, env)
     if (warehouse) return warehouse
+    const crmSource = await crmSourceResponse(request, env)
+    if (crmSource) return crmSource
     const commerceSource = await commerceSourceResponse(request, env)
     if (commerceSource) return commerceSource
     const smartsheet = await smartsheetResponse(request, env)
@@ -202,6 +208,14 @@ export default withDemo<Bindings, ExportedHandler<Bindings>>({
     if (state) return state
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    return dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request)))
+  },
+} satisfies ExportedHandler<Bindings>
+
+export default withDemo<Bindings, ExportedHandler<Bindings>>({
+  async fetch(request, env, execution) {
+    // Every route must finish unread input before workerd reuses the connection,
+    // including early method, path and authority refusals above the dispatcher.
+    return rejectedResponse(request, await routes.fetch(request, env, execution))
   },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

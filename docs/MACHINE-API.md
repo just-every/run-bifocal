@@ -106,6 +106,39 @@ The registry describes available verbs; each call still checks its current
 credential's explicit tools and native scope. See [Company agent access](AGENT-ACCESS.md)
 for exact owner binding, capabilities, typed refusals, approvals and audit.
 
+### One policy decision for native reads
+
+Native REST definitions and query reads, and their GraphQL equivalents, enter
+those same registered tools through the shared handler. A native bearer still
+needs its exact current owner grant; company policy cannot widen that grant.
+All three transports use the same server-computed sensitive classification,
+policy revision, review feed and human approval. Before policy setup they return
+`policy_unset` with `setup_url`, without reading values or reserving an operation.
+Blocked and pending requests likewise reserve no native read.
+
+Successful REST bodies and GraphQL data retain their existing shapes.
+`X-Bifocal-Agent-Decision` carries the JSON decision, including classes, facts,
+rule and revision. A review or approval receipt also appears as JSON in
+`X-Bifocal-Agent-Review` or `X-Bifocal-Agent-Receipt`, respectively.
+
+An approval wait returns HTTP 202. REST includes `error: "approval_required"`,
+`resultType: "input_required"`, `approval`, opaque `requestState`, URL-mode
+`inputRequests` and decision `_meta`. GraphQL places those same fields in its
+error's `extensions`, with no partial data. Open the supplied approval URL as
+the named signed-in human; a bearer cannot approve it. Retry the identical read
+with `X-Bifocal-Request-State` set to the returned opaque state, at most 512
+characters. This header is separate from query arguments and is never a grant.
+It cannot authorize changed inputs, another tool or another credential.
+
+Rejected and expired approvals return `approval_rejected` and
+`approval_expired`. Ordinary policy refusals retain their decision metadata:
+`policy_blocked` returns 403, and unset or unavailable policy returns 409.
+Pause returns 403. Current native authority and all source bindings still apply
+at every execution and at response commit. The shared read approval executes
+one read when approved; its continuation performs one fresh authorized read
+before releasing values. Each actual execution consumes exactly one lifetime
+operation. Transport adaptation never executes a second native read.
+
 The request limit is 65536 bytes; GraphQL source is limited to 8192 characters.
 Errors contain a stable code without stack, bearer, source-cell contents or
 hidden-object metadata. Invalid authority returns 401, disallowed tools or fields

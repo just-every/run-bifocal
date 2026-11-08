@@ -4,6 +4,7 @@
   "specialist": "analytics",
   "capabilities": [
     "tools",
+    "resources",
     "policy",
     "pause",
     "audit",
@@ -84,7 +85,9 @@
       "reason": "connector"
     }
   ],
-  "resources": [],
+  "resources": [
+    "bifocal://models/{modelId}/revisions/{revision}/views/{viewId}/definition"
+  ],
   "witness": {
     "tool": "bifocal.analytics.status",
     "args": {}
