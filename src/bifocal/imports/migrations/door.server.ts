@@ -6,6 +6,7 @@ import { readTableauMigration, screenTableau } from './tableau/read'
 import { CredentialError } from '../../../modules/import-kit/src/provenance/credentials.ts'
 import { bundleBytes, uploadRow } from '../../../modules/import-kit/src/door/uploads.ts'
 import { tableauDraftOperation } from './tableau/drafts.server'
+import type { D1Sql } from '../../../modules/import-kit/src/d1/types.ts'
 import type { Source } from '../../query/types'
 import { canonicalJson, sha256 } from '../../../modules/import-kit/src/provenance/identity.ts'
 import { runtimeBindings, type Bindings } from '../../../auth.server'
@@ -107,8 +108,10 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
   const input=await jsonBody(request.clone()),row=typeof input.planId==='string'?await rowForPlan(input.planId):null
   if(row){const snapshot=await loadSnapshot(admitted,row);if(snapshot.plan.counts.rejected)fail('mapping_rejected',422)}
  }
- // Register source custody before the door can retain a planned original. The
- // erasure fence is established before source erasure enumerates these links.
+ // Screen every source before planning, but acquire custody only after the
+ // shared door accepts the complete plan. Recheck the erasure fence atomically
+ // with all links; if erasure won meanwhile, withdraw the retained bytes.
+ let tableauCustody:D1Sql[]=[],tableauUpload:string|undefined
  if(path==='/api/operator/import/plan'&&request.method==='POST'){
   const input=await jsonBody(request.clone())
   if(typeof input.uploadId==='string'){
@@ -129,10 +132,11 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    // unavailable source must not attach earlier sources to an existing project.
    const bound=ids.map(dataset=>sources.find(s=>s.id===dataset))
    if(bound.some(source=>!source)){await forgetUpload();fail('tableau_bound_source_unavailable',409)}
-   await transact(env.DB,owner,bound.flatMap(source=>[
+   tableauUpload=raw?.source==='tableau'?upload.id:undefined
+   tableauCustody=bound.flatMap(source=>[
     assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?) AND NOT EXISTS(SELECT 1 FROM bf_preparation_erasing WHERE dataset_id=?)',source!.id,source!.revision,source!.id)),
     sql('INSERT OR IGNORE INTO bf_tableau_migration_sources(project_id,dataset_id) VALUES(?,?)',id,source!.id),
-   ]))
+   ])
   }
  }
  const response=await createImportOperatorHandler(options)(request)
@@ -142,7 +146,14 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
   // Retained review bytes already owe custody, even before Apply creates a draft.
   // Use source payloads so rejected or unchanged effects cannot hide their links.
   const projects=snapshot.plan.source.records.filter(record=>record.kind==='migration-project').map(record=>record.payload as unknown as MigrationProject)
-  await transact(env.DB,owner,[assertion(snapshotHeld(row.id)),...projects.flatMap(sourceLinkStatements)])
+  try{
+   await transact(env.DB,owner,[assertion(snapshotHeld(row.id)),...projects.flatMap(sourceLinkStatements),...tableauCustody])
+  }catch(error){
+   // No Tableau links survive a refused batch. Retained bytes cannot outlive
+   // an erased bound source even if it won between planning and custody.
+   if(tableauUpload)await transact(env.DB,owner,[sql('DELETE FROM ik_door_plan_chunks WHERE plan_id=?',row.id),sql('DELETE FROM ik_door_chunks WHERE upload_id=?',tableauUpload),sql('DELETE FROM ik_door_uploads WHERE id=?',tableauUpload)])
+   throw error
+  }
   return json({...preview,project:snapshot.plan.entries[0]?.effects[0]?.value})
  }
  return response
