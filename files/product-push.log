@@ -1,0 +1,15 @@
+fleet Git: removed 0 credential-bearing GitHub URL rewrite sections
+PUSH attempt=1/5 command=git push --porcelain origin HEAD:refs/heads/cloud/sx-bifocal-f37fix1
+PUSH_CREDENTIAL sha256_16=8addacf6ac95b0bc bundle_file_age_seconds=550 token_issue_age=unknown
+fleet Git: removed 0 credential-bearing GitHub URL rewrite sections
+To https://github.com/just-every/run-bifocal.git
+*	HEAD:refs/heads/cloud/sx-bifocal-f37fix1	[new branch]
+Done
+remote: 
+remote: Create a pull request for 'cloud/sx-bifocal-f37fix1' on GitHub by visiting:        
+remote:      https://github.com/just-every/run-bifocal/pull/new/cloud/sx-bifocal-f37fix1        
+remote: 
+remote: GitHub found 34 vulnerabilities on just-every/run-bifocal's default branch (1 critical, 17 high, 14 moderate, 2 low). To find out more, visit:        
+remote:      https://github.com/just-every/run-bifocal/security/dependabot        
+remote: 
+PUSH_OK branch=cloud/sx-bifocal-f37fix1

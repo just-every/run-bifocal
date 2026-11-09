@@ -1,0 +1,41 @@
+PROBE FIX {"case":"full-project-identity","eraseStatus":200,"metricPreserved":false,"projectPreserved":true}
+PROBE FIX {"case":"refused-plan-custody","refusal":"tableau_bound_source_unavailable","eraseStatus":200,"projectPreserved":false,"metricPreserved":false}
+PROBE FIX {"case":"whole-erasure-hold","refused":true,"allPreserved":false,"earlierStatus":404,"laterStatus":200}
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Full project identity preserves the other source metric revisions
++ actual - expected
+
+  {
+    case: 'full-project-identity',
+    eraseStatus: 200,
++   metricPreserved: false,
+-   metricPreserved: true,
+    projectPreserved: true
+  }
+
+    at proveTableauMigration (file:///home/agent/rer-consolidation/work/sx-bifocal-f37fix1/repo/tests/journeys/migration-projects.mjs:347:9)
+    at async proveSemanticModels (file:///home/agent/rer-consolidation/work/sx-bifocal-f37fix1/repo/tests/bifocal-semantic-model.mjs:64:45)
+    at async file:///home/agent/rer-consolidation/work/sx-bifocal-f37fix1/repo/tests/bifocal-semantic-model.mjs:182:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: {
+    case: 'full-project-identity',
+    eraseStatus: 200,
+    metricPreserved: false,
+    projectPreserved: true
+  },
+  expected: {
+    case: 'full-project-identity',
+    eraseStatus: 200,
+    metricPreserved: true,
+    projectPreserved: true
+  },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

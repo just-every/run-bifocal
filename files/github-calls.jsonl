@@ -1,0 +1,4 @@
+{"call": 1, "time": "2026-11-09T05:46:44.656630+00:00", "args": ["api", "repos/just-every/run-bifocal/actions/runs?head_sha=a16cd0a5ee32c428e5f0078baed8ad326389c9a2&per_page=100", "--jq", ".workflow_runs | map({id,name,status,conclusion,head_sha,html_url})"], "exit": 0}
+{"call": 2, "time": "2026-11-09T05:50:40.109383+00:00", "args": ["api", "repos/just-every/run-bifocal/actions/runs?head_sha=3b8593b37405cefefa2ed5be8bed9b55d4fd1469&per_page=100", "--jq", ".workflow_runs | map({id,name,status,conclusion,head_sha,html_url})"], "exit": 0}
+{"call": 3, "time": "2026-11-09T05:55:42.635254+00:00", "args": ["api", "repos/just-every/run-bifocal/actions/runs/42569562320", "--jq", "{status,conclusion,head_sha,html_url}"], "exit": 0}
+{"call": 4, "time": "2026-11-09T06:00:45.078838+00:00", "args": ["api", "repos/just-every/run-bifocal/actions/runs/42569562320", "--jq", "{status,conclusion,head_sha,html_url}"], "exit": 0}

@@ -1,0 +1,8 @@
+PROBE FIX {"case":"full-project-identity","eraseStatus":200,"metricPreserved":true,"projectPreserved":true}
+PROBE FIX {"case":"refused-plan-custody","refusal":"tableau_bound_source_unavailable","eraseStatus":200,"projectPreserved":true,"metricPreserved":true}
+PROBE FIX {"case":"whole-erasure-hold","refused":true,"allPreserved":true,"earlierStatus":200,"laterStatus":200}
+PROBE BIF-084 package and Pulse intake: /app/import TDSX and original responses -> two extracts, two followers, dependency links, versions, digests and inactive references enumerated
+PROBE BIF-084 native drafts: current-owner preview over reviewed snapshot -> USD 26.03 with one null, distinct 3 with one null, exact July and West filters, uncertified drafts
+PROBE BIF-084 safety and drift: import plan, preview and draft Apply -> unsafe archive and XML, credentials, incomplete evidence, unresolved security, unsupported semantics, source drift, stale review and machine authority refused
+PROBE BIF-084 concurrency and authority: exact native draft Apply twice -> one 201 and one 409; member, foreign and bearer requests refused without mutation
+PROBE BIF-084 custody: reviewed Undo and retained original read, held and eligible source erase -> Undo reconciled; hold refused; originals, history and derived drafts withdrawn; replay refused

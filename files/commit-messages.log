@@ -1,0 +1,21 @@
+3b8593b37405cefefa2ed5be8bed9b55d4fd1469
+Acquire Tableau source custody only after plan validation
+
+a16cd0a5ee32c428e5f0078baed8ad326389c9a2
+Prevent Tableau custody from deleting unrelated or held data
+
+0f85482725bbb33340fe9fea3c3a53904a725c3e
+Merge current main preserving XLS intake and Tableau custody
+
+e019be27d1bdfe02dea99d4ad7ab8a37ab8d1256
+Merge current main with Tableau migration candidate
+
+ce1b326ad252094dc4221de6bf6b3bfb134e10de
+Refuse contradictory Pulse null filters
+
+e32c684df0c2673f9efa56f716cf954b40e3b423
+Enforce Tableau custody and native draft safety [skip ci]
+
+0c456643b6f093bbf9fa4448dbd6900671b80dcc
+Replay bounded Tableau intake alongside current Looker reconstruction [skip ci]
+

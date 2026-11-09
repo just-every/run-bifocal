@@ -1,0 +1,139 @@
+{
+  "tag": "sx-bifocal-f37fix1",
+  "repository": "just-every/run-bifocal",
+  "branch": "cloud/sx-bifocal-f37fix1",
+  "baseline": "0f85482725bbb33340fe9fea3c3a53904a725c3e",
+  "main_merged": "11492a647a6e51b029f7a6269ef9826317c70db3",
+  "product_head": "3b8593b37405cefefa2ed5be8bed9b55d4fd1469",
+  "public_route_before": {
+    "exit": 1,
+    "observations": [
+      {
+        "case": "full-project-identity",
+        "eraseStatus": 200,
+        "metricPreserved": false,
+        "projectPreserved": true
+      },
+      {
+        "case": "refused-plan-custody",
+        "refusal": "tableau_bound_source_unavailable",
+        "eraseStatus": 200,
+        "projectPreserved": false,
+        "metricPreserved": false
+      },
+      {
+        "case": "whole-erasure-hold",
+        "refused": true,
+        "allPreserved": false,
+        "earlierStatus": 404,
+        "laterStatus": 200
+      }
+    ]
+  },
+  "public_route_after": {
+    "exit": 0,
+    "observations": [
+      {
+        "case": "full-project-identity",
+        "eraseStatus": 200,
+        "metricPreserved": true,
+        "projectPreserved": true
+      },
+      {
+        "case": "refused-plan-custody",
+        "refusal": "tableau_bound_source_unavailable",
+        "eraseStatus": 200,
+        "projectPreserved": true,
+        "metricPreserved": true
+      },
+      {
+        "case": "whole-erasure-hold",
+        "refused": true,
+        "allPreserved": true,
+        "earlierStatus": 200,
+        "laterStatus": 200
+      }
+    ]
+  },
+  "touched_journey": {
+    "command": "CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium BIFOCAL_TABLEAU_ONLY=1 cloud_run node tests/bifocal-semantic-model.mjs",
+    "exit": 0
+  },
+  "typecheck": {
+    "command": "pnpm typecheck",
+    "exit": 0
+  },
+  "build_before_exit": 0,
+  "build_after_exit": 0,
+  "source_lock_check_exit": 0,
+  "contract_generator_write_exit": 0,
+  "contract_generator_check_exit": 0,
+  "new_regression_assertions": 3,
+  "new_test_registrations": 0,
+  "clause_status_changes": [],
+  "generated_view_commits": false,
+  "migration_renumber_needed": false,
+  "main_highest_migration": "0072",
+  "candidate_migration": "0073_tableau_migration_custody.sql",
+  "candidate_identity_commits_checked": 7,
+  "publication_scan": "not run in cloud per brief; fleet owns scan",
+  "ci_status": "completed/success",
+  "blockers": [],
+  "product_commits": [
+    "a16cd0a5ee32c428e5f0078baed8ad326389c9a2",
+    "3b8593b37405cefefa2ed5be8bed9b55d4fd1469"
+  ],
+  "final_route_exit": 0,
+  "final_typecheck_exit": 0,
+  "final_build_exit": 0,
+  "public_route_final": {
+    "exit": 0,
+    "observations": [
+      {
+        "case": "full-project-identity",
+        "eraseStatus": 200,
+        "metricPreserved": true,
+        "projectPreserved": true
+      },
+      {
+        "case": "refused-plan-custody",
+        "refusal": "tableau_bound_source_unavailable",
+        "eraseStatus": 200,
+        "projectPreserved": true,
+        "metricPreserved": true
+      },
+      {
+        "case": "whole-erasure-hold",
+        "refused": true,
+        "allPreserved": true,
+        "earlierStatus": 200,
+        "laterStatus": 200
+      }
+    ]
+  },
+  "ci_run_id": 42569562320,
+  "ci_url": "https://github.com/just-every/run-bifocal/actions/runs/42569562320",
+  "final_product_clean": true,
+  "full_history": true,
+  "contract_status_counts": {
+    "before": {
+      "done": 8,
+      "missing": 37,
+      "partial": 54
+    },
+    "after": {
+      "done": 8,
+      "missing": 37,
+      "partial": 54
+    }
+  },
+  "ci_exact_sha": "3b8593b37405cefefa2ed5be8bed9b55d4fd1469",
+  "ci_result": {
+    "conclusion": "success",
+    "head_sha": "3b8593b37405cefefa2ed5be8bed9b55d4fd1469",
+    "html_url": "https://github.com/just-every/run-bifocal/actions/runs/42569562320",
+    "status": "completed"
+  },
+  "github_api_calls": 4,
+  "terminal_custody": "READY"
+}
