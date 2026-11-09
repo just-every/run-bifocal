@@ -39,6 +39,7 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
  try {
   const authority=await fileOwner(request,env)
   if (!authority) { await discard(request); return json({error:'owner_required'},401) }
+  if(request.headers.has('authorization'))fail('native_session_required',403)
   const ownerId=await ownerIdentity(env,authority)
   if (url.search) fail('query_parameters_not_supported',400)
   const authored=await dashboardAuthoringResponse(request,env,{...authority,id:ownerId,role:'owner'})
@@ -53,7 +54,6 @@ export async function exactQueryResponse(request: Request, original: Bindings): 
   if(exported)return exported
   if (path==='/api/operator/queries/run') {
    if (request.method!=='POST') return json({error:'method_not_allowed'},405)
-   if(request.headers.has('authorization'))fail('native_session_required',403)
    const definition=queryInput(await body(request)), context=await queryContext(env,definition,ownerId), sources=await readSources(env,definition)
    return await saveCachedQuery(env,authority,definition,context,sources)
   }

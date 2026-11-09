@@ -7,7 +7,7 @@ import { requireValue } from './protocol'
 import type { Lineage } from './lineage'
 import type { Snapshot } from '../smartsheet/protocol'
 import type { Column } from '../../imports/files/csv'
-export async function planSource(request: Request, env: Bindings, dataset: string, rows: string[][], columns: Record<string,Column['type']>, source: Lineage | undefined, catchup: boolean, interpretation?: { smartsheet: Snapshot; nullValue: string; key: string } | { key: string }): Promise<Response> {
+export async function planSource(request: Request, env: Bindings, dataset: string, rows: string[][], columns: Record<string,Column['type']>, source: Lineage | undefined, catchup: boolean, interpretation?: { smartsheet: Snapshot; nullValue: string; key: string } | { key: string; nullValue?: string }): Promise<Response> {
  const csv = rows.map(row => row.map(value => `"${value.replace(/"/g,'""')}"`).join(',')).join('\r\n')+'\r\n'
  requireValue(Buffer.byteLength(csv) <= 524288, 'source_file_limit',413)
  const bytes = Buffer.from(JSON.stringify({version:1,datasetId:dataset,filename:'analytical-source.csv',data:csv,delimiter:',',encoding:'utf-8',nullValue:'',mode:'replace',columns,formulaTreatment:'literal-text',...(source?{lineage:source}:{}),...interpretation}))

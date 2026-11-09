@@ -31,7 +31,7 @@ export async function proveErasureReceipt(origin,context,auditId,dataset,revisio
  assert.deepEqual(await (await context.request.get(auditUrl)).json(),audit)
 }
 
-export async function proveRetentionHold(origin,context,dataset,revision,page,persist){
+export async function proveRetentionHold(origin,context,dataset,revision,page,persist,unpublished='synthetic-bifocal-retention-unpublished'){
  const url=origin+'/api/operator/retention/'+dataset,headers={Origin:origin}
  const owner=(await (await context.request.get(origin+'/auth/session')).json()).operator
  const history=async()=>{const response=await context.request.get(url+'/history');assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['cache-control'],'no-store');return (await response.json()).history}
@@ -117,7 +117,7 @@ export async function proveRetentionHold(origin,context,dataset,revision,page,pe
  assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),200,'An elapsed minimum date never automatically erases the source')
  const empty=await context.request.get(origin+'/api/operator/retention/synthetic-bifocal-no-published')
  assert.equal(empty.status(),200);assert.equal((await empty.json()).reviewedDatasetRevision,null)
- const unpublished='synthetic-bifocal-retention-unpublished',unpublishedUrl=origin+'/api/operator/retention/'+unpublished
+ const unpublishedUrl=origin+'/api/operator/retention/'+unpublished
  const unpublishedSave=await context.request.put(unpublishedUrl,{headers,data:{confirmDataset:unpublished,reviewedDatasetRevision:null,previousRevision:null,legalHold:false,minimumRetainUntil:null}})
  assert.equal(unpublishedSave.status(),200,await unpublishedSave.text())
  const unpublishedHistory=(await (await context.request.get(unpublishedUrl+'/history')).json()).history
