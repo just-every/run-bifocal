@@ -125,11 +125,14 @@ async function handleMigrationProject(request:Request,original:Bindings):Promise
    }
    const tableau=raw?.source==='tableau'?raw.tableau as {bindings?:Record<string,{dataset?:unknown}>}|undefined:undefined
    const ids=[...new Set(Object.values(tableau?.bindings??{}).map(b=>b?.dataset).filter((id):id is string=>typeof id==='string'))]
-   for(const dataset of ids){
-    const source=sources.find(s=>s.id===dataset)
-    if(!source){await forgetUpload();fail('tableau_bound_source_unavailable',409)}
-    await transact(env.DB,owner,[assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?) AND NOT EXISTS(SELECT 1 FROM bf_preparation_erasing WHERE dataset_id=?)',dataset,source.revision,dataset)),sql('INSERT OR IGNORE INTO bf_tableau_migration_sources(project_id,dataset_id) VALUES(?,?)',id,dataset)])
-   }
+   // Validate the complete binding set before acquiring any custody. A later
+   // unavailable source must not attach earlier sources to an existing project.
+   const bound=ids.map(dataset=>sources.find(s=>s.id===dataset))
+   if(bound.some(source=>!source)){await forgetUpload();fail('tableau_bound_source_unavailable',409)}
+   await transact(env.DB,owner,bound.flatMap(source=>[
+    assertion(sql('EXISTS(SELECT 1 FROM bf_file_tables WHERE id=? AND revision=?) AND NOT EXISTS(SELECT 1 FROM bf_preparation_erasing WHERE dataset_id=?)',source!.id,source!.revision,source!.id)),
+    sql('INSERT OR IGNORE INTO bf_tableau_migration_sources(project_id,dataset_id) VALUES(?,?)',id,source!.id),
+   ]))
   }
  }
  const response=await createImportOperatorHandler(options)(request)

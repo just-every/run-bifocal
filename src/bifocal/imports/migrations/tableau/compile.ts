@@ -68,7 +68,9 @@ export function compileTableau(value:unknown,projectId:string,sources:Source[]):
    query.semantic={grain:binding.grain as string[],dimensions:source!.table.columns.map(c=>({column:c.name,type:c.type})),hierarchies:[],slowlyChanging:'reject-duplicate-grain'}
    // Native context enforces the installation timezone again at preview and save.
    const doc=metricDefinition({name:txt(metadata.name,160),description:'Inactive Tableau Pulse migration from '+String(m.id)+'. Source parity and delivery remain unproved.',grain:(binding.grain as string[]).join(', '),unit,timezone:txt(binding.timezone,100),accountingBasis:query.context.accountingBasis,query})
-   if(!diagnostics.slice(start).some(d=>d.blocksPreview))drafts.push({sourceMetric:String(m.id),document:{version:1,id:(projectId.slice(0,43)+'-'+sha256(String(m.id)).slice(0,16)),definition:doc}})
+   // Encode the full pair's SHA-256 in base 36 to fit the native ID limit
+   // without discarding any project characters or hash bits.
+   if(!diagnostics.slice(start).some(d=>d.blocksPreview))drafts.push({sourceMetric:String(m.id),document:{version:1,id:('tableau-'+BigInt('0x'+sha256(canonicalJson([projectId,String(m.id)]))).toString(36)),definition:doc}})
   }catch{problem(metric.id,metric.file,'pulse_binding_or_semantics_unresolved','Supply explicit physical columns, current snapshot revision, unique grain, timezone, native calendar context, fixed dates and supported equality filters.')}
  }
  for(const def of read.records.filter(r=>r.kind==='pulse-definition')){

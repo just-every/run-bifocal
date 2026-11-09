@@ -302,6 +302,52 @@ export async function proveTableauMigration({origin,context,call,page,proveScree
  let lastUpload
  const prepare=async(value,catchup=false,expected=200)=>{headers['X-Import-Dataset']=value.projectId;const bytes=Buffer.from(JSON.stringify(value)),hash=createHash('sha256').update(bytes).digest('hex');let up;for(let index=0;index<Math.ceil(bytes.length/65536);index++){const chunk=bytes.subarray(index*65536,(index+1)*65536);up=await post('uploads',{...up?{uploadId:up.uploadId}:{},name:'synthetic-bifocal-tableau.json',bundleSha256:hash,totalBytes:bytes.length,totalChunks:Math.ceil(bytes.length/65536),index,chunkSha256:createHash('sha256').update(chunk).digest('hex'),base64:chunk.toString('base64')})}lastUpload=up.uploadId;return post('plan',{uploadId:up.uploadId,...catchup?{catchup:true}:{}},expected)}
  const apply=async p=>{for(let i=0;i<20;i++){if((await post('apply',{planId:p.planId,reviewedFingerprint:p.fingerprint})).job.state==='completed'){assert.equal((await post('reconcile',{planId:p.planId})).ok,true);return}}assert.fail('Tableau apply did not complete')}
+ // Three public-route regressions for the FIX round; collect all outcomes before
+ // asserting so the original candidate can demonstrate all three data-loss cases.
+ const snapshot=async path=>{const response=await context.request.get(origin+'/api/operator'+path);return {status:response.status(),value:await response.json()}}
+ const erase=async sourceId=>{const source=await call('/datasets/'+sourceId),response=await context.request.post(origin+'/api/operator/datasets/'+sourceId+'/erase',{headers:{Origin:origin},data:{confirmDataset:sourceId,reviewedRevision:source.revision}});return {status:response.status(),value:await response.json()}}
+ const specimen=async(projectId,sourceId,secondId)=>{
+  const source=await call('/datasets/'+sourceId),value=tableauMigrationSpecimen(sourceId,source.revision).input
+  value.projectId=projectId
+  if(secondId){const second=await call('/datasets/'+secondId);value.tableau.bindings['metric-distinct'].dataset=secondId;value.tableau.bindings['metric-distinct'].revision=second.revision}
+  return value
+ }
+ const install=async value=>{const plan=await prepare(value);await apply(plan);return call('/migration-projects/'+value.projectId)}
+ const saveSum=async project=>{
+  const metricId=project.tableau.drafts.find(d=>d.sourceMetric==='metric-sum').document.id,native=await call('/metric-definitions/'+metricId)
+  const exact={reviewedRevision:project.revision,sourceMetric:'metric-sum',previousRevision:native.revision},review=await call('/migration-projects/'+project.id+'/tableau-review',exact,200)
+  await call('/migration-projects/'+project.id+'/tableau-apply',{...exact,reviewedDigest:review.digest})
+  return metricId
+ }
+ const observations=[]
+ // Different full IDs sharing their first 43 characters must own different metrics.
+ const collisionA='synthetic-bifocal-fix-collision-a',collisionB='synthetic-bifocal-fix-collision-b',prefix='synthetic-bifocal-'+'c'.repeat(26)
+ await upload(collisionA,csv);await upload(collisionB,csv.replace('$10.01','$12.01'))
+ const projectA=await install(await specimen(prefix+'-a',collisionA));await saveSum(projectA)
+ const projectB=await install(await specimen(prefix+'-b',collisionB)),metricB=await saveSum(projectB),beforeB=await snapshot('/metric-definitions/'+metricB)
+ const collisionErasure=await erase(collisionA),afterB=await snapshot('/metric-definitions/'+metricB)
+ observations.push({case:'full-project-identity',eraseStatus:collisionErasure.status,metricPreserved:JSON.stringify(afterB)===JSON.stringify(beforeB),projectPreserved:(await snapshot('/migration-projects/'+projectB.id)).status===200})
+ // A refused replacement cannot attach source A to source B's unchanged project.
+ const refusalA='synthetic-bifocal-fix-refusal-a',refusalB='synthetic-bifocal-fix-refusal-b',refusalId='synthetic-bifocal-fix-refusal'
+ await upload(refusalA,csv);await upload(refusalB,csv)
+ const refusalProject=await install(await specimen(refusalId,refusalB)),refusalMetric=await saveSum(refusalProject),beforeRefusal=await snapshot('/migration-projects/'+refusalId),beforeRefusalMetric=await snapshot('/metric-definitions/'+refusalMetric)
+ const replacement=await specimen(refusalId,refusalA);replacement.tableau.bindings['metric-distinct'].dataset='synthetic-bifocal-unavailable'
+ const refused=await prepare(replacement,true,409),refusalErasure=await erase(refusalA)
+ observations.push({case:'refused-plan-custody',refusal:refused.error,eraseStatus:refusalErasure.status,projectPreserved:JSON.stringify(await snapshot('/migration-projects/'+refusalId))===JSON.stringify(beforeRefusal),metricPreserved:JSON.stringify(await snapshot('/metric-definitions/'+refusalMetric))===JSON.stringify(beforeRefusalMetric)})
+ // The later project carries a second, held source; no earlier project may go.
+ const holdA='synthetic-bifocal-fix-hold-a',holdB='synthetic-bifocal-fix-hold-b'
+ await upload(holdA,csv);await upload(holdB,csv)
+ const earlier=await install(await specimen('synthetic-bifocal-fix-hold-earlier',holdA)),later=await install(await specimen('synthetic-bifocal-fix-hold-later',holdA,holdB))
+ const earlierMetric=await saveSum(earlier),laterMetric=await saveSum(later)
+ const heldSource=await call('/datasets/'+holdB),held=await context.request.put(origin+'/api/operator/retention/'+holdB,{headers:{Origin:origin},data:{confirmDataset:holdB,reviewedDatasetRevision:heldSource.revision,previousRevision:null,legalHold:true,minimumRetainUntil:null,releaseHold:false}})
+ assert.equal(held.status(),200,await held.text())
+ const heldPaths=['/datasets/'+holdA,'/datasets/'+holdB,'/migration-projects/'+earlier.id,'/migration-projects/'+later.id,'/metric-definitions/'+earlierMetric,'/metric-definitions/'+laterMetric],beforeHold=await Promise.all(heldPaths.map(snapshot)),holdErasure=await erase(holdA),afterHold=await Promise.all(heldPaths.map(snapshot))
+ observations.push({case:'whole-erasure-hold',refused:[409,423].includes(holdErasure.status),allPreserved:JSON.stringify(afterHold)===JSON.stringify(beforeHold),earlierStatus:afterHold[2].status,laterStatus:afterHold[3].status})
+ for(const observation of observations)console.log('PROBE FIX '+JSON.stringify(observation))
+ assert.deepEqual(observations[0],{case:'full-project-identity',eraseStatus:200,metricPreserved:true,projectPreserved:true},'Full project identity preserves the other source metric revisions')
+ assert.deepEqual(observations[1],{case:'refused-plan-custody',refusal:'tableau_bound_source_unavailable',eraseStatus:200,projectPreserved:true,metricPreserved:true},'Refused replacement adds no custody over an unchanged project')
+ assert.deepEqual(observations[2],{case:'whole-erasure-hold',refused:true,allPreserved:true,earlierStatus:200,laterStatus:200},'A hold on any linked source preserves the whole erasure set')
+ headers['X-Import-Dataset']=id
  const base='/migration-projects/'+id
  await page.goto(origin+'/app/import');await page.getByText('Import Tableau sources and Pulse',{exact:true}).click()
  const form=page.locator('#tableau-import-form');await form.getByLabel('Tableau project ID',{exact:true}).fill(id);await form.getByLabel('Tableau site ID',{exact:true}).fill(input.tableau.siteId);await form.getByLabel('Source cutoff',{exact:true}).fill(input.cutoff)

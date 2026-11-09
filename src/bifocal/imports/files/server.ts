@@ -1,6 +1,6 @@
 import { reconstructionRetentionAllowsErasure } from '../migrations/looker-studio/custody'
 import { eraseSourceReconstructions } from '../migrations/store.server'
-import { eraseSourceTableauProjects } from '../migrations/store.server'
+import { eraseSourceTableauProjects, tableauRetentionAllowsErasure } from '../migrations/store.server'
 import { alertErasure, alertErasureCounts } from '../../alerts/erasure'
 import { rdlImportResponse } from '../../reports/rdl/door.server'
 import { preparationResponse } from '../../preparation/server'
@@ -77,13 +77,13 @@ export async function fileImportResponse(request: Request, original: Bindings, e
    if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
    const raw = await boundedBody(request)
    if (!raw || Object.keys(raw).some(key => !['confirmDataset','reviewedRevision'].includes(key)) || raw.confirmDataset !== dataset || raw.reviewedRevision !== (current?.revision ?? null)) return json({ error: 'exact_erasure_confirmation_required', reason: 'Review the dataset state and explicitly confirm its id and current revision, or null when no table is published, before erasing.' }, 409)
-   const sourceRetention=retentionAllowsErasure(dataset),linkedRetention=reconstructionRetentionAllowsErasure(dataset),retention=sql(`(${sourceRetention.sql}) AND (${linkedRetention.sql})`,...sourceRetention.params??[],...linkedRetention.params??[])
+   const sourceRetention=retentionAllowsErasure(dataset),linkedRetention=reconstructionRetentionAllowsErasure(dataset),tableauRetention=tableauRetentionAllowsErasure(dataset),retention=sql(`(${sourceRetention.sql}) AND (${linkedRetention.sql}) AND (${tableauRetention.sql})`,...sourceRetention.params??[],...linkedRetention.params??[],...tableauRetention.params??[])
    const allowed=await env.DB.prepare(`SELECT CASE WHEN (${retention.sql}) THEN 1 ELSE 0 END AS allowed`).bind(...retention.params??[]).first<{allowed:number}>()
    if(!allowed?.allowed)return json({error:'retention_hold',reason:'This source or a linked reconstruction is protected by a legal hold or minimum retention date. Review the retention policy; no erasure was started.'},423)
    const preparationSourceGuard=fileTargets.matches(current??null,destination,'file-table',dataset),withdrawal=await preparationErasureGuard(env,'dataset',dataset)
    // Retention includes project-owned outputs outside this source's direct graph.
    // Check again in the same batch that establishes the durable withdrawal fence.
-   await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${withdrawal.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...withdrawal.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
+   await transact(env.DB,owner,[sql(`INSERT INTO ik_d1_assertions(ok) SELECT CASE WHEN (${preparationSourceGuard.sql}) AND (${withdrawal.sql}) AND (${retention.sql}) THEN 1 ELSE 0 END`,...preparationSourceGuard.params??[],...withdrawal.params??[],...retention.params??[]),sql('INSERT OR IGNORE INTO bf_preparation_erasing(dataset_id) VALUES(?)',dataset)])
    const descendants=await preparationDescendants(env,dataset),derivedReceipts=[],activeDatasets=new Set([...erasingDatasets,dataset])
    for(const id of descendants){
     const output=await fileTargets.read(env.DB,fileDestination(id),'file-table',id)

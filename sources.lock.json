@@ -3034,7 +3034,7 @@
       "executable": false
     },
     "src/bifocal/imports/files/server.ts": {
-      "sha256": "d8e0f2a43104789d354aa5e8ede360e1469f8da7834aa0ead95067fced2acfaf",
+      "sha256": "b1d9a0c46867e76f1657d0bb76371e3af502459cc7fecb4a8e869c1e054c6000",
       "executable": false
     },
     "src/bifocal/imports/files/targets.ts": {
@@ -3062,7 +3062,7 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/door.server.ts": {
-      "sha256": "d60f68b495d987d88fab9c38284feba5ed5b60178bfaba0f2ef9eab1747cced8",
+      "sha256": "81af7b7926fbb314207baefd2d6d59140bd3d558e4308b2723d6a53d26318ccc",
       "executable": false
     },
     "src/bifocal/imports/migrations/looker-studio/custody.ts": {
@@ -3098,11 +3098,11 @@
       "executable": false
     },
     "src/bifocal/imports/migrations/store.server.ts": {
-      "sha256": "13597b1e1e47c722cbdc4be8f2612ba9594b35420995dd807a9ce9f720a957de",
+      "sha256": "c52f3a57cd905329237508eea74ed5ea62ab8567393cd72cf43639b3e521923d",
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/compile.ts": {
-      "sha256": "fdc482075fccdb89ba5de47da4ca1a087d269458fef0fe61a68221c5f3d9a432",
+      "sha256": "b46be2ab2363d5b789d98bf218f7d814e139c5a7097486824f616cc4d8d64ace",
       "executable": false
     },
     "src/bifocal/imports/migrations/tableau/drafts.server.ts": {
@@ -6418,7 +6418,7 @@
       "executable": false
     },
     "tests/journeys/migration-projects.mjs": {
-      "sha256": "95b37409843b3dac4540e90453d2933077bce0734e52d034994c1aa7084f92b9",
+      "sha256": "dc801f87804e852d1b9c3802e11fd54c433c572ab84ff18e53a13c73702a9816",
       "executable": false
     },
     "tests/journeys/model-import.mjs": {

@@ -32,11 +32,21 @@ export async function eraseSourceReconstructions(env:Bindings,owner:Owner,datase
  return receipts
 }
 
+/** Decide the whole linked withdrawal before any project is erased. */
+export const tableauRetentionAllowsErasure=(dataset:string)=>sql(`NOT EXISTS(
+ SELECT 1 FROM bf_tableau_migration_sources erased JOIN bf_tableau_migration_sources linked ON linked.project_id=erased.project_id
+ JOIN bf_source_retention retention ON retention.dataset_id=linked.dataset_id
+ WHERE erased.dataset_id=? AND (retention.legal_hold=1 OR retention.minimum_retain_until>strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+)`,dataset)
+
 /** A separately reviewed source owns custody of every planned Tableau version. */
 export async function eraseSourceTableauProjects(env:Bindings,owner:Owner,dataset:string,sourceGuard:D1Sql){
  const rows=(await env.DB.prepare('SELECT DISTINCT project_id FROM bf_tableau_migration_sources WHERE dataset_id=? ORDER BY project_id LIMIT 101').bind(dataset).all<{project_id:string}>()).results
  if(rows.length>100)fail('tableau_project_erasure_limit',413)
+ const retention=tableauRetentionAllowsErasure(dataset)
+ const allowed=await env.DB.prepare('SELECT ('+retention.sql+') AS allowed').bind(...retention.params??[]).first<{allowed:number}>()
+ if(!allowed?.allowed)fail('retention_hold',423)
  const receipts=[]
- for(const row of rows)receipts.push(await eraseMigrationProject(env,owner,row.project_id,[sourceGuard]))
+ for(const row of rows)receipts.push(await eraseMigrationProject(env,owner,row.project_id,[sourceGuard,retention]))
  return receipts
 }
