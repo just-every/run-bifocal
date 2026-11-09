@@ -50,5 +50,31 @@ export default async function ({tool,request,origin,cookie}) {
  assert.equal(rest.totals.revenue.value,'9.98');assert.equal(rest.totalRows,1)
  const after=await request(origin+'/api/operator/credentials',{headers:{Cookie:cookie}})
  assert.equal((await after.json()).credentials.find(row=>row.id===credential.id).used_operations,2,'No duplicated native execution during transport adaptation')
+
+ // Use real shared MCP calls past one audit page, then independently read the
+ // person API. No SQL fixture or verifier module is changed.
+ for(let i=0;i<410;i++)assert.equal((await tool('bifocal.analytics.status',{})).result.isError,false)
+ await tool('bifocal.analytics.definitions',{})
+ const rows=[];let cursor=null
+ for(let page=0;;page++){
+  assert.ok(page<50,'Independent audit traversal terminates')
+  const response=await request(origin+'/agents/api/audit'+(cursor?'?after='+cursor:''),{headers:{Cookie:cookie}})
+  assert.equal(response.status,200)
+  const result=await response.json();rows.push(...result.rows)
+  if(result.cursor===null||result.cursor===cursor)break
+  cursor=result.cursor
+ }
+ assert.ok(rows.length>200)
+ const times=rows.map(row=>Date.parse(row.at)),from=new Date(Math.min(...times)-3*86400000).toISOString().slice(0,10),through=new Date(Math.max(...times)+3*86400000).toISOString().slice(0,10)
+ const exported=await request(origin+'/app/settings/agent-activity/export?'+new URLSearchParams({from,through,'class':'sensitive'}),{headers:{Cookie:cookie}})
+ assert.equal(exported.status,200)
+ const activity=await exported.json(),selected=rows.filter(row=>row.classes.some(item=>item.class==='sensitive'))
+ assert.equal(activity.complete,true);assert.equal(activity.count,selected.length)
+ assert.deepEqual(activity.records,selected,'Export preserves every public audit field beyond empty filtered pages')
+ assert.ok(activity.records.some(row=>row.agent.name&&row.sponsor.name&&row.label.includes(' for ')))
+ const counts={}
+ for(const row of selected)counts[row.decision]=(counts[row.decision]??0)+1
+ assert.deepEqual(activity.counts.decisions,counts)
+ console.log('PROBE BASE-AGENT-009 conformance: 410 additional real MCP actions -> complete sensitive JSON and every recorded field reconcile to independently paged public audit records')
  console.log('Bifocal agent journey: exact USD 9.98 West answer, intersected East refusal, hidden field refusal and native agent/sponsor attribution passed.')
 }

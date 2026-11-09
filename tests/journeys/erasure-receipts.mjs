@@ -31,7 +31,7 @@ export async function proveErasureReceipt(origin,context,auditId,dataset,revisio
  assert.deepEqual(await (await context.request.get(auditUrl)).json(),audit)
 }
 
-export async function proveRetentionHold(origin,context,dataset,revision,page,persist){
+export async function proveRetentionHold(origin,context,dataset,revision,page,persist,unpublished='synthetic-bifocal-retention-unpublished'){
  const url=origin+'/api/operator/retention/'+dataset,headers={Origin:origin}
  const owner=(await (await context.request.get(origin+'/auth/session')).json()).operator
  const history=async()=>{const response=await context.request.get(url+'/history');assert.equal(response.status(),200,await response.text());assert.equal(response.headers()['cache-control'],'no-store');return (await response.json()).history}
@@ -117,7 +117,7 @@ export async function proveRetentionHold(origin,context,dataset,revision,page,pe
  assert.equal((await context.request.get(origin+'/api/operator/datasets/'+dataset)).status(),200,'An elapsed minimum date never automatically erases the source')
  const empty=await context.request.get(origin+'/api/operator/retention/synthetic-bifocal-no-published')
  assert.equal(empty.status(),200);assert.equal((await empty.json()).reviewedDatasetRevision,null)
- const unpublished='synthetic-bifocal-retention-unpublished',unpublishedUrl=origin+'/api/operator/retention/'+unpublished
+ const unpublishedUrl=origin+'/api/operator/retention/'+unpublished
  const unpublishedSave=await context.request.put(unpublishedUrl,{headers,data:{confirmDataset:unpublished,reviewedDatasetRevision:null,previousRevision:null,legalHold:false,minimumRetainUntil:null}})
  assert.equal(unpublishedSave.status(),200,await unpublishedSave.text())
  const unpublishedHistory=(await (await context.request.get(unpublishedUrl+'/history')).json()).history
@@ -228,4 +228,98 @@ export async function proveRetentionSourceDrift(origin,context,files){
  assert.equal(replacement.source_state,'published');assert.equal(replacement.source_revision,source.revision);assert.equal(replacement.previous_revision,previous.policy.revision)
  context.retentionActiveDataset=dataset
  console.log('PROBE BIF-034 source drift: actual reviewed file publication invalidated null-revision protection review without policy or acknowledgment writes; fresh exact source review succeeded.')
+}
+
+/** Real native mutations scheduled just before the acknowledgment transaction. */
+export async function proveRetentionCommitFences({origin,owner,reader,browser,upload,persist,devKey}){
+ const dataset='synthetic-bifocal-protection-fences',path='/api/operator/retention/'+dataset,headers={Origin:origin}
+ const call=async(suffix='',client=owner)=>{
+  const response=await client.request.get(origin+path+suffix)
+  assert.equal(response.status(),200,await response.text());return response.json()
+ }
+ const source=async()=>{
+  const response=await owner.request.get(origin+'/api/operator/datasets/'+dataset)
+  assert.equal(response.status(),200,await response.text());return response.json()
+ }
+ const save=async(input,expected=200,client=owner)=>{
+  const response=await client.request.put(origin+path,{headers,data:input})
+  assert.equal(response.status(),expected,await response.text());return response.json()
+ }
+ const inspect=async()=>({policy:(await call()).policy,history:await call('/history'),audit:await inspectRetention(persist,'SELECT * FROM bf_erasure_audit ORDER BY id')})
+ const cookie=(await owner.cookies(origin)).map(c=>c.name+'='+c.value).join('; ')
+ const arm=async(at,before,mutation)=>{
+  const response=await owner.request.post(origin+'/__entitlement-boundary',{data:{at,before,cookie,...mutation}})
+  assert.equal(response.status(),200,await response.text())
+ }
+ await upload(dataset,'id,amount\n1,$42.00\n')
+ const original=await source(),operator=(await(await owner.request.get(origin+'/auth/session')).json()).operator
+ const first={confirmDataset:dataset,reviewedDatasetRevision:original.revision,previousRevision:null,legalHold:true,minimumRetainUntil:'2099-01-01T00:00:00.000Z'}
+ await save(first)
+ let state=await inspect()
+ assert.equal(state.history.history.length,1)
+ assert.equal(state.history.history[0].approving_owner_id,operator.id)
+ assert.equal(state.history.history[0].source_revision,original.revision)
+ // The source was current at admission, then a separately reviewed import won.
+ const replacement=await upload(dataset,'id,amount\n1,$57.00\n',true,true)
+ const reviewed={...first,previousRevision:state.policy.revision,releaseHold:true,legalHold:false,minimumRetainUntil:null}
+ await arm(path,'INSERT INTO bf_retention_acknowledgments',replacement)
+ assert.equal((await save(reviewed,409)).error,'retention_conflict')
+ assert.deepEqual(await inspect(),state,'Source drift cannot write a policy, acknowledgment or permanent event')
+ const changed=await source()
+ assert.notEqual(changed.revision,original.revision)
+ assert.equal(changed.table.rows[0][1],'57.00')
+ // A second writer commits first. Its exact values and one event must survive.
+ const fresh={...reviewed,reviewedDatasetRevision:changed.revision},winner={...fresh,legalHold:false,minimumRetainUntil:'2099-02-01T00:00:00.000Z'}
+ await arm(path,'INSERT INTO bf_retention_acknowledgments',{method:'PUT',path,body:winner})
+ assert.equal((await save(fresh,409)).error,'retention_conflict')
+ const won=await inspect(),approval=won.history.history.at(-1)
+ assert.equal(won.history.history.length,state.history.history.length+1)
+ assert.equal(won.audit.length,state.audit.length+1)
+ assert.deepEqual(won.history.history.slice(0,-1),state.history.history)
+ for(const fact of state.audit)assert.deepEqual(won.audit.find(row=>row.id===fact.id),fact)
+ assert.equal(approval.previous_revision,state.policy.revision)
+ assert.equal(approval.replacement_revision,won.policy.revision)
+ assert.equal(approval.before_legal_hold,1);assert.equal(approval.before_minimum_retain_until,first.minimumRetainUntil)
+ assert.equal(approval.after_legal_hold,0);assert.equal(approval.after_minimum_retain_until,winner.minimumRetainUntil)
+ assert.equal(approval.source_revision,changed.revision);assert.equal(approval.approving_owner_id,operator.id);assert.equal(approval.approving_owner_version,operator.version)
+ assert.equal(approval.release_acknowledged,1);assert.ok(!Number.isNaN(Date.parse(approval.recorded_at)))
+ state=won
+ // Revoke a second real owner session after admission on both reads and writes.
+ for(const [suffix,method] of [['','GET'],['/history','GET'],['','PUT']]){
+  const withdrawn=await browser.newContext()
+  try{
+   assert.equal((await withdrawn.request.post(origin+'/__dev/key',{headers,data:{key:devKey}})).status(),204)
+   assert.equal((await withdrawn.request.get(origin+'/auth/dev/enter?as='+encodeURIComponent(operator.email),{maxRedirects:0})).status(),303)
+   const session=await(await withdrawn.request.get(origin+'/auth/session')).json()
+   await arm(path+suffix,'INSERT INTO bf_conventions_assertions',{path:'/auth/session/revoke',body:{sessionId:session.id}})
+   const response=await withdrawn.request.fetch(origin+path+suffix,{method,headers,...method==='PUT'?{data:{...fresh,previousRevision:state.policy.revision}}:{}})
+   assert.equal(response.status(),409,await response.text())
+   const refused=await response.json()
+   assert.equal(refused.error,'retention_conflict')
+   for(const key of ['policy','history','revision','dataset','reviewedDatasetRevision'])assert.equal(key in refused,false)
+   assert.equal((await withdrawn.request.get(origin+'/auth/session')).status(),401)
+   assert.deepEqual(await inspect(),state,'Revoked authority cannot read identifying custody or write protection facts')
+  }finally{await withdrawn.close()}
+ }
+ for(const suffix of ['','/history'])assert.equal((await reader.request.get(origin+path+suffix)).status(),401)
+ assert.equal((await reader.request.put(origin+path,{headers,data:fresh})).status(),401)
+ assert.deepEqual(await inspect(),state)
+ // Release the minimum explicitly, then erase through the native source door
+ // while an already-admitted replacement waits to commit. It cannot resurrect custody.
+ await save({...fresh,previousRevision:state.policy.revision})
+ state=await inspect()
+ await arm(path,'INSERT INTO bf_retention_acknowledgments',{path:'/api/operator/datasets/'+dataset+'/erase',body:{confirmDataset:dataset,reviewedRevision:changed.revision}})
+ assert.equal((await save({...fresh,previousRevision:state.policy.revision,legalHold:true},409)).error,'retention_conflict')
+ assert.equal((await call()).policy,null);assert.deepEqual((await call('/history')).history,[])
+ assert.deepEqual(await inspectRetention(persist,'SELECT * FROM bf_retention_acknowledgments WHERE dataset_id=?',dataset),[])
+ const after=await inspectRetention(persist,'SELECT * FROM bf_erasure_audit ORDER BY id')
+ for(const fact of state.audit)assert.deepEqual(after.find(row=>row.id===fact.id),fact)
+ assert.equal(after.length,state.audit.length+1)
+ const erasure=after.find(row=>!state.audit.some(fact=>fact.id===row.id))
+ assert.equal(erasure.kind,'source_erasure')
+ const receipt=await(await owner.request.get(origin+'/api/operator/erasure-receipts/'+erasure.id)).json()
+ assert.equal(receipt.stores.find(store=>store.store==='bf_retention_acknowledgments').rows,state.history.history.length)
+ for(const value of [dataset,operator.id,changed.revision,state.policy.revision])assert.equal(JSON.stringify(receipt).includes(value),false)
+ assert.equal((await owner.request.get(origin+'/api/operator/datasets/'+dataset)).status(),404)
+ console.log('PROBE BIF-034 transaction fences: native source replacement, competing protection save, owner-session revocation and eligible erasure at the acknowledgment batch refuse stale work without partial writes, exposure or custody revival.')
 }
