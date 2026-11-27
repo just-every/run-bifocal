@@ -5,6 +5,6 @@
     "0074_bifocal_agent_door_relay.sql"
   ],
   "breaking": false,
-  "agentUpdateInstructions": "Install the frozen dependencies with RER CLI 0.2.144. Apply the one migration added since 0.1.4 (0074_bifocal_agent_door_relay.sql) with the installation's normal update. MAIL_PROVIDER and MAIL_FROM are now public settings with empty defaults and MAIL_API_KEY is optional; existing provider settings keep working. For deployments with MAIL_PROVIDER=none, the owner signs in with rer signin. Agent clients must send their bearer credential on discovery and initialization.",
+  "agentUpdateInstructions": "Install the frozen dependencies with RER CLI 0.2.144. Apply the one migration added since 0.1.4 (0074_bifocal_agent_door_relay.sql) with the installation's normal update. MAIL_PROVIDER (default resend) and MAIL_FROM (default empty) are now public settings and MAIL_API_KEY is optional; an installation that sends with a provider key and sender keeps working. To run with mail off, set MAIL_PROVIDER=none explicitly; the owner then signs in with rer signin. Agent clients must send their bearer credential on discovery and initialization.",
   "previousVersion": "0.1.4"
 }

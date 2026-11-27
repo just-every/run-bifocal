@@ -418,7 +418,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "e0948cd3a1aeb8e8d0973733b64c7f2fbaf8f1abbb72452709fc3447c781b828",
+      "sha256": "ac4aa17e6599d3babf52a824d663adeda2bf445ea2c234ac9e0aad0bb81fd598",
       "executable": false
     },
     "CLAIMS.md": {
@@ -450,7 +450,7 @@
       "executable": false
     },
     "deploy.json": {
-      "sha256": "d61d848cab711905de96135f741635045a4bc397a9ed1796fe036ccbd7ac5fcd",
+      "sha256": "e2baba0b76c629724454a592ba2530cc54d5a2bc685a102d06a08f3e01ede59d",
       "executable": false
     },
     "docs/AGENT-ACCESS.md": {
@@ -586,7 +586,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "b40e285d2fb11f655c7903e14e4b29b50cc367ac87dc5b1a40b28701479048da",
+      "sha256": "e2c5408d641667bdf121ff3022d58343fc35c51c577171ebebc991a2d6f8732b",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -914,7 +914,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "04fee92f42e1cbfb3f68234e88a9043f466922a9db09a6e71d018f6b3ea5d330",
+      "sha256": "a86b4b648c6e387933e166d6dc24ced5b869a643799d93825ff588ba9f1fa112",
       "executable": false
     },
     "package.json": {
@@ -1306,7 +1306,7 @@
       "executable": false
     },
     "RELEASE.json": {
-      "sha256": "6c1430ee402268be882366f1f4eff6e7af63e5c242eee695e900c5c5be48013f",
+      "sha256": "351a141c4b02b43f79cbdf1c6bc12fe31c59e4f10c848c0117d5dc797a4d1d6f",
       "executable": false
     },
     "rer-project.json": {
@@ -2094,7 +2094,7 @@
       "executable": false
     },
     "src/app/docs.ts": {
-      "sha256": "6d9e992b7efbf54c7b3d3f1a68f08b4da6ff33b850890f7058de24c631f2c5c0",
+      "sha256": "504a7cc1b9b34ce60c6c98adb9c689d0c2702b631fa087ee9f6badf6a673fcda",
       "executable": false
     },
     "src/app/figure.ts": {
@@ -6618,7 +6618,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "467be3bda000078ed6d23f830c57d3b05b05a47f83872fc2b2dc42a5c9c2fab1",
+      "sha256": "45c9cb4729cb0754e8526c91518de8010f24c942ef55b601965853e11cff058d",
       "executable": false
     }
   }

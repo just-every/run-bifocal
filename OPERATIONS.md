@@ -106,8 +106,8 @@ or a refused target read fail the dry run. It performs no provider writes,
 uploads, secret changes or resource creation. It does make provider requests.
 
 Real deployment also requires the declared owner/session/setup secrets.
-`MAIL_PROVIDER` and `MAIL_FROM` are public settings with empty defaults, and
-`MAIL_API_KEY` is optional. With `MAIL_PROVIDER=none` (setup's "Turn off outbound
+`MAIL_PROVIDER` (default `resend`) and `MAIL_FROM` (default empty) are public
+settings, and `MAIL_API_KEY` is optional. With `MAIL_PROVIDER=none` (setup's "Turn off outbound
 email") there is no sender and no key: the sign-in page offers no email form,
 `/auth/magic-link` and invitations refuse with `mail_unavailable`, approved report
 sends refuse, and the owner signs in with `rer signin`. To send mail, choose a
