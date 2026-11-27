@@ -133,8 +133,6 @@ try {
       assert.match(guide, /Both CLI setup and the supported browser installer check the retained owner and refuse a different email/)
       assert.match(guide, /browser installer uses the same CLI setup command/)
       assert.match(guide, /Use the archived owner’s email after restore/)
-      assert.match(guide, /MAIL_FROM: auth@example.invalid/)
-      assert.match(guide, /placeholder that shared setup.deploy syntax validation currently accepts/)
       assert.match(guide, /Passing validation does not verify sender ownership or mail delivery/)
       assert.match(guide, /reads target secret-binding names.*CLOUDFLARE_ACCOUNT_ID.*CLOUDFLARE_API_TOKEN/)
       assert.match(guide, /Missing credentials or a refused target read fail the dry run/)

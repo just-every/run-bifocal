@@ -6542,7 +6542,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "233a1f7c21a0ce5ec6e2b7df8fecf13f83b3ebd6d006534be00c8275b14c4b8c",
+      "sha256": "d67decfcaca12d6eeae4236d1a29365c640cf57570a431f029dceee20b6a2ae0",
       "executable": false
     },
     "tests/site/contract-docs.test.mjs": {
