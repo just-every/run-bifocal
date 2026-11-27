@@ -1,6 +1,6 @@
 {
   "name": "@just-every/bifocal",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "engines": {
@@ -52,7 +52,7 @@
     "@cloudflare/vite-plugin": "1.54.5",
     "@cloudflare/workers-types": "5.20260908.1",
     "@playwright/test": "1.63.0",
-    "@runeditrun/rer": "0.2.91",
+    "@runeditrun/rer": "0.2.144",
     "@types/js-yaml": "4.0.9",
     "@types/node": "22.18.6",
     "@types/react": "19.2.18",

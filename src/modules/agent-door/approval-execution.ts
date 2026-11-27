@@ -10,6 +10,7 @@ import { canonical } from './policy/document.ts'
 import { policyRefusal, policyState } from './policy-store.ts'
 import { savedTool } from './resource-tool.ts'
 import { nativeTarget } from './target.ts'
+import { savedPrincipal } from './principal.ts'
 
 /** This person request executes once and has an audit separate from the held call. */
 export async function executeApproval(rt: Runtime, id: string, saved: SavedApproval, approvals: ApprovalMark[]) {
@@ -23,7 +24,9 @@ export async function executeApproval(rt: Runtime, id: string, saved: SavedAppro
   const by = [...new Set(approvals.map(mark => mark.person))]
   const approvers: Array<{ id: string; name: string }> = []
   try {
-    const principal = await livePrincipal(rt, { ...saved.principal, operationId: saved.principal.operationId ?? saved.decision_id, idempotencyKey: saved.key }), state = await policyState(rt), tool = savedTool(rt, saved.tool, saved.args)
+    const held = savedPrincipal(saved.principal, saved.door)
+    const principal = await livePrincipal(rt, { ...held, operationId: held.operationId ?? saved.decision_id, idempotencyKey: saved.key })
+    const state = await policyState(rt), tool = savedTool(rt, saved.tool, saved.args)
     if (tool?.authority === 'none') row.authority = 'none'
     const refusal = policyRefusal(rt, state, tool?.classes)
     if (saved.principal.consent && state.revoked.consents.includes(saved.principal.consent)) result = { ...result, outcome: 'refused', code: 'consent_revoked' }

@@ -322,12 +322,11 @@ no provider writes, uploads, secret changes or resource creation. The default en
 `--environment NAME`. The dry run does not establish upload acceptance,
 hosted health or mail delivery.
 
-Before hosted deployment, replace `deploy.json`'s `auth@example.invalid` sender
-with an address authorized and verified by the selected provider, and privately
-supply its `MAIL_API_KEY`. The checked-in address is a placeholder. Current
-shared setup/deploy syntax validation accepts it; passing that validation is
-not provider verification. Placeholder rejection and a hosted sign-in/mail
-journey remain unproved. Local and demo mail stays suppressed.
+A hosted deployment can run with mail off: `MAIL_PROVIDER=none` needs no sender
+or key, email sign-in refuses plainly, and the owner signs in with `rer signin`.
+To send mail instead, set `MAIL_PROVIDER`, a `MAIL_FROM` address the provider has
+authorized and verified, and its `MAIL_API_KEY` privately; passing setup or
+deploy validation is not provider verification. Local and demo mail stays suppressed.
 
 `rer describe` reads the current checkout's actual verbs,
 flags, aliases, pins, effects and local state without installing or running

@@ -105,14 +105,15 @@ supplied `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Missing credentials
 or a refused target read fail the dry run. It performs no provider writes,
 uploads, secret changes or resource creation. It does make provider requests.
 
-Real deployment also requires the declared owner/session/setup secrets and a
-sender authorized and verified with the selected mail provider. The checked-in
-`MAIL_FROM: auth@example.invalid` in `deploy.json` is a placeholder, not a usable
-sender. Replace it before hosted deployment and supply that provider's key as
-`MAIL_API_KEY` privately. Setup and dry-run syntax validation currently accept
-this placeholder; neither validates sender ownership or provider verification.
-Shared placeholder rejection remains an upstream dependency, and hosted
-sign-in/mail proof is pending. Follow the owner-account deploy-kit
+Real deployment also requires the declared owner/session/setup secrets.
+`MAIL_PROVIDER` and `MAIL_FROM` are public settings with empty defaults, and
+`MAIL_API_KEY` is optional. With `MAIL_PROVIDER=none` (setup's "Turn off outbound
+email") there is no sender and no key: the sign-in page offers no email form,
+`/auth/magic-link` and invitations refuse with `mail_unavailable`, approved report
+sends refuse, and the owner signs in with `rer signin`. To send mail, choose a
+provider, set `MAIL_FROM` to a sender that provider has authorized and verified,
+and supply its key as `MAIL_API_KEY` privately; neither setup nor the dry run
+validates sender ownership or provider verification. Follow the owner-account deploy-kit
 instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account scope,
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote

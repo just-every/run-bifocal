@@ -35,6 +35,6 @@ export function bifocalAgentDoor(env:Bindings) {
  * the agent door depends on it; unrelated native routes retain their own checks. */
 export async function agentDoorResponse(request: Request, env: Bindings): Promise<Response | null> {
  const path=new URL(request.url).pathname
- if(!['/mcp','/api/v1/mcp','/api/rer/agent-policy','/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/agents'].includes(path) && !path.startsWith('/agents/')) return null
+ if(!['/mcp','/api/v1/mcp','/api/rer/agent-policy','/api/rer/agent-decisions','/.well-known/oauth-protected-resource','/.well-known/oauth-protected-resource/mcp','/agents'].includes(path) && !path.startsWith('/agents/')) return null
  return bifocalAgentDoor(env).handle(request)
 }

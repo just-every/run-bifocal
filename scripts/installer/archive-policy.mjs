@@ -191,6 +191,7 @@ export default {
     "agent_door_reviews",
     "agent_door_events",
     "agent_door_usage",
+    "agent_door_relay",
     "bs_settings",
     "bs_team",
     "bs_overrides",

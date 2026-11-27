@@ -96,8 +96,9 @@ multiple operations and alias amplification across root fields refuse. Schema
 discovery uses the explicit schema route. `JSON` fields preserve exact decimal
 strings and typed query results without conversion to binary floating point.
 
-`POST /api/v1/mcp` is an alias of the shared `/mcp` agent door. It negotiates
-`2026-07-28` or `2025-11-25`; send the matching `MCP-Protocol-Version` header
+`POST /api/v1/mcp` is an alias of the shared `/mcp` agent door. It requires a
+bearer credential on every request and negotiates `2026-07-28`, `2025-11-25` or
+`2025-06-18`; send the matching `MCP-Protocol-Version` header
 (and the modern method/name metadata when using the modern era). Tools use
 `bifocal.analytics.query`, `bifocal.analytics.definitions` and
 `bifocal.analytics.status`. The shared handler requires answered company or

@@ -25,6 +25,7 @@
       "commands": [
         "pnpm run build",
         "node --test tests/demo-owner-claim.test.mjs",
+        "node --test tests/mail-off.test.mjs",
         "pnpm run test:runtime",
         "node tests/bifocal-certified-metrics.mjs",
         "node tests/bifocal-questions.mjs",

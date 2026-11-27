@@ -1,8 +1,15 @@
 # Company agent access
 
 Bifocal uses Base's shared agent door at `/mcp`, with `/api/v1/mcp` as an alias
-of the same handler. Both negotiated eras, `2026-07-28` and `2025-11-25`, use
-one registry, signed company policy, native approval, Pause and audit pipeline.
+of the same handler. Every request, discovery and initialization included,
+requires a bearer credential. It supports MCP `2026-07-28`, `2025-11-25` and
+`2025-06-18`: initialize can request the version in the body, and later calls
+without a version header use `2025-06-18`. All eras use one registry, signed
+company policy, native approval, Pause and audit pipeline. The paired Business
+pulls its decisions from `POST /api/rer/agent-decisions` with a signed request.
+A Business token is refused until a signed policy envelope binds the Business;
+detaching the Business closes that feed, ends Business token access and refuses
+held Business-sponsored calls.
 Discovery uses MCP `server/discover` and canonical metadata at
 `/.well-known/oauth-protected-resource/mcp`; policy and named-person approval activity
 are at `/agents`. The runtime and manifest declare tools, one private definition resource, policy,
