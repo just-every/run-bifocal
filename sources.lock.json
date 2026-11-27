@@ -901,6 +901,10 @@
       "sha256": "d54494f75e7a7c70f9d1cec42658daa4ad907eee39518331b25a23d1f511a0d8",
       "executable": false
     },
+    "migrations/core/0074_bifocal_agent_door_relay.sql": {
+      "sha256": "6282904674d90bd91e2c5967bf0046ad0c4c0f80c98d2fad2e283f03e0eced6e",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "7f947938245586237259098013644d4c863a57518b421025689f918bf75e1654",
       "executable": false
@@ -1295,6 +1299,10 @@
     },
     "release-history/0.1.3.json": {
       "sha256": "d58568a520aaef08736856a53c6426e977a29a7956cdc1a45a4f52f1eacb5e50",
+      "executable": false
+    },
+    "release-history/0.1.4.json": {
+      "sha256": "f6f18a700bc97c14c996a28e5940996e33e6763c6b1c1289cacfad0f6bf189a9",
       "executable": false
     },
     "RELEASE.json": {
@@ -3909,6 +3917,10 @@
       "sha256": "7a0cfafee742fe63005f156386306f386cfb893d5ca5424f9520be8312dd0e39",
       "executable": false
     },
+    "src/modules/agent-door/business-state.ts": {
+      "sha256": "fdce33b3b16e60856bde4089a9924d6df6c8ce864d48227c04b695764041a18a",
+      "executable": false
+    },
     "src/modules/agent-door/capabilities.d.mts": {
       "sha256": "af9a1d9f81a15df8caef2ab257c24b031dab60690984df557b9b82022888f339",
       "executable": false
@@ -4147,6 +4159,10 @@
     },
     "src/modules/agent-door/registry.ts": {
       "sha256": "2759ba22b30528c322a5d4605ed41c690fc0bf33f86c3e0a57c252bff20cef24",
+      "executable": false
+    },
+    "src/modules/agent-door/relay.ts": {
+      "sha256": "9d794eb6c245e7cb3f7d744cef8245c5620f0f3e6a25ab47ff705ef0549bf3de",
       "executable": false
     },
     "src/modules/agent-door/resource-tool.ts": {
@@ -6519,6 +6535,10 @@
     },
     "tests/journeys/xls-fixtures.mjs": {
       "sha256": "167830c4af4523f8b1b76f8ac0a2025adb33e3fae624d7d55a241e6ebeac431d",
+      "executable": false
+    },
+    "tests/mail-off.test.mjs": {
+      "sha256": "bfd82b11bf7ed72e30ab719961fbb7bccdf370361ed4554b5cb266567b94acd0",
       "executable": false
     },
     "tests/runtime.mjs": {
